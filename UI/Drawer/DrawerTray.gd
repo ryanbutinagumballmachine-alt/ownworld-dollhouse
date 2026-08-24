@@ -9,8 +9,8 @@ extends CanvasLayer
 
 const DRAWER_MAX_WIDTH: float = 780.0
 const DRAWER_HEIGHT: float = 230.0
-const CARD_WIDTH: float = 68.0
-const CARD_HEIGHT: float = 76.0
+const CARD_WIDTH: float = 74.0
+const CARD_HEIGHT: float = 82.0
 const GRID_SPACING: int = 6
 const TEMPLATES_DIR: String = "user://templates/"
 
@@ -502,7 +502,7 @@ func _update_responsive_columns() -> void:
 	var usable_w: float = target_w - 28.0
 	var col_stride: float = CARD_WIDTH + float(GRID_SPACING)
 	var max_cols: int = int((usable_w + float(GRID_SPACING)) / col_stride)
-	items_grid.columns = clampi(max_cols, 3, 9)
+	items_grid.columns = clampi(max_cols, 3, 10)
 
 func _render_breadcrumbs() -> void:
 	for child: Node in breadcrumbs_hbox.get_children():
@@ -562,9 +562,11 @@ func _navigate_up_one_folder() -> void:
 	refresh_tray()
 
 func _create_folder_grid_card(folder_name: String) -> void:
-	# BUTTON-BASED SCROLLING: Using Button instead of PanelContainer fixes mobile scroll blocking
 	var card: Button = Button.new()
 	card.custom_minimum_size = Vector2(CARD_WIDTH, CARD_HEIGHT)
+	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	card.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	card.clip_contents = true
 	card.focus_mode = Control.FOCUS_NONE
 	
 	var s_normal: StyleBoxFlat = StyleBoxFlat.new()
@@ -581,12 +583,17 @@ func _create_folder_grid_card(folder_name: String) -> void:
 
 	var vbox: VBoxContainer = VBoxContainer.new()
 	vbox.set_anchors_preset(Control.PRESET_FULL_RECT)
+	vbox.offset_left = 3.0
+	vbox.offset_top = 3.0
+	vbox.offset_right = -3.0
+	vbox.offset_bottom = -3.0
 	vbox.add_theme_constant_override("separation", 2)
-	vbox.alignment = BoxContainer.ALIGNMENT_CENTER
 	vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	card.add_child(vbox)
 
 	var action_row: HBoxContainer = HBoxContainer.new()
+	action_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	action_row.add_theme_constant_override("separation", 2)
 	action_row.mouse_filter = Control.MOUSE_FILTER_PASS
 	vbox.add_child(action_row)
 
@@ -600,25 +607,58 @@ func _create_folder_grid_card(folder_name: String) -> void:
 	btn_del_folder.pressed.connect(func() -> void: _request_delete_folder(cap_fname))
 	action_row.add_child(btn_del_folder)
 
+	var icon_box: PanelContainer = PanelContainer.new()
+	icon_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	icon_box.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	icon_box.custom_minimum_size = Vector2(0.0, 32.0)
+	icon_box.clip_contents = true
+	icon_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	var t_style: StyleBoxFlat = StyleBoxFlat.new()
+	t_style.bg_color = ThemeService.get_color("input_background", "#ffffff")
+	t_style.border_color = ThemeService.get_color("panel_border", "#f472b6")
+	t_style.set_border_width_all(1)
+	t_style.set_corner_radius_all(4)
+	icon_box.add_theme_stylebox_override("panel", t_style)
+
 	var icon_rect: TextureRect = TextureRect.new()
-	icon_rect.custom_minimum_size = Vector2(24.0, 24.0)
+	icon_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
 	icon_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	icon_rect.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	icon_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
 	var f_icon: Texture2D = ThemeService.get_icon("icon_folder")
 	if f_icon:
 		icon_rect.texture = f_icon
 		icon_rect.modulate = ThemeService.get_color("accent_primary", "#db2777")
-	vbox.add_child(icon_rect)
+	icon_box.add_child(icon_rect)
+	vbox.add_child(icon_box)
+
+	var label_box: PanelContainer = PanelContainer.new()
+	label_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	label_box.custom_minimum_size = Vector2(0.0, 16.0)
+	label_box.clip_contents = true
+	label_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	var l_style: StyleBoxFlat = t_style.duplicate() as StyleBoxFlat
+	l_style.content_margin_left = 2
+	l_style.content_margin_right = 2
+	l_style.content_margin_top = 1
+	l_style.content_margin_bottom = 1
+	label_box.add_theme_stylebox_override("panel", l_style)
 
 	var name_lbl: Label = Label.new()
 	name_lbl.text = folder_name
 	name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	name_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	name_lbl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	name_lbl.clip_text = true
+	name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_lbl.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	name_lbl.add_theme_font_size_override("font_size", 9)
 	name_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	vbox.add_child(name_lbl)
+	label_box.add_child(name_lbl)
+	vbox.add_child(label_box)
 
 	card.pressed.connect(func() -> void:
 		if current_folder_path == "" or current_folder_path == "Root": current_folder_path = cap_fname
@@ -674,19 +714,27 @@ func _create_asset_card(art_data: Dictionary, tex: Texture2D) -> void:
 	var item_key: String = fpath
 	var is_selected: bool = selected_batch_items.has(item_key)
 
-	# BUTTON-BASED SCROLLING
 	var card: Button = Button.new()
 	card.custom_minimum_size = Vector2(CARD_WIDTH, CARD_HEIGHT)
+	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	card.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	card.clip_contents = true
 	card.focus_mode = Control.FOCUS_NONE
 	_apply_card_selection_style(card, is_selected)
 
 	var vbox: VBoxContainer = VBoxContainer.new()
 	vbox.set_anchors_preset(Control.PRESET_FULL_RECT)
+	vbox.offset_left = 3.0
+	vbox.offset_top = 3.0
+	vbox.offset_right = -3.0
+	vbox.offset_bottom = -3.0
 	vbox.add_theme_constant_override("separation", 2)
 	vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	card.add_child(vbox)
 
 	var action_row: HBoxContainer = HBoxContainer.new()
+	action_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	action_row.add_theme_constant_override("separation", 2)
 	action_row.mouse_filter = Control.MOUSE_FILTER_PASS
 	vbox.add_child(action_row)
 
@@ -765,19 +813,27 @@ func _render_templates_tab(file_path: String, type: Types.EntityType, category_k
 
 		var tex: Texture2D = UGCManager.load_texture_from_file(img_path) if (img_path != "" and FileAccess.file_exists(img_path)) else null
 		
-		# BUTTON-BASED SCROLLING
 		var card: Button = Button.new()
 		card.custom_minimum_size = Vector2(CARD_WIDTH, CARD_HEIGHT)
+		card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		card.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		card.clip_contents = true
 		card.focus_mode = Control.FOCUS_NONE
 		_apply_card_selection_style(card, is_selected)
 
 		var vbox: VBoxContainer = VBoxContainer.new()
 		vbox.set_anchors_preset(Control.PRESET_FULL_RECT)
+		vbox.offset_left = 3.0
+		vbox.offset_top = 3.0
+		vbox.offset_right = -3.0
+		vbox.offset_bottom = -3.0
 		vbox.add_theme_constant_override("separation", 2)
 		vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		card.add_child(vbox)
 
 		var action_row: HBoxContainer = HBoxContainer.new()
+		action_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		action_row.add_theme_constant_override("separation", 2)
 		action_row.mouse_filter = Control.MOUSE_FILTER_PASS
 		vbox.add_child(action_row)
 
@@ -870,19 +926,27 @@ func _render_cast_tab() -> void:
 
 		var tex: Texture2D = UGCManager.load_texture_from_file(c_path) if (c_path != "" and FileAccess.file_exists(c_path)) else null
 		
-		# BUTTON-BASED SCROLLING
 		var card: Button = Button.new()
 		card.custom_minimum_size = Vector2(CARD_WIDTH, CARD_HEIGHT)
+		card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		card.size_flags_vertical = Control.SIZE_EXPAND_FILL
+		card.clip_contents = true
 		card.focus_mode = Control.FOCUS_NONE
 		_apply_card_selection_style(card, is_selected)
 
 		var vbox: VBoxContainer = VBoxContainer.new()
 		vbox.set_anchors_preset(Control.PRESET_FULL_RECT)
+		vbox.offset_left = 3.0
+		vbox.offset_top = 3.0
+		vbox.offset_right = -3.0
+		vbox.offset_bottom = -3.0
 		vbox.add_theme_constant_override("separation", 2)
 		vbox.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		card.add_child(vbox)
 
 		var action_row: HBoxContainer = HBoxContainer.new()
+		action_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		action_row.add_theme_constant_override("separation", 2)
 		action_row.mouse_filter = Control.MOUSE_FILTER_PASS
 		vbox.add_child(action_row)
 
@@ -1067,22 +1131,47 @@ func _on_batch_organization_saved(items: Array[Dictionary], mode_type: String, t
 
 func _create_card_icon_btn(icon_key: String, is_danger: bool = false) -> Button:
 	var btn: Button = Button.new()
-	btn.custom_minimum_size = Vector2(20.0, 20.0)
+	btn.custom_minimum_size = Vector2(18.0, 18.0)
+	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	btn.focus_mode = Control.FOCUS_NONE
 	btn.mouse_filter = Control.MOUSE_FILTER_STOP
 	btn.add_theme_constant_override("icon_max_width", 12)
-	if is_danger: btn.theme_type_variation = "DangerButton"
+
+	var s_btn: StyleBoxFlat = StyleBoxFlat.new()
+	s_btn.bg_color = ThemeService.get_color("danger_color", "#f43f5e") if is_danger else ThemeService.get_color("container_sub_bg", "#fdf2f4")
+	s_btn.border_color = ThemeService.get_color("panel_border", "#f472b6")
+	s_btn.set_border_width_all(1)
+	s_btn.set_corner_radius_all(3)
+	s_btn.content_margin_left = 1
+	s_btn.content_margin_right = 1
+	s_btn.content_margin_top = 1
+	s_btn.content_margin_bottom = 1
+	btn.add_theme_stylebox_override("normal", s_btn)
+
+	var s_hover: StyleBoxFlat = s_btn.duplicate() as StyleBoxFlat
+	s_hover.border_color = ThemeService.get_color("accent_primary", "#db2777")
+	if not is_danger:
+		s_hover.bg_color = ThemeService.get_color("accent_primary", "#db2777")
+	btn.add_theme_stylebox_override("hover", s_hover)
+	btn.add_theme_stylebox_override("pressed", s_hover)
+	btn.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
 
 	var icon_tex: Texture2D = ThemeService.get_icon(icon_key)
-	if icon_tex: btn.icon = icon_tex
+	if icon_tex:
+		btn.icon = icon_tex
+		btn.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		btn.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
 	else:
 		btn.text = "✕" if is_danger else "•"
 		btn.add_theme_font_size_override("font_size", 9)
 	return btn
 
 func _attach_card_visuals(vbox: VBoxContainer, tex: Texture2D, label_text: String) -> void:
+	# Upper Visual Thumbnail Box (Green Arrow)
 	var thumb_box: PanelContainer = PanelContainer.new()
-	thumb_box.custom_minimum_size = Vector2(38.0, 38.0)
+	thumb_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	thumb_box.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	thumb_box.custom_minimum_size = Vector2(0.0, 32.0)
 	thumb_box.clip_contents = true
 	thumb_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
@@ -1102,12 +1191,32 @@ func _attach_card_visuals(vbox: VBoxContainer, tex: Texture2D, label_text: Strin
 	thumb_box.add_child(thumb)
 	vbox.add_child(thumb_box)
 
+	# Lower Matching Name Box (Red Arrow)
+	var label_box: PanelContainer = PanelContainer.new()
+	label_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	label_box.custom_minimum_size = Vector2(0.0, 16.0)
+	label_box.clip_contents = true
+	label_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	var l_style: StyleBoxFlat = t_style.duplicate() as StyleBoxFlat
+	l_style.content_margin_left = 2
+	l_style.content_margin_right = 2
+	l_style.content_margin_top = 1
+	l_style.content_margin_bottom = 1
+	label_box.add_theme_stylebox_override("panel", l_style)
+
 	var lbl: Label = Label.new()
 	lbl.text = label_text
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	lbl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	lbl.clip_text = true
+	lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	lbl.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	lbl.add_theme_font_size_override("font_size", 9)
 	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	vbox.add_child(lbl)
+	label_box.add_child(lbl)
+	vbox.add_child(label_box)
 
 func _build_category_filter_buttons() -> void:
 	for child: Node in filter_scroll_container.get_children():
