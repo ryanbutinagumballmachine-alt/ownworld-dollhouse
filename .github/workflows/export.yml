@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 env:
-  GODOT_VERSION: "4.3"
+  GODOT_VERSION: "4.7.1"
   GODOT_STATUS: "stable"
   EXPORT_NAME: "OwnWorld_Dollhouse"
 
@@ -74,7 +74,7 @@ jobs:
           distribution: "temurin"
           java-version: "17"
 
-      - name: 📱 Setup Android SDK (with Build-Tools & Platforms)
+      - name: 📱 Setup Android SDK
         uses: android-actions/setup-android@v3
         with:
           packages: "platform-tools build-tools;34.0.0 platforms;android-34 cmdline-tools;latest"
@@ -109,7 +109,7 @@ jobs:
           CONFIG_DIR="$HOME/.config/godot"
           mkdir -p "$CONFIG_DIR"
           
-          cat <<EOF > "$CONFIG_DIR/editor_settings-4.tres"
+          SETTINGS_BODY=$(cat <<EOF
           [gd_resource type="EditorSettings" format=3]
 
           [resource]
@@ -119,12 +119,26 @@ jobs:
           export/android/debug_keystore_user = "androiddebugkey"
           export/android/debug_keystore_pass = "android"
           export/android/force_system_user = false
+          export/android/shutdown_adb_on_exit = true
           EOF
+          )
+          
+          # Compute major.minor version (e.g., 4.7 from 4.7.1)
+          MAJOR_MINOR=$(echo "${{ env.GODOT_VERSION }}" | cut -d. -f1,2)
+          
+          echo "$SETTINGS_BODY" > "$CONFIG_DIR/editor_settings-4.tres"
+          echo "$SETTINGS_BODY" > "$CONFIG_DIR/editor_settings-${MAJOR_MINOR}.tres"
+          echo "$SETTINGS_BODY" > "$CONFIG_DIR/editor_settings-${{ env.GODOT_VERSION }}.tres"
 
       - name: 🔨 Build Android APK
+        env:
+          GODOT_ANDROID_SDK_PATH: ${{ env.ANDROID_HOME }}
+          GODOT_ANDROID_KEYSTORE_DEBUG_PATH: ${{ github.workspace }}/debug.keystore
+          GODOT_ANDROID_KEYSTORE_DEBUG_USER: androiddebugkey
+          GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD: android
         run: |
           mkdir -p build/android
-          godot --headless --verbose --export-debug "Android" build/android/${{ env.EXPORT_NAME }}.apk
+          godot --headless --export-debug "Android" build/android/${{ env.EXPORT_NAME }}.apk
 
       - name: 🚀 Upload Android Artifact
         uses: actions/upload-artifact@v4
