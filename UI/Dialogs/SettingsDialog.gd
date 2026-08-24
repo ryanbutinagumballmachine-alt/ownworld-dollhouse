@@ -8,7 +8,7 @@ class_name SettingsDialog
 extends CanvasLayer
 
 const MAX_PANEL_WIDTH: float = 500.0
-const MAX_PANEL_HEIGHT: float = 560.0
+const MAX_PANEL_HEIGHT: float = 600.0
 const FACTORY_RESET_MARKER: String = "user://.ownworld_factory_reset"
 
 var root_backdrop: Control = null
@@ -27,6 +27,11 @@ var ui_scale_hdr: HBoxContainer = null
 var lbl_ui_scale: Label = null
 var ui_scale_val_lbl: Label = null
 var ui_scale_slider: HSlider = null
+
+var touch_padding_hdr: HBoxContainer = null
+var lbl_touch_padding: Label = null
+var touch_padding_val_lbl: Label = null
+var touch_padding_slider: HSlider = null
 
 var grid_check: CheckBox = null
 var toasts_check: CheckBox = null
@@ -137,7 +142,7 @@ func _build_ui() -> void:
 	vbox.add_theme_constant_override("separation", 10)
 	scroll.add_child(vbox)
 
-	# Audio Section
+	# --- Audio Section ---
 	var audio_card: PanelContainer = PanelContainer.new()
 	audio_card.theme_type_variation = "SubPanel"
 	vbox.add_child(audio_card)
@@ -193,7 +198,7 @@ func _build_ui() -> void:
 	music_slider.value_changed.connect(_on_music_volume_changed)
 	audio_inner.add_child(music_slider)
 
-	# Display / Interface Section
+	# --- Display / Interface Section ---
 	var display_card: PanelContainer = PanelContainer.new()
 	display_card.theme_type_variation = "SubPanel"
 	vbox.add_child(display_card)
@@ -203,10 +208,11 @@ func _build_ui() -> void:
 	display_card.add_child(display_inner)
 
 	var display_title: Label = Label.new()
-	display_title.text = "Display & Interface:"
+	display_title.text = "Display & Touch Controls:"
 	display_title.theme_type_variation = "HeaderLabel"
 	display_inner.add_child(display_title)
 
+	# UI Scale Slider
 	ui_scale_hdr = HBoxContainer.new()
 	display_inner.add_child(ui_scale_hdr)
 
@@ -231,6 +237,32 @@ func _build_ui() -> void:
 	ui_scale_slider.value_changed.connect(_on_ui_scale_changed)
 	display_inner.add_child(ui_scale_slider)
 
+	# Touch Padding Slider (New In-Game Tweak)
+	touch_padding_hdr = HBoxContainer.new()
+	display_inner.add_child(touch_padding_hdr)
+
+	lbl_touch_padding = Label.new()
+	lbl_touch_padding.text = "Touch / Grab Padding (Mobile):"
+	lbl_touch_padding.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	lbl_touch_padding.theme_type_variation = "HintLabel"
+	touch_padding_hdr.add_child(lbl_touch_padding)
+
+	var current_padding: float = SettingsManager.get_mobile_touch_padding()
+	touch_padding_val_lbl = Label.new()
+	touch_padding_val_lbl.text = "0 px (Exact)" if int(current_padding) == 0 else "%d px" % int(current_padding)
+	touch_padding_val_lbl.theme_type_variation = "HeaderLabel"
+	touch_padding_hdr.add_child(touch_padding_val_lbl)
+
+	touch_padding_slider = HSlider.new()
+	touch_padding_slider.min_value = 0.0
+	touch_padding_slider.max_value = 35.0
+	touch_padding_slider.step = 1.0
+	touch_padding_slider.custom_minimum_size = Vector2(0.0, 24.0)
+	touch_padding_slider.value = current_padding
+	touch_padding_slider.value_changed.connect(_on_touch_padding_changed)
+	display_inner.add_child(touch_padding_slider)
+
+	# Checkboxes
 	grid_check = _create_icon_check("icon_grid", "Magnetic Grid Snapping (32px)")
 	grid_check.button_pressed = bool(SettingsManager.settings_data.get("grid_snap", false))
 	grid_check.toggled.connect(_on_grid_snap_toggled)
@@ -246,7 +278,7 @@ func _build_ui() -> void:
 	dev_mode_check.toggled.connect(_on_dev_mode_toggled)
 	display_inner.add_child(dev_mode_check)
 
-	# System Danger Section
+	# --- System Danger Section ---
 	var danger_card: PanelContainer = PanelContainer.new()
 	danger_card.theme_type_variation = "SubPanel"
 	vbox.add_child(danger_card)
@@ -362,6 +394,10 @@ func open_settings() -> void:
 	ui_scale_slider.value = current_scale
 	ui_scale_val_lbl.text = "%d%%" % int(current_scale * 100.0)
 
+	var current_padding: float = SettingsManager.get_mobile_touch_padding()
+	touch_padding_slider.value = current_padding
+	touch_padding_val_lbl.text = "0 px (Exact)" if int(current_padding) == 0 else "%d px" % int(current_padding)
+
 	_update_responsive_layout()
 	visible = true
 
@@ -384,6 +420,10 @@ func _on_music_volume_changed(value: float) -> void:
 func _on_ui_scale_changed(value: float) -> void:
 	ui_scale_val_lbl.text = "%d%%" % int(value * 100.0)
 	SettingsManager.set_ui_scale(value)
+
+func _on_touch_padding_changed(value: float) -> void:
+	touch_padding_val_lbl.text = "0 px (Exact)" if int(value) == 0 else "%d px" % int(value)
+	SettingsManager.set_mobile_touch_padding(value)
 
 func _on_grid_snap_toggled(toggled_on: bool) -> void:
 	SettingsManager.set_grid_snap_enabled(toggled_on)

@@ -260,7 +260,15 @@ class DebugCanvasDraw extends Control:
 			var ent: OwnEntity = ent_var as OwnEntity
 			var ent_screen_pos: Vector2 = _world_to_screen(ent.global_position, cam)
 
-			if ent.collision_poly.size() >= 3:
+			if not ent.collision_polygons.is_empty():
+				for poly: PackedVector2Array in ent.collision_polygons:
+					if poly.size() >= 3:
+						var screen_pts: PackedVector2Array = PackedVector2Array()
+						for pt: Vector2 in poly:
+							screen_pts.append(_world_to_screen(ent.to_global(pt), cam))
+						draw_polyline(screen_pts, Color("#000000", 0.9), 3.5, true)
+						draw_polyline(screen_pts, Color("#22c55e", 0.95), 2.0, true)
+			elif ent.collision_poly.size() >= 3:
 				var screen_pts: PackedVector2Array = PackedVector2Array()
 				for pt: Vector2 in ent.collision_poly:
 					screen_pts.append(_world_to_screen(ent.to_global(pt), cam))

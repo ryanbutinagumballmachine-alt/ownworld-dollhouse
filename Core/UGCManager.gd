@@ -1,7 +1,3 @@
-# ============================================================
-# File: res://Core/UGCManager.gd
-# ============================================================
-
 # ==============================================================================
 # OWNWORLD — UGC MANAGER & DOCUMENTS HUB
 # File: res://Core/UGCManager.gd
@@ -12,14 +8,16 @@ class_name UGCManager
 extends RefCounted
 
 const DEFAULT_MAX_TEXTURE_DIMENSION: int = 2048
-const DEFAULT_ALPHA_CUTOFF: float = 0.2
-const DEFAULT_ALPHA_EPSILON: float = 2.0
+const DEFAULT_ALPHA_CUTOFF: float = 0.001
+const DEFAULT_ALPHA_EPSILON: float = 1.5
 const SUPPORTED_ART_EXTENSIONS: Array[String] = ["png", "jpg", "jpeg", "webp"]
 const SUPPORTED_FONT_EXTENSIONS: Array[String] = ["ttf", "otf", "woff", "woff2"]
 const SUPPORTED_AUDIO_EXTENSIONS: Array[String] = ["mp3", "ogg", "wav"]
 
 static var texture_cache: Dictionary = {}
 static var polygon_cache: Dictionary = {}
+static var all_polygons_cache: Dictionary = {}
+static var bitmap_cache: Dictionary = {}
 
 # --- DOCUMENTS HUB PATHS ---
 
@@ -157,12 +155,7 @@ static func load_texture_from_file(file_path: String, max_dimension: int = DEFAU
 
 	var used_rect: Rect2i = image.get_used_rect()
 	if used_rect.has_area() and used_rect.size != image.get_size():
-		const TRIM_PADDING: int = 4
-		var x0: int = maxi(0, used_rect.position.x - TRIM_PADDING)
-		var y0: int = maxi(0, used_rect.position.y - TRIM_PADDING)
-		var x1: int = mini(image.get_width(), used_rect.end.x + TRIM_PADDING)
-		var y1: int = mini(image.get_height(), used_rect.end.y + TRIM_PADDING)
-		image = image.get_region(Rect2i(x0, y0, x1 - x0, y1 - y0))
+		image = image.get_region(used_rect)
 
 	var original_width: int = image.get_width()
 	var original_height: int = image.get_height()
@@ -192,15 +185,73 @@ static func clear_cache_for_path(file_path: String) -> void:
 		return
 	var cached_value: Variant = texture_cache[clean_path]
 	if cached_value is Texture2D:
-		polygon_cache.erase((cached_value as Texture2D).get_rid())
+		var rid: RID = (cached_value as Texture2D).get_rid()
+		polygon_cache.erase(rid)
+		all_polygons_cache.erase(rid)
+		bitmap_cache.erase(rid)
 	texture_cache.erase(clean_path)
 
 static func clear_texture_cache() -> void:
 	texture_cache.clear()
 	polygon_cache.clear()
+	all_polygons_cache.clear()
+	bitmap_cache.clear()
 
 static func get_texture_cache_size() -> int: return texture_cache.size()
 static func get_polygon_cache_size() -> int: return polygon_cache.size()
+
+static func generate_alpha_bitmap(tex: Texture2D, alpha_cutoff: float = DEFAULT_ALPHA_CUTOFF) -> BitMap:
+	if tex == null:
+		return null
+	var texture_rid: RID = tex.get_rid()
+	if bitmap_cache.has(texture_rid):
+		var cached_bitmap: Variant = bitmap_cache[texture_rid]
+		if cached_bitmap is BitMap:
+			return cached_bitmap as BitMap
+		bitmap_cache.erase(texture_rid)
+
+	var image: Image = tex.get_image()
+	if image == null or image.is_empty():
+		return null
+
+	var bitmap: BitMap = BitMap.new()
+	bitmap.create_from_image_alpha(image, clampf(alpha_cutoff, 0.0, 1.0))
+	bitmap_cache[texture_rid] = bitmap
+	return bitmap
+
+static func generate_alpha_collision_polygons(tex: Texture2D, alpha_cutoff: float = DEFAULT_ALPHA_CUTOFF, epsilon: float = DEFAULT_ALPHA_EPSILON) -> Array[PackedVector2Array]:
+	if tex == null:
+		return []
+
+	var texture_rid: RID = tex.get_rid()
+	if all_polygons_cache.has(texture_rid):
+		var cached_polygons: Variant = all_polygons_cache[texture_rid]
+		if cached_polygons is Array:
+			return cached_polygons as Array[PackedVector2Array]
+		all_polygons_cache.erase(texture_rid)
+
+	var bitmap: BitMap = generate_alpha_bitmap(tex, alpha_cutoff)
+	if bitmap == null:
+		return []
+
+	var image_size: Vector2 = Vector2(bitmap.get_size())
+	if image_size.x <= 0 or image_size.y <= 0:
+		return []
+
+	var image_rect: Rect2 = Rect2(Vector2.ZERO, image_size)
+	var raw_polygons: Array[PackedVector2Array] = bitmap.opaque_to_polygons(image_rect, maxf(epsilon, 0.01))
+	var center_offset: Vector2 = -image_size * 0.5
+	var centered_polygons: Array[PackedVector2Array] = []
+
+	for poly in raw_polygons:
+		if poly.size() >= 3:
+			var centered_poly: PackedVector2Array = PackedVector2Array()
+			for pt in poly:
+				centered_poly.append(pt + center_offset)
+			centered_polygons.append(centered_poly)
+
+	all_polygons_cache[texture_rid] = centered_polygons
+	return centered_polygons
 
 static func generate_alpha_collision_polygon(tex: Texture2D, alpha_cutoff: float = DEFAULT_ALPHA_CUTOFF, epsilon: float = DEFAULT_ALPHA_EPSILON) -> PackedVector2Array:
 	if tex == null:
@@ -213,14 +264,7 @@ static func generate_alpha_collision_polygon(tex: Texture2D, alpha_cutoff: float
 			return cached_polygon as PackedVector2Array
 		polygon_cache.erase(texture_rid)
 
-	var image: Image = tex.get_image()
-	if image == null or image.is_empty():
-		return PackedVector2Array()
-
-	var bitmap: BitMap = BitMap.new()
-	bitmap.create_from_image_alpha(image, clampf(alpha_cutoff, 0.0, 1.0))
-	var image_rect: Rect2 = Rect2(Vector2.ZERO, Vector2(image.get_size()))
-	var polygons: Array[PackedVector2Array] = bitmap.opaque_to_polygons(image_rect, maxf(epsilon, 0.01))
+	var polygons: Array[PackedVector2Array] = generate_alpha_collision_polygons(tex, alpha_cutoff, epsilon)
 
 	if not polygons.is_empty():
 		var best_polygon: PackedVector2Array = polygons[0]
@@ -228,13 +272,8 @@ static func generate_alpha_collision_polygon(tex: Texture2D, alpha_cutoff: float
 			if polygons[index].size() > best_polygon.size():
 				best_polygon = polygons[index]
 
-		var center_offset: Vector2 = -Vector2(image.get_size()) * 0.5
-		var centered_polygon: PackedVector2Array = PackedVector2Array()
-		for point: Vector2 in best_polygon:
-			centered_polygon.append(point + center_offset)
-
-		polygon_cache[texture_rid] = centered_polygon
-		return centered_polygon
+		polygon_cache[texture_rid] = best_polygon
+		return best_polygon
 
 	var empty_polygon: PackedVector2Array = PackedVector2Array()
 	polygon_cache[texture_rid] = empty_polygon

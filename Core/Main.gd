@@ -460,7 +460,7 @@ func _handle_press_begin(world_pos: Vector2, screen_pos: Vector2) -> void:
 	current_pointer_world_pos = world_pos
 	press_start_time = Time.get_ticks_msec() / 1000.0
 
-	var touch_padding: float = 20.0 if (OS.has_feature("mobile") or active_touch_count > 0) else 0.0
+	var touch_padding: float = SettingsManager.get_touch_padding(active_touch_count > 0)
 	var topmost: OwnEntity = _get_topmost_at(world_pos, touch_padding)
 	pressed_target_entity = topmost
 

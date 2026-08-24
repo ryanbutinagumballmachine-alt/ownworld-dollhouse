@@ -97,10 +97,11 @@ func _find_topmost(world_pos: Vector2) -> OwnEntity:
 	var best_z: int = -2147483648
 	if entity_root == null:
 		return null
+	var touch_padding: float = SettingsManager.get_touch_padding(active_touch_count > 0)
 	for child: Node in entity_root.get_children():
 		if not child is OwnEntity: continue
 		var entity: OwnEntity = child as OwnEntity
-		if not entity.visible or not entity.contains_point(world_pos): continue
+		if not entity.visible or not entity.contains_point(world_pos, touch_padding): continue
 		if entity.z_index >= best_z:
 			best_z = entity.z_index
 			best = entity

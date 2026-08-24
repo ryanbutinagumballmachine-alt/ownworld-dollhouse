@@ -1,6 +1,6 @@
 # ==============================================================================
 # OWNWORLD — ENTITY RUNTIME INSTANCE
-# File: res://Core/OwnEntity.gd
+# File: res://Core/Entities/OwnEntity.gd
 # Base Class: Area2D (class_name OwnEntity)
 # ==============================================================================
 
@@ -39,6 +39,8 @@ var main_texture: Texture2D = null
 var texture_path: String = ""
 var texture_size: Vector2 = Vector2.ZERO
 var collision_poly: PackedVector2Array = PackedVector2Array()
+var collision_polygons: Array[PackedVector2Array] = []
+var alpha_bitmap: BitMap = null
 static var silhouette_glow_shader: Shader = null
 
 # 6-Pose Whole-Sprite Matrix & Animation Clips
@@ -770,7 +772,6 @@ func _ensure_glow_shader() -> void:
 	silhouette_glow_shader = Shader.new()
 	var is_mobile: bool = OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios")
 
-	# OPTIMIZED SHADER: 9 samples on Mobile vs 25 samples on Desktop for better thermal & battery profile
 	if is_mobile:
 		silhouette_glow_shader.code = """
 shader_type canvas_item;
@@ -942,13 +943,28 @@ func switch_wardrobe_form(form_name: String) -> void:
 
 func _recalculate_collision_geometry(tex: Texture2D) -> void:
 	if not tex:
+		collision_poly = PackedVector2Array()
+		collision_polygons.clear()
+		alpha_bitmap = null
+		if collision_polygon_node:
+			collision_polygon_node.polygon = collision_poly
 		return
-	collision_poly = UGCManager.generate_alpha_collision_polygon(tex, 0.2, 2.0)
+
+	alpha_bitmap = UGCManager.generate_alpha_bitmap(tex, 0.001)
+	collision_polygons = UGCManager.generate_alpha_collision_polygons(tex, 0.001, 1.5)
+	collision_poly = UGCManager.generate_alpha_collision_polygon(tex, 0.001, 1.5)
 	if collision_polygon_node:
 		collision_polygon_node.polygon = collision_poly
 
 func get_visual_bottom_offset_local() -> float:
-	if collision_poly.size() >= 3:
+	if not collision_polygons.is_empty():
+		var max_y: float = -999999.0
+		for poly: PackedVector2Array in collision_polygons:
+			for pt: Vector2 in poly:
+				if pt.y > max_y: max_y = pt.y
+		if max_y > -900000.0:
+			return max_y
+	elif collision_poly.size() >= 3:
 		var max_y: float = -999999.0
 		for pt: Vector2 in collision_poly:
 			if pt.y > max_y: max_y = pt.y
@@ -959,7 +975,15 @@ func get_visual_bottom_offset() -> float:
 	return get_visual_bottom_offset_local() * entity_scale
 
 func get_visual_half_width() -> float:
-	if collision_poly.size() >= 3:
+	if not collision_polygons.is_empty():
+		var max_x: float = 0.0
+		for poly: PackedVector2Array in collision_polygons:
+			for pt: Vector2 in poly:
+				var ax: float = absf(pt.x)
+				if ax > max_x: max_x = ax
+		if max_x > 0.0:
+			return max_x * entity_scale
+	elif collision_poly.size() >= 3:
 		var max_x: float = 0.0
 		for pt: Vector2 in collision_poly:
 			var ax: float = absf(pt.x)
@@ -1220,7 +1244,36 @@ func set_slice_ratio(ratio: float) -> void:
 
 func contains_point(world_p: Vector2, touch_padding: float = 0.0) -> bool:
 	var local_p: Vector2 = to_local(world_p)
-	var scaled_padding: float = touch_padding / (absf(entity_scale) if entity_scale != 0.0 else 1.0)
+	var scale_mag: float = absf(entity_scale) if entity_scale != 0.0 else 1.0
+	var scaled_padding: float = touch_padding / scale_mag
+
+	# 1. Pixel BitMap test (treating all translucent pixels as solid, ignoring fully transparent ones)
+	if alpha_bitmap != null and texture_size.x > 0.0 and texture_size.y > 0.0:
+		var uv_pos: Vector2 = local_p + (texture_size * 0.5)
+		var px: int = int(floor(uv_pos.x))
+		var py: int = int(floor(uv_pos.y))
+		var bm_size: Vector2i = alpha_bitmap.get_size()
+
+		if px >= 0 and px < bm_size.x and py >= 0 and py < bm_size.y:
+			if alpha_bitmap.get_bit(px, py):
+				return true
+			elif scaled_padding <= 0.0:
+				return false
+
+	# 2. Polygon islands containment and contour distance checks
+	if not collision_polygons.is_empty():
+		for poly: PackedVector2Array in collision_polygons:
+			if poly.size() >= 3:
+				if Geometry2D.is_point_in_polygon(local_p, poly):
+					return true
+				if scaled_padding > 0.0:
+					for i: int in range(poly.size()):
+						var p1: Vector2 = poly[i]
+						var p2: Vector2 = poly[(i + 1) % poly.size()]
+						var closest_point: Vector2 = Geometry2D.get_closest_point_to_segment(local_p, p1, p2)
+						if local_p.distance_to(closest_point) <= scaled_padding:
+							return true
+		return false
 
 	if collision_poly.size() >= 3:
 		if Geometry2D.is_point_in_polygon(local_p, collision_poly):
@@ -1232,10 +1285,14 @@ func contains_point(world_p: Vector2, touch_padding: float = 0.0) -> bool:
 				var closest_point: Vector2 = Geometry2D.get_closest_point_to_segment(local_p, p1, p2)
 				if local_p.distance_to(closest_point) <= scaled_padding:
 					return true
-			return false
+		return false
 
-	var half: Vector2 = (texture_size * 0.5) + Vector2(scaled_padding, scaled_padding)
-	return Rect2(-half, half * 2.0).has_point(local_p)
+	# Fallback only when no bitmap/polygon exists and padding is explicitly requested
+	if scaled_padding > 0.0 and texture_size != Vector2.ZERO:
+		var half: Vector2 = (texture_size * 0.5) + Vector2(scaled_padding, scaled_padding)
+		return Rect2(-half, half * 2.0).has_point(local_p)
+
+	return false
 
 func _kill_active_tween() -> void:
 	if active_tween and active_tween.is_valid():

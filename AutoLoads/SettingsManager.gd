@@ -19,6 +19,10 @@ const DEFAULT_SHOW_TOASTS: bool = true
 const DEFAULT_HAPTICS_ENABLED: bool = true
 const DEFAULT_DEVELOPER_MODE: bool = false
 
+const DEFAULT_MOBILE_TOUCH_PADDING: float = 8.0
+const MIN_TOUCH_PADDING: float = 0.0
+const MAX_TOUCH_PADDING: float = 40.0
+
 const MIN_UI_SCALE: float = 0.75
 const MAX_UI_SCALE: float = 2.5
 
@@ -41,7 +45,8 @@ func load_settings() -> void:
 		"grid_size": DEFAULT_GRID_SIZE,
 		"show_toasts": DEFAULT_SHOW_TOASTS,
 		"haptics_enabled": DEFAULT_HAPTICS_ENABLED,
-		"developer_mode": DEFAULT_DEVELOPER_MODE
+		"developer_mode": DEFAULT_DEVELOPER_MODE,
+		"touch_padding": DEFAULT_MOBILE_TOUCH_PADDING
 	}
 	
 	var stored_data: Dictionary = JsonFileStore.read_dictionary(PATH_SETTINGS_FILE)
@@ -77,13 +82,27 @@ func _normalize_settings() -> void:
 	settings_data["show_toasts"] = bool(settings_data.get("show_toasts", DEFAULT_SHOW_TOASTS))
 	settings_data["haptics_enabled"] = bool(settings_data.get("haptics_enabled", DEFAULT_HAPTICS_ENABLED))
 	settings_data["developer_mode"] = bool(settings_data.get("developer_mode", DEFAULT_DEVELOPER_MODE))
+	settings_data["touch_padding"] = clampf(float(settings_data.get("touch_padding", DEFAULT_MOBILE_TOUCH_PADDING)), MIN_TOUCH_PADDING, MAX_TOUCH_PADDING)
 
+# --- TOUCH / HIT-TEST PADDING API ---
+func get_mobile_touch_padding() -> float:
+	return float(settings_data.get("touch_padding", DEFAULT_MOBILE_TOUCH_PADDING))
+
+func set_mobile_touch_padding(value: float) -> void:
+	settings_data["touch_padding"] = clampf(value, MIN_TOUCH_PADDING, MAX_TOUCH_PADDING)
+	save_settings()
+
+func get_touch_padding(has_active_touch: bool = false) -> float:
+	if OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios") or has_active_touch:
+		return get_mobile_touch_padding()
+	return 0.0
+
+# --- UI SCALING & AUDIO API ---
 func get_recommended_ui_scale() -> float:
 	var screen_dpi: float = DisplayServer.screen_get_dpi()
 	var screen_size: Vector2i = DisplayServer.screen_get_size()
 
 	if OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios"):
-		# High DPI mobile screens need larger UI to respect the "Fat Finger" rule
 		if screen_dpi > 400.0: return 1.6
 		if screen_dpi > 280.0: return 1.4
 		if minf(float(screen_size.x), float(screen_size.y)) >= 900.0: return 1.4
