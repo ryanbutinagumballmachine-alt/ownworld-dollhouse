@@ -1,0 +1,39 @@
+# http://editorconfig.org
+root = true
+
+# ==============================================================================
+# Global defaults across all files
+# ==============================================================================
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+
+# ==============================================================================
+# Godot Scripts & Shaders (Official Godot standard: Tabs)
+# ==============================================================================
+[*.{gd,gdshader,shader}]
+indent_style = tab
+indent_size = tab
+
+# ==============================================================================
+# Godot Engine Configuration & Scenes
+# ==============================================================================
+[*.{godot,tscn,tres,import,cfg}]
+indent_style = tab
+indent_size = tab
+
+# ==============================================================================
+# C# (If you use C# scripts alongside GDScript)
+# ==============================================================================
+[*.cs]
+indent_style = space
+indent_size = 4
+
+# ==============================================================================
+# Data & Markup Files (JSON saves, Markdown, YAML)
+# ==============================================================================
+[*.{json,yml,yaml,md}]
+indent_style = space
+indent_size = 2
