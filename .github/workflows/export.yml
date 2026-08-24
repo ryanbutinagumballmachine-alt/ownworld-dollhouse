@@ -104,7 +104,7 @@ jobs:
           mv templates/* ~/.local/share/godot/export_templates/${{ env.GODOT_VERSION }}.${{ env.GODOT_STATUS }}/
           rm -rf templates Godot_v*
 
-      - name: ⚙️ Configure Godot Editor Settings
+      - name: ⚙️ Configure Godot Editor Settings & Project Textures
         run: |
           CONFIG_DIR="$HOME/.config/godot"
           mkdir -p "$CONFIG_DIR"
@@ -123,12 +123,22 @@ jobs:
           EOF
           )
           
-          # Compute major.minor version (e.g., 4.7 from 4.7.1)
           MAJOR_MINOR=$(echo "${{ env.GODOT_VERSION }}" | cut -d. -f1,2)
-          
           echo "$SETTINGS_BODY" > "$CONFIG_DIR/editor_settings-4.tres"
           echo "$SETTINGS_BODY" > "$CONFIG_DIR/editor_settings-${MAJOR_MINOR}.tres"
           echo "$SETTINGS_BODY" > "$CONFIG_DIR/editor_settings-${{ env.GODOT_VERSION }}.tres"
+
+          # Ensure ETC2/ASTC compression is enabled in project.godot
+          if ! grep -q "textures/vram_compression/import_etc2_astc" project.godot; then
+            if ! grep -q "\[rendering\]" project.godot; then
+              echo -e "\n[rendering]\ntextures/vram_compression/import_etc2_astc=true" >> project.godot
+            else
+              sed -i '/\[rendering\]/a textures/vram_compression/import_etc2_astc=true' project.godot
+            fi
+          fi
+
+          # Re-import assets with the newly enabled compression format
+          godot --headless --editor --quit-after 5 || true
 
       - name: 🔨 Build Android APK
         env:
