@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           lfs: true
 
@@ -50,7 +50,7 @@ jobs:
           zip -r ../${{ env.EXPORT_NAME }}_Windows.zip .
 
       - name: 🚀 Upload Windows Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: ${{ env.EXPORT_NAME }}-Windows
           path: build/${{ env.EXPORT_NAME }}_Windows.zip
@@ -64,18 +64,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: 📥 Checkout Repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           lfs: true
 
       - name: ☕ Setup Java JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: "temurin"
           java-version: "17"
 
       - name: 📱 Setup Android SDK
-        uses: android-actions/setup-android@v3
+        uses: android-actions/setup-android@v4
         with:
           packages: "platform-tools build-tools;34.0.0 platforms;android-34 cmdline-tools;latest"
 
@@ -104,7 +104,7 @@ jobs:
           mv templates/* ~/.local/share/godot/export_templates/${{ env.GODOT_VERSION }}.${{ env.GODOT_STATUS }}/
           rm -rf templates Godot_v*
 
-      - name: ⚙️ Configure Godot Editor Settings & Project Textures
+      - name: ⚙️ Configure Godot Editor Settings & Textures
         run: |
           CONFIG_DIR="$HOME/.config/godot"
           mkdir -p "$CONFIG_DIR"
@@ -151,7 +151,7 @@ jobs:
           godot --headless --export-debug "Android" build/android/${{ env.EXPORT_NAME }}.apk
 
       - name: 🚀 Upload Android Artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: ${{ env.EXPORT_NAME }}-Android-APK
           path: build/android/${{ env.EXPORT_NAME }}.apk
@@ -169,13 +169,13 @@ jobs:
       contents: write
     steps:
       - name: 📥 Download Windows Artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: ${{ env.EXPORT_NAME }}-Windows
           path: release/
 
       - name: 📥 Download Android Artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: ${{ env.EXPORT_NAME }}-Android-APK
           path: release/
