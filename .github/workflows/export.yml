@@ -74,8 +74,10 @@ jobs:
           distribution: "temurin"
           java-version: "17"
 
-      - name: 📱 Setup Android SDK
+      - name: 📱 Setup Android SDK (with Build-Tools & Platforms)
         uses: android-actions/setup-android@v3
+        with:
+          packages: "platform-tools build-tools;34.0.0 platforms;android-34 cmdline-tools;latest"
 
       - name: 🔑 Generate Keystore
         run: |
@@ -104,13 +106,9 @@ jobs:
 
       - name: ⚙️ Configure Godot Editor Settings
         run: |
-          # Generate initial editor settings file
-          godot --headless --editor --quit-after 2 || true
-          
           CONFIG_DIR="$HOME/.config/godot"
           mkdir -p "$CONFIG_DIR"
           
-          # Write exact paths for Godot 4 Android exporter
           cat <<EOF > "$CONFIG_DIR/editor_settings-4.tres"
           [gd_resource type="EditorSettings" format=3]
 
@@ -126,7 +124,7 @@ jobs:
       - name: 🔨 Build Android APK
         run: |
           mkdir -p build/android
-          godot --headless --export-debug "Android" build/android/${{ env.EXPORT_NAME }}.apk
+          godot --headless --verbose --export-debug "Android" build/android/${{ env.EXPORT_NAME }}.apk
 
       - name: 🚀 Upload Android Artifact
         uses: actions/upload-artifact@v4
