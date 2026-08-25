@@ -1,5 +1,5 @@
 # ==============================================================================
-# OWNWORLD - IN-GAME TUTORIAL & CREATOR HANDBOOK
+# OWNWORLD — IN-GAME TUTORIAL & CREATOR HANDBOOK
 # File: res://UI/Dialogs/TutorialDialog.gd
 # Base Class: CanvasLayer (class_name TutorialDialog)
 # ==============================================================================
@@ -37,19 +37,23 @@ var tutorial_chapters: Array[Dictionary] = [
 		"sections": [
 			{
 				"title": "Welcome to OwnWorld: Dollhouse!",
-				"body": "OwnWorld: Dollhouse is an open 2D storytelling, dollhouse, and worldbuilding sandbox. Everything you see (characters, furniture, food, rooms, and logic) can be interacted with, customized, or created from scratch using your own drawings."
+				"body": "OwnWorld: Dollhouse is an open 2D storytelling, dollhouse, and worldbuilding sandbox. Everything you see—characters, furniture, food, room layouts, and cause-and-effect logic—can be customized or created from scratch using your own drawings."
 			},
 			{
-				"title": "Navigation & Camera Controls",
-				"body": "• Pan / Move Camera: Click or drag on empty room space, or drag with two fingers on mobile / trackpads.\n• Zoom In & Out: Use your Mouse Scroll Wheel or pinch with two fingers on mobile screens.\n• Recenter: If you ever lose your place, open the Top Nav Bar and pan back toward the center."
+				"title": "Side-Scrolling by Default",
+				"body": "• Horizontal Gliding: Rooms fit your device screen height with zero up/down scrolling. Drag any empty background area left or right with your mouse or finger to glide smoothly between room slices.\n• Screen-Fitting View: Each room slice is automatically formatted to fit your screen aspect ratio perfectly."
+			},
+			{
+				"title": "Focus / Zoom Mode",
+				"body": "• Focus Toggle: Tap the 'Zoom' button in the Top Nav Bar to unlock free 2D camera control, mouse wheel zooming, and multi-touch pinch-to-zoom.\n• Inspecting Details: Zoom in close to focus on character faces, fine drawings, or intricate prop setups.\n• Return to Normal: Tap 'Focus' in the Top Nav Bar again to smoothly reset back to default side-scrolling mode."
 			},
 			{
 				"title": "Interacting with Objects",
-				"body": "• Tap / Click: Tap on lights, doors, containers, or appliances to trigger their default action (turn on/off, open/close, toggle).\n• Drag & Drop: Press and hold any unlocked item or character to pick it up. Drop it onto tables, chairs, characters, or containers to attach or store it.\n• Long-Press / Right-Click: Hold down on any item or character (or right-click with a mouse) to summon the Magic Wheel context menu!"
+				"body": "• Tap / Click: Tap on lights, doors, containers, or appliances to trigger their default action (turn on/off, open/close, toggle).\n• Drag & Drop: Press and drag any unlocked item or character. Drop them onto chairs, tables, beds, or other characters to snap them into place.\n• Magic Wheel: Long-press any item or character (or right-click) to open the Magic Wheel context menu for rapid customization, wardrobe changes, and logic scripting."
 			},
 			{
 				"title": "The Bottom Drawer Tray",
-				"body": "Tap the floating '▲' button at the bottom of the screen to open your Drawer Tray. This gives you instant access to your imported Art Assets, saved Props, Furniture prefabs, and your Cast Roster."
+				"body": "Tap the floating '▲' button at the bottom of the screen to open your Drawer Tray. This gives you instant access to your imported Art drawings, saved Props, Furniture prefabs, and your Cast Roster."
 			}
 		]
 	},
@@ -61,7 +65,7 @@ var tutorial_chapters: Array[Dictionary] = [
 		"sections": [
 			{
 				"title": "Where Your Drawings Live",
-				"body": "OwnWorld automatically watches your device's Documents directory. You can place your custom transparent drawings into:\n\n📁 Documents / OwnWorld / Dollhouse / Art\n\nAny PNG, WebP, JPG, or JPEG placed in this folder (or any subfolder inside it) will appear instantly in your Assets Drawer with zero loading lag."
+				"body": "OwnWorld automatically manages your drawings inside your device's Documents directory:\n\n📁 Documents / OwnWorld / Dollhouse / Art\n\nAny transparent PNG, WebP, JPG, or JPEG placed in this folder (or any subfolder inside it) will appear instantly in your Assets Drawer with zero loading lag."
 			},
 			{
 				"title": "Creating Perfect Transparent Cutouts",
@@ -167,25 +171,33 @@ var tutorial_chapters: Array[Dictionary] = [
 	},
 	{
 		"id": "rooms_elevators_map",
-		"title": "7. Rooms, Elevators & World Map",
+		"title": "7. Rooms, Slices, Elevators & Maps",
 		"icon": "icon_room",
 		"badge": "Worldbuilding",
 		"sections": [
 			{
-				"title": "Room & Wallpaper Studio",
-				"body": "Tap 'Room' in the Top Nav Bar to customize the current scene:\n• Room Background: Select any drawing from your Art library to serve as the wallpaper.\n• Fill Modes: Choose Aspect Cover, Aspect Fit, Stretch, Tile (for seamless patterns), or 1:1 Original.\n• Floor Baseline: Drag the floor slider to set the ground level where characters and furniture naturally walk and rest."
+				"title": "Room & Expansion Studio",
+				"body": "Tap 'Room' in the Top Nav Bar to customize your active room layout, expand room space, set floor levels, and configure weather environments."
 			},
 			{
-				"title": "Doorways & Portals",
-				"body": "Any object or door frame can be marked as a Portal. Configure its Destination Room ID in the Magic Wheel. Dragging a character onto the doorway will smoothly transport them into the target room!"
+				"title": "Multi-Slice Room Expansion (Up to 10 Screens Wide)",
+				"body": "• 1 Slice = 1 Screen: Every slice is tailored to the exact width and height of your device display.\n• Expand Space: Tap '+ Add Room Slice' to expand your room up to 10 slices long. You can build expansive multi-room corridors, mega-mansions, or outdoor streets that scroll seamlessly side-to-side without any vertical scrolling."
 			},
 			{
-				"title": "Multi-Floor Elevators",
-				"body": "Elevators can hold multiple passengers simultaneously! Open the Elevator Studio to assign floor numbers and room IDs (e.g. '1F Lobby -> room_lobby', '2F Penthouse -> room_penthouse'). Tapping the elevator opens an interactive keypad: passengers inside the cabin travel together upon arrival!"
+				"title": "Procedural Wall, Floor & Baseboard Shading",
+				"body": "• Procedural Slices: Slices without custom artwork automatically render a distinct Upper Wall, Molding Baseboard, and Lower Floor.\n• Alternating Colors: Slices use alternating color tones and vertical divider seams so you can easily tell when you've scrolled into the next room section.\n• Live Floor Slider: Dragging the Floor Baseline slider in the Room Studio dynamically resizes the wall and floor across all procedural slices in real time!"
 			},
 			{
-				"title": "Interactive World Maps",
-				"body": "Open 'World Maps' from the Main Menu or Top Nav Bar:\n• Set custom world map artwork.\n• Switch to 'Edit' mode to drop, drag, and configure Location Pins pointing to different rooms in your Universe.\n• In 'Play' mode, tap any pin to immediately travel to that location."
+				"title": "Custom Art as Physical Baseline",
+				"body": "• Per-Slice Custom Backgrounds: Select any slice in the Room Studio and assign a custom drawing from your Art library.\n• Baseline Function: When custom art is assigned to a slice, procedural wall/floor graphics are hidden and your art takes visual focus. The Floor Baseline line then defines the physical ground level where characters walk and furniture rests."
+			},
+			{
+				"title": "Combination Rooms (Per-Slice Indoors vs. Outdoors)",
+				"body": "• Mixed Environments: Each slice can be set independently as '🏠 Indoors' or '🌳 Outdoors'.\n• Realistic Weather: Precipitation (rain, snow, autumn leaves) falls only across outdoor slices. Slices marked as indoors remain completely dry, letting you build houses with outdoor patios, open-air balconies, or attached rooftop gardens!"
+			},
+			{
+				"title": "Doorways, Elevators & World Maps",
+				"body": "• Portals & Doors: Mark any prop as a Doorway and configure its target room. Dragging characters to it teleports them to their destination.\n• Elevators: Transport multiple characters across floors with interactive cabin keypads.\n• World Map: Place interactive location pins on your universe map for quick-travel navigation."
 			}
 		]
 	},
@@ -217,7 +229,7 @@ var tutorial_chapters: Array[Dictionary] = [
 			},
 			{
 				"title": "Exporting (.ownpack)",
-				"body": "Tap 'Export Active (.ownpack)' in the Universe Hub to bundle your entire story universe (including all rooms, custom drawings, Cast characters, recipes, maps, and lore) into a single `.ownpack` zip package saved to:\n\n📁 Documents / OwnWorld / Dollhouse / Exports"
+				"body": "Tap 'Export Active (.ownpack)' in the Universe Hub to bundle your entire story universe (including all room slices, custom drawings, Cast characters, recipes, maps, and lore) into a single `.ownpack` zip package saved to:\n\n📁 Documents / OwnWorld / Dollhouse / Exports"
 			},
 			{
 				"title": "Importing Story Packs",
@@ -242,6 +254,34 @@ var tutorial_chapters: Array[Dictionary] = [
 			{
 				"title": "Developer Diagnostics (F1)",
 				"body": "Enable Developer Mode in Settings (or press F1 on keyboards) to display live FPS counters, coordinate data, visual collision outlines, and socket attachment lines."
+			}
+		]
+	},
+	{
+		"id": "wip_known_issues",
+		"title": "11. In-Development & What to Watch For",
+		"icon": "icon_dev",
+		"badge": "WIP & Roadmap",
+		"sections": [
+			{
+				"title": "🚧 Active Development Notice",
+				"body": "OwnWorld: Dollhouse is an actively evolving creative sandbox. Below is a guide to features currently being refined, edge-case quirks being addressed, and what to expect in upcoming patches."
+			},
+			{
+				"title": "⚡ Advanced Logic Rule Triggers (Proximity & Containers)",
+				"body": "• Active & Tested: 'When Tapped', 'When Item Dropped Onto It', 'When Grabbed', and 'When Dropped' are fully active and stable for building interactive puzzles, speech bubbles, item spawners, and weather shifts.\n• In-Progress Triggers: Automatic proximity detection (walking near an object) and container open/close triggers are currently being tuned for performance and will be fully enabled in upcoming builds."
+			},
+			{
+				"title": "📱 Android 11+ Scoped Storage & Documents Access",
+				"body": "• Storage Notice: On modern Android devices (API 30+), Google's Scoped Storage restricts direct file writes to external public Documents folders without special permissions.\n• Built-in Fallback: If external Documents access is restricted by your device, the game automatically falls back to its internal app storage sandbox (`user://`) so your custom universes, art, and themes always save safely."
+			},
+			{
+				"title": "🌦️ Multi-Slice Outdoor Weather on Budget Mobile Hardware",
+				"body": "• Performance Tip: Outdoor slices feature dynamic particle weather systems (rain, snow, drifting leaves). If you expand a room to 8–10 continuous outdoor slices on entry-level mobile hardware, consider alternating indoor and outdoor slices or choosing 'Clear' weather in the World Map if you notice frame dips."
+			},
+			{
+				"title": "🔮 Roadmap & Upcoming Features",
+				"body": "Keep an eye out for upcoming updates, including sound recording imports, additional interactive entity components, and expanded world map markers."
 			}
 		]
 	}
@@ -339,7 +379,7 @@ func _build_ui() -> void:
 	header_hbox.add_child(header_title_lbl)
 
 	search_input = LineEdit.new()
-	search_input.placeholder_text = "Search topics (e.g. pouring, elevator, anchors)..."
+	search_input.placeholder_text = "Search topics (e.g. slices, focus, weather, roadmap)..."
 	search_input.custom_minimum_size = Vector2(240.0, 30.0)
 	search_input.text_changed.connect(_on_search_query_changed)
 	header_hbox.add_child(search_input)

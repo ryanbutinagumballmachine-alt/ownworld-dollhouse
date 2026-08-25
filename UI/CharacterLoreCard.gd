@@ -872,8 +872,7 @@ func save_and_close() -> void:
 
 		_enforce_symmetrical_family(new_char_name, updated_family, initial_family_snapshot)
 		_sync_directional_feelings(new_char_name, updated_feelings, initial_feelings_snapshot)
-		_update_universe_character_data(active_entity.to_dict())
-		SaveSystem.update_character_in_cast(active_entity)
+		SaveSystem.update_character_data_in_cast(active_entity.to_dict())
 		SaveSystem.save_current_room_state()
 
 	elif not fallback_char_dict.is_empty():
@@ -891,7 +890,7 @@ func save_and_close() -> void:
 
 		_enforce_symmetrical_family(new_char_name, updated_family, initial_family_snapshot)
 		_sync_directional_feelings(new_char_name, updated_feelings, initial_feelings_snapshot)
-		_update_universe_character_data(fallback_char_dict)
+		SaveSystem.update_character_data_in_cast(fallback_char_dict)
 
 	EventBus.notification_requested.emit("Saved Profile: " + new_char_name, true)
 	visible = false
@@ -1073,41 +1072,7 @@ func _load_universe_character_data() -> Array[Dictionary]:
 	return result
 
 func _update_universe_character_data(character_data: Dictionary) -> void:
-	var universe_id: String = SaveSystem.get_current_universe_id()
-	if universe_id.is_empty(): universe_id = "default_universe"
-	var cast_path: String = SaveSystem.get_universe_cast_path(universe_id)
-	var cast_list: Array[Dictionary] = _load_universe_character_data()
-
-	var target_id: String = str(character_data.get("id", ""))
-	var target_name: String = str(character_data.get("display_name", "")).strip_edges().to_lower()
-	var replaced: bool = false
-
-	for i: int in range(cast_list.size()):
-		var existing: Dictionary = cast_list[i]
-		var existing_id: String = str(existing.get("id", ""))
-		var existing_name: String = str(existing.get("display_name", "")).strip_edges().to_lower()
-		if (not target_id.is_empty() and existing_id == target_id) or (not target_name.is_empty() and existing_name == target_name):
-			cast_list[i] = character_data.duplicate(true)
-			replaced = true
-			break
-
-	if not replaced:
-		cast_list.append(character_data.duplicate(true))
-
-	var save_dir: String = cast_path.get_base_dir()
-	if not DirAccess.dir_exists_absolute(save_dir):
-		DirAccess.make_dir_recursive_absolute(save_dir)
-
-	var temp_path: String = cast_path + ".tmp"
-	var file: FileAccess = FileAccess.open(temp_path, FileAccess.WRITE)
-	if file == null: return
-
-	file.store_string(JSON.stringify(cast_list, "\t"))
-	file.flush()
-	file.close()
-
-	if FileAccess.file_exists(cast_path): DirAccess.remove_absolute(cast_path)
-	DirAccess.rename_absolute(temp_path, cast_path)
+	SaveSystem.update_character_data_in_cast(character_data)
 
 func _on_backdrop_gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:

@@ -1,25 +1,24 @@
 # ==============================================================================
-# OWNWORLD — MAIN APPLICATION ORCHESTRATOR
+# OWNWORLD — MAIN APPLICATION ORCHESTRATOR (FULL UNDO/REDO SCOPE INTEGRATED)
 # File: res://Core/Main.gd
 # Base Class: Node2D
 # ==============================================================================
 
 extends Node2D
 
-const ROOM_WIDTH: float = 1920.0
-const ROOM_HEIGHT: float = 1080.0
+const BASE_ROOM_SIZE: Vector2 = Vector2(1280.0, 720.0)
 
 var TAP_PIXEL_THRESHOLD: float = 24.0 if OS.has_feature("mobile") else 14.0
 
-var room_bounds: Rect2 = Rect2(0.0, 0.0, ROOM_WIDTH, ROOM_HEIGHT)
-var current_room_floor_y: float = 600.0
+var room_slices: Array[Dictionary] = [{"wallpaper_path": "", "fill_mode": "cover", "is_outdoor": false}]
+var room_bounds: Rect2 = Rect2(Vector2.ZERO, BASE_ROOM_SIZE)
+var current_room_floor_y: float = 580.0
 var current_room_title: String = "Main Room"
-var current_wallpaper_path: String = ""
-var current_wallpaper_fill_mode: String = "cover"
 
 var world_canvas: Node2D = null
 var room_default_bg: ColorRect = null
-var room_background_sprite: Sprite2D = null
+var room_slices_container: Node2D = null
+
 var floor_guide_line: Line2D = null
 var main_camera: TouchCameraController = null
 var atmosphere: AtmosphereController = null
@@ -66,7 +65,6 @@ var long_press_triggered: bool = false
 var has_drag_moved_past_threshold: bool = false
 var is_room_loaded: bool = false
 
-# Resilient Index-Based Touch Tracking
 var _active_touches: Dictionary = {}
 var _ui_touch_indices: Dictionary = {}
 var active_touch_index: int = -1
@@ -75,6 +73,9 @@ var _next_entity_uid: int = 1
 
 func _ready() -> void:
 	set_process(false)
+
+	# Override Android back button to respect in-game UI stack
+	get_tree().quit_on_go_back = false
 
 	if OS.has_feature("android") or OS.has_feature("mobile"):
 		OS.request_permissions()
@@ -90,9 +91,6 @@ func _ready() -> void:
 	ThemeService.apply_theme_globally()
 	_update_room_bg_theme_color()
 
-	if room_default_bg != null:
-		ThemeService.register_background(room_default_bg)
-
 	var win: Window = get_window()
 	if win != null and not win.size_changed.is_connected(_on_window_resized):
 		win.size_changed.connect(_on_window_resized)
@@ -101,20 +99,10 @@ func _ready() -> void:
 
 	if main_menu_ui != null:
 		main_menu_ui.open_menu()
-	
-	FileDialog.set_get_thumbnail_callback(_generate_file_thumbnail)
 
-
-static func _generate_file_thumbnail(path: String) -> Texture2D:
-	var ext: String = path.get_extension().to_lower()
-	if ext in ["png", "jpg", "jpeg", "webp"]:
-		return UGCManager.get_thumbnail_async(path, 128)
-	return null
 
 func _ensure_ugc_directories() -> void:
-	var paths: Array[String] = [
-		"user://universes/", "user://maps/", "user://saves/"
-	]
+	var paths: Array[String] = ["user://universes/", "user://maps/", "user://saves/"]
 	for path: String in paths:
 		DirAccess.make_dir_recursive_absolute(path)
 	UGCManager.ensure_all_directories()
@@ -149,10 +137,16 @@ func _apply_hardware_safe_margins() -> void:
 
 
 func _on_window_resized() -> void:
-	if main_camera != null: main_camera.update_room_bounds(room_bounds)
+	_apply_room_slices(room_slices)
 	_update_room_bg_theme_color()
-	if room_default_bg != null: ThemeService.register_background(room_default_bg)
 	_apply_hardware_safe_margins()
+
+
+func _get_device_screen_slice_size() -> Vector2:
+	var vp_size: Vector2 = get_viewport_rect().size
+	if vp_size.x <= 0.0 or vp_size.y <= 0.0:
+		vp_size = BASE_ROOM_SIZE
+	return vp_size
 
 
 func _notification(what: int) -> void:
@@ -174,22 +168,17 @@ func _notification(what: int) -> void:
 			SaveSystem.save_current_room_state()
 		_save_session_from_main_state()
 
+
 func _handle_mobile_back_button() -> void:
-	# 1. Close Magic Wheel if open
 	if magic_wheel_ui != null and magic_wheel_ui.visible:
 		magic_wheel_ui.close_wheel()
 		return
-
-	# 2. Close Drawer Tray if open
 	if drawer_tray_ui != null and drawer_tray_ui.is_drawer_open:
 		drawer_tray_ui._toggle_drawer_state()
 		return
-		
 	if tutorial_dialog != null and tutorial_dialog.visible:
 		tutorial_dialog.close_handbook()
-		return	
-
-	# 3. Close any active popup dialogs
+		return
 	for ui: Node in get_tree().get_nodes_in_group("modal_ui"):
 		if is_instance_valid(ui) and ui != main_menu_ui:
 			if ui is CanvasLayer and (ui as CanvasLayer).visible:
@@ -199,30 +188,11 @@ func _handle_mobile_back_button() -> void:
 				elif ui.has_method("close_hub"): ui.call("close_hub")
 				else: (ui as CanvasLayer).visible = false
 				return
-			elif ui is Control and (ui as Control).visible:
-				ui.visible = false
-				return
-
-	# 4. If nothing else is open, toggle Main Menu
 	if main_menu_ui != null and not main_menu_ui.visible:
 		main_menu_ui.open_menu()
 	else:
-		# Clean save & exit
 		SaveSystem.save_current_room_state()
 		get_tree().quit()
-
-
-func _load_dialog_instance(candidate_paths: Array[String]) -> CanvasLayer:
-	for path: String in candidate_paths:
-		if not FileAccess.file_exists(path) and not ResourceLoader.exists(path):
-			continue
-		var script: Script = load(path) as Script
-		if script == null:
-			continue
-		var instance: Variant = script.new()
-		if instance is CanvasLayer:
-			return instance as CanvasLayer
-	return null
 
 
 func _mount_subsystems() -> void:
@@ -234,17 +204,16 @@ func _mount_subsystems() -> void:
 	room_default_bg = ColorRect.new()
 	room_default_bg.name = "RoomDefaultColorBg"
 	room_default_bg.position = Vector2(-2000.0, -2000.0)
-	room_default_bg.size = Vector2(ROOM_WIDTH + 4000.0, ROOM_HEIGHT + 4000.0)
+	room_default_bg.size = Vector2(25000.0, 6000.0)
 	room_default_bg.z_index = Types.LayerBands.BACKGROUND - 5
 	room_default_bg.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	world_canvas.add_child(room_default_bg)
 	ThemeService.register_background(room_default_bg)
 
-	room_background_sprite = Sprite2D.new()
-	room_background_sprite.name = "RoomBackground"
-	room_background_sprite.z_index = Types.LayerBands.BACKGROUND
-	room_background_sprite.centered = false
-	world_canvas.add_child(room_background_sprite)
+	room_slices_container = Node2D.new()
+	room_slices_container.name = "RoomSlicesContainer"
+	room_slices_container.z_index = Types.LayerBands.BACKGROUND - 2
+	world_canvas.add_child(room_slices_container)
 
 	floor_guide_line = Line2D.new()
 	floor_guide_line.name = "FloorGuideLine"
@@ -278,23 +247,15 @@ func _mount_subsystems() -> void:
 	universe_hub_ui.universe_selected.connect(_on_universe_switched)
 	add_child(universe_hub_ui)
 
-	universe_journal_ui = _load_dialog_instance([
-		"res://UI/Dialogs/UniverseJournalDialog.gd",
-		"res://UI/UniverseJournalDialog.gd",
-		"res://ui/Dialogs/UniverseJournalDialog.gd"
-	])
-	if universe_journal_ui != null: add_child(universe_journal_ui)
+	universe_journal_ui = UniverseJournalDialog.new()
+	add_child(universe_journal_ui)
 
 	magic_wheel_ui = MagicWheel.new()
 	magic_wheel_ui.action_triggered.connect(_on_magic_wheel_action)
 	add_child(magic_wheel_ui)
 
-	lore_card_ui = _load_dialog_instance([
-		"res://UI/CharacterLoreCard.gd",
-		"res://ui/CharacterLoreCard.gd",
-		"res://CharacterLoreCard.gd"
-	])
-	if lore_card_ui != null: add_child(lore_card_ui)
+	lore_card_ui = CharacterLoreCard.new()
+	add_child(lore_card_ui)
 
 	pose_anim_studio_ui = PoseAnimationStudioDialog.new()
 	add_child(pose_anim_studio_ui)
@@ -311,7 +272,6 @@ func _mount_subsystems() -> void:
 	room_studio_ui = RoomStudioDialog.new()
 	room_studio_ui.room_configured.connect(_on_room_configured)
 	room_studio_ui.floor_preview_changed.connect(_on_floor_preview_changed)
-	room_studio_ui.room_cleared.connect(_on_wallpaper_cleared)
 	add_child(room_studio_ui)
 
 	entity_config_dialog = EntityConfigDialog.new()
@@ -354,9 +314,10 @@ func _mount_subsystems() -> void:
 	top_nav_bar.open_main_menu_requested.connect(func() -> void: if main_menu_ui: main_menu_ui.open_menu())
 	top_nav_bar.open_world_map_requested.connect(func() -> void: if world_map_screen: world_map_screen.open_map())
 	top_nav_bar.open_room_studio_requested.connect(_on_open_room_studio)
+	top_nav_bar.toggle_zoom_mode_requested.connect(_toggle_camera_zoom_mode)
 	top_nav_bar.undo_requested.connect(_on_undo_requested)
 	add_child(top_nav_bar)
-	
+
 	tutorial_dialog = TutorialDialog.new()
 	add_child(tutorial_dialog)
 
@@ -364,24 +325,18 @@ func _mount_subsystems() -> void:
 		main_menu_ui.open_tutorial_requested.connect(func() -> void:
 			if tutorial_dialog != null: tutorial_dialog.open_handbook()
 		)
-
 	if top_nav_bar != null and top_nav_bar.has_signal("open_tutorial_requested"):
 		top_nav_bar.connect("open_tutorial_requested", func() -> void:
 			if tutorial_dialog != null: tutorial_dialog.open_handbook()
 		)
 
-	var modals: Array[Node] = [
-		main_menu_ui, world_map_screen, universe_hub_ui, universe_journal_ui,
-		lore_card_ui, pose_anim_studio_ui, snap_studio_ui, light_studio_ui,
-		food_studio_ui, room_studio_ui, door_editor_dialog, elevator_dialog,
-		theme_studio_dialog, entity_config_dialog, logic_rule_dialog,
-		recipe_studio_dialog, container_storage_dialog, settings_dialog,
-		magic_wheel_ui, tutorial_dialog
-	]
 
-	for ui: Node in modals:
-		if ui != null and is_instance_valid(ui):
-			ui.add_to_group("modal_ui")
+func _toggle_camera_zoom_mode() -> void:
+	if main_camera == null: return
+	var is_active: bool = main_camera.toggle_zoom_mode()
+	if top_nav_bar != null:
+		top_nav_bar.set_zoom_button_state(is_active)
+	EventBus.notification_requested.emit("Focus Mode: " + ("ENABLED" if is_active else "DISABLED"), true)
 
 
 func _connect_system_signals() -> void:
@@ -392,20 +347,185 @@ func _connect_system_signals() -> void:
 	if EventBus.has_signal("global_atmosphere_changed") and not EventBus.global_atmosphere_changed.is_connected(_on_atmosphere_changed):
 		EventBus.global_atmosphere_changed.connect(_on_atmosphere_changed)
 
+	# Connect Live Character Synchronization Event
+	if EventBus.has_signal("character_data_changed") and not EventBus.character_data_changed.is_connected(_on_character_data_changed):
+		EventBus.character_data_changed.connect(_on_character_data_changed)
+
+	# Connect Logic Engine Spawns & Teleports
+	if EventBus.has_signal("entity_spawn_requested") and not EventBus.entity_spawn_requested.is_connected(_on_entity_spawn_requested):
+		EventBus.entity_spawn_requested.connect(_on_entity_spawn_requested)
+	if EventBus.has_signal("room_change_requested") and not EventBus.room_change_requested.is_connected(_on_room_change_requested):
+		EventBus.room_change_requested.connect(_on_room_change_requested)
+
 	var history_manager: Node = get_node_or_null("/root/HistoryManager")
 	if history_manager != null and history_manager.has_signal("state_restored") and not history_manager.is_connected("state_restored", Callable(self, "_on_history_state_restored")):
 		history_manager.connect("state_restored", Callable(self, "_on_history_state_restored"))
 
 
+func _on_character_data_changed(character_id: String, character_data: Dictionary) -> void:
+	var name_key: String = str(character_data.get("display_name", "")).strip_edges().to_lower()
+	for entity: OwnEntity in all_entities:
+		if not is_instance_valid(entity) or entity.entity_type != Types.EntityType.CHARACTER:
+			continue
+		var matches_id: bool = not character_id.is_empty() and entity.entity_id == character_id
+		var matches_name: bool = not name_key.is_empty() and entity.display_name.strip_edges().to_lower() == name_key
+		if matches_id or matches_name:
+			entity.update_character_profile(character_data)
+
+
+func _on_room_change_requested(target_room_id: String, traveler_data: Dictionary) -> void:
+	_transition_to_room(target_room_id, traveler_data)
+
+
 func _on_theme_changed(_theme_data: Dictionary) -> void:
 	_update_room_bg_theme_color()
-	if room_default_bg != null:
-		ThemeService.register_background(room_default_bg)
 
 
 func _update_room_bg_theme_color() -> void:
 	if room_default_bg != null:
 		room_default_bg.color = ThemeService.get_color("window_background", "#fff5f7")
+	_apply_room_slices(room_slices)
+
+
+# ------------------------------------------------------------------------------
+# MULTI-SLICE ROOM SPATIAL RENDERING (ALTERNATING WALL/FLOOR PATTERNS & SEAMS)
+# ------------------------------------------------------------------------------
+
+func _apply_room_slices(slices_data: Array[Dictionary]) -> void:
+	room_slices = slices_data.duplicate(true)
+	if room_slices.is_empty():
+		room_slices.append({"wallpaper_path": "", "fill_mode": "cover", "is_outdoor": false})
+
+	var slice_size: Vector2 = _get_device_screen_slice_size()
+	var slice_w: float = slice_size.x
+	var slice_h: float = slice_size.y
+	var total_width: float = float(room_slices.size()) * slice_w
+
+	room_bounds = Rect2(0.0, 0.0, total_width, slice_h)
+
+	if room_slices_container == null: return
+	for child: Node in room_slices_container.get_children():
+		child.queue_free()
+
+	# Base Theme Colors
+	var wall_color_a: Color = ThemeService.get_color("window_background", "#fff5f7")
+	var sub_color_a: Color = ThemeService.get_color("container_sub_bg", "#fff0f3")
+	var border_color: Color = ThemeService.get_color("panel_border", "#f9a8d4")
+	var baseboard_h: float = 8.0
+
+	# Alternating Shades
+	var wall_color_b: Color = wall_color_a.darkened(0.055)
+	var floor_color_a: Color = sub_color_a.darkened(0.12)
+	var floor_color_b: Color = sub_color_a.darkened(0.20)
+	var baseboard_color_a: Color = border_color.darkened(0.08)
+	var baseboard_color_b: Color = border_color.darkened(0.15)
+
+	for i: int in range(room_slices.size()):
+		var sec_data: Dictionary = room_slices[i]
+		var wall_path: String = str(sec_data.get("wallpaper_path", ""))
+		var fill_mode: String = str(sec_data.get("fill_mode", "cover"))
+		var slice_offset_x: float = float(i) * slice_w
+		var is_odd_slice: bool = (i % 2 == 1)
+
+		var slice_node: Node2D = Node2D.new()
+		slice_node.name = "Slice_%d" % i
+		slice_node.position = Vector2(slice_offset_x, 0.0)
+
+		var has_custom_art: bool = not wall_path.is_empty() and FileAccess.file_exists(wall_path)
+
+		if has_custom_art:
+			var wall_texture: Texture2D = UGCManager.load_texture_from_file(wall_path)
+			if wall_texture != null:
+				var sprite: Sprite2D = Sprite2D.new()
+				sprite.texture = wall_texture
+				_apply_slice_sprite_scaling(sprite, wall_texture, fill_mode, slice_w, slice_h)
+				slice_node.add_child(sprite)
+		else:
+			# 1. Upper Wall with Alternating Tints
+			var wall_rect: ColorRect = ColorRect.new()
+			wall_rect.name = "Wall"
+			wall_rect.color = wall_color_b if is_odd_slice else wall_color_a
+			wall_rect.position = Vector2.ZERO
+			wall_rect.size = Vector2(slice_w, current_room_floor_y)
+			wall_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			slice_node.add_child(wall_rect)
+
+			# 2. Baseboard Trim
+			var baseboard_rect: ColorRect = ColorRect.new()
+			baseboard_rect.name = "Baseboard"
+			baseboard_rect.color = baseboard_color_b if is_odd_slice else baseboard_color_a
+			baseboard_rect.position = Vector2(0.0, current_room_floor_y - baseboard_h)
+			baseboard_rect.size = Vector2(slice_w, baseboard_h)
+			baseboard_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			slice_node.add_child(baseboard_rect)
+
+			# 3. Lower Floor with Alternating Depth Shading
+			var floor_rect: ColorRect = ColorRect.new()
+			floor_rect.name = "Floor"
+			floor_rect.color = floor_color_b if is_odd_slice else floor_color_a
+			floor_rect.position = Vector2(0.0, current_room_floor_y)
+			floor_rect.size = Vector2(slice_w, maxf(0.0, slice_h - current_room_floor_y))
+			floor_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			slice_node.add_child(floor_rect)
+
+		# 4. Vertical Architectural Divider Seam between adjacent slices
+		if i > 0:
+			var seam_line: ColorRect = ColorRect.new()
+			seam_line.name = "SliceDividerSeam"
+			seam_line.position = Vector2(0.0, 0.0)
+			seam_line.size = Vector2(2.5, slice_h)
+			seam_line.color = Color(border_color.r * 0.4, border_color.g * 0.4, border_color.b * 0.4, 0.45)
+			seam_line.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			slice_node.add_child(seam_line)
+
+		room_slices_container.add_child(slice_node)
+
+	if main_camera != null:
+		main_camera.update_room_bounds(room_bounds)
+
+	if atmosphere != null:
+		atmosphere.configure_weather_slices(room_slices, slice_w)
+
+
+func _apply_slice_sprite_scaling(sprite: Sprite2D, texture: Texture2D, fill_mode: String, slice_w: float, slice_h: float) -> void:
+	var tw: float = float(texture.get_width())
+	var th: float = float(texture.get_height())
+	if tw <= 0.0 or th <= 0.0: return
+
+	match fill_mode:
+		"cover":
+			sprite.texture_repeat = CanvasItem.TEXTURE_REPEAT_DISABLED
+			sprite.region_enabled = false
+			sprite.centered = true
+			sprite.position = Vector2(slice_w * 0.5, slice_h * 0.5)
+			var scale_cover: float = maxf(slice_w / tw, slice_h / th)
+			sprite.scale = Vector2(scale_cover, scale_cover)
+		"fit":
+			sprite.texture_repeat = CanvasItem.TEXTURE_REPEAT_DISABLED
+			sprite.region_enabled = false
+			sprite.centered = true
+			sprite.position = Vector2(slice_w * 0.5, slice_h * 0.5)
+			var scale_fit: float = minf(slice_w / tw, slice_h / th)
+			sprite.scale = Vector2(scale_fit, scale_fit)
+		"stretch":
+			sprite.texture_repeat = CanvasItem.TEXTURE_REPEAT_DISABLED
+			sprite.region_enabled = false
+			sprite.centered = false
+			sprite.position = Vector2.ZERO
+			sprite.scale = Vector2(slice_w / tw, slice_h / th)
+		"tile":
+			sprite.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
+			sprite.region_enabled = true
+			sprite.region_rect = Rect2(0.0, 0.0, slice_w, slice_h)
+			sprite.centered = false
+			sprite.position = Vector2.ZERO
+			sprite.scale = Vector2.ONE
+		"original":
+			sprite.texture_repeat = CanvasItem.TEXTURE_REPEAT_DISABLED
+			sprite.region_enabled = false
+			sprite.centered = true
+			sprite.position = Vector2(slice_w * 0.5, slice_h * 0.5)
+			sprite.scale = Vector2.ONE
 
 
 func _screen_to_world(screen_pos: Vector2) -> Vector2:
@@ -426,9 +546,6 @@ func _is_any_modal_open() -> bool:
 
 
 func _input(event: InputEvent) -> void:
-	# =========================================================================
-	# 1. Multi-Touch Screen Events (Mobile & Web Touch)
-	# =========================================================================
 	if event is InputEventScreenTouch:
 		var screen_touch: InputEventScreenTouch = event as InputEventScreenTouch
 		var touch_idx: int = screen_touch.index
@@ -440,8 +557,6 @@ func _input(event: InputEvent) -> void:
 
 		if screen_touch.pressed:
 			_active_touches[touch_idx] = touch_screen_pos
-
-			# Check if touch landed on UI elements or open modal
 			var is_ui_touch: bool = _is_any_modal_open()
 			if not is_ui_touch:
 				if drawer_tray_ui != null and drawer_tray_ui.is_point_inside_drawer(touch_screen_pos):
@@ -451,8 +566,7 @@ func _input(event: InputEvent) -> void:
 
 			if is_ui_touch:
 				_ui_touch_indices[touch_idx] = true
-				if _active_touches.size() >= 2:
-					_cancel_active_drag()
+				if _active_touches.size() >= 2: _cancel_active_drag()
 			else:
 				_ui_touch_indices.erase(touch_idx)
 				if _active_touches.size() == 1:
@@ -461,7 +575,7 @@ func _input(event: InputEvent) -> void:
 				elif _active_touches.size() >= 2:
 					_cancel_active_drag()
 
-		else: # Release
+		else:
 			_active_touches.erase(touch_idx)
 			var was_ui_touch: bool = _ui_touch_indices.has(touch_idx)
 			_ui_touch_indices.erase(touch_idx)
@@ -471,7 +585,6 @@ func _input(event: InputEvent) -> void:
 					_handle_press_end(touch_world_pos)
 					active_touch_index = -1
 
-		# Pass touch state to camera controller for smooth pinch-to-zoom
 		if main_camera != null and is_instance_valid(main_camera):
 			main_camera.handle_external_touch(screen_touch)
 
@@ -495,9 +608,6 @@ func _input(event: InputEvent) -> void:
 		if main_camera != null and is_instance_valid(main_camera) and _active_touches.size() >= 2:
 			main_camera.handle_external_drag(screen_drag)
 
-	# =========================================================================
-	# 2. Desktop Mouse Events (Filtered so emulated touch clicks don't double-fire)
-	# =========================================================================
 	elif event is InputEventMouseButton:
 		if not _active_touches.is_empty():
 			return
@@ -593,8 +703,7 @@ func _update_active_process_state() -> void:
 
 
 func _handle_press_begin(world_pos: Vector2, screen_pos: Vector2) -> void:
-	if is_pointer_down:
-		return
+	if is_pointer_down: return
 
 	is_pointer_down = true
 	long_press_triggered = false
@@ -610,7 +719,6 @@ func _handle_press_begin(world_pos: Vector2, screen_pos: Vector2) -> void:
 	pressed_target_entity = topmost
 
 	if topmost != null and not topmost.is_locked:
-		_record_history()
 		if topmost.parent_socket_entity != null:
 			topmost.detach_from_socket(world_canvas)
 
@@ -628,8 +736,7 @@ func _handle_press_begin(world_pos: Vector2, screen_pos: Vector2) -> void:
 
 
 func _handle_press_end(_world_pos: Vector2) -> void:
-	if not is_pointer_down:
-		return
+	if not is_pointer_down: return
 
 	is_pointer_down = false
 	if main_camera != null:
@@ -680,6 +787,7 @@ func _handle_press_end(_world_pos: Vector2) -> void:
 						all_entities.erase(released)
 						container_ent.pack_item_inside(released)
 						_trigger_haptic(45)
+						_record_history()
 						SaveSystem.save_current_room_state()
 						EventBus.notification_requested.emit("Packed into: " + container_ent.display_name, true)
 						_update_active_process_state()
@@ -687,6 +795,7 @@ func _handle_press_end(_world_pos: Vector2) -> void:
 
 			if InteractionSolver.check_and_execute_crafting(released, all_entities, world_canvas):
 				_trigger_haptic(50)
+				_record_history()
 				SaveSystem.save_current_room_state()
 				_update_active_process_state()
 				return
@@ -698,6 +807,7 @@ func _handle_press_end(_world_pos: Vector2) -> void:
 			else:
 				_apply_physical_gravity_settle(released)
 
+			_record_history()
 			SaveSystem.save_current_room_state()
 
 	_update_active_process_state()
@@ -721,6 +831,7 @@ func _handle_layer1_tap(entity: OwnEntity) -> void:
 	if entity.is_elevator: elevator_dialog.open_keypad(entity)
 	elif entity.is_container: entity.toggle_container()
 	elif entity.has_method("toggle_active_state"): entity.toggle_active_state()
+	_record_history()
 	SaveSystem.save_current_room_state()
 
 
@@ -731,8 +842,7 @@ func _trigger_haptic(duration_ms: int = 30) -> void:
 
 
 func _on_elevator_floor_travel_requested(elevator: OwnEntity, target_room_id: String, floor_name: String) -> void:
-	if not is_instance_valid(elevator):
-		return
+	if not is_instance_valid(elevator): return
 
 	var passengers: Array[OwnEntity] = elevator.get_passengers_in_cab(all_entities)
 	var bundle: Array[Dictionary] = []
@@ -754,6 +864,7 @@ func _on_item_unpacked_from_container(item_data: Dictionary, container_ent: OwnE
 	var spawn_pos: Vector2 = container_ent.global_position + Vector2(randf_range(-40.0, 40.0), 20.0)
 	RoomManager.reconstruct_traveler_bundle([item_data], spawn_pos, world_canvas, all_entities)
 	_trigger_haptic(30)
+	_record_history()
 	SaveSystem.save_current_room_state()
 	EventBus.notification_requested.emit("Unpacked: " + str(item_data.get("display_name", "Item")), true)
 
@@ -774,8 +885,7 @@ func _apply_physical_gravity_settle(entity: OwnEntity) -> void:
 func _remove_hierarchy(root_ent: OwnEntity) -> void:
 	all_entities.erase(root_ent)
 	for child: OwnEntity in root_ent.attached_children:
-		if is_instance_valid(child):
-			_remove_hierarchy(child)
+		if is_instance_valid(child): _remove_hierarchy(child)
 
 
 func _get_topmost_at(world_pos: Vector2, touch_padding: float = 0.0) -> OwnEntity:
@@ -879,8 +989,7 @@ func _switch_universe(new_u_id: String, new_u_name: String, starting_room: Strin
 
 func _clear_current_universe_rooms() -> void:
 	var save_dir: String = SaveSystem.get_universe_save_dir()
-	if not DirAccess.dir_exists_absolute(save_dir):
-		return
+	if not DirAccess.dir_exists_absolute(save_dir): return
 	var dir: DirAccess = DirAccess.open(save_dir)
 	if dir == null: return
 	dir.list_dir_begin()
@@ -901,14 +1010,6 @@ func _generate_entity_uuid(base_name: String) -> String:
 
 
 func _on_open_universe_journal() -> void:
-	if universe_journal_ui == null or not is_instance_valid(universe_journal_ui):
-		universe_journal_ui = _load_dialog_instance([
-			"res://UI/Dialogs/UniverseJournalDialog.gd", "res://UI/UniverseJournalDialog.gd", "res://ui/Dialogs/UniverseJournalDialog.gd"
-		])
-		if universe_journal_ui != null:
-			add_child(universe_journal_ui)
-			universe_journal_ui.add_to_group("modal_ui")
-
 	if universe_journal_ui != null and universe_journal_ui.has_method("open_journal"):
 		universe_journal_ui.call("open_journal")
 
@@ -916,76 +1017,23 @@ func _on_open_universe_journal() -> void:
 func _on_open_room_studio() -> void:
 	_update_floor_guide_visuals(current_room_floor_y, true)
 	if room_studio_ui != null:
-		room_studio_ui.open_studio(current_room_title, current_room_floor_y, current_wallpaper_path, current_wallpaper_fill_mode)
+		room_studio_ui.open_studio(current_room_title, current_room_floor_y, room_slices)
 
 
 func _on_floor_preview_changed(preview_y: float, preview_visible: bool) -> void:
 	current_room_floor_y = preview_y
+	_apply_room_slices(room_slices)
 	_update_floor_guide_visuals(preview_y, preview_visible)
 
 
-func _on_room_configured(wall_path: String, wall_texture: Texture2D, floor_y: float, room_name: String, fill_mode: String) -> void:
-	current_wallpaper_path = wall_path
-	current_wallpaper_fill_mode = fill_mode
+func _on_room_configured(slices_data: Array[Dictionary], floor_y: float, room_name: String) -> void:
 	current_room_floor_y = floor_y
 	current_room_title = room_name if not room_name.is_empty() else _get_current_room_id()
-	_apply_room_wallpaper(wall_texture, fill_mode)
+
+	_apply_room_slices(slices_data)
 	_update_floor_guide_visuals(floor_y, false)
+	_record_history()
 	SaveSystem.save_current_room_state()
-
-
-func _apply_room_wallpaper(wall_texture: Texture2D, fill_mode: String) -> void:
-	if room_background_sprite == null: return
-	if wall_texture == null:
-		room_background_sprite.texture = null
-		return
-
-	room_background_sprite.texture = wall_texture
-	var texture_width: float = float(wall_texture.get_width())
-	var texture_height: float = float(wall_texture.get_height())
-	if texture_width <= 0.0 or texture_height <= 0.0: return
-
-	match fill_mode:
-		"cover":
-			room_background_sprite.texture_repeat = CanvasItem.TEXTURE_REPEAT_DISABLED
-			room_background_sprite.region_enabled = false
-			room_background_sprite.centered = true
-			room_background_sprite.position = room_bounds.get_center()
-			var scale_cover: float = maxf(ROOM_WIDTH / texture_width, ROOM_HEIGHT / texture_height)
-			room_background_sprite.scale = Vector2(scale_cover, scale_cover)
-		"fit":
-			room_background_sprite.texture_repeat = CanvasItem.TEXTURE_REPEAT_DISABLED
-			room_background_sprite.region_enabled = false
-			room_background_sprite.centered = true
-			room_background_sprite.position = room_bounds.get_center()
-			var scale_fit: float = minf(ROOM_WIDTH / texture_width, ROOM_HEIGHT / texture_height)
-			room_background_sprite.scale = Vector2(scale_fit, scale_fit)
-		"stretch":
-			room_background_sprite.texture_repeat = CanvasItem.TEXTURE_REPEAT_DISABLED
-			room_background_sprite.region_enabled = false
-			room_background_sprite.centered = false
-			room_background_sprite.position = Vector2.ZERO
-			room_background_sprite.scale = Vector2(ROOM_WIDTH / texture_width, ROOM_HEIGHT / texture_height)
-		"tile":
-			room_background_sprite.texture_repeat = CanvasItem.TEXTURE_REPEAT_ENABLED
-			room_background_sprite.region_enabled = true
-			room_background_sprite.region_rect = Rect2(0.0, 0.0, ROOM_WIDTH, ROOM_HEIGHT)
-			room_background_sprite.centered = false
-			room_background_sprite.position = Vector2.ZERO
-			room_background_sprite.scale = Vector2.ONE
-		"original":
-			room_background_sprite.texture_repeat = CanvasItem.TEXTURE_REPEAT_DISABLED
-			room_background_sprite.region_enabled = false
-			room_background_sprite.centered = true
-			room_background_sprite.position = room_bounds.get_center()
-			room_background_sprite.scale = Vector2.ONE
-
-
-func _on_wallpaper_cleared() -> void:
-	current_wallpaper_path = ""
-	current_wallpaper_fill_mode = "cover"
-	if room_background_sprite != null: room_background_sprite.texture = null
-	_update_room_bg_theme_color()
 
 
 func _update_floor_guide_visuals(floor_y: float, preview_visible: bool) -> void:
@@ -993,7 +1041,7 @@ func _update_floor_guide_visuals(floor_y: float, preview_visible: bool) -> void:
 	if preview_visible:
 		floor_guide_line.clear_points()
 		floor_guide_line.add_point(Vector2(0.0, floor_y))
-		floor_guide_line.add_point(Vector2(ROOM_WIDTH, floor_y))
+		floor_guide_line.add_point(Vector2(room_bounds.size.x, floor_y))
 		floor_guide_line.visible = true
 	else:
 		floor_guide_line.visible = false
@@ -1003,27 +1051,46 @@ func _load_active_room(room_id: String, traveler_data: Dictionary = {}) -> void:
 	is_room_loaded = false
 	RoomManager.stream_room(room_id, traveler_data, world_canvas, all_entities)
 
+	var saved_state: Dictionary = SaveSystem.load_room_state(room_id)
+	current_room_floor_y = float(saved_state.get("floor_y", 580.0))
+	current_room_title = str(saved_state.get("room_title", room_id))
+
+	var raw_slices: Variant = saved_state.get("slices", null)
+	var loaded_slices: Array[Dictionary] = []
+	if raw_slices is Array and not (raw_slices as Array).is_empty():
+		for item: Variant in (raw_slices as Array):
+			if item is Dictionary: loaded_slices.append((item as Dictionary).duplicate(true))
+	elif saved_state.has("sections") and saved_state["sections"] is Array:
+		for item: Variant in (saved_state["sections"] as Array):
+			if item is Dictionary: loaded_slices.append((item as Dictionary).duplicate(true))
+	else:
+		var wall_path: String = str(saved_state.get("wallpaper_path", ""))
+		var fill_mode: String = str(saved_state.get("wallpaper_fill_mode", "cover"))
+		var is_outdoor: bool = bool(saved_state.get("is_outdoor", false))
+		loaded_slices.append({"wallpaper_path": wall_path, "fill_mode": fill_mode, "is_outdoor": is_outdoor})
+
+	_apply_room_slices(loaded_slices)
+
 	if atmosphere != null:
 		var session: Dictionary = _load_session()
 		atmosphere.set_preset(str(session.get("time_preset", "day")))
 		atmosphere.set_weather(str(session.get("weather_preset", "none")))
 
-	var saved_state: Dictionary = SaveSystem.load_room_state(room_id)
-	current_room_floor_y = float(saved_state.get("floor_y", 620.0))
-	current_room_title = str(saved_state.get("room_title", room_id))
-	current_wallpaper_fill_mode = str(saved_state.get("wallpaper_fill_mode", "cover"))
-
-	var wall_path: String = str(saved_state.get("wallpaper_path", ""))
-	if not wall_path.is_empty() and FileAccess.file_exists(wall_path):
-		current_wallpaper_path = wall_path
-		_apply_room_wallpaper(UGCManager.load_texture_from_file(wall_path), current_wallpaper_fill_mode)
-	else:
-		_on_wallpaper_cleared()
-
 	_update_floor_guide_visuals(current_room_floor_y, false)
-	if main_camera != null: main_camera.update_room_bounds(room_bounds)
+
+	if main_camera != null:
+		main_camera.update_room_bounds(room_bounds)
+		if top_nav_bar != null:
+			top_nav_bar.set_zoom_button_state(main_camera.is_zoom_mode_enabled())
+
 	if drawer_tray_ui != null: drawer_tray_ui.refresh_tray()
 	is_room_loaded = true
+
+	# Initialize baseline history snapshot on room load
+	var history_manager: Node = get_node_or_null("/root/HistoryManager")
+	if history_manager != null:
+		history_manager.call("clear_history")
+		history_manager.call("record_snapshot", _serialize_state())
 
 
 func _on_game_room_changed(new_room: String, _departing_room: String, traveler_data: Dictionary) -> void:
@@ -1065,29 +1132,44 @@ func _record_history() -> void:
 		history.call("record_snapshot", _serialize_state())
 
 
+func get_current_room_state() -> Dictionary:
+	return _serialize_state()
+
+
 func _serialize_state() -> Dictionary:
 	var entities: Array[Dictionary] = []
 	for entity: OwnEntity in all_entities:
 		if is_instance_valid(entity):
-			entities.append(entity.to_dict())
+			if entity.parent_socket_entity == null:
+				entities.append_array(entity.get_full_hierarchy_bundle())
+			if entity.entity_type == Types.EntityType.CHARACTER:
+				SaveSystem.update_character_in_cast(entity)
 
-	var camera_position: Vector2 = main_camera.position if main_camera != null else Vector2(960.0, 540.0)
+	var camera_position: Vector2 = main_camera.position if main_camera != null else room_bounds.get_center()
 	var camera_zoom: float = main_camera.zoom.x if main_camera != null else 1.0
 
-	return {
-		"version": "1.0",
-		"room_title": current_room_title,
-		"floor_y": current_room_floor_y,
-		"wallpaper_path": current_wallpaper_path,
-		"wallpaper_fill_mode": current_wallpaper_fill_mode,
-		"camera_pos": {"x": camera_position.x, "y": camera_position.y},
-		"camera_zoom": camera_zoom,
-		"entities": entities
-	}
+	return SaveSchema.create_room(
+		_get_current_room_id(),
+		current_room_title,
+		current_room_floor_y,
+		room_slices,
+		camera_position,
+		camera_zoom,
+		entities
+	)
 
 
 func _on_history_state_restored(snapshot: Dictionary) -> void:
+	if snapshot.has("floor_y"): current_room_floor_y = float(snapshot["floor_y"])
+	if snapshot.has("room_title"): current_room_title = str(snapshot["room_title"])
+	if snapshot.has("slices") and snapshot["slices"] is Array:
+		var restored_slices: Array[Dictionary] = []
+		for s in (snapshot["slices"] as Array):
+			if s is Dictionary: restored_slices.append((s as Dictionary).duplicate(true))
+		_apply_room_slices(restored_slices)
 	RoomManager.deserialize_room_into_canvas(snapshot, world_canvas, all_entities)
+	_update_floor_guide_visuals(current_room_floor_y, false)
+	SaveSystem.save_current_room_state()
 
 
 func _on_drawer_spawn_ugc(item_name: String, texture: Texture2D, file_path: String) -> void:
@@ -1095,36 +1177,57 @@ func _on_drawer_spawn_ugc(item_name: String, texture: Texture2D, file_path: Stri
 	var scale_factor: float = clampf(180.0 / texture_height, 0.08, 1.0) if texture_height > 240.0 else 1.0
 	var uid: String = _generate_entity_uuid(item_name)
 	var entity: OwnEntity = OwnEntity.new()
-	var camera_x: float = main_camera.position.x if main_camera != null else 960.0
-	var spawn_x: float = clampf(camera_x + randf_range(-40.0, 40.0), 100.0, ROOM_WIDTH - 100.0)
+	var center_x: float = main_camera.position.x if main_camera != null else room_bounds.get_center().x
+	var spawn_x: float = clampf(center_x + randf_range(-40.0, 40.0), 100.0, room_bounds.end.x - 100.0)
 
 	entity.setup(uid, item_name, texture, Vector2(spawn_x, current_room_floor_y), Types.EntityType.PROP, file_path)
 	entity.set_entity_scale(scale_factor)
 
 	var bottom_offset: float = entity.get_visual_bottom_offset()
-	entity.position.y = clampf(current_room_floor_y - bottom_offset, 100.0, ROOM_HEIGHT - 100.0)
+	entity.position.y = clampf(current_room_floor_y - bottom_offset, 100.0, room_bounds.end.y - 100.0)
 
 	world_canvas.add_child(entity)
 	all_entities.append(entity)
 	entity.trigger_spawn_juice()
 	_trigger_haptic(30)
+	_record_history()
 	SaveSystem.save_current_room_state()
 
 
 func _on_character_spawn_requested(char_data: Dictionary) -> void:
-	var camera_x: float = main_camera.position.x if main_camera != null else 960.0
-	var spawn_pos: Vector2 = Vector2(camera_x, current_room_floor_y - 80.0)
+	var center_x: float = main_camera.position.x if main_camera != null else room_bounds.get_center().x
+	var spawn_pos: Vector2 = Vector2(center_x, current_room_floor_y - 80.0)
 	RoomManager.reconstruct_traveler_bundle([char_data], spawn_pos, world_canvas, all_entities)
 	_trigger_haptic(35)
+	_record_history()
 	SaveSystem.save_current_room_state()
 
 
 func _on_template_spawn_requested(template_data: Dictionary) -> void:
-	var camera_x: float = main_camera.position.x if main_camera != null else 960.0
-	var spawn_x: float = clampf(camera_x + randf_range(-40.0, 40.0), 100.0, ROOM_WIDTH - 100.0)
+	var center_x: float = main_camera.position.x if main_camera != null else room_bounds.get_center().x
+	var spawn_x: float = clampf(center_x + randf_range(-40.0, 40.0), 100.0, room_bounds.end.x - 100.0)
 	var spawn_y: float = current_room_floor_y - 80.0
 	RoomManager.reconstruct_traveler_bundle([template_data], Vector2(spawn_x, spawn_y), world_canvas, all_entities)
 	_trigger_haptic(30)
+	_record_history()
+	SaveSystem.save_current_room_state()
+
+
+func _on_entity_spawn_requested(request: Dictionary) -> void:
+	var item_name: String = str(request.get("item_name", "Spawned Item"))
+	var tex: Texture2D = request.get("texture", null) as Texture2D
+	var fpath: String = str(request.get("file_path", ""))
+	var pos_dict: Dictionary = request.get("position", {})
+	var spawn_pos: Vector2 = Vector2(float(pos_dict.get("x", 640.0)), float(pos_dict.get("y", current_room_floor_y)))
+
+	var uid: String = _generate_entity_uuid(item_name)
+	var entity: OwnEntity = OwnEntity.new()
+	entity.setup(uid, item_name, tex, spawn_pos, Types.EntityType.PROP, fpath)
+
+	world_canvas.add_child(entity)
+	all_entities.append(entity)
+	entity.trigger_spawn_juice()
+	_record_history()
 	SaveSystem.save_current_room_state()
 
 
@@ -1133,7 +1236,10 @@ func _on_magic_wheel_action(action_name: String, target: OwnEntity) -> void:
 		return
 
 	match action_name:
-		"flip": target.flip_horizontal()
+		"flip":
+			target.flip_horizontal()
+			_record_history()
+			SaveSystem.save_current_room_state()
 		"character_studio", "wardrobe", "frames", "states":
 			if pose_anim_studio_ui != null: pose_anim_studio_ui.open_for_entity(target)
 		"anchors":
@@ -1158,6 +1264,7 @@ func _on_magic_wheel_action(action_name: String, target: OwnEntity) -> void:
 			if drawer_tray_ui != null: drawer_tray_ui.store_entity_as_template(target)
 		"lock":
 			target.is_locked = not target.is_locked
+			_record_history()
 			SaveSystem.save_current_room_state()
 			_trigger_haptic(40)
 			EventBus.notification_requested.emit("Locked" if target.is_locked else "Unlocked", true)
@@ -1170,16 +1277,19 @@ func _on_magic_wheel_action(action_name: String, target: OwnEntity) -> void:
 			all_entities.append(clone_entity)
 			clone_entity.trigger_spawn_juice()
 			_trigger_haptic(35)
+			_record_history()
 			SaveSystem.save_current_room_state()
 		"store":
 			all_entities.erase(target)
 			if drawer_tray_ui != null: drawer_tray_ui.store_character_in_tray(target)
 			_trigger_haptic(45)
+			_record_history()
 			SaveSystem.save_current_room_state()
 		"delete":
 			all_entities.erase(target)
 			target.queue_free()
 			_trigger_haptic(50)
+			_record_history()
 			SaveSystem.save_current_room_state()
 
 

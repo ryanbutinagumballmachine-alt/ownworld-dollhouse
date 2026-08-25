@@ -1,5 +1,5 @@
 # ==============================================================================
-# Script: res://Systems/AtmosphereController.gd
+# Script: res://Systems/AtmosphereController.gd (PER-SLICE WEATHER ZONES)
 # Base Class: Node2D (class_name AtmosphereController)
 # ==============================================================================
 
@@ -13,15 +13,17 @@ const TINT_COZY: Color = Color(1.0, 0.88, 0.72, 1.0)
 const TINT_CYBERPUNK: Color = Color(0.35, 0.18, 0.55, 1.0)
 
 var canvas_modulate: CanvasModulate = null
-var weather_emitter: CPUParticles2D = null
 var current_weather: String = "none"
 var current_preset: String = "day"
+
+var slice_emitters: Array[CPUParticles2D] = []
+var cached_slices: Array[Dictionary] = []
+var cached_slice_width: float = 1280.0
 
 
 func _ready() -> void:
 	add_to_group("AtmosphereController")
 	_setup_canvas_modulate()
-	_setup_weather_emitter()
 
 
 func _setup_canvas_modulate() -> void:
@@ -29,17 +31,6 @@ func _setup_canvas_modulate() -> void:
 	canvas_modulate.name = "RoomCanvasModulate"
 	canvas_modulate.color = TINT_DAY
 	add_child(canvas_modulate)
-
-
-func _setup_weather_emitter() -> void:
-	weather_emitter = CPUParticles2D.new()
-	weather_emitter.name = "WeatherParticles"
-	weather_emitter.emitting = false
-	weather_emitter.position = Vector2(960.0, -20.0)
-	weather_emitter.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
-	weather_emitter.emission_rect_extents = Vector2(1050.0, 10.0)
-	weather_emitter.z_index = Types.LayerBands.FOREGROUND
-	add_child(weather_emitter)
 
 
 func set_atmosphere_tint(target_color: Color, duration: float = 0.8) -> void:
@@ -61,44 +52,80 @@ func set_preset(preset_name: String) -> void:
 
 func set_weather(weather_name: String) -> void:
 	current_weather = weather_name.to_lower()
-	if not weather_emitter:
-		return
+	_update_all_slice_weather_emitters()
 
-	match current_weather:
-		"none":
-			weather_emitter.emitting = false
-		"rain":
-			weather_emitter.amount = 120
-			weather_emitter.lifetime = 1.2
-			weather_emitter.gravity = Vector2(-40.0, 750.0)
-			weather_emitter.scale_amount_min = 1.5
-			weather_emitter.scale_amount_max = 3.0
-			weather_emitter.color = Color(0.6, 0.8, 1.0, 0.7)
-			weather_emitter.emitting = true
-		"snow":
-			weather_emitter.amount = 80
-			weather_emitter.lifetime = 3.5
-			weather_emitter.gravity = Vector2(10.0, 120.0)
-			weather_emitter.scale_amount_min = 2.5
-			weather_emitter.scale_amount_max = 5.0
-			weather_emitter.color = Color(1.0, 1.0, 1.0, 0.85)
-			weather_emitter.emitting = true
-		"leaves":
-			weather_emitter.amount = 35
-			weather_emitter.lifetime = 4.0
-			weather_emitter.gravity = Vector2(-30.0, 80.0)
-			weather_emitter.scale_amount_min = 3.0
-			weather_emitter.scale_amount_max = 6.0
-			weather_emitter.color = Color(0.9, 0.45, 0.15, 0.9)
-			weather_emitter.emitting = true
-		"dust":
-			weather_emitter.amount = 40
-			weather_emitter.lifetime = 3.0
-			weather_emitter.gravity = Vector2(0.0, -15.0)
-			weather_emitter.scale_amount_min = 2.0
-			weather_emitter.scale_amount_max = 3.5
-			weather_emitter.color = Color(1.0, 0.95, 0.6, 0.5)
-			weather_emitter.emitting = true
+
+func configure_weather_slices(slices: Array[Dictionary], slice_width: float) -> void:
+	cached_slices = slices.duplicate(true)
+	cached_slice_width = slice_width
+
+	for emitter: CPUParticles2D in slice_emitters:
+		if is_instance_valid(emitter):
+			emitter.queue_free()
+	slice_emitters.clear()
+
+	for i: int in range(cached_slices.size()):
+		var sec_data: Dictionary = cached_slices[i]
+		var is_outdoor: bool = bool(sec_data.get("is_outdoor", false))
+
+		if is_outdoor:
+			var emitter: CPUParticles2D = CPUParticles2D.new()
+			emitter.name = "WeatherSlice_%d" % i
+			emitter.position = Vector2(float(i) * slice_width + (slice_width * 0.5), -20.0)
+			emitter.emission_shape = CPUParticles2D.EMISSION_SHAPE_RECTANGLE
+			emitter.emission_rect_extents = Vector2(slice_width * 0.5, 10.0)
+			emitter.z_index = Types.LayerBands.FOREGROUND
+			add_child(emitter)
+			slice_emitters.append(emitter)
+
+	_update_all_slice_weather_emitters()
+
+
+func _update_all_slice_weather_emitters() -> void:
+	var is_mobile: bool = OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios")
+
+	for emitter: CPUParticles2D in slice_emitters:
+		if not is_instance_valid(emitter):
+			continue
+
+		if current_weather == "none":
+			emitter.emitting = false
+			continue
+
+		match current_weather:
+			"rain":
+				emitter.amount = 45 if is_mobile else 85
+				emitter.lifetime = 1.2
+				emitter.gravity = Vector2(-40.0, 750.0)
+				emitter.scale_amount_min = 1.5
+				emitter.scale_amount_max = 3.0
+				emitter.color = Color(0.6, 0.8, 1.0, 0.7)
+				emitter.emitting = true
+			"snow":
+				emitter.amount = 30 if is_mobile else 60
+				emitter.lifetime = 3.5
+				emitter.gravity = Vector2(10.0, 120.0)
+				emitter.scale_amount_min = 2.5
+				emitter.scale_amount_max = 5.0
+				emitter.color = Color(1.0, 1.0, 1.0, 0.85)
+				emitter.emitting = true
+			"leaves":
+				emitter.amount = 18 if is_mobile else 30
+				emitter.lifetime = 4.0
+				emitter.gravity = Vector2(-30.0, 80.0)
+				emitter.scale_amount_min = 3.0
+				emitter.scale_amount_max = 6.0
+				emitter.color = Color(0.9, 0.45, 0.15, 0.9)
+				emitter.emitting = true
+			"dust":
+				emitter.amount = 20 if is_mobile else 35
+				emitter.lifetime = 3.0
+				emitter.gravity = Vector2(0.0, -15.0)
+				emitter.scale_amount_min = 2.0
+				emitter.scale_amount_max = 3.5
+				emitter.color = Color(1.0, 0.95, 0.6, 0.5)
+				emitter.emitting = true
+
 
 static var _cached_radial_texture: ImageTexture = null
 
@@ -123,11 +150,11 @@ static func get_cached_radial_texture() -> ImageTexture:
 	_cached_radial_texture = ImageTexture.create_from_image(img)
 	return _cached_radial_texture
 
+
 static func create_radial_point_light(radius: int = 140, tint: Color = Color(1.0, 0.85, 0.5, 0.9)) -> PointLight2D:
 	var light: PointLight2D = PointLight2D.new()
 	light.texture = get_cached_radial_texture()
 	light.color = tint
-	# Adjust scale so that the 256x256 cached texture matches the requested radius * 2
 	light.texture_scale = (float(radius) * 2.0) / 256.0
 	light.blend_mode = PointLight2D.BLEND_MODE_ADD
 	return light

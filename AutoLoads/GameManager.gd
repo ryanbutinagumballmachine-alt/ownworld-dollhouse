@@ -89,7 +89,6 @@ func _enforce_engine_viewport_scaling() -> void:
 
 
 func _initialize_filesystem() -> void:
-	# Core internal save folders
 	var paths: Array[String] = [
 		PATH_SAVES_ROOT, PATH_UNIVERSES_DIR, PATH_MAPS_DIR
 	]
@@ -97,7 +96,6 @@ func _initialize_filesystem() -> void:
 		if not DirAccess.dir_exists_absolute(path):
 			DirAccess.make_dir_recursive_absolute(path)
 
-	# Documents / OwnWorld / Dollhouse folders
 	UGCManager.ensure_all_directories()
 
 
@@ -266,55 +264,7 @@ func get_all_universe_character_data() -> Array[Dictionary]:
 
 
 func update_universe_character_data(char_data: Dictionary) -> void:
-	var character_id: String = str(char_data.get("id", ""))
-	var character_name: String = str(char_data.get("display_name", ""))
-	var name_key: String = character_name.strip_edges().to_lower()
-
-	if character_id.is_empty():
-		return
-
-	var tree: SceneTree = get_tree()
-	if tree != null:
-		for node: Node in tree.get_nodes_in_group("characters"):
-			if not is_instance_valid(node):
-				continue
-			var entity_id: String = str(node.get("entity_id"))
-			var entity_name: String = str(node.get("display_name")).strip_edges().to_lower()
-			if entity_id == character_id or (not name_key.is_empty() and entity_name == name_key):
-				if node.has_method("from_dict"):
-					node.call("from_dict", char_data)
-
-	var cast_path: String = get_universe_cast_path(current_universe_id)
-	var cast_list: Array[Dictionary] = []
-
-	if FileAccess.file_exists(cast_path):
-		var cast_file: FileAccess = FileAccess.open(cast_path, FileAccess.READ)
-		if cast_file != null:
-			var parsed: Variant = JSON.parse_string(cast_file.get_as_text())
-			cast_file.close()
-			if parsed is Array:
-				for item: Variant in (parsed as Array):
-					if item is Dictionary:
-						cast_list.append((item as Dictionary).duplicate(true))
-
-	var found: bool = false
-	for index: int in range(cast_list.size()):
-		var existing: Dictionary = cast_list[index]
-		var id_match: bool = str(existing.get("id", "")) == character_id
-		var name_match: bool = not name_key.is_empty() and str(existing.get("display_name", "")).strip_edges().to_lower() == name_key
-		if id_match or name_match:
-			cast_list[index] = char_data.duplicate(true)
-			found = true
-			break
-
-	if not found:
-		cast_list.append(char_data.duplicate(true))
-
-	var write_file: FileAccess = FileAccess.open(cast_path, FileAccess.WRITE)
-	if write_file != null:
-		write_file.store_string(JSON.stringify(cast_list, "\t"))
-		write_file.flush()
-		write_file.close()
+	SaveSystem.update_character_data_in_cast(char_data)
 
 
 func clear_current_universe_rooms(universe_id: String = "") -> void:

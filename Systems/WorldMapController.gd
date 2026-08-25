@@ -43,19 +43,9 @@ func _get_current_map_path() -> String:
 	return MAP_DIRECTORY + SaveSystem.get_current_universe_id() + "_map.json"
 
 func _request_room_transition(target_room_id: String) -> void:
-	var controller: Node = get_tree().root.find_child("RoomTransitionController", true, false)
-	if controller != null and controller.has_method("transition_to_room"):
-		controller.call("transition_to_room", target_room_id)
+	if target_room_id.is_empty():
 		return
-
-	var transition_group: Array[Node] = get_tree().get_nodes_in_group("room_transition_controller")
-	if not transition_group.is_empty():
-		var grouped_controller: Node = transition_group[0]
-		if grouped_controller.has_method("transition_to_room"):
-			grouped_controller.call("transition_to_room", target_room_id)
-			return
-
-	EventBus.notification_requested.emit("Room transition service is unavailable.", false)
+	EventBus.room_change_requested.emit(target_room_id, {})
 
 func _set_global_time(preset_name: String) -> void:
 	_set_atmosphere_state(preset_name.to_lower(), _get_current_atmosphere_weather())

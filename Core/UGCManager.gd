@@ -34,14 +34,16 @@ static var _library_dirty: bool = true
 
 static func get_documents_hub_dir() -> String:
 	var docs_dir: String = OS.get_system_dir(OS.SYSTEM_DIR_DOCUMENTS)
-	if docs_dir.is_empty():
-		docs_dir = "user://"
+	if docs_dir.is_empty() or OS.has_feature("mobile") or OS.has_feature("android"):
+		# Test write access
+		var test_path: String = docs_dir.path_join("OwnWorld").replace("\\", "/")
+		if DirAccess.make_dir_recursive_absolute(test_path) != OK:
+			docs_dir = "user://"
 	
 	var hub_dir: String = docs_dir.path_join("OwnWorld").replace("\\", "/")
 	if not DirAccess.dir_exists_absolute(hub_dir):
 		DirAccess.make_dir_recursive_absolute(hub_dir)
 	return hub_dir
-
 
 static func get_dollhouse_dir() -> String:
 	var dollhouse_dir: String = get_documents_hub_dir().path_join("Dollhouse").replace("\\", "/")

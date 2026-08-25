@@ -1,22 +1,24 @@
 # ==============================================================================
-# Script: res://Systems/World/RoomLifecycleController.gd
+# OWNWORLD — ROOM LIFECYCLE CONTROLLER (MULTI-SECTION COMPATIBLE)
+# File: res://Systems/World/RoomLifecycleController.gd
 # Base Class: Node (class_name RoomLifecycleController)
 # ==============================================================================
 
 class_name RoomLifecycleController
 extends Node
 
+const SECTION_WIDTH: float = 1920.0
+const ROOM_HEIGHT: float = 1080.0
+
 var entity_root: Node2D = null
 var world_camera: Camera2D = null
 var atmosphere: Node = null
-var room_bounds: Rect2 = Rect2(0, 0, 1920, 1080)
+var room_bounds: Rect2 = Rect2(0, 0, SECTION_WIDTH, ROOM_HEIGHT)
 var current_room_floor_y: float = 600.0
 var current_room_title: String = "Main Room"
-var current_wallpaper_path: String = ""
-var current_wallpaper_fill_mode: String = "cover"
+var room_sections: Array[Dictionary] = [{"wallpaper_path": "", "fill_mode": "cover"}]
 var _entities: Array = []
 var _active_room_id: String = ""
-var _snapshot_service: RoomSnapshotService = RoomSnapshotService.new()
 
 signal room_loading_started(room_id: String)
 signal room_loaded(room_id: String, room_state: Dictionary)
@@ -50,8 +52,17 @@ func load_room(room_id: String, traveler_data: Dictionary = {}) -> void:
 	_active_room_id = room_id
 	current_room_floor_y = float(state.get("floor_y", 600.0))
 	current_room_title = str(state.get("room_title", room_id))
-	current_wallpaper_path = str(state.get("wallpaper_path", ""))
-	current_wallpaper_fill_mode = str(state.get("wallpaper_fill_mode", "cover"))
+
+	var raw_sections: Variant = state.get("sections", null)
+	room_sections.clear()
+	if raw_sections is Array and not (raw_sections as Array).is_empty():
+		for item: Variant in (raw_sections as Array):
+			if item is Dictionary: room_sections.append((item as Dictionary).duplicate(true))
+	else:
+		room_sections.append({"wallpaper_path": str(state.get("wallpaper_path", "")), "fill_mode": str(state.get("wallpaper_fill_mode", "cover"))})
+
+	var total_width: float = float(maxi(room_sections.size(), 1)) * SECTION_WIDTH
+	room_bounds = Rect2(0.0, 0.0, total_width, ROOM_HEIGHT)
 
 	RoomManager.deserialize_room_into_canvas(state, entity_root, _entities)
 
@@ -71,14 +82,20 @@ func save_active_room() -> bool:
 	var room_id: String = _active_room_id if not _active_room_id.is_empty() else AppState.room_id
 	return SaveSystem.save_room_state(room_id, get_current_room_state())
 
+
 func get_entities() -> Array: return _entities
 func get_active_room_id() -> String: return _active_room_id
 
+
 func get_current_room_state() -> Dictionary:
-	return _snapshot_service.create_snapshot(
+	var cam_pos: Vector2 = world_camera.position if world_camera != null else Vector2(960.0, 540.0)
+	var cam_zoom: float = world_camera.zoom.x if world_camera != null else 1.0
+	var serialized_entities: Array[Dictionary] = EntitySerializer.serialize_roots(_entities)
+
+	return SaveSchema.create_room(
 		_active_room_id if not _active_room_id.is_empty() else AppState.room_id,
-		current_room_title, current_room_floor_y, current_wallpaper_path,
-		current_wallpaper_fill_mode, world_camera, _entities
+		current_room_title, current_room_floor_y, room_sections,
+		cam_pos, cam_zoom, serialized_entities
 	)
 
 

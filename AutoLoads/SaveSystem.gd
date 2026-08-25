@@ -1,5 +1,5 @@
 # ==============================================================================
-# OWNWORLD — PERSISTENCE SERVICE
+# OWNWORLD — PERSISTENCE SERVICE (COMPLETE ROOM METADATA & ENTITY PERSISTENCE)
 # File: res://AutoLoads/SaveSystem.gd
 # Autoload: SaveSystem
 # ==============================================================================
@@ -60,35 +60,54 @@ func save_current_room_state() -> void:
 	if tree == null:
 		return
 	var room_id: String = get_current_room_id()
-	var main_node: Node2D = tree.root.find_child("Main", true, false) as Node2D
+	var main_node: Node = tree.root.find_child("Main", true, false)
 	if main_node == null:
+		main_node = tree.current_scene
+	if main_node == null or main_node.get("is_room_loaded") == false:
 		return
 
-	if main_node.get("is_room_loaded") == false:
-		return
+	var room_payload: Dictionary = {}
 
-	var entity_bundles: Array[Dictionary] = []
-	var raw_entities: Variant = main_node.get("all_entities")
+	# Grab the complete serialized room state from Main (slices, floor_y, title, entities)
+	if main_node.has_method("get_current_room_state"):
+		room_payload = main_node.call("get_current_room_state")
+	elif main_node.has_method("_serialize_state"):
+		room_payload = main_node.call("_serialize_state")
+	else:
+		var entity_bundles: Array[Dictionary] = []
+		var raw_entities: Variant = main_node.get("all_entities")
+		if raw_entities is Array:
+			for entity_variant: Variant in (raw_entities as Array):
+				if not entity_variant is OwnEntity or not is_instance_valid(entity_variant):
+					continue
+				var entity: OwnEntity = entity_variant as OwnEntity
+				if entity.parent_socket_entity == null:
+					entity_bundles.append_array(entity.get_full_hierarchy_bundle())
+				if entity.entity_type == Types.EntityType.CHARACTER:
+					update_character_in_cast(entity)
+		room_payload = {"entities": entity_bundles}
 
-	if raw_entities is Array:
-		for entity_variant: Variant in (raw_entities as Array):
-			if not entity_variant is OwnEntity:
-				continue
-			var entity: OwnEntity = entity_variant as OwnEntity
-			if not is_instance_valid(entity):
-				continue
-			if entity.parent_socket_entity == null:
-				entity_bundles.append_array(entity.get_full_hierarchy_bundle())
-			if entity.entity_type == Types.EntityType.CHARACTER:
-				update_character_in_cast(entity)
-
-	save_room_state(room_id, {"entities": entity_bundles})
+	save_room_state(room_id, room_payload)
 
 
 func update_character_in_cast(entity: OwnEntity) -> void:
 	if not is_instance_valid(entity) or entity.entity_type != Types.EntityType.CHARACTER:
 		return
+	update_character_data_in_cast(entity.to_dict())
 
+
+func update_character_data_in_cast(char_data: Dictionary) -> void:
+	var character_id: String = str(char_data.get("id", "")).strip_edges()
+	var character_name: String = str(char_data.get("display_name", "")).strip_edges()
+	var name_key: String = character_name.to_lower()
+
+	if character_id.is_empty() and character_name.is_empty():
+		return
+
+	# 1. Instantly update live in-room entities in memory
+	sync_live_character_entities(char_data)
+
+	# 2. Persist to cast repository
 	var cast_path: String = get_universe_cast_path()
 	var cast_list: Array[Dictionary] = []
 
@@ -102,31 +121,51 @@ func update_character_in_cast(entity: OwnEntity) -> void:
 					if item is Dictionary:
 						cast_list.append((item as Dictionary).duplicate(true))
 
-	var entity_name: String = entity.display_name.strip_edges().to_lower()
 	var updated: bool = false
-
 	for index: int in range(cast_list.size()):
 		var cast_entry: Dictionary = cast_list[index]
-		var id_matches: bool = str(cast_entry.get("id", "")) == entity.entity_id
-		var name_matches: bool = not entity_name.is_empty() and str(cast_entry.get("display_name", "")).strip_edges().to_lower() == entity_name
+		var id_matches: bool = not character_id.is_empty() and str(cast_entry.get("id", "")) == character_id
+		var name_matches: bool = not name_key.is_empty() and str(cast_entry.get("display_name", "")).strip_edges().to_lower() == name_key
 		if id_matches or name_matches:
-			cast_list[index] = entity.to_dict()
+			cast_list[index] = char_data.duplicate(true)
 			updated = true
 			break
 
 	if not updated:
-		cast_list.append(entity.to_dict())
+		cast_list.append(char_data.duplicate(true))
 
 	if not DirAccess.dir_exists_absolute(PATH_UNIVERSES_DIR):
 		DirAccess.make_dir_recursive_absolute(PATH_UNIVERSES_DIR)
 
 	var write_file: FileAccess = FileAccess.open(cast_path, FileAccess.WRITE)
-	if write_file == null:
-		return
-	write_file.store_string(JSON.stringify(cast_list, "\t"))
-	write_file.flush()
-	write_file.close()
-	cast_saved.emit()
+	if write_file != null:
+		write_file.store_string(JSON.stringify(cast_list, "\t"))
+		write_file.flush()
+		write_file.close()
+		cast_saved.emit()
+
+	var eb: Node = get_node_or_null("/root/EventBus")
+	if eb and eb.has_signal("character_data_changed"):
+		eb.emit_signal("character_data_changed", character_id, char_data.duplicate(true))
+
+
+func sync_live_character_entities(char_data: Dictionary) -> void:
+	var character_id: String = str(char_data.get("id", "")).strip_edges()
+	var character_name: String = str(char_data.get("display_name", "")).strip_edges()
+	var name_key: String = character_name.to_lower()
+
+	var tree: SceneTree = get_tree()
+	if tree != null:
+		for node: Node in tree.get_nodes_in_group("characters"):
+			if not is_instance_valid(node):
+				continue
+			var node_id: String = str(node.get("entity_id"))
+			var node_name: String = str(node.get("display_name")).strip_edges().to_lower()
+			if (not character_id.is_empty() and node_id == character_id) or (not name_key.is_empty() and node_name == name_key):
+				if node.has_method("update_character_profile"):
+					node.call("update_character_profile", char_data)
+				elif node.has_method("from_dict"):
+					node.call("from_dict", char_data)
 
 
 func save_room_state(room_id: String, room_data: Dictionary) -> bool:
@@ -176,8 +215,9 @@ func load_room_state(room_id: String) -> Dictionary:
 
 	var parsed: Variant = JSON.parse_string(content)
 	if parsed is Dictionary:
+		var normalized: Dictionary = SaveSchema.normalize_room(parsed as Dictionary, resolved_room_id)
 		room_loaded.emit(resolved_room_id)
-		return parsed as Dictionary
+		return normalized
 	return {}
 
 

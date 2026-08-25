@@ -226,9 +226,33 @@ func _initialize_character_profile_defaults() -> void:
 	if not custom_fields.has("role"): custom_fields["role"] = ""
 	if not custom_fields.has("lore"): custom_fields["lore"] = ""
 	if not custom_fields.has("avatar_path"): custom_fields["avatar_path"] = ""
+	if not custom_fields.has("life_status"): custom_fields["life_status"] = "Living / Active"
 	if not custom_fields.has("traits") or not (custom_fields["traits"] is Dictionary): custom_fields["traits"] = {}
 	if not custom_fields.has("family_ties") or not (custom_fields["family_ties"] is Array): custom_fields["family_ties"] = []
 	if not custom_fields.has("relationships") or not (custom_fields["relationships"] is Array): custom_fields["relationships"] = []
+
+# --- LIVE PROFILE / LORE REFRESH API ---
+func update_character_profile(char_data: Dictionary) -> void:
+	var new_name: String = str(char_data.get("display_name", "")).strip_edges()
+	if not new_name.is_empty():
+		display_name = new_name
+		if door_label_node != null:
+			door_label_node.text = display_name
+
+	if char_data.has("custom_fields") and char_data["custom_fields"] is Dictionary:
+		custom_fields = (char_data["custom_fields"] as Dictionary).duplicate(true)
+	
+	_initialize_character_profile_defaults()
+	EventBus.entity_state_changed.emit(entity_id)
+
+func apply_character_lore(p_display_name: String, p_custom_fields: Dictionary) -> void:
+	if not p_display_name.is_empty():
+		display_name = p_display_name
+		if door_label_node != null:
+			door_label_node.text = display_name
+	custom_fields = p_custom_fields.duplicate(true)
+	_initialize_character_profile_defaults()
+	EventBus.entity_state_changed.emit(entity_id)
 
 func _setup_collision_layers() -> void:
 	collision_layer = 0
@@ -518,11 +542,10 @@ func _process_animation_clip(delta: float) -> void:
 		return
 
 	clip_playback_timer += delta
-	# Optimized: Multiply instead of divide, maxf handled during setup
 	var frame_dur: float = 1.0 / maxf(active_clip_fps, 1.0)
 	
 	if clip_playback_timer >= frame_dur:
-		clip_playback_timer -= frame_dur # Optimized: Subtract instead of reset to preserve fractional time
+		clip_playback_timer -= frame_dur
 		clip_frame_idx += 1
 
 		if clip_frame_idx >= active_clip_frames.size():
@@ -683,8 +706,8 @@ func unconfigure_consumable() -> void:
 	is_drink = false
 	is_infinite = false
 	current_state_idx = 0
-	custom_stage_textures.clear()
 	custom_stage_paths.clear()
+	custom_stage_textures.clear()
 	set_entity_scale(base_entity_scale)
 	_apply_active_texture(_get_active_form_base_texture(), false)
 
@@ -903,8 +926,6 @@ func _apply_current_lighting_state() -> void:
 		glow_sprite.material = mat
 		glow_sprite.visible = is_active
 		if linked_light: linked_light.enabled = false
-
-# Replace the RADIAL_ROOM and ANCHOR_POINTS blocks inside _apply_current_lighting_state()
 
 	elif light_shape_mode == LightShapeMode.RADIAL_ROOM:
 		if glow_sprite: glow_sprite.visible = false
@@ -1324,7 +1345,6 @@ func contains_point(world_p: Vector2, touch_padding: float = 0.0) -> bool:
 			var norm_x: float = (local_p.x + (texture_size.x * 0.5)) / texture_size.x
 			var norm_y: float = (local_p.y + (texture_size.y * 0.5)) / texture_size.y
 			
-			# Optimized: Removed floor() and float() casts. Int casting truncates automatically.
 			var px: int = int(norm_x * bm_size.x)
 			var py: int = int(norm_y * bm_size.y)
 

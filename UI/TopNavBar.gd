@@ -1,7 +1,3 @@
-# ============================================================
-# File: res://UI/TopNavBar.gd
-# ============================================================
-
 # ==============================================================================
 # OWNWORLD — TOP NAVIGATION BAR
 # File: res://UI/TopNavBar.gd
@@ -16,6 +12,7 @@ var capsule_panel: PanelContainer = null
 var hbox: HBoxContainer = null
 
 var btn_menu: Button = null
+var btn_zoom: Button = null
 var btn_map: Button = null
 var btn_room: Button = null
 var btn_undo: Button = null
@@ -23,6 +20,7 @@ var btn_undo: Button = null
 signal open_main_menu_requested()
 signal open_world_map_requested()
 signal open_room_studio_requested()
+signal toggle_zoom_mode_requested()
 signal undo_requested()
 signal open_tutorial_requested()
 
@@ -58,9 +56,13 @@ func _build_nav_ui() -> void:
 
 	btn_menu = _create_nav_btn("Menu", "icon_menu", func() -> void: open_main_menu_requested.emit())
 	hbox.add_child(btn_menu)
-	
+
 	var btn_help: Button = _create_nav_btn("Guide", "icon_lore", func() -> void: open_tutorial_requested.emit())
 	hbox.add_child(btn_help)
+
+	btn_zoom = _create_nav_btn("Zoom", "icon_search", func() -> void: toggle_zoom_mode_requested.emit())
+	btn_zoom.toggle_mode = true
+	hbox.add_child(btn_zoom)
 
 	btn_map = _create_nav_btn("Map", "icon_map", func() -> void: open_world_map_requested.emit())
 	hbox.add_child(btn_map)
@@ -76,6 +78,13 @@ func is_point_inside_nav(screen_pos: Vector2) -> bool:
 	if capsule_panel != null and capsule_panel.is_visible_in_tree():
 		return capsule_panel.get_global_rect().has_point(screen_pos)
 	return false
+
+
+func set_zoom_button_state(is_zoom_active: bool) -> void:
+	if btn_zoom != null:
+		btn_zoom.button_pressed = is_zoom_active
+		btn_zoom.text = " Focus" if is_zoom_active else " Zoom"
+		btn_zoom.modulate = Color(1.3, 1.3, 1.3) if is_zoom_active else Color.WHITE
 
 
 func _create_nav_btn(title: String, icon_key: String, on_click: Callable) -> Button:
@@ -106,6 +115,7 @@ func _apply_theme() -> void:
 		root_container.theme = ThemeService.create_theme()
 
 	_apply_nav_icon(btn_menu, "icon_menu")
+	_apply_nav_icon(btn_zoom, "icon_search")
 	_apply_nav_icon(btn_map, "icon_map")
 	_apply_nav_icon(btn_room, "icon_room")
 	_apply_nav_icon(btn_undo, "icon_undo")
