@@ -24,6 +24,7 @@ signal open_main_menu_requested()
 signal open_world_map_requested()
 signal open_room_studio_requested()
 signal undo_requested()
+signal open_tutorial_requested()
 
 
 func _ready() -> void:
@@ -57,6 +58,9 @@ func _build_nav_ui() -> void:
 
 	btn_menu = _create_nav_btn("Menu", "icon_menu", func() -> void: open_main_menu_requested.emit())
 	hbox.add_child(btn_menu)
+	
+	var btn_help: Button = _create_nav_btn("Guide", "icon_lore", func() -> void: open_tutorial_requested.emit())
+	hbox.add_child(btn_help)
 
 	btn_map = _create_nav_btn("Map", "icon_map", func() -> void: open_world_map_requested.emit())
 	hbox.add_child(btn_map)

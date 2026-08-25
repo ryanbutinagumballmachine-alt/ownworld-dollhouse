@@ -30,6 +30,7 @@ var universe_hub_ui: UniverseHubUI = null
 var universe_journal_ui: CanvasLayer = null
 var magic_wheel_ui: MagicWheel = null
 var lore_card_ui: CanvasLayer = null
+var tutorial_dialog: TutorialDialog = null
 
 var pose_anim_studio_ui: PoseAnimationStudioDialog = null
 var snap_studio_ui: SnapPointStudioDialog = null
@@ -183,6 +184,10 @@ func _handle_mobile_back_button() -> void:
 	if drawer_tray_ui != null and drawer_tray_ui.is_drawer_open:
 		drawer_tray_ui._toggle_drawer_state()
 		return
+		
+	if tutorial_dialog != null and tutorial_dialog.visible:
+		tutorial_dialog.close_handbook()
+		return	
 
 	# 3. Close any active popup dialogs
 	for ui: Node in get_tree().get_nodes_in_group("modal_ui"):
@@ -351,6 +356,19 @@ func _mount_subsystems() -> void:
 	top_nav_bar.open_room_studio_requested.connect(_on_open_room_studio)
 	top_nav_bar.undo_requested.connect(_on_undo_requested)
 	add_child(top_nav_bar)
+	
+	tutorial_dialog = TutorialDialog.new()
+	add_child(tutorial_dialog)
+
+	if main_menu_ui != null:
+		main_menu_ui.open_tutorial_requested.connect(func() -> void:
+			if tutorial_dialog != null: tutorial_dialog.open_handbook()
+		)
+
+	if top_nav_bar != null and top_nav_bar.has_signal("open_tutorial_requested"):
+		top_nav_bar.connect("open_tutorial_requested", func() -> void:
+			if tutorial_dialog != null: tutorial_dialog.open_handbook()
+		)
 
 	var modals: Array[Node] = [
 		main_menu_ui, world_map_screen, universe_hub_ui, universe_journal_ui,
@@ -358,7 +376,7 @@ func _mount_subsystems() -> void:
 		food_studio_ui, room_studio_ui, door_editor_dialog, elevator_dialog,
 		theme_studio_dialog, entity_config_dialog, logic_rule_dialog,
 		recipe_studio_dialog, container_storage_dialog, settings_dialog,
-		magic_wheel_ui
+		magic_wheel_ui, tutorial_dialog
 	]
 
 	for ui: Node in modals:

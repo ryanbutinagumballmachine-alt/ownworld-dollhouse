@@ -30,6 +30,7 @@ signal open_room_studio_requested()
 signal open_recipe_studio_requested()
 signal open_theme_studio_requested()
 signal open_settings_requested()
+signal open_tutorial_requested()
 
 
 func _ready() -> void:
@@ -167,6 +168,10 @@ func _build_ui() -> void:
 			else:
 				EventBus.notification_requested.emit("You are on the latest version!", true)
 		)
+	)
+	_add_menu_btn(menu_buttons_vbox, "Tutorial & Guide Handbook", "icon_lore", func() -> void:
+		close_menu()
+		open_tutorial_requested.emit()
 	)
 	_add_menu_btn(menu_buttons_vbox, "Settings", "icon_settings", func() -> void:
 		close_menu()
