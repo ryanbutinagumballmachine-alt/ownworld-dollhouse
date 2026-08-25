@@ -687,7 +687,12 @@ func _render_assets_tab() -> void:
 		for sub: String in direct_subfolders:
 			_create_folder_grid_card(sub)
 
-	var art_files: Array[Dictionary] = UGCManager.scan_user_art_library()
+	var art_files: Array[Dictionary] = []
+	if active_search_query != "" or active_category_filter != "All":
+		art_files = UGCManager.scan_user_art_library()
+	else:
+		art_files = UGCManager.get_files_in_art_folder(norm_folder)
+
 	for art_data: Dictionary in art_files:
 		var fname: String = str(art_data.get("name", "Art"))
 		var f_path: String = str(art_data.get("folder", "")).replace("\\", "/").strip_edges().trim_prefix("/").trim_suffix("/")
@@ -1247,14 +1252,9 @@ func _build_import_dialogs() -> void:
 	art_import_dialog = FileDialog.new()
 	art_import_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILES
 	art_import_dialog.access = FileDialog.ACCESS_FILESYSTEM
+	art_import_dialog.use_native_dialog = true
 	art_import_dialog.filters = ["*.png, *.jpg, *.jpeg, *.webp ; Image Files"]
 	art_import_dialog.min_size = Vector2i(760, 480)
-	
-	if "display_mode" in art_import_dialog:
-		art_import_dialog.display_mode = FileDialog.DISPLAY_THUMBNAILS
-	if "layout_toggle_enabled" in art_import_dialog:
-		art_import_dialog.layout_toggle_enabled = true
-		
 	art_import_dialog.current_dir = UGCManager.get_default_import_directory()
 	art_import_dialog.file_selected.connect(func(path: String) -> void: _on_art_files_imported([path]))
 	art_import_dialog.files_selected.connect(_on_art_files_imported)

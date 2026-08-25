@@ -491,8 +491,8 @@ func _on_image_option_selected(idx: int) -> void:
 	else:
 		var art_files: Array[Dictionary] = UGCManager.scan_user_art_library()
 		var chosen: Dictionary = art_files[idx - 1]
-		var t_var: Variant = chosen.get("texture", null)
-		if t_var is Texture2D: _update_editor_preview(t_var as Texture2D)
+		var fpath: String = str(chosen.get("file_path", ""))
+		_update_editor_preview(UGCManager.get_thumbnail_async(fpath, 128))
 
 func _on_save_pin_editor_pressed() -> void:
 	if active_editing_pin and is_instance_valid(active_editing_pin):
@@ -506,9 +506,8 @@ func _on_save_pin_editor_pressed() -> void:
 		else:
 			var art_files: Array[Dictionary] = UGCManager.scan_user_art_library()
 			var chosen: Dictionary = art_files[sel_idx - 1]
-			var t_var: Variant = chosen.get("texture", null)
-			var chosen_tex: Texture2D = t_var as Texture2D if t_var is Texture2D else null
-			active_editing_pin.set_pin_image(str(chosen.get("file_path", "")), chosen_tex)
+			var fpath: String = str(chosen.get("file_path", ""))
+			active_editing_pin.set_pin_image(fpath, UGCManager.get_thumbnail_async(fpath, 128))
 
 		active_editing_pin.update_visuals()
 		save_map_for_current_universe()
@@ -518,7 +517,6 @@ func _on_save_pin_editor_pressed() -> void:
 	active_editing_pin = null
 
 func _on_modal_backdrop_gui_input(event: InputEvent) -> void:
-	# STRICT INPUT SEPARATION
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		modal_backdrop.visible = false
 		active_editing_pin = null
@@ -577,7 +575,7 @@ func load_map_for_current_universe() -> void:
 					var p_room: String = str(p_dict.get("room_id", "room_main"))
 					var p_img_path: String = str(p_dict.get("image_path", ""))
 					var p_pos: Vector2 = Vector2(float(p_dict.get("x", 400.0)), float(p_dict.get("y", 200.0)))
-					var tex: Texture2D = UGCManager.load_texture_from_file(p_img_path) if (p_img_path != "" and FileAccess.file_exists(p_img_path)) else UGCManager.create_blank_starter_graphic(Vector2(64.0, 64.0), Color("#0284c7"))
+					var tex: Texture2D = UGCManager.get_thumbnail_async(p_img_path, 128) if (p_img_path != "" and FileAccess.file_exists(p_img_path)) else UGCManager.create_blank_starter_graphic(Vector2(64.0, 64.0), Color("#0284c7"))
 					create_pin(p_name, p_room, p_pos, p_img_path, tex)
 				_update_pins_edit_mode()
 				return
@@ -645,14 +643,9 @@ func _build_bg_file_dialog() -> void:
 	bg_select_dialog = FileDialog.new()
 	bg_select_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
 	bg_select_dialog.access = FileDialog.ACCESS_FILESYSTEM
+	bg_select_dialog.use_native_dialog = true
 	bg_select_dialog.filters = ["*.png, *.jpg, *.jpeg, *.webp ; Image Files"]
 	bg_select_dialog.min_size = Vector2i(760, 480)
-	
-	if "display_mode" in bg_select_dialog:
-		bg_select_dialog.display_mode = FileDialog.DISPLAY_THUMBNAILS
-	if "layout_toggle_enabled" in bg_select_dialog:
-		bg_select_dialog.layout_toggle_enabled = true
-		
 	bg_select_dialog.current_dir = UGCManager.get_art_root_directory()
 	bg_select_dialog.file_selected.connect(_on_bg_file_selected)
 	add_child(bg_select_dialog)
@@ -776,7 +769,6 @@ class MapPin extends Control:
 
 	func _on_pin_gui_input(event: InputEvent) -> void:
 		if not map_controller: return
-		# STRICT INPUT SEPARATION
 		if event is InputEventMouseButton:
 			var mb: InputEventMouseButton = event as InputEventMouseButton
 			if mb.button_index == MOUSE_BUTTON_LEFT:

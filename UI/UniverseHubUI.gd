@@ -143,6 +143,7 @@ func _build_import_file_dialog() -> void:
 	file_dialog = FileDialog.new()
 	file_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
 	file_dialog.access = FileDialog.ACCESS_FILESYSTEM
+	file_dialog.use_native_dialog = true
 	file_dialog.filters = ["*.ownpack ; OwnPack Story Bundles", "*.zip ; ZIP Bundles"]
 	file_dialog.file_selected.connect(_on_pack_file_selected)
 	add_child(file_dialog)

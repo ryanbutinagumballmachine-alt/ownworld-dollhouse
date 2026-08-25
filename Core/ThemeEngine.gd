@@ -398,9 +398,9 @@ static func create_theme(theme_data: Dictionary, corner_radius: int = DEFAULT_CO
 			th.set_icon("close", win_type, icons[&"close"])
 			th.set_icon("close_pressed", win_type, icons[&"close"])
 
-	th.set_color("folder_icon_color", "FileDialog", c_accent)
-	th.set_color("file_icon_color", "FileDialog", c_text_on_bg)
-	th.set_color("file_disabled_color", "FileDialog", c_muted_on_bg)
+	th.set_color("folder_icon_color", "FileDialog", Color.WHITE)
+	th.set_color("file_icon_color", "FileDialog", Color.WHITE)
+	th.set_color("file_disabled_color", "FileDialog", Color(1.0, 1.0, 1.0, 0.4))
 
 	var tooltip_box: StyleBoxFlat = panel_sub.duplicate() as StyleBoxFlat
 	tooltip_box.bg_color = Color(c_bg.r, c_bg.g, c_bg.b, 0.95)

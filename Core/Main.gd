@@ -107,7 +107,7 @@ func _ready() -> void:
 static func _generate_file_thumbnail(path: String) -> Texture2D:
 	var ext: String = path.get_extension().to_lower()
 	if ext in ["png", "jpg", "jpeg", "webp"]:
-		return UGCManager.get_thumbnail(path, 256)
+		return UGCManager.get_thumbnail_async(path, 128)
 	return null
 
 func _ensure_ugc_directories() -> void:

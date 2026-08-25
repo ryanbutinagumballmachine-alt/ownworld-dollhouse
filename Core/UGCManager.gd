@@ -1,5 +1,5 @@
 # ==============================================================================
-# OWNWORLD — UGC MANAGER & DOCUMENTS HUB (HYPER-OPTIMIZED & INSTANT THUMBNAILS)
+# OWNWORLD — UGC MANAGER & DOCUMENTS HUB (ASYNCHRONOUS ZERO-LAG THUMBNAILS)
 # File: res://Core/UGCManager.gd
 # Base Class: RefCounted (class_name UGCManager)
 # ==============================================================================
@@ -185,6 +185,30 @@ static func _scan_dir_metadata_recursive(disk_path: String, relative_folder: Str
 		_scan_dir_metadata_recursive(sub_directory, sub_relative_path, results)
 
 
+static func get_files_in_art_folder(relative_folder_path: String) -> Array[Dictionary]:
+	var normalized_relative: String = _normalize_relative_folder(relative_folder_path)
+	var art_root: String = get_art_root_directory()
+	var target_directory: String = art_root if (normalized_relative.is_empty() or normalized_relative == "Root") else art_root.path_join(normalized_relative)
+
+	var results: Array[Dictionary] = []
+	if not DirAccess.dir_exists_absolute(target_directory):
+		return results
+
+	var files: PackedStringArray = DirAccess.get_files_at(target_directory)
+	for file_name: String in files:
+		var extension: String = file_name.get_extension().to_lower()
+		if not SUPPORTED_ART_EXTENSIONS.has(extension):
+			continue
+		var full_path: String = target_directory.path_join(file_name).replace("\\", "/")
+		results.append({
+			"name": file_name.get_basename(),
+			"file_path": full_path,
+			"folder": normalized_relative if normalized_relative != "Root" else ""
+		})
+
+	return results
+
+
 static func get_subfolders_in_art_folder(relative_folder_path: String) -> Array[String]:
 	var subfolders: Array[String] = []
 	var normalized_relative: String = _normalize_relative_folder(relative_folder_path)
@@ -331,11 +355,11 @@ static func _wipe_dir_recursive(disk_path: String) -> bool:
 	return DirAccess.remove_absolute(disk_path) == OK
 
 
-# --- HIGH-SPEED THUMBNAIL PIPELINE (RAM + DISK CACHE + THREAD SAFE) ---
+# --- HIGH-SPEED ASYNCHRONOUS THUMBNAIL PIPELINE (0ms FOLDER OPENING) ---
 
-static func get_thumbnail(file_path: String, max_dimension: int = THUMBNAIL_MAX_DIMENSION) -> Texture2D:
+static func get_thumbnail_async(file_path: String, max_dimension: int = THUMBNAIL_MAX_DIMENSION) -> Texture2D:
 	var clean_path: String = _normalize_file_path(file_path)
-	if clean_path.is_empty() or not FileAccess.file_exists(clean_path):
+	if clean_path.is_empty():
 		return null
 
 	var cache_key: String = clean_path + "_" + str(max_dimension)
@@ -349,6 +373,41 @@ static func get_thumbnail(file_path: String, max_dimension: int = THUMBNAIL_MAX_
 		thumb_cache.erase(cache_key)
 	thumb_mutex.unlock()
 
+	# Create an empty 1x1 transparent ImageTexture immediately (0ms delay)
+	var dummy: Image = Image.create(1, 1, false, Image.FORMAT_RGBA8)
+	dummy.set_pixel(0, 0, Color(0, 0, 0, 0))
+	var async_texture: ImageTexture = ImageTexture.create_from_image(dummy)
+
+	thumb_mutex.lock()
+	thumb_cache[cache_key] = async_texture
+	thumb_mutex.unlock()
+
+	# Dispatch background thumbnail generation
+	WorkerThreadPool.add_task(func():
+		var img: Image = _get_or_create_thumbnail_image(clean_path, max_dimension)
+		if img != null and not img.is_empty():
+			Callable(_set_texture_image_safe).call_deferred(async_texture, img, cache_key)
+	)
+
+	return async_texture
+
+
+static func _set_texture_image_safe(tex: ImageTexture, img: Image, cache_key: String) -> void:
+	if is_instance_valid(tex) and img != null and not img.is_empty():
+		tex.set_image(img)
+		thumb_mutex.lock()
+		thumb_cache[cache_key] = tex
+		thumb_mutex.unlock()
+
+
+static func get_thumbnail(file_path: String, max_dimension: int = THUMBNAIL_MAX_DIMENSION) -> Texture2D:
+	return get_thumbnail_async(file_path, max_dimension)
+
+
+static func _get_or_create_thumbnail_image(clean_path: String, max_dimension: int) -> Image:
+	if not FileAccess.file_exists(clean_path):
+		return null
+
 	_ensure_thumb_cache_directory()
 	var thumb_filename: String = clean_path.md5_text() + "_" + str(max_dimension) + ".png"
 	var thumb_disk_path: String = THUMB_CACHE_DIR.path_join(thumb_filename)
@@ -359,11 +418,7 @@ static func get_thumbnail(file_path: String, max_dimension: int = THUMBNAIL_MAX_
 		if thumb_mod_time >= src_mod_time:
 			var disk_img: Image = Image.load_from_file(thumb_disk_path)
 			if disk_img != null and not disk_img.is_empty():
-				var disk_texture: ImageTexture = ImageTexture.create_from_image(disk_img)
-				thumb_mutex.lock()
-				thumb_cache[cache_key] = disk_texture
-				thumb_mutex.unlock()
-				return disk_texture
+				return disk_img
 
 	var source_image: Image = Image.load_from_file(clean_path)
 	if source_image == null or source_image.is_empty():
@@ -379,12 +434,7 @@ static func get_thumbnail(file_path: String, max_dimension: int = THUMBNAIL_MAX_
 		source_image.resize(target_w, target_h, Image.INTERPOLATE_BILINEAR)
 
 	source_image.save_png(thumb_disk_path)
-
-	var result_texture: ImageTexture = ImageTexture.create_from_image(source_image)
-	thumb_mutex.lock()
-	thumb_cache[cache_key] = result_texture
-	thumb_mutex.unlock()
-	return result_texture
+	return source_image
 
 
 # --- FULL-RESOLUTION RUNTIME TEXTURE LOADER ---

@@ -1,7 +1,3 @@
-# ============================================================
-# File: res://UI/Dialogs/ThemeStudioDialog.gd
-# ============================================================
-
 # ==============================================================================
 # OWNWORLD — THEME STUDIO DIALOG
 # File: res://UI/Dialogs/ThemeStudioDialog.gd
@@ -292,6 +288,7 @@ func _build_font_file_dialog() -> void:
 	font_file_dialog = FileDialog.new()
 	font_file_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
 	font_file_dialog.access = FileDialog.ACCESS_FILESYSTEM
+	font_file_dialog.use_native_dialog = true
 	font_file_dialog.filters = ["*.ttf, *.otf ; TrueType & OpenType Fonts"]
 	font_file_dialog.current_dir = UGCManager.get_font_root_directory()
 	font_file_dialog.file_selected.connect(_on_font_file_selected)

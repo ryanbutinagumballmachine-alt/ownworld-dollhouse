@@ -310,14 +310,9 @@ func _build_avatar_file_dialog() -> void:
 	avatar_file_dialog = FileDialog.new()
 	avatar_file_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
 	avatar_file_dialog.access = FileDialog.ACCESS_FILESYSTEM
+	avatar_file_dialog.use_native_dialog = true
 	avatar_file_dialog.filters = ["*.png, *.webp, *.jpg ; Image Files"]
 	avatar_file_dialog.min_size = Vector2i(760, 480)
-	
-	if "display_mode" in avatar_file_dialog:
-		avatar_file_dialog.display_mode = FileDialog.DISPLAY_THUMBNAILS
-	if "layout_toggle_enabled" in avatar_file_dialog:
-		avatar_file_dialog.layout_toggle_enabled = true
-		
 	avatar_file_dialog.current_dir = UGCManager.get_art_root_directory()
 	avatar_file_dialog.file_selected.connect(_on_avatar_file_selected)
 	add_child(avatar_file_dialog)
@@ -563,17 +558,17 @@ func _update_avatar_preview() -> void:
 
 func _resolve_character_portrait(char_dict: Dictionary, explicit_avatar_path: String = "") -> Texture2D:
 	if explicit_avatar_path != "" and FileAccess.file_exists(explicit_avatar_path):
-		return UGCManager.load_texture_from_file(explicit_avatar_path)
+		return UGCManager.get_thumbnail_async(explicit_avatar_path, 128)
 
 	var custom_f: Dictionary = char_dict.get("custom_fields", {})
 	var av_path: String = str(custom_f.get("avatar_path", ""))
 	if av_path != "" and FileAccess.file_exists(av_path):
-		return UGCManager.load_texture_from_file(av_path)
+		return UGCManager.get_thumbnail_async(av_path, 128)
 
 	for k: String in ["ugc_texture_path", "texture_path", "path_to_texture", "ugc_tex"]:
 		var path_str: String = str(char_dict.get(k, ""))
 		if path_str != "" and FileAccess.file_exists(path_str):
-			return UGCManager.load_texture_from_file(path_str)
+			return UGCManager.get_thumbnail_async(path_str, 128)
 
 	return null
 
@@ -1115,6 +1110,5 @@ func _update_universe_character_data(character_data: Dictionary) -> void:
 	DirAccess.rename_absolute(temp_path, cast_path)
 
 func _on_backdrop_gui_input(event: InputEvent) -> void:
-	# STRICT INPUT SEPARATION
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		save_and_close()
