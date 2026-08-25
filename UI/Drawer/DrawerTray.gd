@@ -1249,6 +1249,13 @@ func _build_import_dialogs() -> void:
 	art_import_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILES
 	art_import_dialog.access = FileDialog.ACCESS_FILESYSTEM
 	art_import_dialog.filters = ["*.png, *.jpg, *.jpeg, *.webp ; Image Files"]
+	art_import_dialog.min_size = Vector2i(760, 480)
+	
+	if "display_mode" in art_import_dialog:
+		art_import_dialog.display_mode = FileDialog.DISPLAY_THUMBNAILS
+	if "layout_toggle_enabled" in art_import_dialog:
+		art_import_dialog.layout_toggle_enabled = true
+		
 	art_import_dialog.current_dir = UGCManager.get_default_import_directory()
 	art_import_dialog.file_selected.connect(func(path: String) -> void: _on_art_files_imported([path]))
 	art_import_dialog.files_selected.connect(_on_art_files_imported)

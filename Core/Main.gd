@@ -102,6 +102,14 @@ func _ready() -> void:
 
 	if main_menu_ui != null:
 		main_menu_ui.open_menu()
+	
+	FileDialog.set_get_thumbnail_callback(_generate_file_thumbnail)
+
+static func _generate_file_thumbnail(path: String) -> Texture2D:
+	var ext: String = path.get_extension().to_lower()
+	if ext in ["png", "jpg", "jpeg", "webp"]:
+		return UGCManager.load_texture_from_file(path)
+	return null
 
 func _ensure_ugc_directories() -> void:
 	var paths: Array[String] = [

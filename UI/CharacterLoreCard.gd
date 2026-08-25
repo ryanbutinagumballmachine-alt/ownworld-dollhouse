@@ -311,6 +311,13 @@ func _build_avatar_file_dialog() -> void:
 	avatar_file_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
 	avatar_file_dialog.access = FileDialog.ACCESS_FILESYSTEM
 	avatar_file_dialog.filters = ["*.png, *.webp, *.jpg ; Image Files"]
+	avatar_file_dialog.min_size = Vector2i(760, 480)
+	
+	if "display_mode" in avatar_file_dialog:
+		avatar_file_dialog.display_mode = FileDialog.DISPLAY_THUMBNAILS
+	if "layout_toggle_enabled" in avatar_file_dialog:
+		avatar_file_dialog.layout_toggle_enabled = true
+		
 	avatar_file_dialog.current_dir = UGCManager.get_art_root_directory()
 	avatar_file_dialog.file_selected.connect(_on_avatar_file_selected)
 	add_child(avatar_file_dialog)

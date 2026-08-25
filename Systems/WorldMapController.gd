@@ -646,6 +646,13 @@ func _build_bg_file_dialog() -> void:
 	bg_select_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
 	bg_select_dialog.access = FileDialog.ACCESS_FILESYSTEM
 	bg_select_dialog.filters = ["*.png, *.jpg, *.jpeg, *.webp ; Image Files"]
+	bg_select_dialog.min_size = Vector2i(760, 480)
+	
+	if "display_mode" in bg_select_dialog:
+		bg_select_dialog.display_mode = FileDialog.DISPLAY_THUMBNAILS
+	if "layout_toggle_enabled" in bg_select_dialog:
+		bg_select_dialog.layout_toggle_enabled = true
+		
 	bg_select_dialog.current_dir = UGCManager.get_art_root_directory()
 	bg_select_dialog.file_selected.connect(_on_bg_file_selected)
 	add_child(bg_select_dialog)
