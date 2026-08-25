@@ -1,3 +1,7 @@
+# ============================================================
+# File: res://UI/TopNavBar.gd
+# ============================================================
+
 # ==============================================================================
 # OWNWORLD — TOP NAVIGATION BAR
 # File: res://UI/TopNavBar.gd
@@ -31,8 +35,8 @@ func _ready() -> void:
 
 
 func _connect_system_signals() -> void:
-	if not EventBus.theme_changed.is_connected(_on_theme_changed):
-		EventBus.theme_changed.connect(_on_theme_changed)
+	if not ThemeService.theme_changed.is_connected(_on_theme_changed):
+		ThemeService.theme_changed.connect(_on_theme_changed)
 
 
 func _build_nav_ui() -> void:
@@ -62,6 +66,12 @@ func _build_nav_ui() -> void:
 
 	btn_undo = _create_nav_btn("Undo", "icon_undo", func() -> void: undo_requested.emit())
 	hbox.add_child(btn_undo)
+
+
+func is_point_inside_nav(screen_pos: Vector2) -> bool:
+	if capsule_panel != null and capsule_panel.is_visible_in_tree():
+		return capsule_panel.get_global_rect().has_point(screen_pos)
+	return false
 
 
 func _create_nav_btn(title: String, icon_key: String, on_click: Callable) -> Button:

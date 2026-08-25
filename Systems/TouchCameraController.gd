@@ -1,3 +1,7 @@
+# ============================================================
+# File: res://Systems/TouchCameraController.gd
+# ============================================================
+
 # ==============================================================================
 # OWNWORLD — TOUCH CAMERA CONTROLLER
 # File: res://Systems/TouchCameraController.gd
@@ -39,18 +43,10 @@ func _ready() -> void:
 func _deferred_initial_update() -> void:
 	update_room_bounds(room_bounds)
 
-func handle_unhandled_input(event: InputEvent) -> void:
-	if event is InputEventScreenTouch:
-		var touch_event: InputEventScreenTouch = event as InputEventScreenTouch
-		if touch_event.pressed: handle_external_touch_begin(touch_event)
-		else: handle_external_touch_end(touch_event)
-	elif event is InputEventScreenDrag:
-		handle_external_touch_drag(event as InputEventScreenDrag)
-	elif event is InputEventMouseButton or event is InputEventMouseMotion:
-		# PINCH-TO-ZOOM FIX: Ignore emulated mouse events if touching the screen
-		if touch_points.size() > 0:
-			return
-		_unhandled_input(event)
+func reset_touch_state() -> void:
+	touch_points.clear()
+	initial_pinch_distance = 0.0
+	is_panning = false
 
 func update_room_bounds(new_bounds: Rect2) -> void:
 	if new_bounds.size.x <= 0.0 or new_bounds.size.y <= 0.0:
@@ -74,9 +70,6 @@ func _recalculate_zoom_and_clamp() -> void:
 	var target_zoom: float = clampf(current_zoom, min_zoom_limit, max_zoom_limit)
 	zoom = Vector2(target_zoom, target_zoom)
 	_clamp_camera_position()
-
-func handle_external_zoom(factor: float, screen_position: Vector2) -> void:
-	_apply_zoom_step(factor, screen_position)
 
 func _apply_zoom_step(factor: float, mouse_screen_pos: Vector2) -> void:
 	var old_zoom: float = maxf(zoom.x, 0.001)
@@ -109,36 +102,34 @@ func update_drag_pan(screen_pos: Vector2) -> void:
 func end_drag_pan() -> void:
 	is_panning = false
 
-func handle_external_touch_begin(touch_event: InputEventScreenTouch) -> void:
-	if not touch_event.pressed:
-		handle_external_touch_end(touch_event)
-		return
+func handle_external_touch(touch_event: InputEventScreenTouch) -> void:
+	if touch_event.pressed:
+		touch_points[touch_event.index] = touch_event.position
+		if touch_points.size() == 2:
+			end_drag_pan()
+			var points: Array = touch_points.values()
+			var p0: Vector2 = points[0] as Vector2
+			var p1: Vector2 = points[1] as Vector2
+			initial_pinch_distance = p0.distance_to(p1)
+			initial_pinch_zoom = maxf(zoom.x, 0.001)
+			initial_touch_midpoint = (p0 + p1) * 0.5
+			initial_touch_cam_pos = position
+	else:
+		touch_points.erase(touch_event.index)
+		if touch_points.size() < 2:
+			initial_pinch_distance = 0.0
 
-	touch_points[touch_event.index] = touch_event.position
-	if touch_points.size() != 2:
-		return
-
-	end_drag_pan()
-	var points: Array = touch_points.values()
-	var point_zero: Vector2 = points[0] as Vector2
-	var point_one: Vector2 = points[1] as Vector2
-
-	initial_pinch_distance = point_zero.distance_to(point_one)
-	initial_pinch_zoom = maxf(zoom.x, 0.001)
-	initial_touch_midpoint = (point_zero + point_one) * 0.5
-	initial_touch_cam_pos = position
-
-func handle_external_touch_drag(drag_event: InputEventScreenDrag) -> void:
+func handle_external_drag(drag_event: InputEventScreenDrag) -> void:
 	touch_points[drag_event.index] = drag_event.position
 	if touch_points.size() < 2:
 		return
 
 	var points: Array = touch_points.values()
-	var point_zero: Vector2 = points[0] as Vector2
-	var point_one: Vector2 = points[1] as Vector2
+	var p0: Vector2 = points[0] as Vector2
+	var p1: Vector2 = points[1] as Vector2
 
-	var current_distance: float = point_zero.distance_to(point_one)
-	var current_midpoint: Vector2 = (point_zero + point_one) * 0.5
+	var current_distance: float = p0.distance_to(p1)
+	var current_midpoint: Vector2 = (p0 + p1) * 0.5
 
 	if initial_pinch_distance > 0.0:
 		var pinch_ratio: float = current_distance / initial_pinch_distance
@@ -150,25 +141,15 @@ func handle_external_touch_drag(drag_event: InputEventScreenDrag) -> void:
 	position = initial_touch_cam_pos - midpoint_delta
 	_clamp_camera_position()
 
-func handle_external_touch_end(touch_event: InputEventScreenTouch) -> void:
-	touch_points.erase(touch_event.index)
-	if touch_points.size() < 2:
-		initial_pinch_distance = 0.0
-
-func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventMouseButton:
-		var mouse_event: InputEventMouseButton = event as InputEventMouseButton
-		match mouse_event.button_index:
-			MOUSE_BUTTON_WHEEL_UP:
-				if mouse_event.pressed: _apply_zoom_step(1.0 + ZOOM_SPEED, mouse_event.position)
-			MOUSE_BUTTON_WHEEL_DOWN:
-				if mouse_event.pressed: _apply_zoom_step(1.0 - ZOOM_SPEED, mouse_event.position)
-			MOUSE_BUTTON_MIDDLE:
-				if mouse_event.pressed: start_drag_pan(mouse_event.position)
-				else: end_drag_pan()
-	elif event is InputEventMouseMotion:
-		if is_panning and Input.is_mouse_button_pressed(MOUSE_BUTTON_MIDDLE):
-			update_drag_pan((event as InputEventMouseMotion).position)
+func handle_unhandled_mouse(mouse_event: InputEventMouseButton) -> void:
+	match mouse_event.button_index:
+		MOUSE_BUTTON_WHEEL_UP:
+			if mouse_event.pressed: _apply_zoom_step(1.0 + ZOOM_SPEED, mouse_event.position)
+		MOUSE_BUTTON_WHEEL_DOWN:
+			if mouse_event.pressed: _apply_zoom_step(1.0 - ZOOM_SPEED, mouse_event.position)
+		MOUSE_BUTTON_MIDDLE:
+			if mouse_event.pressed: start_drag_pan(mouse_event.position)
+			else: end_drag_pan()
 
 func _clamp_camera_position() -> void:
 	var viewport_size: Vector2 = get_viewport_rect().size

@@ -1,3 +1,7 @@
+# ============================================================
+# File: res://Core/Main.gd
+# ============================================================
+
 # ==============================================================================
 # OWNWORLD — MAIN APPLICATION ORCHESTRATOR
 # File: res://Core/Main.gd
@@ -9,7 +13,6 @@ extends Node2D
 const ROOM_WIDTH: float = 1920.0
 const ROOM_HEIGHT: float = 1080.0
 
-# DPI-Aware Threshold for distinguishing a tap/hold from a drag
 var TAP_PIXEL_THRESHOLD: float = 24.0 if OS.has_feature("mobile") else 14.0
 
 var room_bounds: Rect2 = Rect2(0.0, 0.0, ROOM_WIDTH, ROOM_HEIGHT)
@@ -65,8 +68,10 @@ var is_pointer_down: bool = false
 var long_press_triggered: bool = false
 var has_drag_moved_past_threshold: bool = false
 
+# Resilient Index-Based Touch Tracking
+var _active_touches: Dictionary = {}
+var _ui_touch_indices: Dictionary = {}
 var active_touch_index: int = -1
-var active_touch_count: int = 0
 var _next_entity_uid: int = 1
 
 func _ready() -> void:
@@ -144,8 +149,13 @@ func _notification(what: int) -> void:
 		_save_session_from_main_state()
 		if drawer_tray_ui != null: drawer_tray_ui.save_cast_tray_for_current_universe()
 		if world_map_screen != null: world_map_screen.save_map_for_current_universe()
-	elif what == NOTIFICATION_APPLICATION_PAUSED or what == NOTIFICATION_WM_WINDOW_FOCUS_OUT:
+	elif what == NOTIFICATION_APPLICATION_PAUSED or what == NOTIFICATION_WM_WINDOW_FOCUS_OUT or what == NOTIFICATION_APPLICATION_FOCUS_OUT:
 		_cancel_active_drag()
+		_active_touches.clear()
+		_ui_touch_indices.clear()
+		active_touch_index = -1
+		if main_camera != null and is_instance_valid(main_camera):
+			main_camera.reset_touch_state()
 		SaveSystem.save_current_room_state()
 		_save_session_from_main_state()
 
@@ -336,85 +346,123 @@ func _screen_to_world(screen_pos: Vector2) -> Vector2:
 
 func _is_any_modal_open() -> bool:
 	for ui: Node in get_tree().get_nodes_in_group("modal_ui"):
+		if not is_instance_valid(ui): continue
 		if ui is CanvasLayer and (ui as CanvasLayer).visible: return true
 		elif ui is Control and (ui as Control).visible: return true
 		elif ui is Window and (ui as Window).visible: return true
 	return false
 
 func _input(event: InputEvent) -> void:
-	if _is_any_modal_open():
-		_cancel_active_drag()
-		active_touch_count = 0
-		return
-
-	var pointer_screen: Vector2 = Vector2.ZERO
-	if event is InputEventScreenTouch or event is InputEventScreenDrag or event is InputEventMouseButton or event is InputEventMouseMotion:
-		pointer_screen = event.position
-		if drawer_tray_ui != null and drawer_tray_ui.is_point_inside_drawer(pointer_screen):
-			_cancel_active_drag()
-			return
-		if top_nav_bar != null and top_nav_bar.root_container != null and top_nav_bar.root_container.get_global_rect().has_point(pointer_screen):
-			_cancel_active_drag()
-			return
-
-	if main_camera != null:
-		main_camera.handle_unhandled_input(event)
-
-	# --- Touch Events ---
+	# =========================================================================
+	# 1. Multi-Touch Screen Events (Mobile & Web Touch)
+	# =========================================================================
 	if event is InputEventScreenTouch:
 		var screen_touch: InputEventScreenTouch = event as InputEventScreenTouch
-		var touch_world_pos: Vector2 = _screen_to_world(screen_touch.position)
-		current_pointer_screen_pos = screen_touch.position
+		var touch_idx: int = screen_touch.index
+		var touch_screen_pos: Vector2 = screen_touch.position
+		var touch_world_pos: Vector2 = _screen_to_world(touch_screen_pos)
+
+		current_pointer_screen_pos = touch_screen_pos
 		current_pointer_world_pos = touch_world_pos
 
 		if screen_touch.pressed:
-			active_touch_count += 1
-			if active_touch_count == 1:
-				active_touch_index = screen_touch.index
-				_handle_press_begin(touch_world_pos, screen_touch.position)
-			elif active_touch_count >= 2:
-				_cancel_active_drag()
-		else:
-			active_touch_count = maxi(0, active_touch_count - 1)
-			if screen_touch.index == active_touch_index or active_touch_count == 0:
-				_handle_press_end(touch_world_pos)
-				active_touch_index = -1
+			_active_touches[touch_idx] = touch_screen_pos
+
+			# Check if touch landed on UI elements or open modal
+			var is_ui_touch: bool = _is_any_modal_open()
+			if not is_ui_touch:
+				if drawer_tray_ui != null and drawer_tray_ui.is_point_inside_drawer(touch_screen_pos):
+					is_ui_touch = true
+				elif top_nav_bar != null and top_nav_bar.is_point_inside_nav(touch_screen_pos):
+					is_ui_touch = true
+
+			if is_ui_touch:
+				_ui_touch_indices[touch_idx] = true
+				if _active_touches.size() >= 2:
+					_cancel_active_drag()
+			else:
+				_ui_touch_indices.erase(touch_idx)
+				if _active_touches.size() == 1:
+					active_touch_index = touch_idx
+					_handle_press_begin(touch_world_pos, touch_screen_pos)
+				elif _active_touches.size() >= 2:
+					_cancel_active_drag()
+
+		else: # Release
+			_active_touches.erase(touch_idx)
+			var was_ui_touch: bool = _ui_touch_indices.has(touch_idx)
+			_ui_touch_indices.erase(touch_idx)
+
+			if not was_ui_touch:
+				if touch_idx == active_touch_index or _active_touches.is_empty():
+					_handle_press_end(touch_world_pos)
+					active_touch_index = -1
+
+		# Pass touch state to camera controller for smooth pinch-to-zoom
+		if main_camera != null and is_instance_valid(main_camera):
+			main_camera.handle_external_touch(screen_touch)
 
 	elif event is InputEventScreenDrag:
 		var screen_drag: InputEventScreenDrag = event as InputEventScreenDrag
-		if screen_drag.index == active_touch_index and active_touch_count == 1:
+		var touch_idx: int = screen_drag.index
+		_active_touches[touch_idx] = screen_drag.position
+
+		if not _ui_touch_indices.has(touch_idx) and _active_touches.size() == 1 and touch_idx == active_touch_index:
 			current_pointer_screen_pos = screen_drag.position
 			current_pointer_world_pos = _screen_to_world(screen_drag.position)
+
 			if press_start_screen_pos.distance_to(current_pointer_screen_pos) > TAP_PIXEL_THRESHOLD:
 				has_drag_moved_past_threshold = true
+
 			if active_dragged_entity != null:
 				_update_active_drag_position(current_pointer_world_pos)
 			elif main_camera != null and main_camera.is_panning:
 				main_camera.update_drag_pan(screen_drag.position)
 
-	# --- Mouse Events (Strictly filtered so emulated touch clicks don't double-fire) ---
+		if main_camera != null and is_instance_valid(main_camera) and _active_touches.size() >= 2:
+			main_camera.handle_external_drag(screen_drag)
+
+	# =========================================================================
+	# 2. Desktop Mouse Events (Filtered so emulated touch clicks don't double-fire)
+	# =========================================================================
 	elif event is InputEventMouseButton:
+		if not _active_touches.is_empty():
+			return
+
 		var mouse_button: InputEventMouseButton = event as InputEventMouseButton
-		var mouse_world_pos: Vector2 = _screen_to_world(mouse_button.position)
-		current_pointer_screen_pos = mouse_button.position
+		var mouse_screen_pos: Vector2 = mouse_button.position
+		var mouse_world_pos: Vector2 = _screen_to_world(mouse_screen_pos)
+
+		current_pointer_screen_pos = mouse_screen_pos
 		current_pointer_world_pos = mouse_world_pos
 
 		if mouse_button.button_index == MOUSE_BUTTON_LEFT:
 			if mouse_button.pressed:
-				if active_touch_count == 0 and not is_pointer_down:
-					_handle_press_begin(mouse_world_pos, mouse_button.position)
+				var is_ui: bool = _is_any_modal_open()
+				if not is_ui:
+					if drawer_tray_ui != null and drawer_tray_ui.is_point_inside_drawer(mouse_screen_pos): is_ui = true
+					elif top_nav_bar != null and top_nav_bar.is_point_inside_nav(mouse_screen_pos): is_ui = true
+
+				if not is_ui and not is_pointer_down:
+					_handle_press_begin(mouse_world_pos, mouse_screen_pos)
 			else:
-				if active_touch_count == 0 and is_pointer_down:
+				if is_pointer_down:
 					_handle_press_end(mouse_world_pos)
+
 		elif mouse_button.button_index == MOUSE_BUTTON_RIGHT and mouse_button.pressed:
-			var clicked: OwnEntity = _get_topmost_at(mouse_world_pos)
-			if clicked != null:
-				_trigger_haptic(40)
-				if magic_wheel_ui != null:
-					magic_wheel_ui.open_wheel_for_entity(clicked, mouse_button.position)
+			if not _is_any_modal_open():
+				var clicked: OwnEntity = _get_topmost_at(mouse_world_pos)
+				if clicked != null:
+					_trigger_haptic(40)
+					if magic_wheel_ui != null:
+						magic_wheel_ui.open_wheel_for_entity(clicked, mouse_screen_pos)
+
+		elif mouse_button.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN, MOUSE_BUTTON_MIDDLE]:
+			if main_camera != null and is_instance_valid(main_camera):
+				main_camera.handle_unhandled_mouse(mouse_button)
 
 	elif event is InputEventMouseMotion:
-		if active_touch_count > 0:
+		if not _active_touches.is_empty():
 			return
 
 		var mouse_motion: InputEventMouseMotion = event as InputEventMouseMotion
@@ -480,7 +528,7 @@ func _handle_press_begin(world_pos: Vector2, screen_pos: Vector2) -> void:
 	current_pointer_world_pos = world_pos
 	press_start_time = Time.get_ticks_msec() / 1000.0
 
-	var touch_padding: float = SettingsManager.get_touch_padding(active_touch_count > 0)
+	var touch_padding: float = SettingsManager.get_touch_padding(not _active_touches.is_empty())
 	var topmost: OwnEntity = _get_topmost_at(world_pos, touch_padding)
 	pressed_target_entity = topmost
 
@@ -580,7 +628,7 @@ func _cancel_active_drag() -> void:
 	if active_dragged_entity != null and is_instance_valid(active_dragged_entity):
 		active_dragged_entity.on_drop()
 		active_dragged_entity = null
-	if main_camera != null:
+	if main_camera != null and is_instance_valid(main_camera):
 		main_camera.end_drag_pan()
 	pressed_target_entity = null
 	is_pointer_down = false
@@ -647,7 +695,7 @@ func _remove_hierarchy(root_ent: OwnEntity) -> void:
 func _get_topmost_at(world_pos: Vector2, touch_padding: float = 0.0) -> OwnEntity:
 	var candidates: Array[OwnEntity] = []
 	for entity: OwnEntity in all_entities:
-		if is_instance_valid(entity) and entity.contains_point(world_pos, touch_padding):
+		if is_instance_valid(entity) and entity.is_visible_in_tree() and entity.contains_point(world_pos, touch_padding):
 			candidates.append(entity)
 
 	if candidates.is_empty(): return null

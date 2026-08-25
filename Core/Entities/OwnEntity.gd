@@ -1273,7 +1273,8 @@ func contains_point(world_p: Vector2, touch_padding: float = 0.0) -> bool:
 						var closest_point: Vector2 = Geometry2D.get_closest_point_to_segment(local_p, p1, p2)
 						if local_p.distance_to(closest_point) <= scaled_padding:
 							return true
-		return false
+		if scaled_padding <= 0.0:
+			return false
 
 	if collision_poly.size() >= 3:
 		if Geometry2D.is_point_in_polygon(local_p, collision_poly):
@@ -1285,10 +1286,11 @@ func contains_point(world_p: Vector2, touch_padding: float = 0.0) -> bool:
 				var closest_point: Vector2 = Geometry2D.get_closest_point_to_segment(local_p, p1, p2)
 				if local_p.distance_to(closest_point) <= scaled_padding:
 					return true
-		return false
+		if scaled_padding <= 0.0:
+			return false
 
-	# Fallback only when no bitmap/polygon exists and padding is explicitly requested
-	if scaled_padding > 0.0 and texture_size != Vector2.ZERO:
+	# Fallback bounding box check
+	if texture_size != Vector2.ZERO:
 		var half: Vector2 = (texture_size * 0.5) + Vector2(scaled_padding, scaled_padding)
 		return Rect2(-half, half * 2.0).has_point(local_p)
 

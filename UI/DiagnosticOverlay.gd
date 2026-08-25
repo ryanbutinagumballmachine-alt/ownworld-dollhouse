@@ -1,3 +1,7 @@
+# ============================================================
+# File: res://UI/DiagnosticOverlay.gd
+# ============================================================
+
 # ==============================================================================
 # OWNWORLD — DIAGNOSTIC OVERLAY
 # File: res://UI/DiagnosticOverlay.gd
@@ -52,7 +56,7 @@ func _process(delta: float) -> void:
 		set_process(false)
 		return
 		
-	# THROTTLED UI UPDATES: Only update text 4 times a second to save mobile battery
+	# Throttled updates to preserve mobile battery
 	_update_timer += delta
 	if _update_timer >= 0.25:
 		_update_timer = 0.0
