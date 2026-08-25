@@ -1,7 +1,3 @@
-# ============================================================
-# File: res://Core/Main.gd
-# ============================================================
-
 # ==============================================================================
 # OWNWORLD — MAIN APPLICATION ORCHESTRATOR
 # File: res://Core/Main.gd
@@ -700,20 +696,13 @@ func _remove_hierarchy(root_ent: OwnEntity) -> void:
 		if is_instance_valid(child):
 			_remove_hierarchy(child)
 
+# OPTIMIZED: Zero-Allocation Hit Testing
 func _get_topmost_at(world_pos: Vector2, touch_padding: float = 0.0) -> OwnEntity:
-	var candidates: Array[OwnEntity] = []
+	var best: OwnEntity = null
 	for entity: OwnEntity in all_entities:
 		if is_instance_valid(entity) and entity.is_visible_in_tree() and entity.contains_point(world_pos, touch_padding):
-			candidates.append(entity)
-
-	if candidates.is_empty(): return null
-	if candidates.size() == 1: return candidates[0]
-
-	var best: OwnEntity = candidates[0]
-	for index: int in range(1, candidates.size()):
-		var current: OwnEntity = candidates[index]
-		if _is_entity_in_front_of(current, best):
-			best = current
+			if best == null or _is_entity_in_front_of(entity, best):
+				best = entity
 	return best
 
 func _is_entity_in_front_of(a: OwnEntity, b: OwnEntity) -> bool:
@@ -738,6 +727,7 @@ func _calculate_global_z(entity: OwnEntity) -> int:
 		return _calculate_global_z(entity.parent_socket_entity) + entity.z_index + 10
 	return entity.z_index
 
+# OPTIMIZED: Fast File I/O
 func _load_session() -> Dictionary:
 	const DEFAULT_SESSION: Dictionary = {
 		"universe_id": "default_universe", "universe_name": "Default Universe",
@@ -746,11 +736,8 @@ func _load_session() -> Dictionary:
 	if not FileAccess.file_exists("user://session.json"):
 		return DEFAULT_SESSION.duplicate(true)
 
-	var file: FileAccess = FileAccess.open("user://session.json", FileAccess.READ)
-	if file == null: return DEFAULT_SESSION.duplicate(true)
-
-	var parsed: Variant = JSON.parse_string(file.get_as_text())
-	file.close()
+	var content: String = FileAccess.get_file_as_string("user://session.json")
+	var parsed: Variant = JSON.parse_string(content)
 	return (parsed as Dictionary) if parsed is Dictionary else DEFAULT_SESSION.duplicate(true)
 
 func _get_current_universe_id() -> String: return SaveSystem.get_current_universe_id()

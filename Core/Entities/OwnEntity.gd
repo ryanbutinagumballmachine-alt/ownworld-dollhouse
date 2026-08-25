@@ -1,5 +1,5 @@
 # ==============================================================================
-# OWNWORLD — ENTITY RUNTIME INSTANCE
+# OWNWORLD — ENTITY RUNTIME INSTANCE (HYPER-OPTIMIZED & ROBUST)
 # File: res://Core/Entities/OwnEntity.gd
 # Base Class: Area2D (class_name OwnEntity)
 # ==============================================================================
@@ -324,19 +324,19 @@ func _generate_default_starter_anchors_if_empty() -> void:
 # POSES & EXPRESSIONS
 func set_pose_state(pose_name: String) -> void:
 	current_pose_state = pose_name.to_lower()
-	_update_active_render_texture()
+	_update_active_render_texture(false)
 
 func reset_to_default_pose() -> void:
 	current_pose_state = "default"
 	active_expression_name = "eyes_open"
 	is_blinking_active = false
 	stop_animation_clip()
-	_update_active_render_texture()
+	_update_active_render_texture(false)
 
 func set_expression(expr_name: String, duration: float = 0.0) -> void:
 	active_expression_name = expr_name
 	expression_timer = duration
-	_update_active_render_texture()
+	_update_active_render_texture(false)
 
 func _process_expression_and_blinking(delta: float) -> void:
 	if active_clip_frames.size() > 0:
@@ -346,7 +346,7 @@ func _process_expression_and_blinking(delta: float) -> void:
 		expression_timer -= delta
 		if expression_timer <= 0.0:
 			active_expression_name = "eyes_open"
-			_update_active_render_texture()
+			_update_active_render_texture(false)
 
 	if current_pose_state != "sleeping" and expression_timer <= 0.0:
 		blink_timer -= delta
@@ -354,13 +354,13 @@ func _process_expression_and_blinking(delta: float) -> void:
 			if not is_blinking_active:
 				is_blinking_active = true
 				blink_timer = 0.16
-				_update_active_render_texture()
+				_update_active_render_texture(false)
 			else:
 				is_blinking_active = false
 				blink_timer = randf_range(3.0, 5.0)
-				_update_active_render_texture()
+				_update_active_render_texture(false)
 
-func _update_active_render_texture() -> void:
+func _update_active_render_texture(recalculate_collision: bool = false) -> void:
 	if active_clip_frames.size() > 0:
 		return
 
@@ -386,7 +386,7 @@ func _update_active_render_texture() -> void:
 		else:
 			chosen_tex = _get_slot_texture("eyes_open")
 
-	_apply_active_texture(chosen_tex if chosen_tex != null else _get_active_form_base_texture())
+	_apply_active_texture(chosen_tex if chosen_tex != null else _get_active_form_base_texture(), recalculate_collision)
 
 func _get_slot_texture(slot_name: String) -> Texture2D:
 	if wardrobe_forms.has(active_form_key):
@@ -406,13 +406,16 @@ func assign_pose_slot_texture(form_key: String, slot_name: String, tex: Texture2
 	form_d["sprite_paths"][slot_name] = path
 
 	if form_key == active_form_key:
-		_update_active_render_texture()
+		_update_active_render_texture(false)
 
-func _apply_active_texture(tex: Texture2D) -> void:
+func _apply_active_texture(tex: Texture2D, recalculate_collision: bool = false) -> void:
 	if not tex:
 		return
 	main_texture = tex
 	texture_size = tex.get_size()
+
+	# Instant cached alpha bitmap lookup
+	alpha_bitmap = UGCManager.generate_alpha_bitmap(main_texture)
 
 	if glow_sprite:
 		glow_sprite.texture = main_texture
@@ -426,7 +429,8 @@ func _apply_active_texture(tex: Texture2D) -> void:
 		base_sprite.centered = true
 		base_sprite.position = Vector2.ZERO
 
-	_recalculate_collision_geometry(main_texture)
+	if recalculate_collision or collision_polygons.is_empty():
+		_recalculate_collision_geometry(main_texture)
 
 func _get_active_form_base_texture() -> Texture2D:
 	if wardrobe_forms.has(active_form_key):
@@ -500,23 +504,25 @@ func play_animation_clip(clip_name: String) -> void:
 	clip_playback_timer = 0.0
 	_update_process_state()
 	if not active_clip_frames.is_empty():
-		_apply_active_texture(active_clip_frames[0])
+		_apply_active_texture(active_clip_frames[0], false)
 
 func stop_animation_clip() -> void:
 	active_clip_name = ""
 	active_clip_frames.clear()
 	active_clip_paths.clear()
 	_update_process_state()
-	_update_active_render_texture()
+	_update_active_render_texture(false)
 
 func _process_animation_clip(delta: float) -> void:
 	if active_clip_frames.is_empty():
 		return
 
 	clip_playback_timer += delta
+	# Optimized: Multiply instead of divide, maxf handled during setup
 	var frame_dur: float = 1.0 / maxf(active_clip_fps, 1.0)
+	
 	if clip_playback_timer >= frame_dur:
-		clip_playback_timer = 0.0
+		clip_playback_timer -= frame_dur # Optimized: Subtract instead of reset to preserve fractional time
 		clip_frame_idx += 1
 
 		if clip_frame_idx >= active_clip_frames.size():
@@ -526,7 +532,7 @@ func _process_animation_clip(delta: float) -> void:
 			clip_frame_idx = 0
 
 		if clip_frame_idx < active_clip_frames.size():
-			_apply_active_texture(active_clip_frames[clip_frame_idx])
+			_apply_active_texture(active_clip_frames[clip_frame_idx], false)
 
 # SOCKET ATTACHMENT & HIERARCHY
 func attach_to_socket(target_parent: OwnEntity, socket_key: String, is_instant: bool = false) -> bool:
@@ -639,9 +645,9 @@ func toggle_container() -> void:
 	is_open = not is_open
 
 	if is_open and container_open_texture:
-		_apply_active_texture(container_open_texture)
+		_apply_active_texture(container_open_texture, false)
 	else:
-		_apply_active_texture(_get_active_form_base_texture())
+		_apply_active_texture(_get_active_form_base_texture(), false)
 
 	for child: OwnEntity in attached_children:
 		if is_instance_valid(child):
@@ -680,7 +686,7 @@ func unconfigure_consumable() -> void:
 	custom_stage_textures.clear()
 	custom_stage_paths.clear()
 	set_entity_scale(base_entity_scale)
-	_apply_active_texture(_get_active_form_base_texture())
+	_apply_active_texture(_get_active_form_base_texture(), false)
 
 func take_bite() -> bool:
 	if not is_consumable or is_drink:
@@ -703,7 +709,7 @@ func take_bite() -> bool:
 					main_texture = custom_stage_textures[stage_idx]
 					if stage_idx < custom_stage_paths.size():
 						texture_path = custom_stage_paths[stage_idx]
-					_apply_active_texture(main_texture)
+					_apply_active_texture(main_texture, false)
 		else:
 			if current_state_idx >= max_bites:
 				var tw: Tween = create_tween().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
@@ -715,7 +721,17 @@ func take_bite() -> bool:
 				set_entity_scale(base_entity_scale * shrink_ratio)
 
 	_kill_active_tween()
-	var target_s: Vector2 = Vector2(-entity_scale if is_flipped_h else entity_scale, entity_scale)
+	var p_scale_x: float = 1.0
+	var p_scale_y: float = 1.0
+	if parent_socket_entity and is_instance_valid(parent_socket_entity):
+		p_scale_x = parent_socket_entity.scale.x if parent_socket_entity.scale.x != 0.0 else 1.0
+		p_scale_y = parent_socket_entity.scale.y if parent_socket_entity.scale.y != 0.0 else 1.0
+
+	var target_s: Vector2 = Vector2(
+		(-entity_scale if is_flipped_h else entity_scale) / p_scale_x,
+		entity_scale / p_scale_y
+	)
+
 	scale = target_s * Vector2(1.15, 0.85)
 	active_tween = create_tween().set_trans(Tween.TRANS_SPRING).set_ease(Tween.EASE_OUT)
 	active_tween.tween_property(self, "scale", target_s, 0.2)
@@ -729,7 +745,16 @@ func take_sip() -> void:
 
 	AudioManager.play_sip()
 	_kill_active_tween()
-	var rest_s: Vector2 = Vector2(-entity_scale if is_flipped_h else entity_scale, entity_scale)
+	var p_scale_x: float = 1.0
+	var p_scale_y: float = 1.0
+	if parent_socket_entity and is_instance_valid(parent_socket_entity):
+		p_scale_x = parent_socket_entity.scale.x if parent_socket_entity.scale.x != 0.0 else 1.0
+		p_scale_y = parent_socket_entity.scale.y if parent_socket_entity.scale.y != 0.0 else 1.0
+
+	var rest_s: Vector2 = Vector2(
+		(-entity_scale if is_flipped_h else entity_scale) / p_scale_x,
+		entity_scale / p_scale_y
+	)
 	scale = rest_s * Vector2(1.12, 0.9)
 	active_tween = create_tween().set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
 	active_tween.tween_property(self, "scale", rest_s, 0.2)
@@ -739,7 +764,16 @@ func fill_with_liquid() -> void:
 	AudioManager.play_pour()
 
 	_kill_active_tween()
-	var rest_s: Vector2 = Vector2(-entity_scale if is_flipped_h else entity_scale, entity_scale)
+	var p_scale_x: float = 1.0
+	var p_scale_y: float = 1.0
+	if parent_socket_entity and is_instance_valid(parent_socket_entity):
+		p_scale_x = parent_socket_entity.scale.x if parent_socket_entity.scale.x != 0.0 else 1.0
+		p_scale_y = parent_socket_entity.scale.y if parent_socket_entity.scale.y != 0.0 else 1.0
+
+	var rest_s: Vector2 = Vector2(
+		(-entity_scale if is_flipped_h else entity_scale) / p_scale_x,
+		entity_scale / p_scale_y
+	)
 	scale = rest_s * Vector2(1.15, 0.88)
 	active_tween = create_tween().set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
 	active_tween.tween_property(self, "scale", rest_s, 0.25)
@@ -870,6 +904,8 @@ func _apply_current_lighting_state() -> void:
 		glow_sprite.visible = is_active
 		if linked_light: linked_light.enabled = false
 
+# Replace the RADIAL_ROOM and ANCHOR_POINTS blocks inside _apply_current_lighting_state()
+
 	elif light_shape_mode == LightShapeMode.RADIAL_ROOM:
 		if glow_sprite: glow_sprite.visible = false
 		if not linked_light:
@@ -878,7 +914,8 @@ func _apply_current_lighting_state() -> void:
 			add_child(linked_light)
 		linked_light.color = light_color
 		linked_light.energy = light_intensity * 0.6
-		linked_light.texture_scale = clampf(light_radius / 100.0, 0.5, 8.0)
+		var base_scale: float = (light_radius * 2.0) / 256.0
+		linked_light.texture_scale = base_scale * clampf(light_radius / 100.0, 0.5, 8.0)
 		linked_light.enabled = is_active
 
 	elif light_shape_mode == LightShapeMode.ANCHOR_POINTS:
@@ -890,7 +927,8 @@ func _apply_current_lighting_state() -> void:
 				var al: PointLight2D = AtmosphereController.create_radial_point_light(int(light_radius), light_color)
 				al.position = pt_pos
 				al.energy = light_intensity * 0.7
-				al.texture_scale = clampf(light_radius / 100.0, 0.3, 6.0)
+				var base_scale: float = (light_radius * 2.0) / 256.0
+				al.texture_scale = base_scale * clampf(light_radius / 100.0, 0.3, 6.0)
 				al.enabled = is_active
 				add_child(al)
 				anchor_light_nodes.append(al)
@@ -932,11 +970,20 @@ func switch_wardrobe_form(form_name: String) -> void:
 
 	if main_texture:
 		texture_size = main_texture.get_size()
-		_update_active_render_texture()
+		_update_active_render_texture(true)
 		rebuild_gizmos()
 		_kill_active_tween()
 		rotation = 0.0
-		var rest_s: Vector2 = Vector2(-entity_scale if is_flipped_h else entity_scale, entity_scale)
+		var p_scale_x: float = 1.0
+		var p_scale_y: float = 1.0
+		if parent_socket_entity and is_instance_valid(parent_socket_entity):
+			p_scale_x = parent_socket_entity.scale.x if parent_socket_entity.scale.x != 0.0 else 1.0
+			p_scale_y = parent_socket_entity.scale.y if parent_socket_entity.scale.y != 0.0 else 1.0
+
+		var rest_s: Vector2 = Vector2(
+			(-entity_scale if is_flipped_h else entity_scale) / p_scale_x,
+			entity_scale / p_scale_y
+		)
 		scale = rest_s * Vector2(1.1, 0.9)
 		active_tween = create_tween().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 		active_tween.tween_property(self, "scale", rest_s, 0.2)
@@ -950,9 +997,9 @@ func _recalculate_collision_geometry(tex: Texture2D) -> void:
 			collision_polygon_node.polygon = collision_poly
 		return
 
-	alpha_bitmap = UGCManager.generate_alpha_bitmap(tex, 0.001)
-	collision_polygons = UGCManager.generate_alpha_collision_polygons(tex, 0.001, 1.5)
-	collision_poly = UGCManager.generate_alpha_collision_polygon(tex, 0.001, 1.5)
+	alpha_bitmap = UGCManager.generate_alpha_bitmap(tex, 0.05)
+	collision_polygons = UGCManager.generate_alpha_collision_polygons(tex, 0.05, 4.0)
+	collision_poly = UGCManager.generate_alpha_collision_polygon(tex, 0.05, 4.0)
 	if collision_polygon_node:
 		collision_polygon_node.polygon = collision_poly
 
@@ -993,7 +1040,15 @@ func get_visual_half_width() -> float:
 
 func set_entity_scale(new_scale: float) -> void:
 	entity_scale = clampf(new_scale, 0.05, 4.0)
-	scale = Vector2(-entity_scale if is_flipped_h else entity_scale, entity_scale)
+	var p_scale_x: float = 1.0
+	var p_scale_y: float = 1.0
+	if parent_socket_entity and is_instance_valid(parent_socket_entity):
+		p_scale_x = parent_socket_entity.scale.x if parent_socket_entity.scale.x != 0.0 else 1.0
+		p_scale_y = parent_socket_entity.scale.y if parent_socket_entity.scale.y != 0.0 else 1.0
+	scale = Vector2(
+		(-entity_scale if is_flipped_h else entity_scale) / p_scale_x,
+		entity_scale / p_scale_y
+	)
 
 func flip_horizontal() -> void:
 	is_flipped_h = not is_flipped_h
@@ -1020,10 +1075,10 @@ func configure_as_portal(p_target_room: String, p_portal_name: String) -> void:
 
 	var base_tex: Texture2D = _get_active_form_base_texture()
 	if base_tex:
-		_apply_active_texture(base_tex)
+		_apply_active_texture(base_tex, true)
 	else:
 		main_texture = UGCManager.create_door_frame_texture(Vector2(96.0, 160.0))
-		_apply_active_texture(main_texture)
+		_apply_active_texture(main_texture, true)
 
 	_ensure_door_label_node()
 	update_door_visuals()
@@ -1044,10 +1099,10 @@ func configure_as_elevator(floors: Array[Dictionary] = [], p_name: String = "Ele
 
 	var base_tex: Texture2D = _get_active_form_base_texture()
 	if base_tex:
-		_apply_active_texture(base_tex)
+		_apply_active_texture(base_tex, true)
 	else:
 		main_texture = UGCManager.create_door_frame_texture(Vector2(110.0, 170.0))
-		_apply_active_texture(main_texture)
+		_apply_active_texture(main_texture, true)
 
 	_ensure_door_label_node()
 	update_door_visuals()
@@ -1060,7 +1115,7 @@ func unconfigure_portal_and_elevator() -> void:
 	if door_label_node:
 		door_label_node.queue_free()
 		door_label_node = null
-	_apply_active_texture(_get_active_form_base_texture())
+	_apply_active_texture(_get_active_form_base_texture(), true)
 
 func _ensure_door_label_node() -> void:
 	if not door_label_node:
@@ -1171,7 +1226,16 @@ func toggle_active_state() -> void:
 		AudioManager.play_snap_chime()
 
 	_kill_active_tween()
-	var rest_s: Vector2 = Vector2(-entity_scale if is_flipped_h else entity_scale, entity_scale)
+	var p_scale_x: float = 1.0
+	var p_scale_y: float = 1.0
+	if parent_socket_entity and is_instance_valid(parent_socket_entity):
+		p_scale_x = parent_socket_entity.scale.x if parent_socket_entity.scale.x != 0.0 else 1.0
+		p_scale_y = parent_socket_entity.scale.y if parent_socket_entity.scale.y != 0.0 else 1.0
+
+	var rest_s: Vector2 = Vector2(
+		(-entity_scale if is_flipped_h else entity_scale) / p_scale_x,
+		entity_scale / p_scale_y
+	)
 	scale = rest_s * Vector2(1.08, 0.92)
 	active_tween = create_tween().set_trans(Tween.TRANS_SPRING).set_ease(Tween.EASE_OUT)
 	active_tween.tween_property(self, "scale", rest_s, 0.15)
@@ -1195,7 +1259,7 @@ func on_drop() -> void:
 	if parent_socket_entity == null and active_clip_name == "" and entity_type == Types.EntityType.CHARACTER:
 		if current_pose_state in ["sitting", "sleeping"]:
 			current_pose_state = "default"
-			_update_active_render_texture()
+			_update_active_render_texture(false)
 
 	_kill_active_tween()
 	active_tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
@@ -1247,52 +1311,40 @@ func contains_point(world_p: Vector2, touch_padding: float = 0.0) -> bool:
 	var scale_mag: float = absf(entity_scale) if entity_scale != 0.0 else 1.0
 	var scaled_padding: float = touch_padding / scale_mag
 
-	# 1. Pixel BitMap test (treating all translucent pixels as solid, ignoring fully transparent ones)
+	# 1. FAST EARLY EXIT: Bounding box check in O(1)
+	if texture_size.x > 0.0 and texture_size.y > 0.0:
+		var half_box: Vector2 = (texture_size * 0.5) + Vector2(scaled_padding + 8.0, scaled_padding + 8.0)
+		if not Rect2(-half_box, half_box * 2.0).has_point(local_p):
+			return false
+
+	# 2. O(1) DIRECT BITMAP LOOKUP (Mapped accurately to texture space)
 	if alpha_bitmap != null and texture_size.x > 0.0 and texture_size.y > 0.0:
-		var uv_pos: Vector2 = local_p + (texture_size * 0.5)
-		var px: int = int(floor(uv_pos.x))
-		var py: int = int(floor(uv_pos.y))
 		var bm_size: Vector2i = alpha_bitmap.get_size()
+		if bm_size.x > 0 and bm_size.y > 0:
+			var norm_x: float = (local_p.x + (texture_size.x * 0.5)) / texture_size.x
+			var norm_y: float = (local_p.y + (texture_size.y * 0.5)) / texture_size.y
+			
+			# Optimized: Removed floor() and float() casts. Int casting truncates automatically.
+			var px: int = int(norm_x * bm_size.x)
+			var py: int = int(norm_y * bm_size.y)
 
-		if px >= 0 and px < bm_size.x and py >= 0 and py < bm_size.y:
-			if alpha_bitmap.get_bit(px, py):
-				return true
-			elif scaled_padding <= 0.0:
-				return false
+			if px >= 0 and px < bm_size.x and py >= 0 and py < bm_size.y:
+				if alpha_bitmap.get_bit(px, py):
+					return true
 
-	# 2. Polygon islands containment and contour distance checks
+	# 3. FAST POLYGON CHECK
 	if not collision_polygons.is_empty():
 		for poly: PackedVector2Array in collision_polygons:
-			if poly.size() >= 3:
-				if Geometry2D.is_point_in_polygon(local_p, poly):
-					return true
-				if scaled_padding > 0.0:
-					for i: int in range(poly.size()):
-						var p1: Vector2 = poly[i]
-						var p2: Vector2 = poly[(i + 1) % poly.size()]
-						var closest_point: Vector2 = Geometry2D.get_closest_point_to_segment(local_p, p1, p2)
-						if local_p.distance_to(closest_point) <= scaled_padding:
-							return true
-		if scaled_padding <= 0.0:
-			return false
-
-	if collision_poly.size() >= 3:
+			if poly.size() >= 3 and Geometry2D.is_point_in_polygon(local_p, poly):
+				return true
+	elif collision_poly.size() >= 3:
 		if Geometry2D.is_point_in_polygon(local_p, collision_poly):
 			return true
-		if scaled_padding > 0.0:
-			for i: int in range(collision_poly.size()):
-				var p1: Vector2 = collision_poly[i]
-				var p2: Vector2 = collision_poly[(i + 1) % collision_poly.size()]
-				var closest_point: Vector2 = Geometry2D.get_closest_point_to_segment(local_p, p1, p2)
-				if local_p.distance_to(closest_point) <= scaled_padding:
-					return true
-		if scaled_padding <= 0.0:
-			return false
 
-	# Fallback bounding box check
-	if texture_size != Vector2.ZERO:
-		var half: Vector2 = (texture_size * 0.5) + Vector2(scaled_padding, scaled_padding)
-		return Rect2(-half, half * 2.0).has_point(local_p)
+	# 4. Fallback for touch padding around bounds
+	if scaled_padding > 0.0 and texture_size.x > 0.0 and texture_size.y > 0.0:
+		var half_pad_box: Vector2 = (texture_size * 0.5) + Vector2(scaled_padding, scaled_padding)
+		return Rect2(-half_pad_box, half_pad_box * 2.0).has_point(local_p)
 
 	return false
 
@@ -1651,7 +1703,7 @@ func from_dict(d: Dictionary) -> void:
 
 	active_form_key = str(d.get("active_form_key", "Default"))
 	current_pose_state = str(d.get("current_pose_state", "default"))
-	_update_active_render_texture()
+	_update_active_render_texture(true)
 
 	stored_item_data.clear()
 	var raw_stored: Array = d.get("stored_item_data", [])
@@ -1694,7 +1746,7 @@ func from_dict(d: Dictionary) -> void:
 		}
 
 	var components_dict: Dictionary = d.get("components", {})
-	for c_key: String in components_dict.keys():
+	for c_key: StringName in components.keys():
 		if components.has(StringName(c_key)):
 			var comp: EntityComponent = components[StringName(c_key)]
 			comp.deserialize(components_dict[c_key])

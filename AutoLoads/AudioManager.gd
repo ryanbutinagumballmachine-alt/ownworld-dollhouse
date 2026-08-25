@@ -125,11 +125,19 @@ func _synth_pop(start_frequency: float, duration: float, pitch_up: bool) -> Audi
 	var raw: PackedByteArray = PackedByteArray()
 	raw.resize(sample_count * 2)
 
+	# Optimized: Hoisted constants outside the loop
+	var time_step: float = 1.0 / float(SAMPLE_RATE)
+	var inv_duration: float = 1.0 / duration
+	var tau_freq: float = TAU * start_frequency
+
 	for index: int in range(sample_count):
-		var time: float = float(index) / float(SAMPLE_RATE)
+		var time: float = float(index) * time_step
 		var envelope: float = exp(-time * 40.0)
-		var frequency: float = start_frequency * (1.0 + (time / duration) * 0.8) if pitch_up else start_frequency * (1.0 - (time / duration) * 0.45)
-		var value: float = sin(TAU * frequency * time) * envelope * 0.35
+		var time_ratio: float = time * inv_duration
+		
+		var frequency_mult: float = (1.0 + time_ratio * 0.8) if pitch_up else (1.0 - time_ratio * 0.45)
+		var value: float = sin(tau_freq * frequency_mult * time) * envelope * 0.35
+		
 		raw.encode_s16(index * 2, int(clampf(value, -1.0, 1.0) * 32767.0))
 
 	return _build_wav(raw)
@@ -140,10 +148,15 @@ func _synth_chime(frequency: float, duration: float) -> AudioStreamWAV:
 	var raw: PackedByteArray = PackedByteArray()
 	raw.resize(sample_count * 2)
 
+	# Optimized: Hoisted constants outside the loop
+	var time_step: float = 1.0 / float(SAMPLE_RATE)
+	var tau_freq: float = TAU * frequency
+	var tau_freq_1_5: float = tau_freq * 1.5
+
 	for index: int in range(sample_count):
-		var time: float = float(index) / float(SAMPLE_RATE)
+		var time: float = float(index) * time_step
 		var envelope: float = exp(-time * 14.0)
-		var value: float = (sin(TAU * frequency * time) * 0.6 + sin(TAU * frequency * 1.5 * time) * 0.4) * envelope * 0.3
+		var value: float = (sin(tau_freq * time) * 0.6 + sin(tau_freq_1_5 * time) * 0.4) * envelope * 0.3
 		raw.encode_s16(index * 2, int(clampf(value, -1.0, 1.0) * 32767.0))
 
 	return _build_wav(raw)
@@ -154,8 +167,11 @@ func _synth_noise_burst(duration: float) -> AudioStreamWAV:
 	var raw: PackedByteArray = PackedByteArray()
 	raw.resize(sample_count * 2)
 
+	# Optimized: Hoisted constants outside the loop
+	var time_step: float = 1.0 / float(SAMPLE_RATE)
+
 	for index: int in range(sample_count):
-		var time: float = float(index) / float(SAMPLE_RATE)
+		var time: float = float(index) * time_step
 		var envelope: float = exp(-time * 45.0)
 		var value: float = randf_range(-0.3, 0.3) * envelope
 		raw.encode_s16(index * 2, int(clampf(value, -1.0, 1.0) * 32767.0))
@@ -168,10 +184,15 @@ func _synth_liquid_stream(duration: float) -> AudioStreamWAV:
 	var raw: PackedByteArray = PackedByteArray()
 	raw.resize(sample_count * 2)
 
+	# Optimized: Hoisted constants outside the loop
+	var time_step: float = 1.0 / float(SAMPLE_RATE)
+	var tau_300: float = TAU * 300.0
+	var tau_80: float = TAU * 80.0
+
 	for index: int in range(sample_count):
-		var time: float = float(index) / float(SAMPLE_RATE)
-		var frequency: float = 300.0 + sin(time * 50.0) * 80.0
-		var value: float = (sin(TAU * frequency * time) * 0.2 + randf_range(-0.08, 0.08)) * 0.3
+		var time: float = float(index) * time_step
+		var tau_freq: float = tau_300 + sin(time * 50.0) * tau_80
+		var value: float = (sin(tau_freq * time) * 0.2 + randf_range(-0.08, 0.08)) * 0.3
 		raw.encode_s16(index * 2, int(clampf(value, -1.0, 1.0) * 32767.0))
 
 	return _build_wav(raw)
@@ -182,11 +203,16 @@ func _synth_gulp(duration: float) -> AudioStreamWAV:
 	var raw: PackedByteArray = PackedByteArray()
 	raw.resize(sample_count * 2)
 
+	# Optimized: Hoisted constants outside the loop
+	var time_step: float = 1.0 / float(SAMPLE_RATE)
+	var inv_duration: float = 1.0 / duration
+	var tau_240: float = TAU * 240.0
+
 	for index: int in range(sample_count):
-		var time: float = float(index) / float(SAMPLE_RATE)
+		var time: float = float(index) * time_step
 		var envelope: float = exp(-time * 22.0)
-		var frequency: float = 240.0 * (1.0 - (time / duration) * 0.45)
-		var value: float = sin(TAU * frequency * time) * envelope * 0.4
+		var tau_freq: float = tau_240 * (1.0 - time * inv_duration * 0.45)
+		var value: float = sin(tau_freq * time) * envelope * 0.4
 		raw.encode_s16(index * 2, int(clampf(value, -1.0, 1.0) * 32767.0))
 
 	return _build_wav(raw)

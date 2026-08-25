@@ -46,14 +46,10 @@ static func read_dictionary(file_path: String) -> Dictionary:
 	if normalized_path.is_empty() or not FileAccess.file_exists(normalized_path):
 		return {}
 
-	var file: FileAccess = FileAccess.open(normalized_path, FileAccess.READ)
-	if file == null:
-		return {}
-
-	var content: String = file.get_as_text()
-	file.close()
-
+	# Optimized: Single-call C++ level file read. Bypasses GDScript file handle overhead.
+	var content: String = FileAccess.get_file_as_string(normalized_path)
 	var parsed: Variant = JSON.parse_string(content)
+	
 	return (parsed as Dictionary).duplicate(true) if parsed is Dictionary else {}
 
 

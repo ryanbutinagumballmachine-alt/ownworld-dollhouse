@@ -3,6 +3,7 @@
 # Node Tree Placement: Static Utility (DO NOT register as AutoLoad)
 # Base Class: RefCounted (class_name InteractionSolver)
 # ==============================================================================
+
 class_name InteractionSolver
 extends RefCounted
 
@@ -28,41 +29,54 @@ static func process_live_interactions(delta: float, active_dragged: OwnEntity, a
 	if active_dragged.is_drink and (active_dragged.is_infinite or active_dragged.fill_level > 0):
 		_process_drink_sipping_zone(delta, active_dragged, all_entities)
 	elif not active_dragged.is_liquid_source:
-		active_dragged.rotation = lerp_angle(active_dragged.rotation, 0.0, 10.0 * delta)
+		if not is_zero_approx(active_dragged.rotation):
+			active_dragged.rotation = lerp_angle(active_dragged.rotation, 0.0, 10.0 * delta)
 		
 	# 3. Cup-to-Cup Liquid Pouring with Physical Tilt
 	if active_dragged.is_liquid_source or (active_dragged.is_drink and (active_dragged.is_infinite or active_dragged.fill_level > 0)):
 		_process_cup_to_cup_pouring(delta, active_dragged, all_entities)
 
+
 static func _get_character_mouth_data(character: OwnEntity) -> Dictionary:
+	# Fast direct check for default mouth key
+	if character.interaction_points.has("mouth_1"):
+		var m_data: Dictionary = character.interaction_points["mouth_1"]
+		var offset: Vector2 = m_data.get("offset", Vector2(0.0, -32.0))
+		var radius: float = float(m_data.get("radius", 60.0))
+		return {
+			"found": true,
+			"global_pos": character.to_global(offset),
+			"radius_sq": radius * radius
+		}
+
 	for ik: String in character.interaction_points.keys():
-		if ik.to_lower().begins_with("mouth"):
+		if ik.begins_with("mouth"):
 			var m_data: Dictionary = character.interaction_points[ik]
 			var offset: Vector2 = m_data.get("offset", Vector2(0.0, -32.0))
 			var radius: float = float(m_data.get("radius", 60.0))
 			return {
 				"found": true,
 				"global_pos": character.to_global(offset),
-				"radius": radius
+				"radius_sq": radius * radius
 			}
-	return {"found": false, "global_pos": Vector2.ZERO, "radius": 0.0}
+	return {"found": false, "global_pos": Vector2.ZERO, "radius_sq": 0.0}
+
 
 static func _process_food_eating_zone(delta: float, food: OwnEntity, all_entities: Array[OwnEntity]) -> void:
-	var is_near_mouth: bool = false
 	var eater: OwnEntity = null
+	var food_pos: Vector2 = food.global_position
 	
 	for ent: OwnEntity in all_entities:
 		if is_instance_valid(ent) and ent.entity_type == Types.EntityType.CHARACTER and ent != food:
 			var mouth_info: Dictionary = _get_character_mouth_data(ent)
 			if bool(mouth_info["found"]):
 				var m_pos: Vector2 = mouth_info["global_pos"]
-				var radius: float = float(mouth_info["radius"])
-				if food.global_position.distance_to(m_pos) <= radius:
-					is_near_mouth = true
+				var rad_sq: float = float(mouth_info["radius_sq"])
+				if food_pos.distance_squared_to(m_pos) <= rad_sq:
 					eater = ent
 					break
 					
-	if is_near_mouth and eater != null:
+	if eater != null:
 		eater.set_expression("mouth_open", 0.4)
 		hover_eat_timer -= delta
 		if hover_eat_timer <= 0.0:
@@ -77,24 +91,24 @@ static func _process_food_eating_zone(delta: float, food: OwnEntity, all_entitie
 	else:
 		hover_eat_timer = 0.0
 
+
 static func _process_drink_sipping_zone(delta: float, drink: OwnEntity, all_entities: Array[OwnEntity]) -> void:
-	var is_near_mouth: bool = false
 	var drinker: OwnEntity = null
+	var drink_pos: Vector2 = drink.global_position
 	
 	for ent: OwnEntity in all_entities:
 		if is_instance_valid(ent) and ent.entity_type == Types.EntityType.CHARACTER and ent != drink:
 			var mouth_info: Dictionary = _get_character_mouth_data(ent)
 			if bool(mouth_info["found"]):
 				var m_pos: Vector2 = mouth_info["global_pos"]
-				var radius: float = float(mouth_info["radius"])
-				if drink.global_position.distance_to(m_pos) <= radius:
-					is_near_mouth = true
+				var rad_sq: float = float(mouth_info["radius_sq"])
+				if drink_pos.distance_squared_to(m_pos) <= rad_sq:
 					drinker = ent
 					break
 					
-	if is_near_mouth and drinker != null:
+	if drinker != null:
 		drinker.set_expression("mouth_open", 0.4)
-		var tilt_dir: float = -0.55 if drink.global_position.x > drinker.global_position.x else 0.55
+		var tilt_dir: float = -0.55 if drink_pos.x > drinker.global_position.x else 0.55
 		drink.rotation = lerp_angle(drink.rotation, tilt_dir, 14.0 * delta)
 		
 		hover_drink_timer -= delta
@@ -105,18 +119,23 @@ static func _process_drink_sipping_zone(delta: float, drink: OwnEntity, all_enti
 	else:
 		hover_drink_timer = 0.1
 
+
 static func _process_cup_to_cup_pouring(delta: float, source_cup: OwnEntity, all_entities: Array[OwnEntity]) -> void:
 	var target_cup: OwnEntity = null
+	var source_pos: Vector2 = source_cup.global_position
+	# Optimized: Pre-calculated squared distance (70.0 * 70.0) to avoid runtime math
+	const MAX_POUR_DIST_SQ: float = 4900.0 
 	
 	for ent: OwnEntity in all_entities:
 		if is_instance_valid(ent) and ent != source_cup and ent.is_liquid_container and ent.fill_level < 2:
-			if source_cup.global_position.distance_to(ent.global_position) <= 70.0:
-				if source_cup.global_position.y < ent.global_position.y:
+			if source_pos.y < ent.global_position.y:
+				# Optimized: Using distance_squared_to to bypass sqrt()
+				if source_pos.distance_squared_to(ent.global_position) <= MAX_POUR_DIST_SQ:
 					target_cup = ent
 					break
 					
 	if target_cup != null:
-		var pour_tilt: float = 0.65 if source_cup.global_position.x < target_cup.global_position.x else -0.65
+		var pour_tilt: float = 0.65 if source_pos.x < target_cup.global_position.x else -0.65
 		source_cup.rotation = lerp_angle(source_cup.rotation, pour_tilt, 14.0 * delta)
 		
 		hover_pour_timer -= delta
@@ -128,10 +147,12 @@ static func _process_cup_to_cup_pouring(delta: float, source_cup: OwnEntity, all
 	else:
 		hover_pour_timer = 0.15
 
+
 static func check_and_execute_crafting(dropped: OwnEntity, all_entities: Array[OwnEntity], canvas: Node2D) -> bool:
+	var drop_pos: Vector2 = dropped.global_position
 	for target: OwnEntity in all_entities:
 		if is_instance_valid(target) and target != dropped:
-			if target.contains_point(dropped.global_position):
+			if target.contains_point(drop_pos):
 				var craft_result: Dictionary = RecipeCrafting.check_and_craft(dropped, target)
 				if not craft_result.is_empty():
 					var spawn_pos: Vector2 = target.global_position

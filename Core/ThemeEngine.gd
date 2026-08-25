@@ -509,50 +509,45 @@ static func _create_flat_style(
 
 static func _gen_checkbox(is_checked: bool, bg: Color, border: Color, check: Color) -> ImageTexture:
 	var img: Image = Image.create(18, 18, false, Image.FORMAT_RGBA8)
-	img.fill(Color(0, 0, 0, 0))
-	var fill_color: Color = check if is_checked else bg
-	for x in range(1, 17):
-		for y in range(1, 17):
-			if x == 1 or x == 16 or y == 1 or y == 16:
-				img.set_pixel(x, y, border)
-			else:
-				img.set_pixel(x, y, fill_color)
+	img.fill(Color.TRANSPARENT)
+	img.fill_rect(Rect2i(1, 1, 16, 16), border)
+	img.fill_rect(Rect2i(2, 2, 14, 14), check if is_checked else bg)
 	if is_checked:
-		for x in range(5, 13):
-			for y in range(5, 13):
-				img.set_pixel(x, y, Color.WHITE)
+		img.fill_rect(Rect2i(5, 5, 8, 8), Color.WHITE)
 	return ImageTexture.create_from_image(img)
 
 static func _gen_radio(is_checked: bool, bg: Color, border: Color, dot: Color) -> ImageTexture:
 	var size: int = 16
 	var img: Image = Image.create(size, size, false, Image.FORMAT_RGBA8)
-	img.fill(Color(0, 0, 0, 0))
-	var center: Vector2 = Vector2(float(size) * 0.5, float(size) * 0.5)
-	var radius: float = 6.5
+	img.fill(Color.TRANSPARENT)
+	var center := Vector2(8.0, 8.0)
+	
 	for x in range(size):
 		for y in range(size):
-			var dist: float = Vector2(float(x) + 0.5, float(y) + 0.5).distance_to(center)
-			if dist <= radius:
-				if dist >= radius - 1.2:
+			var dist_sq := Vector2(x + 0.5, y + 0.5).distance_squared_to(center)
+			if dist_sq <= 42.25: # 6.5^2
+				if dist_sq >= 28.09: # 5.3^2
 					img.set_pixel(x, y, border)
 				else:
 					img.set_pixel(x, y, bg)
-			if is_checked and dist <= 3.5:
+			if is_checked and dist_sq <= 12.25: # 3.5^2
 				img.set_pixel(x, y, dot)
 	return ImageTexture.create_from_image(img)
 
 static func _gen_slider_grabber(is_highlight: bool, bg: Color, border: Color, accent: Color) -> ImageTexture:
 	var size: int = 16
 	var img: Image = Image.create(size, size, false, Image.FORMAT_RGBA8)
-	img.fill(Color(0, 0, 0, 0))
-	var center: Vector2 = Vector2(float(size) * 0.5, float(size) * 0.5)
-	var radius: float = 6.5 if is_highlight else 5.5
+	img.fill(Color.TRANSPARENT)
+	var center := Vector2(8.0, 8.0)
+	var outer_rad_sq := 42.25 if is_highlight else 30.25 # 6.5^2 or 5.5^2
+	var inner_rad_sq := 28.09 if is_highlight else 18.49 # 5.3^2 or 4.3^2
+	
 	for x in range(size):
 		for y in range(size):
-			var dist: float = Vector2(float(x) + 0.5, float(y) + 0.5).distance_to(center)
-			if dist <= radius:
-				if dist >= radius - 1.2:
-					img.set_pixel(x, y, border if not is_highlight else Color.WHITE)
+			var dist_sq := Vector2(x + 0.5, y + 0.5).distance_squared_to(center)
+			if dist_sq <= outer_rad_sq:
+				if dist_sq >= inner_rad_sq:
+					img.set_pixel(x, y, Color.WHITE if is_highlight else border)
 				else:
 					img.set_pixel(x, y, accent if is_highlight else bg)
 	return ImageTexture.create_from_image(img)
@@ -560,7 +555,7 @@ static func _gen_slider_grabber(is_highlight: bool, bg: Color, border: Color, ac
 static func _gen_arrow(dir: int, color: Color) -> ImageTexture:
 	var size: int = 14
 	var img: Image = Image.create(size, size, false, Image.FORMAT_RGBA8)
-	img.fill(Color(0, 0, 0, 0))
+	img.fill(Color.TRANSPARENT)
 	if dir == 0:
 		for t in range(5):
 			img.set_pixel(3 + t, 4 + t, color)
@@ -578,7 +573,7 @@ static func _gen_arrow(dir: int, color: Color) -> ImageTexture:
 static func _gen_updown(color: Color) -> ImageTexture:
 	var size: int = 14
 	var img: Image = Image.create(size, size, false, Image.FORMAT_RGBA8)
-	img.fill(Color(0, 0, 0, 0))
+	img.fill(Color.TRANSPARENT)
 	for t in range(3):
 		img.set_pixel(7 - t, 2 + t, color)
 		img.set_pixel(7 + t, 2 + t, color)
@@ -589,7 +584,7 @@ static func _gen_updown(color: Color) -> ImageTexture:
 static func _gen_close(color: Color) -> ImageTexture:
 	var size: int = 14
 	var img: Image = Image.create(size, size, false, Image.FORMAT_RGBA8)
-	img.fill(Color(0, 0, 0, 0))
+	img.fill(Color.TRANSPARENT)
 	for i in range(3, 11):
 		img.set_pixel(i, i, color)
 		img.set_pixel(i, 13 - i, color)

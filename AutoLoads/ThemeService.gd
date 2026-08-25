@@ -224,6 +224,7 @@ func get_icon(icon_name: String) -> Texture2D:
 				if (path.begins_with("user://") or not path.begins_with("res://")) and FileAccess.file_exists(path):
 					var image: Image = Image.load_from_file(path)
 					if image != null and not image.is_empty():
+						image.generate_mipmaps() # OPTIMIZATION: Mipmaps for UI Icons
 						var user_texture: ImageTexture = ImageTexture.create_from_image(image)
 						_theme_icon_cache[icon_name] = user_texture
 						return user_texture

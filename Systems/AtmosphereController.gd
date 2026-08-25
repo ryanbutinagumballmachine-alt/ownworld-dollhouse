@@ -100,22 +100,34 @@ func set_weather(weather_name: String) -> void:
 			weather_emitter.color = Color(1.0, 0.95, 0.6, 0.5)
 			weather_emitter.emitting = true
 
+static var _cached_radial_texture: ImageTexture = null
+
+static func get_cached_radial_texture() -> ImageTexture:
+	if _cached_radial_texture != null:
+		return _cached_radial_texture
+	
+	const TEX_SIZE: int = 256
+	const HALF_SIZE: float = 128.0
+	var img: Image = Image.create(TEX_SIZE, TEX_SIZE, true, Image.FORMAT_RGBA8)
+	var center: Vector2 = Vector2(HALF_SIZE, HALF_SIZE)
+	
+	for x: int in range(TEX_SIZE):
+		for y: int in range(TEX_SIZE):
+			var dist: float = Vector2(float(x), float(y)).distance_to(center)
+			if dist < HALF_SIZE:
+				var alpha: float = 1.0 - (dist / HALF_SIZE)
+				img.set_pixel(x, y, Color(1.0, 1.0, 1.0, alpha))
+			else:
+				img.set_pixel(x, y, Color(0.0, 0.0, 0.0, 0.0))
+	
+	_cached_radial_texture = ImageTexture.create_from_image(img)
+	return _cached_radial_texture
 
 static func create_radial_point_light(radius: int = 140, tint: Color = Color(1.0, 0.85, 0.5, 0.9)) -> PointLight2D:
 	var light: PointLight2D = PointLight2D.new()
-	var img: Image = Image.create(radius * 2, radius * 2, false, Image.FORMAT_RGBA8)
-	var center: Vector2 = Vector2(float(radius), float(radius))
-	var rad_f: float = float(radius)
-
-	for x: int in range(radius * 2):
-		for y: int in range(radius * 2):
-			var dist: float = Vector2(float(x), float(y)).distance_to(center)
-			if dist < rad_f:
-				var alpha: float = (1.0 - (dist / rad_f)) * tint.a
-				img.set_pixel(x, y, Color(tint.r, tint.g, tint.b, alpha))
-			else:
-				img.set_pixel(x, y, Color(0.0, 0.0, 0.0, 0.0))
-
-	light.texture = ImageTexture.create_from_image(img)
+	light.texture = get_cached_radial_texture()
+	light.color = tint
+	# Adjust scale so that the 256x256 cached texture matches the requested radius * 2
+	light.texture_scale = (float(radius) * 2.0) / 256.0
 	light.blend_mode = PointLight2D.BLEND_MODE_ADD
 	return light

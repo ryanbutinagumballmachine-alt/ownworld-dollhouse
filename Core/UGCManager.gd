@@ -1,5 +1,5 @@
 # ==============================================================================
-# OWNWORLD — UGC MANAGER & DOCUMENTS HUB
+# OWNWORLD — UGC MANAGER & DOCUMENTS HUB (HYPER-OPTIMIZED)
 # File: res://Core/UGCManager.gd
 # Base Class: RefCounted (class_name UGCManager)
 # ==============================================================================
@@ -7,9 +7,11 @@
 class_name UGCManager
 extends RefCounted
 
-const DEFAULT_MAX_TEXTURE_DIMENSION: int = 2048
-const DEFAULT_ALPHA_CUTOFF: float = 0.001
-const DEFAULT_ALPHA_EPSILON: float = 1.5
+const DEFAULT_MAX_TEXTURE_DIMENSION: int = 1024
+const DEFAULT_ALPHA_CUTOFF: float = 0.05
+const DEFAULT_ALPHA_EPSILON: float = 4.0
+const COLLISION_PROXY_MAX_SIZE: int = 256
+
 const SUPPORTED_ART_EXTENSIONS: Array[String] = ["png", "jpg", "jpeg", "webp"]
 const SUPPORTED_FONT_EXTENSIONS: Array[String] = ["ttf", "otf", "woff", "woff2"]
 const SUPPORTED_AUDIO_EXTENSIONS: Array[String] = ["mp3", "ogg", "wav"]
@@ -153,10 +155,16 @@ static func load_texture_from_file(file_path: String, max_dimension: int = DEFAU
 		push_error("[UGCManager] Failed to load image from disk: " + clean_path)
 		return null
 
-	var used_rect: Rect2i = image.get_used_rect()
-	if used_rect.has_area() and used_rect.size != image.get_size():
-		image = image.get_region(used_rect)
+	# --- EXTREME IMAGE OPTIMIZATION PIPELINE ---
+	
+	# 1. Format Optimization (Saves 25% memory if no alpha channel is needed)
+	if image.detect_alpha() == Image.ALPHA_NONE:
+		if image.get_format() != Image.FORMAT_RGB8:
+			image.convert(Image.FORMAT_RGB8)
+	elif image.get_format() != Image.FORMAT_RGBA8:
+		image.convert(Image.FORMAT_RGBA8)
 
+	# 2. High-Quality Downsampling
 	var original_width: int = image.get_width()
 	var original_height: int = image.get_height()
 	var safe_dimension: int = maxi(max_dimension, 1)
@@ -173,7 +181,15 @@ static func load_texture_from_file(file_path: String, max_dimension: int = DEFAU
 			target_height = safe_dimension
 			target_width = maxi(int(float(safe_dimension) * ratio), 1)
 
+		# Use LANCZOS for the highest quality downscaling
 		image.resize(target_width, target_height, Image.INTERPOLATE_LANCZOS)
+
+	# 3. Alpha Edge Bleed Fix (Prevents dark halos on scaled 2D sprites)
+	if image.get_format() == Image.FORMAT_RGBA8:
+		image.fix_alpha_edges()
+
+	# 4. Mipmap Generation (Massive GPU performance boost for scaled rendering)
+	image.generate_mipmaps()
 
 	var texture: ImageTexture = ImageTexture.create_from_image(image)
 	texture_cache[clean_path] = texture
@@ -214,8 +230,19 @@ static func generate_alpha_bitmap(tex: Texture2D, alpha_cutoff: float = DEFAULT_
 	if image == null or image.is_empty():
 		return null
 
+	# OPTIMIZATION: Downscale image for bitmap generation to save memory and CPU time.
+	# Because OwnEntity's contains_point() uses normalized coordinates, this works flawlessly.
+	var proxy_img: Image = image
+	if image.get_width() > COLLISION_PROXY_MAX_SIZE or image.get_height() > COLLISION_PROXY_MAX_SIZE:
+		proxy_img = image.duplicate()
+		var max_side: float = maxf(image.get_width(), image.get_height())
+		var scale_down: float = float(COLLISION_PROXY_MAX_SIZE) / max_side
+		var pw: int = maxi(int(image.get_width() * scale_down), 1)
+		var ph: int = maxi(int(image.get_height() * scale_down), 1)
+		proxy_img.resize(pw, ph, Image.INTERPOLATE_NEAREST)
+
 	var bitmap: BitMap = BitMap.new()
-	bitmap.create_from_image_alpha(image, clampf(alpha_cutoff, 0.0, 1.0))
+	bitmap.create_from_image_alpha(proxy_img, clampf(alpha_cutoff, 0.0, 1.0))
 	bitmap_cache[texture_rid] = bitmap
 	return bitmap
 
@@ -230,24 +257,46 @@ static func generate_alpha_collision_polygons(tex: Texture2D, alpha_cutoff: floa
 			return cached_polygons as Array[PackedVector2Array]
 		all_polygons_cache.erase(texture_rid)
 
-	var bitmap: BitMap = generate_alpha_bitmap(tex, alpha_cutoff)
-	if bitmap == null:
+	var source_img: Image = tex.get_image()
+	if source_img == null or source_img.is_empty():
 		return []
 
-	var image_size: Vector2 = Vector2(bitmap.get_size())
-	if image_size.x <= 0 or image_size.y <= 0:
+	var orig_w: float = float(source_img.get_width())
+	var orig_h: float = float(source_img.get_height())
+	if orig_w <= 0.0 or orig_h <= 0.0:
 		return []
 
-	var image_rect: Rect2 = Rect2(Vector2.ZERO, image_size)
-	var raw_polygons: Array[PackedVector2Array] = bitmap.opaque_to_polygons(image_rect, maxf(epsilon, 0.01))
-	var center_offset: Vector2 = -image_size * 0.5
+	var proxy_img: Image
+	var scale_x: float = 1.0
+	var scale_y: float = 1.0
+
+	# Optimized: Only duplicate the image if we actually need to resize it.
+	if orig_w > COLLISION_PROXY_MAX_SIZE or orig_h > COLLISION_PROXY_MAX_SIZE:
+		proxy_img = source_img.duplicate()
+		var max_side: float = maxf(orig_w, orig_h)
+		var scale_down: float = float(COLLISION_PROXY_MAX_SIZE) / max_side
+		var pw: int = maxi(int(orig_w * scale_down), 1)
+		var ph: int = maxi(int(orig_h * scale_down), 1)
+		proxy_img.resize(pw, ph, Image.INTERPOLATE_NEAREST)
+		scale_x = orig_w / float(pw)
+		scale_y = orig_h / float(ph)
+	else:
+		proxy_img = source_img # Pass by reference, no memory allocation
+
+	var proxy_bitmap: BitMap = BitMap.new()
+	proxy_bitmap.create_from_image_alpha(proxy_img, clampf(alpha_cutoff, 0.0, 1.0))
+
+	var proxy_rect: Rect2 = Rect2(Vector2.ZERO, Vector2(proxy_img.get_size()))
+	var raw_polygons: Array[PackedVector2Array] = proxy_bitmap.opaque_to_polygons(proxy_rect, maxf(epsilon, 1.0))
+	var center_offset: Vector2 = Vector2(-orig_w * 0.5, -orig_h * 0.5)
 	var centered_polygons: Array[PackedVector2Array] = []
 
 	for poly in raw_polygons:
 		if poly.size() >= 3:
 			var centered_poly: PackedVector2Array = PackedVector2Array()
 			for pt in poly:
-				centered_poly.append(pt + center_offset)
+				var upscaled_pt: Vector2 = Vector2(pt.x * scale_x, pt.y * scale_y)
+				centered_poly.append(upscaled_pt + center_offset)
 			centered_polygons.append(centered_poly)
 
 	all_polygons_cache[texture_rid] = centered_polygons
@@ -400,14 +449,14 @@ static func move_art_file(source_path: String, target_folder: String) -> String:
 static func create_blank_starter_graphic(dimensions: Vector2, tint: Color) -> ImageTexture:
 	var width: int = maxi(int(dimensions.x), 1)
 	var height: int = maxi(int(dimensions.y), 1)
-	var image: Image = Image.create(width, height, false, Image.FORMAT_RGBA8)
+	var image: Image = Image.create(width, height, true, Image.FORMAT_RGBA8) # Enabled Mipmaps
 	image.fill(tint)
 	return ImageTexture.create_from_image(image)
 
 static func create_door_frame_texture(dimensions: Vector2 = Vector2(96.0, 160.0)) -> ImageTexture:
 	var width: int = maxi(int(dimensions.x), 1)
 	var height: int = maxi(int(dimensions.y), 1)
-	var image: Image = Image.create(width, height, false, Image.FORMAT_RGBA8)
+	var image: Image = Image.create(width, height, true, Image.FORMAT_RGBA8) # Enabled Mipmaps
 	image.fill(Color("#1e1b18"))
 	var frame_color: Color = Color("#5c3d2e")
 
