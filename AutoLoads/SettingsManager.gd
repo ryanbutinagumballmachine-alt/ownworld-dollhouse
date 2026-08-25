@@ -26,6 +26,11 @@ const MAX_TOUCH_PADDING: float = 40.0
 const MIN_UI_SCALE: float = 0.75
 const MAX_UI_SCALE: float = 2.5
 
+# --- LONG PRESS SETTINGS ---
+const DEFAULT_LONG_PRESS_DURATION: float = 0.35
+const MIN_LONG_PRESS_DURATION: float = 0.15
+const MAX_LONG_PRESS_DURATION: float = 1.20
+
 var settings_data: Dictionary = {}
 
 signal developer_mode_changed(enabled: bool)
@@ -46,7 +51,8 @@ func load_settings() -> void:
 		"show_toasts": DEFAULT_SHOW_TOASTS,
 		"haptics_enabled": DEFAULT_HAPTICS_ENABLED,
 		"developer_mode": DEFAULT_DEVELOPER_MODE,
-		"touch_padding": DEFAULT_MOBILE_TOUCH_PADDING
+		"touch_padding": DEFAULT_MOBILE_TOUCH_PADDING,
+		"long_press_duration": DEFAULT_LONG_PRESS_DURATION
 	}
 	
 	var stored_data: Dictionary = JsonFileStore.read_dictionary(PATH_SETTINGS_FILE)
@@ -83,6 +89,15 @@ func _normalize_settings() -> void:
 	settings_data["haptics_enabled"] = bool(settings_data.get("haptics_enabled", DEFAULT_HAPTICS_ENABLED))
 	settings_data["developer_mode"] = bool(settings_data.get("developer_mode", DEFAULT_DEVELOPER_MODE))
 	settings_data["touch_padding"] = clampf(float(settings_data.get("touch_padding", DEFAULT_MOBILE_TOUCH_PADDING)), MIN_TOUCH_PADDING, MAX_TOUCH_PADDING)
+	settings_data["long_press_duration"] = clampf(float(settings_data.get("long_press_duration", DEFAULT_LONG_PRESS_DURATION)), MIN_LONG_PRESS_DURATION, MAX_LONG_PRESS_DURATION)
+
+# --- LONG PRESS API ---
+func get_long_press_duration() -> float:
+	return float(settings_data.get("long_press_duration", DEFAULT_LONG_PRESS_DURATION))
+
+func set_long_press_duration(value: float) -> void:
+	settings_data["long_press_duration"] = clampf(value, MIN_LONG_PRESS_DURATION, MAX_LONG_PRESS_DURATION)
+	save_settings()
 
 # --- TOUCH / HIT-TEST PADDING API ---
 func get_mobile_touch_padding() -> float:

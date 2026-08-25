@@ -4,23 +4,13 @@
 # Base Class: Node2D
 # ==============================================================================
 
-# ⚠️ ANDROID EXPORT PERMISSIONS REQUIRED ⚠️
-# To allow the game to read/write to the Documents folder on Android, you MUST check:
-# - Read External Storage
-# - Write External Storage
-# - Manage External Storage (For Android 11+)
-# - Read Media Images (For Android 13+)
-# - Vibrate (For Haptic Feedback)
-# in your Godot Android Export Preset.
-
 extends Node2D
 
 const ROOM_WIDTH: float = 1920.0
 const ROOM_HEIGHT: float = 1080.0
-const LONG_PRESS_SECONDS: float = 0.35
 
-# DPI-Aware Threshold: 40px for fat fingers on mobile, 18px for precise PC mice
-var TAP_PIXEL_THRESHOLD: float = 40.0 if OS.has_feature("mobile") else 18.0
+# DPI-Aware Threshold for distinguishing a tap/hold from a drag
+var TAP_PIXEL_THRESHOLD: float = 24.0 if OS.has_feature("mobile") else 14.0
 
 var room_bounds: Rect2 = Rect2(0.0, 0.0, ROOM_WIDTH, ROOM_HEIGHT)
 var current_room_floor_y: float = 600.0
@@ -73,6 +63,7 @@ var current_pointer_world_pos: Vector2 = Vector2.ZERO
 var press_start_time: float = 0.0
 var is_pointer_down: bool = false
 var long_press_triggered: bool = false
+var has_drag_moved_past_threshold: bool = false
 
 var active_touch_index: int = -1
 var active_touch_count: int = 0
@@ -108,14 +99,11 @@ func _ready() -> void:
 		main_menu_ui.open_menu()
 
 func _ensure_ugc_directories() -> void:
-	# Ensure internal state directories exist
 	var paths: Array[String] = [
 		"user://universes/", "user://maps/", "user://saves/"
 	]
 	for path: String in paths:
 		DirAccess.make_dir_recursive_absolute(path)
-		
-	# Ensure Documents/OwnWorld/Dollhouse/ directories exist
 	UGCManager.ensure_all_directories()
 
 func _enforce_cross_platform_viewport() -> void:
@@ -157,7 +145,6 @@ func _notification(what: int) -> void:
 		if drawer_tray_ui != null: drawer_tray_ui.save_cast_tray_for_current_universe()
 		if world_map_screen != null: world_map_screen.save_map_for_current_universe()
 	elif what == NOTIFICATION_APPLICATION_PAUSED or what == NOTIFICATION_WM_WINDOW_FOCUS_OUT:
-		# App Backgrounding Safety: Drop active items so they don't get stuck
 		_cancel_active_drag()
 		SaveSystem.save_current_room_state()
 		_save_session_from_main_state()
@@ -341,27 +328,39 @@ func _update_room_bg_theme_color() -> void:
 		room_default_bg.color = ThemeService.get_color("window_background", "#fff5f7")
 
 func _screen_to_world(screen_pos: Vector2) -> Vector2:
+	if main_camera != null and is_instance_valid(main_camera):
+		var viewport_size: Vector2 = get_viewport_rect().size
+		var cam_zoom: float = maxf(main_camera.zoom.x, 0.001)
+		return main_camera.position + (screen_pos - (viewport_size * 0.5)) / cam_zoom
 	return get_viewport().get_canvas_transform().affine_inverse() * screen_pos
 
-func _input(event: InputEvent) -> void:
+func _is_any_modal_open() -> bool:
 	for ui: Node in get_tree().get_nodes_in_group("modal_ui"):
-		if ui is CanvasLayer and (ui as CanvasLayer).visible: return
-		elif ui is Control and (ui as Control).visible: return
-		elif ui is Window and (ui as Window).visible: return
+		if ui is CanvasLayer and (ui as CanvasLayer).visible: return true
+		elif ui is Control and (ui as Control).visible: return true
+		elif ui is Window and (ui as Window).visible: return true
+	return false
+
+func _input(event: InputEvent) -> void:
+	if _is_any_modal_open():
+		_cancel_active_drag()
+		active_touch_count = 0
+		return
 
 	var pointer_screen: Vector2 = Vector2.ZERO
 	if event is InputEventScreenTouch or event is InputEventScreenDrag or event is InputEventMouseButton or event is InputEventMouseMotion:
 		pointer_screen = event.position
-		if drawer_tray_ui != null and drawer_tray_ui.is_point_inside_drawer(pointer_screen): return
-		if top_nav_bar != null and top_nav_bar.root_container != null and top_nav_bar.root_container.get_global_rect().has_point(pointer_screen): return
+		if drawer_tray_ui != null and drawer_tray_ui.is_point_inside_drawer(pointer_screen):
+			_cancel_active_drag()
+			return
+		if top_nav_bar != null and top_nav_bar.root_container != null and top_nav_bar.root_container.get_global_rect().has_point(pointer_screen):
+			_cancel_active_drag()
+			return
 
 	if main_camera != null:
 		main_camera.handle_unhandled_input(event)
 
-	# STRICT INPUT SEPARATION: Ignore emulated mouse events if a touch is active
-	if (event is InputEventMouseButton or event is InputEventMouseMotion) and active_touch_count > 0:
-		return
-
+	# --- Touch Events ---
 	if event is InputEventScreenTouch:
 		var screen_touch: InputEventScreenTouch = event as InputEventScreenTouch
 		var touch_world_pos: Vector2 = _screen_to_world(screen_touch.position)
@@ -377,7 +376,7 @@ func _input(event: InputEvent) -> void:
 				_cancel_active_drag()
 		else:
 			active_touch_count = maxi(0, active_touch_count - 1)
-			if screen_touch.index == active_touch_index:
+			if screen_touch.index == active_touch_index or active_touch_count == 0:
 				_handle_press_end(touch_world_pos)
 				active_touch_index = -1
 
@@ -386,9 +385,14 @@ func _input(event: InputEvent) -> void:
 		if screen_drag.index == active_touch_index and active_touch_count == 1:
 			current_pointer_screen_pos = screen_drag.position
 			current_pointer_world_pos = _screen_to_world(screen_drag.position)
-			if active_dragged_entity != null: _update_active_drag_position(current_pointer_world_pos)
-			elif main_camera != null and main_camera.is_panning: main_camera.update_drag_pan(screen_drag.position)
+			if press_start_screen_pos.distance_to(current_pointer_screen_pos) > TAP_PIXEL_THRESHOLD:
+				has_drag_moved_past_threshold = true
+			if active_dragged_entity != null:
+				_update_active_drag_position(current_pointer_world_pos)
+			elif main_camera != null and main_camera.is_panning:
+				main_camera.update_drag_pan(screen_drag.position)
 
+	# --- Mouse Events (Strictly filtered so emulated touch clicks don't double-fire) ---
 	elif event is InputEventMouseButton:
 		var mouse_button: InputEventMouseButton = event as InputEventMouseButton
 		var mouse_world_pos: Vector2 = _screen_to_world(mouse_button.position)
@@ -396,18 +400,29 @@ func _input(event: InputEvent) -> void:
 		current_pointer_world_pos = mouse_world_pos
 
 		if mouse_button.button_index == MOUSE_BUTTON_LEFT:
-			if mouse_button.pressed: _handle_press_begin(mouse_world_pos, mouse_button.position)
-			else: _handle_press_end(mouse_world_pos)
+			if mouse_button.pressed:
+				if active_touch_count == 0 and not is_pointer_down:
+					_handle_press_begin(mouse_world_pos, mouse_button.position)
+			else:
+				if active_touch_count == 0 and is_pointer_down:
+					_handle_press_end(mouse_world_pos)
 		elif mouse_button.button_index == MOUSE_BUTTON_RIGHT and mouse_button.pressed:
 			var clicked: OwnEntity = _get_topmost_at(mouse_world_pos)
 			if clicked != null:
 				_trigger_haptic(40)
-				if magic_wheel_ui != null: magic_wheel_ui.open_wheel_for_entity(clicked, mouse_button.position)
+				if magic_wheel_ui != null:
+					magic_wheel_ui.open_wheel_for_entity(clicked, mouse_button.position)
 
 	elif event is InputEventMouseMotion:
+		if active_touch_count > 0:
+			return
+
 		var mouse_motion: InputEventMouseMotion = event as InputEventMouseMotion
 		current_pointer_screen_pos = mouse_motion.position
 		current_pointer_world_pos = _screen_to_world(mouse_motion.position)
+
+		if press_start_screen_pos.distance_to(current_pointer_screen_pos) > TAP_PIXEL_THRESHOLD:
+			has_drag_moved_past_threshold = true
 
 		if active_dragged_entity != null:
 			_update_active_drag_position(current_pointer_world_pos)
@@ -418,8 +433,9 @@ func _process(delta: float) -> void:
 	if is_pointer_down and not long_press_triggered and pressed_target_entity != null and is_instance_valid(pressed_target_entity):
 		var elapsed: float = (Time.get_ticks_msec() / 1000.0) - press_start_time
 		var drag_dist: float = press_start_screen_pos.distance_to(current_pointer_screen_pos)
+		var long_press_threshold: float = SettingsManager.get_long_press_duration()
 
-		if elapsed >= LONG_PRESS_SECONDS and drag_dist <= TAP_PIXEL_THRESHOLD:
+		if not has_drag_moved_past_threshold and elapsed >= long_press_threshold and drag_dist <= TAP_PIXEL_THRESHOLD:
 			long_press_triggered = true
 			var target_to_open: OwnEntity = pressed_target_entity
 			_trigger_haptic(60)
@@ -436,8 +452,8 @@ func _update_active_drag_position(world_pointer_pos: Vector2) -> void:
 		return
 
 	var target_pos: Vector2 = world_pointer_pos + drag_offset
-	if bool(SettingsManager.settings_data.get("grid_snap", false)):
-		var grid_size: float = float(SettingsManager.settings_data.get("grid_size", 32))
+	if SettingsManager.is_grid_snap_enabled():
+		var grid_size: float = float(SettingsManager.get_grid_size())
 		target_pos = target_pos.snapped(Vector2(grid_size, grid_size))
 
 	var half_width: float = active_dragged_entity.get_visual_half_width()
@@ -452,8 +468,12 @@ func _update_active_process_state() -> void:
 	set_process(is_pointer_down or active_dragged_entity != null)
 
 func _handle_press_begin(world_pos: Vector2, screen_pos: Vector2) -> void:
+	if is_pointer_down:
+		return
+
 	is_pointer_down = true
 	long_press_triggered = false
+	has_drag_moved_past_threshold = false
 	press_start_world_pos = world_pos
 	press_start_screen_pos = screen_pos
 	current_pointer_screen_pos = screen_pos
@@ -564,6 +584,7 @@ func _cancel_active_drag() -> void:
 		main_camera.end_drag_pan()
 	pressed_target_entity = null
 	is_pointer_down = false
+	has_drag_moved_past_threshold = false
 	_update_active_process_state()
 
 func _handle_layer1_tap(entity: OwnEntity) -> void:
@@ -576,7 +597,6 @@ func _handle_layer1_tap(entity: OwnEntity) -> void:
 
 func _trigger_haptic(duration_ms: int = 30) -> void:
 	if SettingsManager.are_haptics_enabled() and (OS.has_feature("mobile") or OS.has_feature("web_android") or OS.has_feature("web_ios")):
-		# Safe Haptics: Wrap in try/catch equivalent to prevent crashes on unsupported tablets
 		if Input.has_method("vibrate_handheld"):
 			Input.vibrate_handheld(duration_ms)
 

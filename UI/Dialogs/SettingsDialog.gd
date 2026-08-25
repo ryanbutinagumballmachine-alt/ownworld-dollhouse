@@ -33,6 +33,11 @@ var lbl_touch_padding: Label = null
 var touch_padding_val_lbl: Label = null
 var touch_padding_slider: HSlider = null
 
+var long_press_hdr: HBoxContainer = null
+var lbl_long_press: Label = null
+var long_press_val_lbl: Label = null
+var long_press_slider: HSlider = null
+
 var grid_check: CheckBox = null
 var toasts_check: CheckBox = null
 var dev_mode_check: CheckBox = null
@@ -45,7 +50,6 @@ var reset_panel: PanelContainer = null
 var reset_title_lbl: Label = null
 var reset_desc_lbl: Label = null
 
-
 func _ready() -> void:
 	name = "SettingsDialog"
 	layer = 120
@@ -56,7 +60,6 @@ func _ready() -> void:
 	_connect_system_signals()
 	_update_responsive_layout()
 
-
 func _connect_system_signals() -> void:
 	var tree: SceneTree = get_tree()
 	if tree != null and tree.root != null and not tree.root.size_changed.is_connected(_update_responsive_layout):
@@ -64,11 +67,9 @@ func _connect_system_signals() -> void:
 	if not EventBus.theme_changed.is_connected(_on_theme_changed):
 		EventBus.theme_changed.connect(_on_theme_changed)
 
-
 func _on_theme_changed(_theme_data: Dictionary) -> void:
 	_refresh_theme_icons()
 	_update_responsive_layout()
-
 
 func _update_responsive_layout() -> void:
 	if not is_instance_valid(root_panel): return
@@ -81,7 +82,6 @@ func _update_responsive_layout() -> void:
 	if reset_panel != null:
 		var reset_width: float = clampf(viewport_size.x * 0.85, 260.0, 380.0)
 		reset_panel.custom_minimum_size = Vector2(reset_width, 200.0)
-
 
 func _build_ui() -> void:
 	root_backdrop = Control.new()
@@ -166,7 +166,7 @@ func _build_ui() -> void:
 	master_slider.max_value = 1.0
 	master_slider.step = 0.05
 	master_slider.custom_minimum_size = Vector2(0.0, 22.0)
-	master_slider.value = float(SettingsManager.settings_data.get("master_vol", 1.0))
+	master_slider.value = SettingsManager.get_master_volume()
 	master_slider.value_changed.connect(_on_master_volume_changed)
 	audio_inner.add_child(master_slider)
 
@@ -180,7 +180,7 @@ func _build_ui() -> void:
 	sfx_slider.max_value = 1.0
 	sfx_slider.step = 0.05
 	sfx_slider.custom_minimum_size = Vector2(0.0, 22.0)
-	sfx_slider.value = float(SettingsManager.settings_data.get("sfx_vol", 1.0))
+	sfx_slider.value = SettingsManager.get_sfx_volume()
 	sfx_slider.value_changed.connect(_on_sfx_volume_changed)
 	audio_inner.add_child(sfx_slider)
 
@@ -194,7 +194,7 @@ func _build_ui() -> void:
 	music_slider.max_value = 1.0
 	music_slider.step = 0.05
 	music_slider.custom_minimum_size = Vector2(0.0, 22.0)
-	music_slider.value = float(SettingsManager.settings_data.get("music_vol", 0.8))
+	music_slider.value = SettingsManager.get_music_volume()
 	music_slider.value_changed.connect(_on_music_volume_changed)
 	audio_inner.add_child(music_slider)
 
@@ -237,7 +237,7 @@ func _build_ui() -> void:
 	ui_scale_slider.value_changed.connect(_on_ui_scale_changed)
 	display_inner.add_child(ui_scale_slider)
 
-	# Touch Padding Slider (New In-Game Tweak)
+	# Touch Padding Slider
 	touch_padding_hdr = HBoxContainer.new()
 	display_inner.add_child(touch_padding_hdr)
 
@@ -262,9 +262,34 @@ func _build_ui() -> void:
 	touch_padding_slider.value_changed.connect(_on_touch_padding_changed)
 	display_inner.add_child(touch_padding_slider)
 
+	# Long-Press Duration Slider (Magic Wheel Trigger Time)
+	long_press_hdr = HBoxContainer.new()
+	display_inner.add_child(long_press_hdr)
+
+	lbl_long_press = Label.new()
+	lbl_long_press.text = "Magic Wheel Hold Time:"
+	lbl_long_press.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	lbl_long_press.theme_type_variation = "HintLabel"
+	long_press_hdr.add_child(lbl_long_press)
+
+	var current_long_press: float = SettingsManager.get_long_press_duration()
+	long_press_val_lbl = Label.new()
+	long_press_val_lbl.text = "%.2fs" % current_long_press
+	long_press_val_lbl.theme_type_variation = "HeaderLabel"
+	long_press_hdr.add_child(long_press_val_lbl)
+
+	long_press_slider = HSlider.new()
+	long_press_slider.min_value = 0.15
+	long_press_slider.max_value = 1.20
+	long_press_slider.step = 0.05
+	long_press_slider.custom_minimum_size = Vector2(0.0, 24.0)
+	long_press_slider.value = current_long_press
+	long_press_slider.value_changed.connect(_on_long_press_duration_changed)
+	display_inner.add_child(long_press_slider)
+
 	# Checkboxes
 	grid_check = _create_icon_check("icon_grid", "Magnetic Grid Snapping (32px)")
-	grid_check.button_pressed = bool(SettingsManager.settings_data.get("grid_snap", false))
+	grid_check.button_pressed = SettingsManager.is_grid_snap_enabled()
 	grid_check.toggled.connect(_on_grid_snap_toggled)
 	display_inner.add_child(grid_check)
 
@@ -308,7 +333,6 @@ func _build_ui() -> void:
 	btn_save.pressed.connect(close_settings)
 	outer_vbox.add_child(btn_save)
 
-
 func _create_icon_check(icon_key: String, title: String) -> CheckBox:
 	var checkbox: CheckBox = CheckBox.new()
 	checkbox.text = " " + title
@@ -316,7 +340,6 @@ func _create_icon_check(icon_key: String, title: String) -> CheckBox:
 	checkbox.add_theme_constant_override("icon_max_width", 16)
 	_apply_checkbox_icon(checkbox, icon_key)
 	return checkbox
-
 
 func _build_reset_confirmation_modal() -> void:
 	reset_modal_backdrop = Control.new()
@@ -381,12 +404,11 @@ func _build_reset_confirmation_modal() -> void:
 	confirm_button.pressed.connect(_execute_factory_reset)
 	button_hbox.add_child(confirm_button)
 
-
 func open_settings() -> void:
-	master_slider.value = float(SettingsManager.settings_data.get("master_vol", 1.0))
-	sfx_slider.value = float(SettingsManager.settings_data.get("sfx_vol", 1.0))
-	music_slider.value = float(SettingsManager.settings_data.get("music_vol", 0.8))
-	grid_check.button_pressed = bool(SettingsManager.settings_data.get("grid_snap", false))
+	master_slider.value = SettingsManager.get_master_volume()
+	sfx_slider.value = SettingsManager.get_sfx_volume()
+	music_slider.value = SettingsManager.get_music_volume()
+	grid_check.button_pressed = SettingsManager.is_grid_snap_enabled()
 	toasts_check.button_pressed = SettingsManager.are_toasts_enabled()
 	dev_mode_check.button_pressed = SettingsManager.is_developer_mode_enabled()
 
@@ -398,15 +420,17 @@ func open_settings() -> void:
 	touch_padding_slider.value = current_padding
 	touch_padding_val_lbl.text = "0 px (Exact)" if int(current_padding) == 0 else "%d px" % int(current_padding)
 
+	var current_long_press: float = SettingsManager.get_long_press_duration()
+	long_press_slider.value = current_long_press
+	long_press_val_lbl.text = "%.2fs" % current_long_press
+
 	_update_responsive_layout()
 	visible = true
-
 
 func close_settings() -> void:
 	SettingsManager.save_settings()
 	EventBus.notification_requested.emit("Settings saved.", true)
 	visible = false
-
 
 func _on_master_volume_changed(value: float) -> void:
 	SettingsManager.set_master_volume(value)
@@ -425,6 +449,10 @@ func _on_touch_padding_changed(value: float) -> void:
 	touch_padding_val_lbl.text = "0 px (Exact)" if int(value) == 0 else "%d px" % int(value)
 	SettingsManager.set_mobile_touch_padding(value)
 
+func _on_long_press_duration_changed(value: float) -> void:
+	long_press_val_lbl.text = "%.2fs" % value
+	SettingsManager.set_long_press_duration(value)
+
 func _on_grid_snap_toggled(toggled_on: bool) -> void:
 	SettingsManager.set_grid_snap_enabled(toggled_on)
 
@@ -434,13 +462,11 @@ func _on_toasts_toggled(toggled_on: bool) -> void:
 func _on_dev_mode_toggled(toggled_on: bool) -> void:
 	SettingsManager.set_developer_mode(toggled_on)
 
-
 func _execute_factory_reset() -> void:
 	reset_modal_backdrop.visible = false
 	visible = false
 	_perform_factory_reset()
 	EventBus.notification_requested.emit("Factory reset complete.", true)
-
 
 func _perform_factory_reset() -> void:
 	_wipe_directory_contents("user://")
@@ -453,7 +479,6 @@ func _perform_factory_reset() -> void:
 	SettingsManager.load_settings()
 	ThemeService.reset_to_default_theme()
 	get_tree().reload_current_scene()
-
 
 func _wipe_directory_contents(directory_path: String) -> void:
 	if not DirAccess.dir_exists_absolute(directory_path):
@@ -468,7 +493,6 @@ func _wipe_directory_contents(directory_path: String) -> void:
 		_wipe_directory_contents(child_dir)
 		DirAccess.remove_absolute(child_dir)
 
-
 func _refresh_theme_icons() -> void:
 	_apply_button_icon(btn_factory, "icon_warning")
 	_apply_button_icon(btn_save, "icon_save")
@@ -481,12 +505,10 @@ func _refresh_theme_icons() -> void:
 			if node is Button and (node as Button).text == "✕":
 				_apply_close_icon(node as Button)
 
-
 func _apply_button_icon(button: Button, icon_key: String) -> void:
 	if button == null: return
 	var icon_texture: Texture2D = ThemeService.get_icon(icon_key)
 	if icon_texture != null: button.icon = icon_texture
-
 
 func _apply_close_icon(button: Button) -> void:
 	if button == null: return
@@ -494,12 +516,10 @@ func _apply_close_icon(button: Button) -> void:
 	if icon_texture != null: button.icon = icon_texture
 	else: button.text = "✕"
 
-
 func _apply_checkbox_icon(checkbox: CheckBox, icon_key: String) -> void:
 	if checkbox == null: return
 	var icon_texture: Texture2D = ThemeService.get_icon(icon_key)
 	if icon_texture != null: checkbox.icon = icon_texture
-
 
 func _on_backdrop_gui_input(event: InputEvent) -> void:
 	if (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT) or (event is InputEventScreenTouch and event.pressed):
