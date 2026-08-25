@@ -63,12 +63,14 @@ var press_start_time: float = 0.0
 var is_pointer_down: bool = false
 var long_press_triggered: bool = false
 var has_drag_moved_past_threshold: bool = false
+var is_room_loaded: bool = false
 
 # Resilient Index-Based Touch Tracking
 var _active_touches: Dictionary = {}
 var _ui_touch_indices: Dictionary = {}
 var active_touch_index: int = -1
 var _next_entity_uid: int = 1
+
 
 func _ready() -> void:
 	set_process(false)
@@ -101,10 +103,11 @@ func _ready() -> void:
 	
 	FileDialog.set_get_thumbnail_callback(_generate_file_thumbnail)
 
+
 static func _generate_file_thumbnail(path: String) -> Texture2D:
 	var ext: String = path.get_extension().to_lower()
 	if ext in ["png", "jpg", "jpeg", "webp"]:
-		return UGCManager.load_texture_from_file(path)
+		return UGCManager.get_thumbnail(path, 256)
 	return null
 
 func _ensure_ugc_directories() -> void:
@@ -115,6 +118,7 @@ func _ensure_ugc_directories() -> void:
 		DirAccess.make_dir_recursive_absolute(path)
 	UGCManager.ensure_all_directories()
 
+
 func _enforce_cross_platform_viewport() -> void:
 	var win: Window = get_window()
 	if win == null:
@@ -122,7 +126,8 @@ func _enforce_cross_platform_viewport() -> void:
 	win.content_scale_mode = Window.CONTENT_SCALE_MODE_CANVAS_ITEMS
 	win.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_EXPAND
 	win.content_scale_stretch = Window.CONTENT_SCALE_STRETCH_FRACTIONAL
-	win.content_scale_size = Vector2i.ZERO
+	win.content_scale_size = Vector2i(1280, 720)
+
 
 func _apply_hardware_safe_margins() -> void:
 	var safe_area: Rect2i = DisplayServer.get_display_safe_area()
@@ -141,11 +146,13 @@ func _apply_hardware_safe_margins() -> void:
 		drawer_tray_ui.root_panel.offset_bottom = bottom_offset
 		drawer_tray_ui.root_panel.offset_top = bottom_offset - drawer_tray_ui.DRAWER_HEIGHT
 
+
 func _on_window_resized() -> void:
 	if main_camera != null: main_camera.update_room_bounds(room_bounds)
 	_update_room_bg_theme_color()
 	if room_default_bg != null: ThemeService.register_background(room_default_bg)
 	_apply_hardware_safe_margins()
+
 
 func _notification(what: int) -> void:
 	if what == NOTIFICATION_WM_CLOSE_REQUEST:
@@ -160,8 +167,10 @@ func _notification(what: int) -> void:
 		active_touch_index = -1
 		if main_camera != null and is_instance_valid(main_camera):
 			main_camera.reset_touch_state()
-		SaveSystem.save_current_room_state()
+		if is_room_loaded:
+			SaveSystem.save_current_room_state()
 		_save_session_from_main_state()
+
 
 func _load_dialog_instance(candidate_paths: Array[String]) -> CanvasLayer:
 	for path: String in candidate_paths:
@@ -174,6 +183,7 @@ func _load_dialog_instance(candidate_paths: Array[String]) -> CanvasLayer:
 		if instance is CanvasLayer:
 			return instance as CanvasLayer
 	return null
+
 
 func _mount_subsystems() -> void:
 	world_canvas = Node2D.new()
@@ -320,6 +330,7 @@ func _mount_subsystems() -> void:
 		if ui != null and is_instance_valid(ui):
 			ui.add_to_group("modal_ui")
 
+
 func _connect_system_signals() -> void:
 	if not ThemeService.theme_changed.is_connected(_on_theme_changed):
 		ThemeService.theme_changed.connect(_on_theme_changed)
@@ -332,14 +343,17 @@ func _connect_system_signals() -> void:
 	if history_manager != null and history_manager.has_signal("state_restored") and not history_manager.is_connected("state_restored", Callable(self, "_on_history_state_restored")):
 		history_manager.connect("state_restored", Callable(self, "_on_history_state_restored"))
 
+
 func _on_theme_changed(_theme_data: Dictionary) -> void:
 	_update_room_bg_theme_color()
 	if room_default_bg != null:
 		ThemeService.register_background(room_default_bg)
 
+
 func _update_room_bg_theme_color() -> void:
 	if room_default_bg != null:
 		room_default_bg.color = ThemeService.get_color("window_background", "#fff5f7")
+
 
 func _screen_to_world(screen_pos: Vector2) -> Vector2:
 	if main_camera != null and is_instance_valid(main_camera):
@@ -348,6 +362,7 @@ func _screen_to_world(screen_pos: Vector2) -> Vector2:
 		return main_camera.position + (screen_pos - (viewport_size * 0.5)) / cam_zoom
 	return get_viewport().get_canvas_transform().affine_inverse() * screen_pos
 
+
 func _is_any_modal_open() -> bool:
 	for ui: Node in get_tree().get_nodes_in_group("modal_ui"):
 		if not is_instance_valid(ui): continue
@@ -355,6 +370,7 @@ func _is_any_modal_open() -> bool:
 		elif ui is Control and (ui as Control).visible: return true
 		elif ui is Window and (ui as Window).visible: return true
 	return false
+
 
 func _input(event: InputEvent) -> void:
 	# =========================================================================
@@ -481,6 +497,7 @@ func _input(event: InputEvent) -> void:
 		elif is_pointer_down and pressed_target_entity == null and main_camera != null and main_camera.is_panning:
 			main_camera.update_drag_pan(mouse_motion.position)
 
+
 func _process(delta: float) -> void:
 	if is_pointer_down and not long_press_triggered and pressed_target_entity != null and is_instance_valid(pressed_target_entity):
 		var elapsed: float = (Time.get_ticks_msec() / 1000.0) - press_start_time
@@ -499,6 +516,7 @@ func _process(delta: float) -> void:
 	if active_dragged_entity != null and is_instance_valid(active_dragged_entity):
 		InteractionSolver.process_live_interactions(delta, active_dragged_entity, all_entities)
 
+
 func _update_active_drag_position(world_pointer_pos: Vector2) -> void:
 	if active_dragged_entity == null or not is_instance_valid(active_dragged_entity):
 		return
@@ -516,8 +534,10 @@ func _update_active_drag_position(world_pointer_pos: Vector2) -> void:
 	target_pos.y = clampf(target_pos.y, room_bounds.position.y + top_offset, room_bounds.end.y - bottom_offset)
 	active_dragged_entity.global_position = target_pos
 
+
 func _update_active_process_state() -> void:
 	set_process(is_pointer_down or active_dragged_entity != null)
+
 
 func _handle_press_begin(world_pos: Vector2, screen_pos: Vector2) -> void:
 	if is_pointer_down:
@@ -552,6 +572,7 @@ func _handle_press_begin(world_pos: Vector2, screen_pos: Vector2) -> void:
 		main_camera.start_drag_pan(screen_pos)
 
 	_update_active_process_state()
+
 
 func _handle_press_end(_world_pos: Vector2) -> void:
 	if not is_pointer_down:
@@ -628,6 +649,7 @@ func _handle_press_end(_world_pos: Vector2) -> void:
 
 	_update_active_process_state()
 
+
 func _cancel_active_drag() -> void:
 	if active_dragged_entity != null and is_instance_valid(active_dragged_entity):
 		active_dragged_entity.on_drop()
@@ -639,6 +661,7 @@ func _cancel_active_drag() -> void:
 	has_drag_moved_past_threshold = false
 	_update_active_process_state()
 
+
 func _handle_layer1_tap(entity: OwnEntity) -> void:
 	_trigger_haptic(20)
 	LogicEngine.evaluate_trigger(Types.TriggerEvent.ON_TAPPED, entity)
@@ -647,10 +670,12 @@ func _handle_layer1_tap(entity: OwnEntity) -> void:
 	elif entity.has_method("toggle_active_state"): entity.toggle_active_state()
 	SaveSystem.save_current_room_state()
 
+
 func _trigger_haptic(duration_ms: int = 30) -> void:
 	if SettingsManager.are_haptics_enabled() and (OS.has_feature("mobile") or OS.has_feature("web_android") or OS.has_feature("web_ios")):
 		if Input.has_method("vibrate_handheld"):
 			Input.vibrate_handheld(duration_ms)
+
 
 func _on_elevator_floor_travel_requested(elevator: OwnEntity, target_room_id: String, floor_name: String) -> void:
 	if not is_instance_valid(elevator):
@@ -671,12 +696,14 @@ func _on_elevator_floor_travel_requested(elevator: OwnEntity, target_room_id: St
 		_transition_to_room(target_room_id, {"bundle": bundle, "arrival_elevator": true})
 	)
 
+
 func _on_item_unpacked_from_container(item_data: Dictionary, container_ent: OwnEntity) -> void:
 	var spawn_pos: Vector2 = container_ent.global_position + Vector2(randf_range(-40.0, 40.0), 20.0)
 	RoomManager.reconstruct_traveler_bundle([item_data], spawn_pos, world_canvas, all_entities)
 	_trigger_haptic(30)
 	SaveSystem.save_current_room_state()
 	EventBus.notification_requested.emit("Unpacked: " + str(item_data.get("display_name", "Item")), true)
+
 
 func _apply_physical_gravity_settle(entity: OwnEntity) -> void:
 	if entity.is_wall_mounted or entity.can_float or entity.is_floor_decor or entity.parent_socket_entity != null:
@@ -690,13 +717,14 @@ func _apply_physical_gravity_settle(entity: OwnEntity) -> void:
 		var tween: Tween = create_tween().set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
 		tween.tween_property(entity, "global_position:y", floor_baseline, fall_duration)
 
+
 func _remove_hierarchy(root_ent: OwnEntity) -> void:
 	all_entities.erase(root_ent)
 	for child: OwnEntity in root_ent.attached_children:
 		if is_instance_valid(child):
 			_remove_hierarchy(child)
 
-# OPTIMIZED: Zero-Allocation Hit Testing
+
 func _get_topmost_at(world_pos: Vector2, touch_padding: float = 0.0) -> OwnEntity:
 	var best: OwnEntity = null
 	for entity: OwnEntity in all_entities:
@@ -704,6 +732,7 @@ func _get_topmost_at(world_pos: Vector2, touch_padding: float = 0.0) -> OwnEntit
 			if best == null or _is_entity_in_front_of(entity, best):
 				best = entity
 	return best
+
 
 func _is_entity_in_front_of(a: OwnEntity, b: OwnEntity) -> bool:
 	if a.parent_socket_entity == b: return true
@@ -721,13 +750,14 @@ func _is_entity_in_front_of(a: OwnEntity, b: OwnEntity) -> bool:
 	var area_b: float = b.texture_size.x * b.texture_size.y * b.entity_scale * b.entity_scale
 	return area_a < area_b
 
+
 func _calculate_global_z(entity: OwnEntity) -> int:
 	if not is_instance_valid(entity): return 0
 	if entity.parent_socket_entity != null and is_instance_valid(entity.parent_socket_entity):
 		return _calculate_global_z(entity.parent_socket_entity) + entity.z_index + 10
 	return entity.z_index
 
-# OPTIMIZED: Fast File I/O
+
 func _load_session() -> Dictionary:
 	const DEFAULT_SESSION: Dictionary = {
 		"universe_id": "default_universe", "universe_name": "Default Universe",
@@ -740,8 +770,10 @@ func _load_session() -> Dictionary:
 	var parsed: Variant = JSON.parse_string(content)
 	return (parsed as Dictionary) if parsed is Dictionary else DEFAULT_SESSION.duplicate(true)
 
+
 func _get_current_universe_id() -> String: return SaveSystem.get_current_universe_id()
 func _get_current_room_id() -> String: return SaveSystem.get_current_room_id()
+
 
 func _save_session_from_main_state() -> void:
 	var session: Dictionary = _load_session()
@@ -751,10 +783,12 @@ func _save_session_from_main_state() -> void:
 		file.store_string(JSON.stringify(session, "\t"))
 		file.close()
 
+
 func _on_atmosphere_changed(time_preset: String, weather_preset: String) -> void:
 	if atmosphere != null:
 		atmosphere.set_preset(time_preset)
 		atmosphere.set_weather(weather_preset)
+
 
 func _transition_to_room(target_room_id: String, traveler_data: Dictionary = {}) -> void:
 	var current_room_id_str: String = _get_current_room_id()
@@ -773,6 +807,7 @@ func _transition_to_room(target_room_id: String, traveler_data: Dictionary = {})
 	else:
 		_on_game_room_changed(target_room_id, current_room_id_str, traveler_data)
 
+
 func _switch_universe(new_u_id: String, new_u_name: String, starting_room: String = "room_main") -> void:
 	if new_u_id.is_empty(): return
 	var session: Dictionary = _load_session()
@@ -788,6 +823,7 @@ func _switch_universe(new_u_id: String, new_u_name: String, starting_room: Strin
 	if EventBus.has_signal("universe_changed"):
 		EventBus.universe_changed.emit(new_u_id, new_u_name)
 
+
 func _clear_current_universe_rooms() -> void:
 	var save_dir: String = SaveSystem.get_universe_save_dir()
 	if not DirAccess.dir_exists_absolute(save_dir):
@@ -802,12 +838,14 @@ func _clear_current_universe_rooms() -> void:
 		file_name = dir.get_next()
 	dir.list_dir_end()
 
+
 func _generate_entity_uuid(base_name: String) -> String:
 	var sanitized: String = base_name.validate_node_name()
 	if sanitized.is_empty(): sanitized = "entity"
 	var uid: String = "%s_%d" % [sanitized, _next_entity_uid]
 	_next_entity_uid += 1
 	return uid
+
 
 func _on_open_universe_journal() -> void:
 	if universe_journal_ui == null or not is_instance_valid(universe_journal_ui):
@@ -821,14 +859,17 @@ func _on_open_universe_journal() -> void:
 	if universe_journal_ui != null and universe_journal_ui.has_method("open_journal"):
 		universe_journal_ui.call("open_journal")
 
+
 func _on_open_room_studio() -> void:
 	_update_floor_guide_visuals(current_room_floor_y, true)
 	if room_studio_ui != null:
 		room_studio_ui.open_studio(current_room_title, current_room_floor_y, current_wallpaper_path, current_wallpaper_fill_mode)
 
+
 func _on_floor_preview_changed(preview_y: float, preview_visible: bool) -> void:
 	current_room_floor_y = preview_y
 	_update_floor_guide_visuals(preview_y, preview_visible)
+
 
 func _on_room_configured(wall_path: String, wall_texture: Texture2D, floor_y: float, room_name: String, fill_mode: String) -> void:
 	current_wallpaper_path = wall_path
@@ -838,6 +879,7 @@ func _on_room_configured(wall_path: String, wall_texture: Texture2D, floor_y: fl
 	_apply_room_wallpaper(wall_texture, fill_mode)
 	_update_floor_guide_visuals(floor_y, false)
 	SaveSystem.save_current_room_state()
+
 
 func _apply_room_wallpaper(wall_texture: Texture2D, fill_mode: String) -> void:
 	if room_background_sprite == null: return
@@ -885,11 +927,13 @@ func _apply_room_wallpaper(wall_texture: Texture2D, fill_mode: String) -> void:
 			room_background_sprite.position = room_bounds.get_center()
 			room_background_sprite.scale = Vector2.ONE
 
+
 func _on_wallpaper_cleared() -> void:
 	current_wallpaper_path = ""
 	current_wallpaper_fill_mode = "cover"
 	if room_background_sprite != null: room_background_sprite.texture = null
 	_update_room_bg_theme_color()
+
 
 func _update_floor_guide_visuals(floor_y: float, preview_visible: bool) -> void:
 	if floor_guide_line == null: return
@@ -901,7 +945,9 @@ func _update_floor_guide_visuals(floor_y: float, preview_visible: bool) -> void:
 	else:
 		floor_guide_line.visible = false
 
+
 func _load_active_room(room_id: String, traveler_data: Dictionary = {}) -> void:
+	is_room_loaded = false
 	RoomManager.stream_room(room_id, traveler_data, world_canvas, all_entities)
 
 	if atmosphere != null:
@@ -924,9 +970,12 @@ func _load_active_room(room_id: String, traveler_data: Dictionary = {}) -> void:
 	_update_floor_guide_visuals(current_room_floor_y, false)
 	if main_camera != null: main_camera.update_room_bounds(room_bounds)
 	if drawer_tray_ui != null: drawer_tray_ui.refresh_tray()
+	is_room_loaded = true
+
 
 func _on_game_room_changed(new_room: String, _departing_room: String, traveler_data: Dictionary) -> void:
 	_load_active_room(new_room, traveler_data)
+
 
 func _on_universe_switched(new_u_id: String, new_u_name: String) -> void:
 	SaveSystem.save_current_room_state()
@@ -936,6 +985,7 @@ func _on_universe_switched(new_u_id: String, new_u_name: String) -> void:
 	if world_map_screen != null: world_map_screen.load_map_for_current_universe()
 	if drawer_tray_ui != null: drawer_tray_ui.load_cast_tray_for_current_universe()
 	_load_active_room("room_main")
+
 
 func _on_reset_all_rooms_requested() -> void:
 	var rescued_count: int = 0
@@ -955,10 +1005,12 @@ func _on_reset_all_rooms_requested() -> void:
 	_load_active_room("room_main")
 	EventBus.notification_requested.emit("Rooms Reset. %d Character(s) returned to Cast Tray!" % rescued_count, true)
 
+
 func _record_history() -> void:
 	var history: Node = get_node_or_null("/root/HistoryManager")
 	if history != null and history.has_method("record_snapshot"):
 		history.call("record_snapshot", _serialize_state())
+
 
 func _serialize_state() -> Dictionary:
 	var entities: Array[Dictionary] = []
@@ -980,8 +1032,10 @@ func _serialize_state() -> Dictionary:
 		"entities": entities
 	}
 
+
 func _on_history_state_restored(snapshot: Dictionary) -> void:
 	RoomManager.deserialize_room_into_canvas(snapshot, world_canvas, all_entities)
+
 
 func _on_drawer_spawn_ugc(item_name: String, texture: Texture2D, file_path: String) -> void:
 	var texture_height: float = float(texture.get_height()) if texture != null else 64.0
@@ -1003,12 +1057,14 @@ func _on_drawer_spawn_ugc(item_name: String, texture: Texture2D, file_path: Stri
 	_trigger_haptic(30)
 	SaveSystem.save_current_room_state()
 
+
 func _on_character_spawn_requested(char_data: Dictionary) -> void:
 	var camera_x: float = main_camera.position.x if main_camera != null else 960.0
 	var spawn_pos: Vector2 = Vector2(camera_x, current_room_floor_y - 80.0)
 	RoomManager.reconstruct_traveler_bundle([char_data], spawn_pos, world_canvas, all_entities)
 	_trigger_haptic(35)
 	SaveSystem.save_current_room_state()
+
 
 func _on_template_spawn_requested(template_data: Dictionary) -> void:
 	var camera_x: float = main_camera.position.x if main_camera != null else 960.0
@@ -1017,6 +1073,7 @@ func _on_template_spawn_requested(template_data: Dictionary) -> void:
 	RoomManager.reconstruct_traveler_bundle([template_data], Vector2(spawn_x, spawn_y), world_canvas, all_entities)
 	_trigger_haptic(30)
 	SaveSystem.save_current_room_state()
+
 
 func _on_magic_wheel_action(action_name: String, target: OwnEntity) -> void:
 	if not is_instance_valid(target):
@@ -1071,6 +1128,7 @@ func _on_magic_wheel_action(action_name: String, target: OwnEntity) -> void:
 			target.queue_free()
 			_trigger_haptic(50)
 			SaveSystem.save_current_room_state()
+
 
 func _on_undo_requested() -> void:
 	var history: Node = get_node_or_null("/root/HistoryManager")

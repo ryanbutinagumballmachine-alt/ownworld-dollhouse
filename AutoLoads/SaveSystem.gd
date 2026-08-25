@@ -64,6 +64,9 @@ func save_current_room_state() -> void:
 	if main_node == null:
 		return
 
+	if main_node.get("is_room_loaded") == false:
+		return
+
 	var entity_bundles: Array[Dictionary] = []
 	var raw_entities: Variant = main_node.get("all_entities")
 

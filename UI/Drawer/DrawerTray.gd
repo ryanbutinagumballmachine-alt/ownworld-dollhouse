@@ -692,7 +692,6 @@ func _render_assets_tab() -> void:
 		var fname: String = str(art_data.get("name", "Art"))
 		var f_path: String = str(art_data.get("folder", "")).replace("\\", "/").strip_edges().trim_prefix("/").trim_suffix("/")
 		var tags: Array = asset_tags_registry.get(fname, ["#props"]) as Array
-		var tex: Texture2D = art_data.get("texture", null) as Texture2D
 
 		if active_search_query != "":
 			var matches: bool = (active_search_query in fname.to_lower()) or (active_search_query in f_path.to_lower())
@@ -706,9 +705,9 @@ func _render_assets_tab() -> void:
 		else:
 			if f_path != norm_folder: continue
 
-		_create_asset_card(art_data, tex)
+		_create_asset_card(art_data)
 
-func _create_asset_card(art_data: Dictionary, tex: Texture2D) -> void:
+func _create_asset_card(art_data: Dictionary) -> void:
 	var fname: String = str(art_data.get("name", "Art"))
 	var fpath: String = str(art_data.get("file_path", ""))
 	var item_key: String = fpath
@@ -758,13 +757,15 @@ func _create_asset_card(art_data: Dictionary, tex: Texture2D) -> void:
 		btn_del.pressed.connect(func() -> void: _delete_art_file(fpath, fname))
 		action_row.add_child(btn_del)
 
+	var tex: Texture2D = UGCManager.get_thumbnail(fpath)
 	_attach_card_visuals(vbox, tex, fname)
 
 	card.pressed.connect(func() -> void:
 		if is_batch_mode:
 			_toggle_item_batch_selection(item_key, art_data)
 		else:
-			spawn_ugc_requested.emit(fname, tex, fpath)
+			var full_tex: Texture2D = UGCManager.load_texture_from_file(fpath)
+			spawn_ugc_requested.emit(fname, full_tex, fpath)
 			_notify("Spawned: " + fname, true)
 	)
 	items_grid.add_child(card)
@@ -811,7 +812,7 @@ func _render_templates_tab(file_path: String, type: Types.EntityType, category_k
 		else:
 			if f_path != norm_folder: continue
 
-		var tex: Texture2D = UGCManager.load_texture_from_file(img_path) if (img_path != "" and FileAccess.file_exists(img_path)) else null
+		var tex: Texture2D = UGCManager.get_thumbnail(img_path)
 		
 		var card: Button = Button.new()
 		card.custom_minimum_size = Vector2(CARD_WIDTH, CARD_HEIGHT)
@@ -924,7 +925,7 @@ func _render_cast_tab() -> void:
 		else:
 			if f_path != norm_folder: continue
 
-		var tex: Texture2D = UGCManager.load_texture_from_file(c_path) if (c_path != "" and FileAccess.file_exists(c_path)) else null
+		var tex: Texture2D = UGCManager.get_thumbnail(c_path)
 		
 		var card: Button = Button.new()
 		card.custom_minimum_size = Vector2(CARD_WIDTH, CARD_HEIGHT)
@@ -1167,7 +1168,6 @@ func _create_card_icon_btn(icon_key: String, is_danger: bool = false) -> Button:
 	return btn
 
 func _attach_card_visuals(vbox: VBoxContainer, tex: Texture2D, label_text: String) -> void:
-	# Upper Visual Thumbnail Box (Green Arrow)
 	var thumb_box: PanelContainer = PanelContainer.new()
 	thumb_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	thumb_box.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -1191,7 +1191,6 @@ func _attach_card_visuals(vbox: VBoxContainer, tex: Texture2D, label_text: Strin
 	thumb_box.add_child(thumb)
 	vbox.add_child(thumb_box)
 
-	# Lower Matching Name Box (Red Arrow)
 	var label_box: PanelContainer = PanelContainer.new()
 	label_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	label_box.custom_minimum_size = Vector2(0.0, 16.0)

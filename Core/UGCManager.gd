@@ -1,5 +1,5 @@
 # ==============================================================================
-# OWNWORLD — UGC MANAGER & DOCUMENTS HUB (HYPER-OPTIMIZED)
+# OWNWORLD — UGC MANAGER & DOCUMENTS HUB (HYPER-OPTIMIZED & INSTANT THUMBNAILS)
 # File: res://Core/UGCManager.gd
 # Base Class: RefCounted (class_name UGCManager)
 # ==============================================================================
@@ -8,9 +8,11 @@ class_name UGCManager
 extends RefCounted
 
 const DEFAULT_MAX_TEXTURE_DIMENSION: int = 1024
+const THUMBNAIL_MAX_DIMENSION: int = 128
 const DEFAULT_ALPHA_CUTOFF: float = 0.05
 const DEFAULT_ALPHA_EPSILON: float = 4.0
 const COLLISION_PROXY_MAX_SIZE: int = 256
+const THUMB_CACHE_DIR: String = "user://.thumb_cache/"
 
 const SUPPORTED_ART_EXTENSIONS: Array[String] = ["png", "jpg", "jpeg", "webp"]
 const SUPPORTED_FONT_EXTENSIONS: Array[String] = ["ttf", "otf", "woff", "woff2"]
@@ -20,6 +22,13 @@ static var texture_cache: Dictionary = {}
 static var polygon_cache: Dictionary = {}
 static var all_polygons_cache: Dictionary = {}
 static var bitmap_cache: Dictionary = {}
+
+static var thumb_cache: Dictionary = {}
+static var thumb_mutex: Mutex = Mutex.new()
+
+static var _library_metadata_cache: Array[Dictionary] = []
+static var _library_dirty: bool = true
+
 
 # --- DOCUMENTS HUB PATHS ---
 
@@ -33,26 +42,33 @@ static func get_documents_hub_dir() -> String:
 		DirAccess.make_dir_recursive_absolute(hub_dir)
 	return hub_dir
 
+
 static func get_dollhouse_dir() -> String:
 	var dollhouse_dir: String = get_documents_hub_dir().path_join("Dollhouse").replace("\\", "/")
 	if not DirAccess.dir_exists_absolute(dollhouse_dir):
 		DirAccess.make_dir_recursive_absolute(dollhouse_dir)
 	return dollhouse_dir
 
+
 static func get_art_root_directory() -> String:
 	return _get_or_create_dollhouse_subdir("Art")
+
 
 static func get_exports_dir() -> String:
 	return _get_or_create_dollhouse_subdir("Exports")
 
+
 static func get_packs_dir() -> String:
 	return _get_or_create_dollhouse_subdir("Packs")
+
 
 static func get_font_root_directory() -> String:
 	return _get_or_create_dollhouse_subdir("Font")
 
+
 static func get_theme_root_directory() -> String:
 	return _get_or_create_dollhouse_subdir("Themes")
+
 
 static func get_theme_icons_directory() -> String:
 	var icons_dir: String = get_theme_root_directory().path_join("Icons").replace("\\", "/")
@@ -60,17 +76,22 @@ static func get_theme_icons_directory() -> String:
 		DirAccess.make_dir_recursive_absolute(icons_dir)
 	return icons_dir
 
+
 static func get_theme_file_path() -> String:
 	return get_theme_root_directory().path_join("theme.json").replace("\\", "/")
+
 
 static func get_custom_themes_file_path() -> String:
 	return get_theme_root_directory().path_join("custom_themes.json").replace("\\", "/")
 
+
 static func get_templates_directory() -> String:
 	return _get_or_create_dollhouse_subdir("Templates")
 
+
 static func get_audio_root_directory() -> String:
 	return _get_or_create_dollhouse_subdir("Audio")
+
 
 static func ensure_all_directories() -> void:
 	get_art_root_directory()
@@ -81,12 +102,20 @@ static func ensure_all_directories() -> void:
 	get_theme_icons_directory()
 	get_templates_directory()
 	get_audio_root_directory()
+	_ensure_thumb_cache_directory()
+
+
+static func _ensure_thumb_cache_directory() -> void:
+	if not DirAccess.dir_exists_absolute(THUMB_CACHE_DIR):
+		DirAccess.make_dir_recursive_absolute(THUMB_CACHE_DIR)
+
 
 static func _get_or_create_dollhouse_subdir(subdir_name: String) -> String:
 	var target_dir: String = get_dollhouse_dir().path_join(subdir_name).replace("\\", "/")
 	if not DirAccess.dir_exists_absolute(target_dir):
 		DirAccess.make_dir_recursive_absolute(target_dir)
 	return target_dir
+
 
 static func get_default_import_directory() -> String:
 	var pictures_dir: String = OS.get_system_dir(OS.SYSTEM_DIR_PICTURES)
@@ -103,6 +132,7 @@ static func get_default_import_directory() -> String:
 
 	return get_art_root_directory()
 
+
 static func resolve_art_directory(relative_folder: String = "") -> String:
 	var normalized_folder: String = _normalize_relative_folder(relative_folder)
 	var art_root: String = get_art_root_directory()
@@ -110,6 +140,112 @@ static func resolve_art_directory(relative_folder: String = "") -> String:
 	if not DirAccess.dir_exists_absolute(target_directory):
 		DirAccess.make_dir_recursive_absolute(target_directory)
 	return target_directory
+
+
+# --- METADATA & DIRECTORY SCANNING (INSTANT ZERO-DECODE SCAN) ---
+
+static func mark_library_dirty() -> void:
+	_library_dirty = true
+	_library_metadata_cache.clear()
+
+
+static func scan_user_art_library(force_refresh: bool = false) -> Array[Dictionary]:
+	if not _library_dirty and not force_refresh and not _library_metadata_cache.is_empty():
+		return _library_metadata_cache
+
+	var results: Array[Dictionary] = []
+	_scan_dir_metadata_recursive(get_art_root_directory(), "", results)
+	_library_metadata_cache = results
+	_library_dirty = false
+	return results
+
+
+static func _scan_dir_metadata_recursive(disk_path: String, relative_folder: String, results: Array[Dictionary]) -> void:
+	if not DirAccess.dir_exists_absolute(disk_path):
+		return
+
+	var files: PackedStringArray = DirAccess.get_files_at(disk_path)
+	for file_name: String in files:
+		var extension: String = file_name.get_extension().to_lower()
+		if not SUPPORTED_ART_EXTENSIONS.has(extension):
+			continue
+		var full_path: String = disk_path.path_join(file_name).replace("\\", "/")
+		results.append({
+			"name": file_name.get_basename(),
+			"file_path": full_path,
+			"folder": relative_folder
+		})
+
+	var directories: PackedStringArray = DirAccess.get_directories_at(disk_path)
+	for directory_name: String in directories:
+		if directory_name.begins_with("."):
+			continue
+		var sub_directory: String = disk_path.path_join(directory_name)
+		var sub_relative_path: String = directory_name if relative_folder.is_empty() else relative_folder + "/" + directory_name
+		_scan_dir_metadata_recursive(sub_directory, sub_relative_path, results)
+
+
+static func get_subfolders_in_art_folder(relative_folder_path: String) -> Array[String]:
+	var subfolders: Array[String] = []
+	var normalized_relative: String = _normalize_relative_folder(relative_folder_path)
+	var art_root: String = get_art_root_directory()
+	var target_directory: String = art_root if (normalized_relative.is_empty() or normalized_relative == "Root") else art_root.path_join(normalized_relative)
+
+	if not DirAccess.dir_exists_absolute(target_directory):
+		return subfolders
+
+	var directories: PackedStringArray = DirAccess.get_directories_at(target_directory)
+	for directory_name: String in directories:
+		if not directory_name.begins_with("."):
+			subfolders.append(directory_name)
+
+	return subfolders
+
+
+static func get_all_art_folders() -> Array[String]:
+	var folders: Array[String] = ["Root"]
+	_gather_all_folders_recursive(get_art_root_directory(), "", folders)
+	return folders
+
+
+static func _gather_all_folders_recursive(disk_path: String, relative_path: String, folders: Array[String]) -> void:
+	if not DirAccess.dir_exists_absolute(disk_path):
+		return
+
+	var directories: PackedStringArray = DirAccess.get_directories_at(disk_path)
+	for directory_name: String in directories:
+		if directory_name.begins_with("."):
+			continue
+		var sub_relative_path: String = directory_name if relative_path.is_empty() else relative_path + "/" + directory_name
+		folders.append(sub_relative_path)
+		_gather_all_folders_recursive(disk_path.path_join(directory_name), sub_relative_path, folders)
+
+
+static func create_art_folder(nested_folder_path: String) -> bool:
+	var normalized_path: String = _normalize_relative_folder(nested_folder_path)
+	if normalized_path.is_empty() or normalized_path == "Root":
+		return false
+	var target_directory: String = get_art_root_directory().path_join(normalized_path)
+	if DirAccess.dir_exists_absolute(target_directory):
+		return true
+	var ok: bool = DirAccess.make_dir_recursive_absolute(target_directory) == OK
+	if ok:
+		mark_library_dirty()
+	return ok
+
+
+static func delete_art_folder(relative_folder_path: String) -> bool:
+	var normalized_relative: String = _normalize_relative_folder(relative_folder_path)
+	if normalized_relative.is_empty() or normalized_relative == "Root":
+		return false
+	var target_directory: String = get_art_root_directory().path_join(normalized_relative)
+	if not DirAccess.dir_exists_absolute(target_directory):
+		return false
+	var ok: bool = _wipe_dir_recursive(target_directory)
+	if ok:
+		mark_library_dirty()
+	return ok
+
 
 static func import_art_files(source_paths: PackedStringArray, relative_target_folder: String = "") -> Array[Dictionary]:
 	var imported_results: Array[Dictionary] = []
@@ -134,22 +270,124 @@ static func import_art_files(source_paths: PackedStringArray, relative_target_fo
 			if DirAccess.copy_absolute(clean_source, destination_path) != OK:
 				continue
 
-		var texture: Texture2D = load_texture_from_file(destination_path)
 		imported_results.append({
 			"name": file_name.get_basename(),
 			"file_path": destination_path,
-			"folder": normalized_folder,
-			"texture": texture
+			"folder": normalized_folder
 		})
 
+	mark_library_dirty()
 	return imported_results
+
 
 static func delete_art_file(file_path: String) -> bool:
 	var clean_path: String = _normalize_file_path(file_path)
 	if not FileAccess.file_exists(clean_path):
 		return false
 	clear_cache_for_path(clean_path)
-	return DirAccess.remove_absolute(clean_path) == OK
+	var ok: bool = DirAccess.remove_absolute(clean_path) == OK
+	if ok:
+		mark_library_dirty()
+	return ok
+
+
+static func move_art_file(source_path: String, target_folder: String) -> String:
+	var clean_source: String = _normalize_file_path(source_path)
+	if not FileAccess.file_exists(clean_source):
+		return ""
+
+	var file_name: String = clean_source.get_file()
+	var target_directory: String = resolve_art_directory(target_folder)
+	var new_path: String = target_directory.path_join(file_name).replace("\\", "/")
+
+	if clean_source == new_path:
+		return new_path
+
+	clear_cache_for_path(new_path)
+	if DirAccess.rename_absolute(clean_source, new_path) != OK:
+		if DirAccess.copy_absolute(clean_source, new_path) != OK:
+			return ""
+		DirAccess.remove_absolute(clean_source)
+
+	clear_cache_for_path(clean_source)
+	mark_library_dirty()
+	return new_path
+
+
+static func _wipe_dir_recursive(disk_path: String) -> bool:
+	if not DirAccess.dir_exists_absolute(disk_path):
+		return true
+
+	var files: PackedStringArray = DirAccess.get_files_at(disk_path)
+	for file_name: String in files:
+		var file_path: String = disk_path.path_join(file_name).replace("\\", "/")
+		clear_cache_for_path(file_path)
+		DirAccess.remove_absolute(file_path)
+
+	var directories: PackedStringArray = DirAccess.get_directories_at(disk_path)
+	for directory_name: String in directories:
+		_wipe_dir_recursive(disk_path.path_join(directory_name))
+
+	return DirAccess.remove_absolute(disk_path) == OK
+
+
+# --- HIGH-SPEED THUMBNAIL PIPELINE (RAM + DISK CACHE + THREAD SAFE) ---
+
+static func get_thumbnail(file_path: String, max_dimension: int = THUMBNAIL_MAX_DIMENSION) -> Texture2D:
+	var clean_path: String = _normalize_file_path(file_path)
+	if clean_path.is_empty() or not FileAccess.file_exists(clean_path):
+		return null
+
+	var cache_key: String = clean_path + "_" + str(max_dimension)
+
+	thumb_mutex.lock()
+	if thumb_cache.has(cache_key):
+		var cached_texture: Variant = thumb_cache[cache_key]
+		if is_instance_valid(cached_texture) and cached_texture is Texture2D:
+			thumb_mutex.unlock()
+			return cached_texture as Texture2D
+		thumb_cache.erase(cache_key)
+	thumb_mutex.unlock()
+
+	_ensure_thumb_cache_directory()
+	var thumb_filename: String = clean_path.md5_text() + "_" + str(max_dimension) + ".png"
+	var thumb_disk_path: String = THUMB_CACHE_DIR.path_join(thumb_filename)
+
+	var src_mod_time: int = FileAccess.get_modified_time(clean_path)
+	if FileAccess.file_exists(thumb_disk_path):
+		var thumb_mod_time: int = FileAccess.get_modified_time(thumb_disk_path)
+		if thumb_mod_time >= src_mod_time:
+			var disk_img: Image = Image.load_from_file(thumb_disk_path)
+			if disk_img != null and not disk_img.is_empty():
+				var disk_texture: ImageTexture = ImageTexture.create_from_image(disk_img)
+				thumb_mutex.lock()
+				thumb_cache[cache_key] = disk_texture
+				thumb_mutex.unlock()
+				return disk_texture
+
+	var source_image: Image = Image.load_from_file(clean_path)
+	if source_image == null or source_image.is_empty():
+		return null
+
+	var orig_w: int = source_image.get_width()
+	var orig_h: int = source_image.get_height()
+
+	if orig_w > max_dimension or orig_h > max_dimension:
+		var scale: float = float(max_dimension) / maxf(float(orig_w), float(orig_h))
+		var target_w: int = maxi(1, int(float(orig_w) * scale))
+		var target_h: int = maxi(1, int(float(orig_h) * scale))
+		source_image.resize(target_w, target_h, Image.INTERPOLATE_BILINEAR)
+
+	source_image.save_png(thumb_disk_path)
+
+	var result_texture: ImageTexture = ImageTexture.create_from_image(source_image)
+	thumb_mutex.lock()
+	thumb_cache[cache_key] = result_texture
+	thumb_mutex.unlock()
+	return result_texture
+
+
+# --- FULL-RESOLUTION RUNTIME TEXTURE LOADER ---
 
 static func load_texture_from_file(file_path: String, max_dimension: int = DEFAULT_MAX_TEXTURE_DIMENSION) -> Texture2D:
 	var clean_path: String = _normalize_file_path(file_path)
@@ -162,12 +400,11 @@ static func load_texture_from_file(file_path: String, max_dimension: int = DEFAU
 			return cached_value as Texture2D
 		texture_cache.erase(clean_path)
 
-	var image: Image = Image.new()
-	if image.load(clean_path) != OK:
+	var image: Image = Image.load_from_file(clean_path)
+	if image == null or image.is_empty():
 		push_error("[UGCManager] Failed to load image from disk: " + clean_path)
 		return null
 
-	# --- IMAGE OPTIMIZATION PIPELINE ---
 	if image.detect_alpha() == Image.ALPHA_NONE:
 		if image.get_format() != Image.FORMAT_RGB8:
 			image.convert(Image.FORMAT_RGB8)
@@ -201,26 +438,40 @@ static func load_texture_from_file(file_path: String, max_dimension: int = DEFAU
 	texture_cache[clean_path] = texture
 	return texture
 
+
 static func clear_cache_for_path(file_path: String) -> void:
 	var clean_path: String = _normalize_file_path(file_path)
-	if not texture_cache.has(clean_path):
-		return
-	var cached_value: Variant = texture_cache[clean_path]
-	if cached_value is Texture2D:
-		var rid: RID = (cached_value as Texture2D).get_rid()
-		polygon_cache.erase(rid)
-		all_polygons_cache.erase(rid)
-		bitmap_cache.erase(rid)
-	texture_cache.erase(clean_path)
+	if texture_cache.has(clean_path):
+		var cached_value: Variant = texture_cache[clean_path]
+		if cached_value is Texture2D:
+			var rid: RID = (cached_value as Texture2D).get_rid()
+			polygon_cache.erase(rid)
+			all_polygons_cache.erase(rid)
+			bitmap_cache.erase(rid)
+		texture_cache.erase(clean_path)
+
+	thumb_mutex.lock()
+	for key: String in thumb_cache.keys():
+		if key.begins_with(clean_path):
+			thumb_cache.erase(key)
+	thumb_mutex.unlock()
+
 
 static func clear_texture_cache() -> void:
 	texture_cache.clear()
 	polygon_cache.clear()
 	all_polygons_cache.clear()
 	bitmap_cache.clear()
+	thumb_mutex.lock()
+	thumb_cache.clear()
+	thumb_mutex.unlock()
+
 
 static func get_texture_cache_size() -> int: return texture_cache.size()
 static func get_polygon_cache_size() -> int: return polygon_cache.size()
+
+
+# --- ALPHA GEOMETRY & COLLISION GENERATION ---
 
 static func generate_alpha_bitmap(tex: Texture2D, alpha_cutoff: float = DEFAULT_ALPHA_CUTOFF) -> BitMap:
 	if tex == null:
@@ -249,6 +500,7 @@ static func generate_alpha_bitmap(tex: Texture2D, alpha_cutoff: float = DEFAULT_
 	bitmap.create_from_image_alpha(proxy_img, clampf(alpha_cutoff, 0.0, 1.0))
 	bitmap_cache[texture_rid] = bitmap
 	return bitmap
+
 
 static func generate_alpha_collision_polygons(tex: Texture2D, alpha_cutoff: float = DEFAULT_ALPHA_CUTOFF, epsilon: float = DEFAULT_ALPHA_EPSILON) -> Array[PackedVector2Array]:
 	if tex == null:
@@ -305,6 +557,7 @@ static func generate_alpha_collision_polygons(tex: Texture2D, alpha_cutoff: floa
 	all_polygons_cache[texture_rid] = centered_polygons
 	return centered_polygons
 
+
 static func generate_alpha_collision_polygon(tex: Texture2D, alpha_cutoff: float = DEFAULT_ALPHA_CUTOFF, epsilon: float = DEFAULT_ALPHA_EPSILON) -> PackedVector2Array:
 	if tex == null:
 		return PackedVector2Array()
@@ -331,123 +584,6 @@ static func generate_alpha_collision_polygon(tex: Texture2D, alpha_cutoff: float
 	polygon_cache[texture_rid] = empty_polygon
 	return empty_polygon
 
-static func scan_user_art_library() -> Array[Dictionary]:
-	var results: Array[Dictionary] = []
-	_scan_dir_recursive(get_art_root_directory(), "", results)
-	return results
-
-static func _scan_dir_recursive(disk_path: String, relative_folder: String, results: Array[Dictionary]) -> void:
-	if not DirAccess.dir_exists_absolute(disk_path):
-		return
-
-	var files: PackedStringArray = DirAccess.get_files_at(disk_path)
-	for file_name: String in files:
-		var extension: String = file_name.get_extension().to_lower()
-		if not SUPPORTED_ART_EXTENSIONS.has(extension):
-			continue
-		var full_path: String = disk_path.path_join(file_name).replace("\\", "/")
-		results.append({
-			"name": file_name.get_basename(),
-			"file_path": full_path,
-			"folder": relative_folder,
-			"texture": load_texture_from_file(full_path)
-		})
-
-	var directories: PackedStringArray = DirAccess.get_directories_at(disk_path)
-	for directory_name: String in directories:
-		if directory_name.begins_with("."):
-			continue
-		var sub_directory: String = disk_path.path_join(directory_name)
-		var sub_relative_path: String = directory_name if relative_folder.is_empty() else relative_folder + "/" + directory_name
-		_scan_dir_recursive(sub_directory, sub_relative_path, results)
-
-static func get_subfolders_in_art_folder(relative_folder_path: String) -> Array[String]:
-	var subfolders: Array[String] = []
-	var normalized_relative: String = _normalize_relative_folder(relative_folder_path)
-	var art_root: String = get_art_root_directory()
-	var target_directory: String = art_root if (normalized_relative.is_empty() or normalized_relative == "Root") else art_root.path_join(normalized_relative)
-
-	if not DirAccess.dir_exists_absolute(target_directory):
-		return subfolders
-
-	var directories: PackedStringArray = DirAccess.get_directories_at(target_directory)
-	for directory_name: String in directories:
-		if not directory_name.begins_with("."):
-			subfolders.append(directory_name)
-
-	return subfolders
-
-static func get_all_art_folders() -> Array[String]:
-	var folders: Array[String] = ["Root"]
-	_gather_all_folders_recursive(get_art_root_directory(), "", folders)
-	return folders
-
-static func _gather_all_folders_recursive(disk_path: String, relative_path: String, folders: Array[String]) -> void:
-	if not DirAccess.dir_exists_absolute(disk_path):
-		return
-
-	var directories: PackedStringArray = DirAccess.get_directories_at(disk_path)
-	for directory_name: String in directories:
-		if directory_name.begins_with("."):
-			continue
-		var sub_relative_path: String = directory_name if relative_path.is_empty() else relative_path + "/" + directory_name
-		folders.append(sub_relative_path)
-		_gather_all_folders_recursive(disk_path.path_join(directory_name), sub_relative_path, folders)
-
-static func create_art_folder(nested_folder_path: String) -> bool:
-	var normalized_path: String = _normalize_relative_folder(nested_folder_path)
-	if normalized_path.is_empty() or normalized_path == "Root":
-		return false
-	var target_directory: String = get_art_root_directory().path_join(normalized_path)
-	if DirAccess.dir_exists_absolute(target_directory):
-		return true
-	return DirAccess.make_dir_recursive_absolute(target_directory) == OK
-
-static func delete_art_folder(relative_folder_path: String) -> bool:
-	var normalized_relative: String = _normalize_relative_folder(relative_folder_path)
-	if normalized_relative.is_empty() or normalized_relative == "Root":
-		return false
-	var target_directory: String = get_art_root_directory().path_join(normalized_relative)
-	if not DirAccess.dir_exists_absolute(target_directory):
-		return false
-	return _wipe_dir_recursive(target_directory)
-
-static func _wipe_dir_recursive(disk_path: String) -> bool:
-	if not DirAccess.dir_exists_absolute(disk_path):
-		return true
-
-	var files: PackedStringArray = DirAccess.get_files_at(disk_path)
-	for file_name: String in files:
-		var file_path: String = disk_path.path_join(file_name).replace("\\", "/")
-		clear_cache_for_path(file_path)
-		DirAccess.remove_absolute(file_path)
-
-	var directories: PackedStringArray = DirAccess.get_directories_at(disk_path)
-	for directory_name: String in directories:
-		_wipe_dir_recursive(disk_path.path_join(directory_name))
-
-	return DirAccess.remove_absolute(disk_path) == OK
-
-static func move_art_file(source_path: String, target_folder: String) -> String:
-	var clean_source: String = _normalize_file_path(source_path)
-	if not FileAccess.file_exists(clean_source):
-		return ""
-
-	var file_name: String = clean_source.get_file()
-	var target_directory: String = resolve_art_directory(target_folder)
-	var new_path: String = target_directory.path_join(file_name).replace("\\", "/")
-
-	if clean_source == new_path:
-		return new_path
-
-	clear_cache_for_path(new_path)
-	if DirAccess.rename_absolute(clean_source, new_path) != OK:
-		if DirAccess.copy_absolute(clean_source, new_path) != OK:
-			return ""
-		DirAccess.remove_absolute(clean_source)
-
-	clear_cache_for_path(clean_source)
-	return new_path
 
 static func create_blank_starter_graphic(dimensions: Vector2, tint: Color) -> ImageTexture:
 	var width: int = maxi(int(dimensions.x), 1)
@@ -455,6 +591,7 @@ static func create_blank_starter_graphic(dimensions: Vector2, tint: Color) -> Im
 	var image: Image = Image.create(width, height, true, Image.FORMAT_RGBA8)
 	image.fill(tint)
 	return ImageTexture.create_from_image(image)
+
 
 static func create_door_frame_texture(dimensions: Vector2 = Vector2(96.0, 160.0)) -> ImageTexture:
 	var width: int = maxi(int(dimensions.x), 1)
@@ -470,8 +607,10 @@ static func create_door_frame_texture(dimensions: Vector2 = Vector2(96.0, 160.0)
 
 	return ImageTexture.create_from_image(image)
 
+
 static func _normalize_file_path(file_path: String) -> String:
 	return file_path.replace("\\", "/").strip_edges()
+
 
 static func _normalize_relative_folder(relative_folder: String) -> String:
 	var normalized: String = relative_folder.replace("\\", "/").strip_edges().trim_prefix("/").trim_suffix("/")

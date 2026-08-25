@@ -299,7 +299,6 @@ func _render_grid_view() -> void:
 		if f_folder == "Root": f_folder = ""
 
 		var tags: Array = asset_tags_registry.get(fname, ["#props"]) as Array
-		var tex: Texture2D = art_data.get("texture", null) as Texture2D
 		var in_current_folder: bool = (f_folder == active_folder_norm)
 
 		if active_search_query != "":
@@ -314,7 +313,7 @@ func _render_grid_view() -> void:
 		else:
 			if not in_current_folder: continue
 
-		_create_image_card(art_data, tex)
+		_create_image_card(art_data)
 		items_rendered += 1
 
 	if items_rendered == 0 and direct_subfolders.is_empty():
@@ -325,7 +324,6 @@ func _render_grid_view() -> void:
 		items_grid.add_child(empty_lbl)
 
 func _create_folder_card(folder_name: String) -> void:
-	# BUTTON-BASED SCROLLING: Using Button instead of PanelContainer fixes mobile scroll blocking
 	var card: Button = Button.new()
 	card.custom_minimum_size = Vector2(68.0, 76.0)
 	card.focus_mode = Control.FOCUS_NONE
@@ -376,11 +374,10 @@ func _create_folder_card(folder_name: String) -> void:
 	)
 	items_grid.add_child(card)
 
-func _create_image_card(art_data: Dictionary, tex: Texture2D) -> void:
+func _create_image_card(art_data: Dictionary) -> void:
 	var fname: String = str(art_data.get("name", "Art"))
 	var fpath: String = str(art_data.get("file_path", ""))
 
-	# BUTTON-BASED SCROLLING: Using Button instead of PanelContainer fixes mobile scroll blocking
 	var card: Button = Button.new()
 	card.custom_minimum_size = Vector2(68.0, 76.0)
 	card.focus_mode = Control.FOCUS_NONE
@@ -418,7 +415,7 @@ func _create_image_card(art_data: Dictionary, tex: Texture2D) -> void:
 
 	var thumb: TextureRect = TextureRect.new()
 	thumb.set_anchors_preset(Control.PRESET_FULL_RECT)
-	thumb.texture = tex
+	thumb.texture = UGCManager.get_thumbnail(fpath)
 	thumb.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	thumb.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	thumb.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -433,10 +430,11 @@ func _create_image_card(art_data: Dictionary, tex: Texture2D) -> void:
 	vbox.add_child(lbl)
 
 	card.pressed.connect(func() -> void:
+		var chosen_tex: Texture2D = UGCManager.load_texture_from_file(fpath)
 		if current_select_callback.is_valid():
-			current_select_callback.call(fname, tex, fpath)
+			current_select_callback.call(fname, chosen_tex, fpath)
 			current_select_callback = Callable()
-		asset_selected.emit(fname, tex, fpath)
+		asset_selected.emit(fname, chosen_tex, fpath)
 		visible = false
 	)
 	items_grid.add_child(card)

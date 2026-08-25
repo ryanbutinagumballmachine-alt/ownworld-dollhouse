@@ -1,7 +1,3 @@
-# ============================================================
-# File: res://AutoLoads/GameManager.gd
-# ============================================================
-
 # ==============================================================================
 # OWNWORLD — GAME MANAGER
 # File: res://AutoLoads/GameManager.gd
@@ -89,7 +85,7 @@ func _enforce_engine_viewport_scaling() -> void:
 	window.content_scale_mode = Window.CONTENT_SCALE_MODE_CANVAS_ITEMS
 	window.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_EXPAND
 	window.content_scale_stretch = Window.CONTENT_SCALE_STRETCH_FRACTIONAL
-	window.content_scale_size = Vector2i.ZERO
+	window.content_scale_size = BASE_CANVAS_SIZE
 
 
 func _initialize_filesystem() -> void:
