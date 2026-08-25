@@ -89,6 +89,18 @@ static func _get_or_create_dollhouse_subdir(subdir_name: String) -> String:
 	return target_dir
 
 static func get_default_import_directory() -> String:
+	var pictures_dir: String = OS.get_system_dir(OS.SYSTEM_DIR_PICTURES)
+	if not pictures_dir.is_empty() and DirAccess.dir_exists_absolute(pictures_dir):
+		return pictures_dir.replace("\\", "/")
+
+	var dcim_dir: String = OS.get_system_dir(OS.SYSTEM_DIR_DCIM)
+	if not dcim_dir.is_empty() and DirAccess.dir_exists_absolute(dcim_dir):
+		return dcim_dir.replace("\\", "/")
+
+	var downloads_dir: String = OS.get_system_dir(OS.SYSTEM_DIR_DOWNLOADS)
+	if not downloads_dir.is_empty() and DirAccess.dir_exists_absolute(downloads_dir):
+		return downloads_dir.replace("\\", "/")
+
 	return get_art_root_directory()
 
 static func resolve_art_directory(relative_folder: String = "") -> String:
@@ -155,16 +167,13 @@ static func load_texture_from_file(file_path: String, max_dimension: int = DEFAU
 		push_error("[UGCManager] Failed to load image from disk: " + clean_path)
 		return null
 
-	# --- EXTREME IMAGE OPTIMIZATION PIPELINE ---
-	
-	# 1. Format Optimization (Saves 25% memory if no alpha channel is needed)
+	# --- IMAGE OPTIMIZATION PIPELINE ---
 	if image.detect_alpha() == Image.ALPHA_NONE:
 		if image.get_format() != Image.FORMAT_RGB8:
 			image.convert(Image.FORMAT_RGB8)
 	elif image.get_format() != Image.FORMAT_RGBA8:
 		image.convert(Image.FORMAT_RGBA8)
 
-	# 2. High-Quality Downsampling
 	var original_width: int = image.get_width()
 	var original_height: int = image.get_height()
 	var safe_dimension: int = maxi(max_dimension, 1)
@@ -181,14 +190,11 @@ static func load_texture_from_file(file_path: String, max_dimension: int = DEFAU
 			target_height = safe_dimension
 			target_width = maxi(int(float(safe_dimension) * ratio), 1)
 
-		# Use LANCZOS for the highest quality downscaling
 		image.resize(target_width, target_height, Image.INTERPOLATE_LANCZOS)
 
-	# 3. Alpha Edge Bleed Fix (Prevents dark halos on scaled 2D sprites)
 	if image.get_format() == Image.FORMAT_RGBA8:
 		image.fix_alpha_edges()
 
-	# 4. Mipmap Generation (Massive GPU performance boost for scaled rendering)
 	image.generate_mipmaps()
 
 	var texture: ImageTexture = ImageTexture.create_from_image(image)
@@ -230,8 +236,6 @@ static func generate_alpha_bitmap(tex: Texture2D, alpha_cutoff: float = DEFAULT_
 	if image == null or image.is_empty():
 		return null
 
-	# OPTIMIZATION: Downscale image for bitmap generation to save memory and CPU time.
-	# Because OwnEntity's contains_point() uses normalized coordinates, this works flawlessly.
 	var proxy_img: Image = image
 	if image.get_width() > COLLISION_PROXY_MAX_SIZE or image.get_height() > COLLISION_PROXY_MAX_SIZE:
 		proxy_img = image.duplicate()
@@ -270,7 +274,6 @@ static func generate_alpha_collision_polygons(tex: Texture2D, alpha_cutoff: floa
 	var scale_x: float = 1.0
 	var scale_y: float = 1.0
 
-	# Optimized: Only duplicate the image if we actually need to resize it.
 	if orig_w > COLLISION_PROXY_MAX_SIZE or orig_h > COLLISION_PROXY_MAX_SIZE:
 		proxy_img = source_img.duplicate()
 		var max_side: float = maxf(orig_w, orig_h)
@@ -281,7 +284,7 @@ static func generate_alpha_collision_polygons(tex: Texture2D, alpha_cutoff: floa
 		scale_x = orig_w / float(pw)
 		scale_y = orig_h / float(ph)
 	else:
-		proxy_img = source_img # Pass by reference, no memory allocation
+		proxy_img = source_img
 
 	var proxy_bitmap: BitMap = BitMap.new()
 	proxy_bitmap.create_from_image_alpha(proxy_img, clampf(alpha_cutoff, 0.0, 1.0))
@@ -449,14 +452,14 @@ static func move_art_file(source_path: String, target_folder: String) -> String:
 static func create_blank_starter_graphic(dimensions: Vector2, tint: Color) -> ImageTexture:
 	var width: int = maxi(int(dimensions.x), 1)
 	var height: int = maxi(int(dimensions.y), 1)
-	var image: Image = Image.create(width, height, true, Image.FORMAT_RGBA8) # Enabled Mipmaps
+	var image: Image = Image.create(width, height, true, Image.FORMAT_RGBA8)
 	image.fill(tint)
 	return ImageTexture.create_from_image(image)
 
 static func create_door_frame_texture(dimensions: Vector2 = Vector2(96.0, 160.0)) -> ImageTexture:
 	var width: int = maxi(int(dimensions.x), 1)
 	var height: int = maxi(int(dimensions.y), 1)
-	var image: Image = Image.create(width, height, true, Image.FORMAT_RGBA8) # Enabled Mipmaps
+	var image: Image = Image.create(width, height, true, Image.FORMAT_RGBA8)
 	image.fill(Color("#1e1b18"))
 	var frame_color: Color = Color("#5c3d2e")
 
