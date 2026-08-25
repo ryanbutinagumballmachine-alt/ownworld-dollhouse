@@ -12,7 +12,6 @@ const DRAWER_HEIGHT: float = 230.0
 const CARD_WIDTH: float = 74.0
 const CARD_HEIGHT: float = 82.0
 const GRID_SPACING: int = 6
-const TEMPLATES_DIR: String = "user://templates/"
 
 enum TrayMode { ASSETS, PROPS, FURNITURE, CAST }
 var current_mode: TrayMode = TrayMode.ASSETS
@@ -67,9 +66,12 @@ signal spawn_ugc_requested(item_name: String, tex: Texture2D, file_path: String)
 signal character_spawn_requested(char_data: Dictionary)
 signal template_spawn_requested(template_data: Dictionary)
 
-func _get_props_path() -> String: return TEMPLATES_DIR + SaveSystem.get_current_universe_id() + "_props.json"
-func _get_furniture_path() -> String: return TEMPLATES_DIR + SaveSystem.get_current_universe_id() + "_furniture.json"
-func _get_cast_path() -> String: return SaveSystem.get_universe_cast_path()
+func _get_props_path() -> String:
+	return DrawerMetadataService.get_props_path(SaveSystem.get_current_universe_id())
+func _get_furniture_path() -> String:
+	return DrawerMetadataService.get_furniture_path(SaveSystem.get_current_universe_id())
+func _get_cast_path() -> String:
+	return DrawerMetadataService.get_cast_path(SaveSystem.get_current_universe_id())
 func _get_current_universe_id() -> String: return SaveSystem.get_current_universe_id()
 func _generate_entity_uuid(base_name: String) -> String: return base_name.validate_node_name() + "_" + str(Time.get_ticks_usec())
 func _notify(message: String, is_success: bool = true) -> void: EventBus.notification_requested.emit(message, is_success)

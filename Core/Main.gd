@@ -155,7 +155,9 @@ func _on_window_resized() -> void:
 
 
 func _notification(what: int) -> void:
-	if what == NOTIFICATION_WM_CLOSE_REQUEST:
+	if what == NOTIFICATION_WM_GO_BACK_REQUEST:
+		_handle_mobile_back_button()
+	elif what == NOTIFICATION_WM_CLOSE_REQUEST:
 		SaveSystem.save_current_room_state()
 		_save_session_from_main_state()
 		if drawer_tray_ui != null: drawer_tray_ui.save_cast_tray_for_current_universe()
@@ -170,6 +172,39 @@ func _notification(what: int) -> void:
 		if is_room_loaded:
 			SaveSystem.save_current_room_state()
 		_save_session_from_main_state()
+
+func _handle_mobile_back_button() -> void:
+	# 1. Close Magic Wheel if open
+	if magic_wheel_ui != null and magic_wheel_ui.visible:
+		magic_wheel_ui.close_wheel()
+		return
+
+	# 2. Close Drawer Tray if open
+	if drawer_tray_ui != null and drawer_tray_ui.is_drawer_open:
+		drawer_tray_ui._toggle_drawer_state()
+		return
+
+	# 3. Close any active popup dialogs
+	for ui: Node in get_tree().get_nodes_in_group("modal_ui"):
+		if is_instance_valid(ui) and ui != main_menu_ui:
+			if ui is CanvasLayer and (ui as CanvasLayer).visible:
+				if ui.has_method("close_dialog"): ui.call("close_dialog")
+				elif ui.has_method("close_studio"): ui.call("close_studio")
+				elif ui.has_method("close_map"): ui.call("close_map")
+				elif ui.has_method("close_hub"): ui.call("close_hub")
+				else: (ui as CanvasLayer).visible = false
+				return
+			elif ui is Control and (ui as Control).visible:
+				ui.visible = false
+				return
+
+	# 4. If nothing else is open, toggle Main Menu
+	if main_menu_ui != null and not main_menu_ui.visible:
+		main_menu_ui.open_menu()
+	else:
+		# Clean save & exit
+		SaveSystem.save_current_room_state()
+		get_tree().quit()
 
 
 func _load_dialog_instance(candidate_paths: Array[String]) -> CanvasLayer:

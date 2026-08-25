@@ -158,6 +158,16 @@ func _build_ui() -> void:
 		close_menu()
 		open_theme_studio_requested.emit()
 	)
+	_add_menu_btn(menu_buttons_vbox, "Check for Updates", "icon_refresh", func() -> void:
+		EventBus.notification_requested.emit("Checking for updates...", true)
+		UpdateManager.check_for_updates(self, func(found: bool, tag: String, download_url: String) -> void:
+			if found:
+				EventBus.notification_requested.emit("New Version Found: " + tag + "! Opening download...", true)
+				UpdateManager.download_update(download_url)
+			else:
+				EventBus.notification_requested.emit("You are on the latest version!", true)
+		)
+	)
 	_add_menu_btn(menu_buttons_vbox, "Settings", "icon_settings", func() -> void:
 		close_menu()
 		open_settings_requested.emit()
