@@ -161,12 +161,33 @@ func _build_ui() -> void:
 	)
 	_add_menu_btn(menu_buttons_vbox, "Check for Updates", "icon_refresh", func() -> void:
 		EventBus.notification_requested.emit("Checking for updates...", true)
-		UpdateManager.check_for_updates(self, func(found: bool, tag: String, download_url: String) -> void:
-			if found:
-				EventBus.notification_requested.emit("New Version Found: " + tag + "! Opening download...", true)
-				UpdateManager.download_update(download_url)
-			else:
-				EventBus.notification_requested.emit("You are on the latest version!", true)
+
+		UpdateManager.check_for_updates(self, func(status: int, tag: String, download_url: String, message: String) -> void:
+			match status:
+				UpdateManager.CheckResult.UPDATE_AVAILABLE:
+					EventBus.notification_requested.emit("Downloading update %s..." % tag, true)
+					
+					UpdateManager.download_and_install_update(
+						self,
+						download_url,
+						func(progress: float, _downloaded: int, _total: int) -> void:
+							# Updates progress every 10%
+							if int(progress * 100.0) % 20 == 0:
+								EventBus.notification_requested.emit("Downloading: %d%%" % int(progress * 100.0), true),
+						func() -> void:
+							EventBus.notification_requested.emit("Download complete! Launching installer...", true),
+						func(err: String) -> void:
+							EventBus.notification_requested.emit("Update error: " + err, false)
+					)
+
+				UpdateManager.CheckResult.UP_TO_DATE:
+					EventBus.notification_requested.emit(message, true)
+
+				UpdateManager.CheckResult.NO_APK_FOUND:
+					EventBus.notification_requested.emit(message, false)
+
+				UpdateManager.CheckResult.ERROR:
+					EventBus.notification_requested.emit(message, false)
 		)
 	)
 	_add_menu_btn(menu_buttons_vbox, "Tutorial & Guide Handbook", "icon_lore", func() -> void:
