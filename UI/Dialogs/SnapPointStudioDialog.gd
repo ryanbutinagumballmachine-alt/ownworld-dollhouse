@@ -1,5 +1,9 @@
+# ============================================================
+# File: res://UI/Dialogs/SnapPointStudioDialog.gd
+# ============================================================
+
 # ==============================================================================
-# OWNWORLD — SNAP POINT / ANCHOR STUDIO
+# OWNWORLD — MOBILE-FIRST ANCHOR & SNAP POINT STUDIO
 # File: res://UI/Dialogs/SnapPointStudioDialog.gd
 # Base Class: CanvasLayer (class_name SnapPointStudioDialog)
 # ==============================================================================
@@ -7,8 +11,9 @@
 class_name SnapPointStudioDialog
 extends CanvasLayer
 
-const MAX_PANEL_WIDTH: float = 580.0
-const MAX_PANEL_HEIGHT: float = 580.0
+const MAX_PANEL_WIDTH: float = 620.0
+const MAX_PANEL_HEIGHT: float = 640.0
+const PIN_TOUCH_RADIUS: float = 32.0
 
 var root_backdrop: Control = null
 var center_container: CenterContainer = null
@@ -16,38 +21,51 @@ var root_panel: PanelContainer = null
 var active_entity: OwnEntity = null
 
 var header_lbl: Label = null
-var hint_lbl: Label = null
+var opt_family_category: OptionButton = null
+var custom_name_input: LineEdit = null
+var btn_add_anchor: Button = null
 
+# Active Anchor Precision Toolbar
+var coords_card: PanelContainer = null
+var active_badge_lbl: Label = null
+var spin_x: SpinBox = null
+var spin_y: SpinBox = null
+var btn_center_anchor: Button = null
+var btn_delete_selected: Button = null
+
+# Canvas & Visual Overlay
+var canvas_panel: PanelContainer = null
 var sprite_canvas: Control = null
 var sprite_preview_rect: TextureRect = null
-var marker_overlay: Control = null
+var marker_overlay: AnchorOverlayDraw = null
 
-var opt_family_category: OptionButton = null
-var active_key_lbl: Label = null
-var custom_name_input: LineEdit = null
-var btn_add_next_instance: Button = null
+# Placed Anchors List
+var anchors_count_lbl: Label = null
 var anchors_list_vbox: VBoxContainer = null
 var btn_save: Button = null
 
-var current_target_key: String = "hand_1"
-var is_current_target_snap: bool = true
-var is_editing_existing: bool = false
+# Interaction & Drag State
+var selected_anchor_key: String = ""
+var is_selected_snap: bool = true
+var is_dragging_anchor: bool = false
+var active_touch_index: int = -1
+var _is_updating_ui: bool = false
 
 var family_definitions: Array[Dictionary] = [
 	{"family": "hand", "label": "Hand Sockets (Hold Props)", "icon": "icon_hand", "is_snap": true, "color": Color("#0284c7")},
 	{"family": "seat", "label": "Seat Sockets (Characters Sit)", "icon": "icon_seat", "is_snap": true, "color": Color("#0ea5e9")},
 	{"family": "light", "label": "Light Anchor Emitters", "icon": "icon_lighting", "is_snap": true, "color": Color("#eab308")},
-	{"family": "head", "label": "Head / Hats / Pins (Wear)", "icon": "icon_hat", "is_snap": true, "color": Color("#38bdf8")},
-	{"family": "face", "label": "Face / Glasses / Masks (Wear)", "icon": "icon_glasses", "is_snap": true, "color": Color("#38bdf8")},
-	{"family": "neck", "label": "Neck / Scarves / Ties (Wear)", "icon": "icon_necklace", "is_snap": true, "color": Color("#38bdf8")},
-	{"family": "back", "label": "Back / Capes / Wings (Wear)", "icon": "icon_backpack", "is_snap": true, "color": Color("#38bdf8")},
+	{"family": "head", "label": "Head / Hats (Wear)", "icon": "icon_hat", "is_snap": true, "color": Color("#38bdf8")},
+	{"family": "face", "label": "Face / Glasses (Wear)", "icon": "icon_glasses", "is_snap": true, "color": Color("#38bdf8")},
+	{"family": "neck", "label": "Neck / Scarves (Wear)", "icon": "icon_necklace", "is_snap": true, "color": Color("#38bdf8")},
+	{"family": "back", "label": "Back / Wings / Bags (Wear)", "icon": "icon_backpack", "is_snap": true, "color": Color("#38bdf8")},
 	{"family": "surface", "label": "Table Surfaces (Place Props)", "icon": "icon_surface", "is_snap": true, "color": Color("#06b6d4")},
 	{"family": "bed", "label": "Bed Sleep Anchors (Furniture)", "icon": "icon_bed", "is_snap": true, "color": Color("#0284c7")},
-	{"family": "hang_hook", "label": "Wall Pegs / Coat Hooks (Furniture)", "icon": "icon_anchors", "is_snap": true, "color": Color("#0284c7")},
-	{"family": "sit_point", "label": "Character Sit Baseline (Body)", "icon": "icon_seat", "is_snap": true, "color": Color("#a855f7")},
-	{"family": "mouth", "label": "Mouth Eating Zones (Interaction)", "icon": "icon_food", "is_snap": false, "color": Color("#d97706")},
-	{"family": "faucet_stream", "label": "Water Stream Faucets (Interaction)", "icon": "icon_faucet", "is_snap": false, "color": Color("#d97706")},
-	{"family": "custom", "label": "Custom Anchor Key...", "icon": "icon_pin", "is_snap": true, "color": Color("#ec4899")}
+	{"family": "hang_hook", "label": "Wall Pegs / Hooks (Furniture)", "icon": "icon_anchors", "is_snap": true, "color": Color("#0284c7")},
+	{"family": "sit_point", "label": "Sit Baseline (Character Body)", "icon": "icon_seat", "is_snap": true, "color": Color("#a855f7")},
+	{"family": "mouth", "label": "Mouth Eating Zone (Interaction)", "icon": "icon_food", "is_snap": false, "color": Color("#d97706")},
+	{"family": "faucet_stream", "label": "Water Stream (Interaction)", "icon": "icon_faucet", "is_snap": false, "color": Color("#d97706")},
+	{"family": "custom", "label": "Custom Socket Key...", "icon": "icon_pin", "is_snap": true, "color": Color("#ec4899")}
 ]
 
 
@@ -59,6 +77,7 @@ func _ready() -> void:
 	_build_ui()
 	_connect_system_signals()
 	_update_responsive_layout()
+	_setup_keyboard_dodging()
 
 
 func _connect_system_signals() -> void:
@@ -69,18 +88,40 @@ func _connect_system_signals() -> void:
 		EventBus.theme_changed.connect(_on_theme_changed)
 
 
+func _setup_keyboard_dodging() -> void:
+	if custom_name_input != null:
+		custom_name_input.focus_entered.connect(_on_input_focus_entered)
+		custom_name_input.focus_exited.connect(_on_input_focus_exited)
+
+
+func _on_input_focus_entered() -> void:
+	if OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios"):
+		await get_tree().process_frame
+		await get_tree().process_frame
+		var kb_height: float = DisplayServer.virtual_keyboard_get_height()
+		if kb_height > 0:
+			var tween: Tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+			tween.tween_property(center_container, "position:y", -kb_height * 0.4, 0.25)
+
+
+func _on_input_focus_exited() -> void:
+	if OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios"):
+		var tween: Tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		tween.tween_property(center_container, "position:y", 0.0, 0.25)
+
+
 func _on_theme_changed(_theme_data: Dictionary) -> void:
 	if not is_instance_valid(root_panel): return
 	_populate_family_dropdown()
 	_update_responsive_layout()
-	_refresh_visuals()
+	_refresh_all()
 
 
 func _update_responsive_layout() -> void:
 	if not is_instance_valid(root_panel): return
 	var viewport_size: Vector2 = get_viewport().get_visible_rect().size if get_viewport() else Vector2(1280.0, 720.0)
-	var target_width: float = clampf(viewport_size.x * 0.92, 290.0, MAX_PANEL_WIDTH)
-	var target_height: float = clampf(viewport_size.y * 0.90, 340.0, MAX_PANEL_HEIGHT)
+	var target_width: float = clampf(viewport_size.x * 0.94, 290.0, MAX_PANEL_WIDTH)
+	var target_height: float = clampf(viewport_size.y * 0.92, 330.0, MAX_PANEL_HEIGHT)
 	root_panel.custom_minimum_size = Vector2(target_width, target_height)
 	root_panel.size = Vector2(target_width, target_height)
 
@@ -110,16 +151,18 @@ func _build_ui() -> void:
 	var main_vbox: VBoxContainer = VBoxContainer.new()
 	main_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	main_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	main_vbox.add_theme_constant_override("separation", 8)
+	main_vbox.add_theme_constant_override("separation", 6)
 	root_panel.add_child(main_vbox)
 
+	# --- Header ---
 	var header_hbox: HBoxContainer = HBoxContainer.new()
 	main_vbox.add_child(header_hbox)
 
 	header_lbl = Label.new()
-	header_lbl.text = "Attachment & Dress-up Anchors"
+	header_lbl.text = "Anchor & Socket Studio"
 	header_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header_lbl.theme_type_variation = "HeaderLabel"
+	header_lbl.add_theme_font_size_override("font_size", 13)
 	header_hbox.add_child(header_lbl)
 
 	var close_button: Button = Button.new()
@@ -132,53 +175,106 @@ func _build_ui() -> void:
 
 	main_vbox.add_child(HSeparator.new())
 
-	var selector_hbox: HBoxContainer = HBoxContainer.new()
-	selector_hbox.add_theme_constant_override("separation", 6)
-	main_vbox.add_child(selector_hbox)
+	# --- Category & New Anchor Creator Bar ---
+	var creator_hbox: HBoxContainer = HBoxContainer.new()
+	creator_hbox.add_theme_constant_override("separation", 6)
+	main_vbox.add_child(creator_hbox)
 
 	opt_family_category = OptionButton.new()
 	opt_family_category.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	opt_family_category.custom_minimum_size = Vector2(0.0, 32.0)
 	opt_family_category.item_selected.connect(_on_family_selected)
-	selector_hbox.add_child(opt_family_category)
-
-	btn_add_next_instance = Button.new()
-	btn_add_next_instance.text = " Next Slot"
-	btn_add_next_instance.custom_minimum_size = Vector2(100.0, 32.0)
-	btn_add_next_instance.focus_mode = Control.FOCUS_NONE
-	btn_add_next_instance.add_theme_constant_override("icon_max_width", 14)
-	_apply_button_icon(btn_add_next_instance, "icon_plus")
-	btn_add_next_instance.pressed.connect(_on_add_next_instance_pressed)
-	selector_hbox.add_child(btn_add_next_instance)
+	creator_hbox.add_child(opt_family_category)
 
 	custom_name_input = LineEdit.new()
-	custom_name_input.placeholder_text = "Type custom key (e.g. tail_1)..."
-	custom_name_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	custom_name_input.custom_minimum_size = Vector2(0.0, 32.0)
+	custom_name_input.placeholder_text = "Key (e.g. tail_1)..."
+	custom_name_input.custom_minimum_size = Vector2(110.0, 32.0)
 	custom_name_input.visible = false
-	custom_name_input.text_changed.connect(_on_custom_name_changed)
-	main_vbox.add_child(custom_name_input)
+	creator_hbox.add_child(custom_name_input)
 
-	var active_slot_hbox: HBoxContainer = HBoxContainer.new()
-	main_vbox.add_child(active_slot_hbox)
+	btn_add_anchor = Button.new()
+	btn_add_anchor.text = " + Add Slot"
+	btn_add_anchor.custom_minimum_size = Vector2(100.0, 32.0)
+	btn_add_anchor.focus_mode = Control.FOCUS_NONE
+	btn_add_anchor.add_theme_constant_override("icon_max_width", 14)
+	btn_add_anchor.add_theme_font_size_override("font_size", 10)
+	_apply_button_icon(btn_add_anchor, "icon_plus")
+	btn_add_anchor.pressed.connect(_on_add_anchor_pressed)
+	creator_hbox.add_child(btn_add_anchor)
 
-	active_key_lbl = Label.new()
-	active_key_lbl.text = "Ready to place: [ hand_1 ] — Tap on illustration below:"
-	active_key_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	active_key_lbl.theme_type_variation = "HeaderLabel"
-	active_key_lbl.add_theme_font_size_override("font_size", 10)
-	active_slot_hbox.add_child(active_key_lbl)
+	# --- Precision Coordinates Bar ---
+	coords_card = PanelContainer.new()
+	coords_card.theme_type_variation = "SubPanel"
+	main_vbox.add_child(coords_card)
 
-	var canvas_panel: PanelContainer = PanelContainer.new()
+	var coords_hbox: HBoxContainer = HBoxContainer.new()
+	coords_hbox.add_theme_constant_override("separation", 6)
+	coords_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
+	coords_card.add_child(coords_hbox)
+
+	active_badge_lbl = Label.new()
+	active_badge_lbl.text = "No anchor selected"
+	active_badge_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	active_badge_lbl.theme_type_variation = "HintLabel"
+	active_badge_lbl.add_theme_font_size_override("font_size", 10)
+	coords_hbox.add_child(active_badge_lbl)
+
+	var lbl_x: Label = Label.new()
+	lbl_x.text = "X:"
+	lbl_x.theme_type_variation = "HintLabel"
+	lbl_x.add_theme_font_size_override("font_size", 10)
+	coords_hbox.add_child(lbl_x)
+
+	spin_x = SpinBox.new()
+	spin_x.min_value = -2000
+	spin_x.max_value = 2000
+	spin_x.step = 1.0
+	spin_x.custom_minimum_size = Vector2(76.0, 28.0)
+	spin_x.value_changed.connect(_on_coordinate_spin_changed)
+	coords_hbox.add_child(spin_x)
+
+	var lbl_y: Label = Label.new()
+	lbl_y.text = "Y:"
+	lbl_y.theme_type_variation = "HintLabel"
+	lbl_y.add_theme_font_size_override("font_size", 10)
+	coords_hbox.add_child(lbl_y)
+
+	spin_y = SpinBox.new()
+	spin_y.min_value = -2000
+	spin_y.max_value = 2000
+	spin_y.step = 1.0
+	spin_y.custom_minimum_size = Vector2(76.0, 28.0)
+	spin_y.value_changed.connect(_on_coordinate_spin_changed)
+	coords_hbox.add_child(spin_y)
+
+	btn_center_anchor = Button.new()
+	btn_center_anchor.text = "Center"
+	btn_center_anchor.custom_minimum_size = Vector2(52.0, 28.0)
+	btn_center_anchor.focus_mode = Control.FOCUS_NONE
+	btn_center_anchor.add_theme_font_size_override("font_size", 9)
+	btn_center_anchor.pressed.connect(_on_center_selected_pressed)
+	coords_hbox.add_child(btn_center_anchor)
+
+	btn_delete_selected = Button.new()
+	btn_delete_selected.text = "✕"
+	btn_delete_selected.custom_minimum_size = Vector2(28.0, 28.0)
+	btn_delete_selected.theme_type_variation = "DangerButton"
+	btn_delete_selected.focus_mode = Control.FOCUS_NONE
+	btn_delete_selected.pressed.connect(_on_delete_selected_pressed)
+	coords_hbox.add_child(btn_delete_selected)
+
+	# --- Canvas Area with Dragging ---
+	canvas_panel = PanelContainer.new()
 	canvas_panel.theme_type_variation = "SubPanel"
 	canvas_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	canvas_panel.custom_minimum_size = Vector2(0.0, 160.0)
+	canvas_panel.custom_minimum_size = Vector2(0.0, 180.0)
+	canvas_panel.clip_contents = true
 	main_vbox.add_child(canvas_panel)
 
 	sprite_canvas = Control.new()
 	sprite_canvas.set_anchors_preset(Control.PRESET_FULL_RECT)
 	sprite_canvas.mouse_filter = Control.MOUSE_FILTER_STOP
-	sprite_canvas.gui_input.connect(_on_canvas_clicked)
+	sprite_canvas.gui_input.connect(_on_canvas_gui_input)
 	canvas_panel.add_child(sprite_canvas)
 
 	sprite_preview_rect = TextureRect.new()
@@ -188,28 +284,35 @@ func _build_ui() -> void:
 	sprite_preview_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	sprite_canvas.add_child(sprite_preview_rect)
 
-	marker_overlay = Control.new()
+	marker_overlay = AnchorOverlayDraw.new()
 	marker_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
 	marker_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	marker_overlay.studio_ref = self
 	sprite_canvas.add_child(marker_overlay)
 
 	main_vbox.add_child(HSeparator.new())
 
-	hint_lbl = Label.new()
-	hint_lbl.text = "Placed Sockets (Tap any row to reposition it):"
-	hint_lbl.theme_type_variation = "HintLabel"
-	hint_lbl.add_theme_font_size_override("font_size", 10)
-	main_vbox.add_child(hint_lbl)
+	# --- Placed Anchors Header & List ---
+	var list_hdr_hbox: HBoxContainer = HBoxContainer.new()
+	main_vbox.add_child(list_hdr_hbox)
+
+	anchors_count_lbl = Label.new()
+	anchors_count_lbl.text = "Placed Anchors (Tap row to select & drag):"
+	anchors_count_lbl.theme_type_variation = "HintLabel"
+	anchors_count_lbl.add_theme_font_size_override("font_size", 10)
+	anchors_count_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	list_hdr_hbox.add_child(anchors_count_lbl)
 
 	var scroll: ScrollContainer = ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(0.0, 95.0)
+	scroll.custom_minimum_size = Vector2(0.0, 85.0)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 	scroll.follow_focus = false
 	main_vbox.add_child(scroll)
 
 	anchors_list_vbox = VBoxContainer.new()
 	anchors_list_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	anchors_list_vbox.add_theme_constant_override("separation", 4)
+	anchors_list_vbox.add_theme_constant_override("separation", 3)
 	scroll.add_child(anchors_list_vbox)
 
 	main_vbox.add_child(HSeparator.new())
@@ -226,7 +329,7 @@ func _build_ui() -> void:
 
 func _populate_family_dropdown() -> void:
 	if opt_family_category == null: return
-	var previous_index: int = opt_family_category.selected
+	var prev_idx: int = opt_family_category.selected
 	opt_family_category.clear()
 
 	for index: int in range(family_definitions.size()):
@@ -238,7 +341,7 @@ func _populate_family_dropdown() -> void:
 			opt_family_category.add_item(str(definition["label"]), index)
 
 	if not family_definitions.is_empty():
-		opt_family_category.selected = clampi(previous_index, 0, family_definitions.size() - 1)
+		opt_family_category.selected = clampi(prev_idx, 0, family_definitions.size() - 1)
 
 
 func open_for_entity(entity: OwnEntity) -> void:
@@ -249,10 +352,19 @@ func open_for_entity(entity: OwnEntity) -> void:
 	opt_family_category.selected = 0
 	_on_family_selected(0)
 	_update_responsive_layout()
-	visible = true
 
+	# Select first available anchor if present
+	selected_anchor_key = ""
+	if not entity.snap_points.is_empty():
+		selected_anchor_key = entity.snap_points.keys()[0]
+		is_selected_snap = true
+	elif not entity.interaction_points.is_empty():
+		selected_anchor_key = entity.interaction_points.keys()[0]
+		is_selected_snap = false
+
+	visible = true
 	await get_tree().process_frame
-	_refresh_visuals()
+	_refresh_all()
 
 
 func close_dialog() -> void:
@@ -260,210 +372,297 @@ func close_dialog() -> void:
 		active_entity.rebuild_gizmos()
 		SaveSystem.update_character_in_cast(active_entity)
 		SaveSystem.save_current_room_state()
-		EventBus.notification_requested.emit("Anchors Saved Successfully!", true)
+		EventBus.notification_requested.emit("Anchors Saved!", true)
 	visible = false
 	active_entity = null
+	selected_anchor_key = ""
 
 
 func _on_family_selected(index: int) -> void:
 	if index < 0 or index >= family_definitions.size(): return
 	var definition: Dictionary = family_definitions[index]
 	var family: String = str(definition["family"])
-	is_current_target_snap = bool(definition["is_snap"])
-	is_editing_existing = false
+	var is_custom: bool = (family == "custom")
+	custom_name_input.visible = is_custom
+
+	var next_key: String = _find_next_incremental_key(family, bool(definition["is_snap"]))
+	btn_add_anchor.text = " + Add " + next_key
+
+
+func _on_add_anchor_pressed() -> void:
+	if active_entity == null or opt_family_category.selected < 0 or opt_family_category.selected >= family_definitions.size():
+		return
+
+	var def: Dictionary = family_definitions[opt_family_category.selected]
+	var family: String = str(def["family"])
+	var is_snap: bool = bool(def["is_snap"])
+	var new_key: String = ""
 
 	if family == "custom":
-		custom_name_input.visible = true
-		current_target_key = custom_name_input.text.strip_edges().to_lower()
-		if current_target_key.is_empty(): current_target_key = "custom_1"
-		btn_add_next_instance.visible = false
+		var custom_txt: String = custom_name_input.text.strip_edges().to_lower().replace(" ", "_")
+		if custom_txt.is_empty(): custom_txt = "custom_1"
+		new_key = custom_txt
 	elif family == "sit_point":
-		custom_name_input.visible = false
-		current_target_key = "sit_point"
-		btn_add_next_instance.visible = false
+		new_key = "sit_point"
 	else:
-		custom_name_input.visible = false
-		btn_add_next_instance.visible = true
-		current_target_key = _find_next_unused_family_key(family)
+		new_key = _find_next_incremental_key(family, is_snap)
 
-	_update_active_key_indicator()
-	_refresh_visuals()
+	var initial_pos: Vector2 = Vector2.ZERO
+	var tex_size: Vector2 = active_entity.texture_size
+
+	match family:
+		"sit_point": initial_pos = Vector2(0.0, tex_size.y * 0.35)
+		"head", "hat": initial_pos = Vector2(0.0, -tex_size.y * 0.44)
+		"face", "glasses": initial_pos = Vector2(0.0, -tex_size.y * 0.32)
+		"neck", "necklace": initial_pos = Vector2(0.0, -tex_size.y * 0.20)
+		"back", "backpack": initial_pos = Vector2(0.0, -tex_size.y * 0.05)
+		"hand":
+			var count: int = _count_family_instances("hand", is_snap)
+			initial_pos = Vector2(tex_size.x * 0.35 if count % 2 == 0 else -tex_size.x * 0.35, tex_size.y * 0.1)
+		"seat": initial_pos = Vector2(0.0, tex_size.y * 0.05)
+		"surface": initial_pos = Vector2(0.0, -tex_size.y * 0.25)
+		"mouth": initial_pos = Vector2(0.0, -tex_size.y * 0.28)
+		"faucet_stream": initial_pos = Vector2(0.0, -tex_size.y * 0.1)
+		_: initial_pos = Vector2.ZERO
+
+	initial_pos = Vector2(roundf(initial_pos.x), roundf(initial_pos.y))
+	_set_anchor_local_pos(new_key, is_snap, initial_pos)
+	_select_anchor(new_key, is_snap)
+	_trigger_haptic(30)
+	_on_family_selected(opt_family_category.selected)
+	EventBus.notification_requested.emit("Added %s. Drag on canvas to position." % new_key, true)
 
 
-func _on_add_next_instance_pressed() -> void:
-	if opt_family_category == null or opt_family_category.selected < 0 or opt_family_category.selected >= family_definitions.size():
-		return
-	var family: String = str(family_definitions[opt_family_category.selected]["family"])
-	is_editing_existing = false
-	if family != "custom" and family != "sit_point":
-		current_target_key = _find_next_available_incremental_key(family)
-		_update_active_key_indicator()
-		_refresh_visuals()
-
-
-func _on_custom_name_changed(new_text: String) -> void:
-	var clean_name: String = new_text.strip_edges().to_lower().replace(" ", "_")
-	current_target_key = clean_name if not clean_name.is_empty() else "custom_1"
-	is_editing_existing = false
-	_update_active_key_indicator()
-
-
-func _find_next_unused_family_key(family_prefix: String) -> String:
+func _find_next_incremental_key(family_prefix: String, is_snap: bool) -> String:
 	if active_entity == null: return family_prefix + "_1"
-	var pool: Dictionary = active_entity.snap_points if is_current_target_snap else active_entity.interaction_points
-	var index: int = 1
-	while pool.has("%s_%d" % [family_prefix, index]):
-		index += 1
-	return "%s_%d" % [family_prefix, index]
+	if family_prefix == "sit_point": return "sit_point"
 
-
-func _find_next_available_incremental_key(family_prefix: String) -> String:
-	if active_entity == null: return family_prefix + "_1"
-	var pool: Dictionary = active_entity.snap_points if is_current_target_snap else active_entity.interaction_points
+	var pool: Dictionary = active_entity.snap_points if is_snap else active_entity.interaction_points
 	var max_index: int = 0
+
 	for key_name: String in pool.keys():
-		if key_name.begins_with(family_prefix + "_"):
+		if key_name == family_prefix: max_index = maxi(max_index, 1)
+		elif key_name.begins_with(family_prefix + "_"):
 			var suffix: String = key_name.trim_prefix(family_prefix + "_")
-			if suffix.is_valid_int():
-				max_index = maxi(max_index, suffix.to_int())
+			if suffix.is_valid_int(): max_index = maxi(max_index, suffix.to_int())
+
 	return "%s_%d" % [family_prefix, max_index + 1]
 
 
-func _select_existing_anchor(anchor_key: String, is_snap: bool) -> void:
-	current_target_key = anchor_key
-	is_current_target_snap = is_snap
-	is_editing_existing = true
-	var matched: bool = false
-
-	for index: int in range(family_definitions.size()):
-		var family: String = str(family_definitions[index]["family"])
-		if family != "custom" and anchor_key.to_lower().begins_with(family):
-			opt_family_category.selected = index
-			custom_name_input.visible = false
-			btn_add_next_instance.visible = (family != "sit_point")
-			matched = true
-			break
-
-	if not matched:
-		opt_family_category.selected = family_definitions.size() - 1
-		custom_name_input.visible = true
-		custom_name_input.text = anchor_key
-		btn_add_next_instance.visible = false
-
-	_update_active_key_indicator()
-	_refresh_visuals()
+func _count_family_instances(family_prefix: String, is_snap: bool) -> int:
+	if active_entity == null: return 0
+	var pool: Dictionary = active_entity.snap_points if is_snap else active_entity.interaction_points
+	var count: int = 0
+	for k: String in pool.keys():
+		if k.begins_with(family_prefix): count += 1
+	return count
 
 
-func _update_active_key_indicator() -> void:
-	if active_key_lbl == null: return
-	if is_editing_existing:
-		active_key_lbl.text = "Editing: [ %s ] — Tap canvas to reposition:" % current_target_key
-	else:
-		active_key_lbl.text = "Ready to place: [ %s ] — Tap illustration:" % current_target_key
+# ------------------------------------------------------------------------------
+# DRAGGING & TOUCH CANVAS INPUT
+# ------------------------------------------------------------------------------
 
-
-func _on_canvas_clicked(event: InputEvent) -> void:
+func _on_canvas_gui_input(event: InputEvent) -> void:
 	if active_entity == null: return
-	var click_position: Vector2 = Vector2.ZERO
-	var is_valid_click: bool = false
 
-	if (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT) or (event is InputEventScreenTouch and event.pressed):
-		click_position = event.position
-		is_valid_click = true
+	if event is InputEventMouseButton:
+		var mb: InputEventMouseButton = event as InputEventMouseButton
+		if mb.button_index == MOUSE_BUTTON_LEFT:
+			if mb.pressed: _handle_pointer_down(mb.position)
+			else: _handle_pointer_up(mb.position)
 
-	if not is_valid_click: return
-	var local_sprite_offset: Vector2 = _ui_to_sprite_offset(click_position)
+	elif event is InputEventMouseMotion:
+		var mm: InputEventMouseMotion = event as InputEventMouseMotion
+		if is_dragging_anchor:
+			_handle_pointer_move(mm.position)
 
-	if is_current_target_snap:
-		active_entity.snap_points[current_target_key] = local_sprite_offset
+	elif event is InputEventScreenTouch:
+		var st: InputEventScreenTouch = event as InputEventScreenTouch
+		if st.pressed:
+			active_touch_index = st.index
+			_handle_pointer_down(st.position)
+		else:
+			if st.index == active_touch_index:
+				active_touch_index = -1
+				_handle_pointer_up(st.position)
+
+	elif event is InputEventScreenDrag:
+		var sd: InputEventScreenDrag = event as InputEventScreenDrag
+		if sd.index == active_touch_index and is_dragging_anchor:
+			_handle_pointer_move(sd.position)
+
+
+func _handle_pointer_down(ui_pos: Vector2) -> void:
+	if active_entity == null: return
+
+	var touched_key: String = ""
+	var touched_is_snap: bool = true
+	var closest_dist: float = PIN_TOUCH_RADIUS
+
+	# Check existing snap points
+	for s_key: String in active_entity.snap_points.keys():
+		var p_ui: Vector2 = _sprite_offset_to_ui(active_entity.snap_points[s_key])
+		var d: float = ui_pos.distance_to(p_ui)
+		if d < closest_dist:
+			closest_dist = d
+			touched_key = s_key
+			touched_is_snap = true
+
+	# Check existing interaction points (use point_offset to avoid CanvasLayer.offset shadowing)
+	for i_key: String in active_entity.interaction_points.keys():
+		var i_data: Dictionary = active_entity.interaction_points[i_key]
+		var point_offset: Vector2 = i_data.get("offset", Vector2.ZERO)
+		var p_ui: Vector2 = _sprite_offset_to_ui(point_offset)
+		var d: float = ui_pos.distance_to(p_ui)
+		if d < closest_dist:
+			closest_dist = d
+			touched_key = i_key
+			touched_is_snap = false
+
+	if not touched_key.is_empty():
+		_select_anchor(touched_key, touched_is_snap)
+		is_dragging_anchor = true
+		_trigger_haptic(20)
 	else:
-		var interaction_type: int = int(Types.InteractionPointType.MOUTH)
-		if current_target_key.begins_with("faucet") or current_target_key.begins_with("liquid"):
-			interaction_type = int(Types.InteractionPointType.LIQUID_STREAM)
-		active_entity.interaction_points[current_target_key] = {
-			"offset": local_sprite_offset,
-			"radius": 55.0,
-			"type": interaction_type
+		if not selected_anchor_key.is_empty():
+			var local_offset: Vector2 = _ui_to_sprite_offset(ui_pos)
+			local_offset = Vector2(roundf(local_offset.x), roundf(local_offset.y))
+			_set_anchor_local_pos(selected_anchor_key, is_selected_snap, local_offset)
+			is_dragging_anchor = true
+			_trigger_haptic(15)
+		else:
+			EventBus.notification_requested.emit("Tap '+ Add Slot' to create an anchor, or select an existing one below.", true)
+
+
+func _handle_pointer_move(ui_pos: Vector2) -> void:
+	if not is_dragging_anchor or selected_anchor_key.is_empty() or active_entity == null:
+		return
+
+	var local_offset: Vector2 = _ui_to_sprite_offset(ui_pos)
+	local_offset = Vector2(roundf(local_offset.x), roundf(local_offset.y))
+	_set_anchor_local_pos(selected_anchor_key, is_selected_snap, local_offset)
+
+
+func _handle_pointer_up(_ui_pos: Vector2) -> void:
+	if is_dragging_anchor:
+		is_dragging_anchor = false
+		if active_entity != null and is_instance_valid(active_entity):
+			active_entity.rebuild_gizmos()
+			EventBus.entity_state_changed.emit(active_entity.entity_id)
+		_sync_coordinate_inputs()
+		if marker_overlay != null: marker_overlay.queue_redraw()
+
+
+func _set_anchor_local_pos(key: String, is_snap: bool, local_pos: Vector2) -> void:
+	if active_entity == null: return
+
+	if is_snap:
+		active_entity.snap_points[key] = local_pos
+	else:
+		var cur_data: Dictionary = active_entity.interaction_points.get(key, {})
+		var type_val: int = int(cur_data.get("type", Types.InteractionPointType.MOUTH))
+		var rad_val: float = float(cur_data.get("radius", 55.0))
+		if key.begins_with("faucet") or key.begins_with("liquid"):
+			type_val = int(Types.InteractionPointType.LIQUID_STREAM)
+		active_entity.interaction_points[key] = {
+			"offset": local_pos,
+			"radius": rad_val,
+			"type": type_val
 		}
 
-	active_entity.rebuild_gizmos()
-	_refresh_visuals()
+	# Live-sync particles to the new anchor position
+	if active_entity.is_liquid_source:
+		active_entity.update_faucet_particles()
 
-	if not is_editing_existing and opt_family_category != null and opt_family_category.selected >= 0 and opt_family_category.selected < family_definitions.size():
-		var family: String = str(family_definitions[opt_family_category.selected]["family"])
-		if family != "custom" and family != "sit_point":
-			current_target_key = _find_next_unused_family_key(family)
-			_update_active_key_indicator()
-
-
-func _refresh_visuals() -> void:
+	_sync_coordinate_inputs()
+	if marker_overlay != null: marker_overlay.queue_redraw()
 	_render_anchors_list()
-	_draw_visual_pins_on_preview()
 
 
-func _draw_visual_pins_on_preview() -> void:
-	if marker_overlay == null: return
-	for child: Node in marker_overlay.get_children():
-		child.queue_free()
-	if active_entity == null: return
-
-	for socket_name: String in active_entity.snap_points.keys():
-		var anchor_offset: Vector2 = active_entity.snap_points[socket_name]
-		var ui_position: Vector2 = _sprite_offset_to_ui(anchor_offset)
-		var pin_color: Color = _get_color_for_key(socket_name, true)
-		var selected: bool = (socket_name == current_target_key and is_current_target_snap)
-		_spawn_pin_badge(ui_position, socket_name, pin_color, selected, true)
-
-	for interaction_name: String in active_entity.interaction_points.keys():
-		var interaction_data: Dictionary = active_entity.interaction_points[interaction_name]
-		var anchor_offset: Vector2 = interaction_data.get("offset", Vector2.ZERO)
-		var ui_position: Vector2 = _sprite_offset_to_ui(anchor_offset)
-		var pin_color: Color = _get_color_for_key(interaction_name, false)
-		var selected: bool = (interaction_name == current_target_key and not is_current_target_snap)
-		_spawn_pin_badge(ui_position, interaction_name, pin_color, selected, false)
+func _select_anchor(key: String, is_snap: bool) -> void:
+	selected_anchor_key = key
+	is_selected_snap = is_snap
+	_match_category_dropdown(key)
+	_sync_coordinate_inputs()
+	if marker_overlay != null: marker_overlay.queue_redraw()
+	_render_anchors_list()
 
 
-func _get_color_for_key(key_name: String, is_snap: bool) -> Color:
-	var lowercase_key: String = key_name.to_lower()
-	for definition: Dictionary in family_definitions:
-		var family: String = str(definition["family"])
-		if family != "custom" and lowercase_key.begins_with(family):
-			return definition["color"] as Color
-	return Color("#ec4899") if is_snap else Color("#d97706")
+func _match_category_dropdown(key: String) -> void:
+	if opt_family_category == null: return
+	for index: int in range(family_definitions.size()):
+		var family: String = str(family_definitions[index]["family"])
+		if family != "custom" and key.begins_with(family):
+			opt_family_category.selected = index
+			custom_name_input.visible = false
+			_on_family_selected(index)
+			return
+
+	opt_family_category.selected = family_definitions.size() - 1
+	custom_name_input.visible = true
+	custom_name_input.text = key
 
 
-func _spawn_pin_badge(ui_position: Vector2, tag_name: String, pin_color: Color, is_selected: bool, is_snap: bool) -> void:
-	var pin_button: Button = Button.new()
-	pin_button.position = ui_position - Vector2(10.0, 10.0)
-	pin_button.custom_minimum_size = Vector2(20.0, 20.0)
-	pin_button.flat = true
-	pin_button.mouse_filter = Control.MOUSE_FILTER_PASS
-	pin_button.pressed.connect(func() -> void: _select_existing_anchor(tag_name, is_snap))
+func _sync_coordinate_inputs() -> void:
+	if _is_updating_ui or spin_x == null or spin_y == null: return
+	_is_updating_ui = true
 
-	var marker: PinDot = PinDot.new()
-	marker.dot_color = pin_color
-	marker.is_active_selected = is_selected
-	marker.position = Vector2(10.0, 10.0)
-	pin_button.add_child(marker)
+	var has_selection: bool = not selected_anchor_key.is_empty() and active_entity != null
+	spin_x.editable = has_selection
+	spin_y.editable = has_selection
+	btn_center_anchor.disabled = not has_selection
+	btn_delete_selected.disabled = not has_selection
 
-	var badge: Label = Label.new()
-	badge.text = tag_name
-	badge.position = Vector2(18.0, 0.0)
-	badge.add_theme_color_override("font_color", Color.WHITE)
-	badge.add_theme_font_size_override("font_size", 10)
+	if has_selection:
+		var current_pos: Vector2 = Vector2.ZERO
+		if is_selected_snap: current_pos = active_entity.snap_points.get(selected_anchor_key, Vector2.ZERO)
+		else: current_pos = active_entity.interaction_points.get(selected_anchor_key, {}).get("offset", Vector2.ZERO)
 
-	var badge_style: StyleBoxFlat = StyleBoxFlat.new()
-	badge_style.bg_color = Color(pin_color.r * 0.25, pin_color.g * 0.25, pin_color.b * 0.25, 0.92)
-	badge_style.border_color = ThemeService.get_color("accent_primary", "#db2777") if is_selected else pin_color
-	badge_style.set_border_width_all(2 if is_selected else 1)
-	badge_style.set_corner_radius_all(4)
-	badge_style.content_margin_left = 5
-	badge_style.content_margin_right = 5
-	badge.add_theme_stylebox_override("normal", badge_style)
+		active_badge_lbl.text = "Selected: [ %s ]" % selected_anchor_key
+		active_badge_lbl.add_theme_color_override("font_color", ThemeService.get_color("accent_primary", "#ec4899"))
+		spin_x.value = current_pos.x
+		spin_y.value = current_pos.y
+	else:
+		active_badge_lbl.text = "Select an anchor or tap '+ Add Slot'"
+		active_badge_lbl.remove_theme_color_override("font_color")
+		spin_x.value = 0
+		spin_y.value = 0
 
-	pin_button.add_child(badge)
-	marker_overlay.add_child(pin_button)
+	_is_updating_ui = false
 
+
+func _on_coordinate_spin_changed(_val: float) -> void:
+	if _is_updating_ui or selected_anchor_key.is_empty() or active_entity == null:
+		return
+	var new_local_pos: Vector2 = Vector2(roundf(spin_x.value), roundf(spin_y.value))
+	_set_anchor_local_pos(selected_anchor_key, is_selected_snap, new_local_pos)
+
+
+func _on_center_selected_pressed() -> void:
+	if selected_anchor_key.is_empty() or active_entity == null: return
+	_set_anchor_local_pos(selected_anchor_key, is_selected_snap, Vector2.ZERO)
+	_trigger_haptic(15)
+
+
+func _on_delete_selected_pressed() -> void:
+	if selected_anchor_key.is_empty() or active_entity == null: return
+	var key_to_del: String = selected_anchor_key
+	var was_snap: bool = is_selected_snap
+	selected_anchor_key = ""
+
+	if was_snap: active_entity.snap_points.erase(key_to_del)
+	else: active_entity.interaction_points.erase(key_to_del)
+
+	active_entity.rebuild_gizmos()
+	EventBus.entity_state_changed.emit(active_entity.entity_id)
+	_sync_coordinate_inputs()
+	_refresh_all()
+	EventBus.notification_requested.emit("Deleted: " + key_to_del, true)
+
+
+# ------------------------------------------------------------------------------
+# COORDINATE CONVERSIONS & RENDERING
+# ------------------------------------------------------------------------------
 
 func _get_texture_render_rect() -> Rect2:
 	if active_entity == null or active_entity.texture_size == Vector2.ZERO or sprite_canvas.size == Vector2.ZERO:
@@ -492,44 +691,13 @@ func _ui_to_sprite_offset(ui_position: Vector2) -> Vector2:
 	return (ui_position - center) / (scale_factor if scale_factor != 0.0 else 1.0)
 
 
-func _render_anchors_list() -> void:
-	if anchors_list_vbox == null: return
-	for child: Node in anchors_list_vbox.get_children():
-		child.queue_free()
-	if active_entity == null: return
-
-	for socket_name: String in active_entity.snap_points.keys():
-		var pos: Vector2 = active_entity.snap_points[socket_name]
-		var badge_color: Color = _get_color_for_key(socket_name, true)
-		var selected: bool = (socket_name == current_target_key and is_current_target_snap)
-		var icon_key: String = _get_icon_for_key(socket_name, true)
-
-		_create_interactive_row(socket_name, pos, badge_color, icon_key, selected,
-			func() -> void: _select_existing_anchor(socket_name, true),
-			func() -> void:
-				active_entity.snap_points.erase(socket_name)
-				if current_target_key == socket_name:
-					_on_family_selected(opt_family_category.selected)
-				active_entity.rebuild_gizmos()
-				_refresh_visuals()
-		)
-
-	for interaction_name: String in active_entity.interaction_points.keys():
-		var interaction_data: Dictionary = active_entity.interaction_points[interaction_name]
-		var pos: Vector2 = interaction_data.get("offset", Vector2.ZERO)
-		var badge_color: Color = _get_color_for_key(interaction_name, false)
-		var selected: bool = (interaction_name == current_target_key and not is_current_target_snap)
-		var icon_key: String = _get_icon_for_key(interaction_name, false)
-
-		_create_interactive_row(interaction_name, pos, badge_color, icon_key, selected,
-			func() -> void: _select_existing_anchor(interaction_name, false),
-			func() -> void:
-				active_entity.interaction_points.erase(interaction_name)
-				if current_target_key == interaction_name:
-					_on_family_selected(opt_family_category.selected)
-				active_entity.rebuild_gizmos()
-				_refresh_visuals()
-		)
+func _get_color_for_key(key_name: String, is_snap: bool) -> Color:
+	var lowercase_key: String = key_name.to_lower()
+	for definition: Dictionary in family_definitions:
+		var family: String = str(definition["family"])
+		if family != "custom" and lowercase_key.begins_with(family):
+			return definition["color"] as Color
+	return Color("#ec4899") if is_snap else Color("#d97706")
 
 
 func _get_icon_for_key(key_name: String, is_snap: bool) -> String:
@@ -541,48 +709,112 @@ func _get_icon_for_key(key_name: String, is_snap: bool) -> String:
 	return "icon_anchors" if is_snap else "icon_food"
 
 
-func _create_interactive_row(label_text: String, position: Vector2, _tag_color: Color, icon_key: String, is_selected: bool, on_select_callback: Callable, on_delete_callback: Callable) -> void:
-	var row_panel: PanelContainer = PanelContainer.new()
-	row_panel.theme_type_variation = "SubPanel"
+func _refresh_all() -> void:
+	_sync_coordinate_inputs()
+	if marker_overlay != null: marker_overlay.queue_redraw()
+	_render_anchors_list()
+
+
+func _render_anchors_list() -> void:
+	if anchors_list_vbox == null: return
+	for child: Node in anchors_list_vbox.get_children():
+		child.queue_free()
+
+	if active_entity == null: return
+	var total_count: int = active_entity.snap_points.size() + active_entity.interaction_points.size()
+	anchors_count_lbl.text = "Placed Anchors (%d):" % total_count
+
+	if total_count == 0:
+		var empty_lbl: Label = Label.new()
+		empty_lbl.text = "No anchors placed yet. Select a category and tap '+ Add Slot'."
+		empty_lbl.theme_type_variation = "HintLabel"
+		empty_lbl.add_theme_font_size_override("font_size", 10)
+		anchors_list_vbox.add_child(empty_lbl)
+		return
+
+	# Render Snap Points
+	for socket_name: String in active_entity.snap_points.keys():
+		var pos: Vector2 = active_entity.snap_points[socket_name]
+		var is_sel: bool = (socket_name == selected_anchor_key and is_selected_snap)
+		var icon_key: String = _get_icon_for_key(socket_name, true)
+		_create_anchor_list_row(socket_name, pos, true, icon_key, is_sel)
+
+	# Render Interaction Points
+	for inter_name: String in active_entity.interaction_points.keys():
+		var data: Dictionary = active_entity.interaction_points[inter_name]
+		var pos: Vector2 = data.get("offset", Vector2.ZERO)
+		var is_sel: bool = (inter_name == selected_anchor_key and not is_selected_snap)
+		var icon_key: String = _get_icon_for_key(inter_name, false)
+		_create_anchor_list_row(inter_name, pos, false, icon_key, is_sel)
+
+
+func _create_anchor_list_row(anchor_key: String, pos: Vector2, is_snap: bool, icon_key: String, is_selected: bool) -> void:
+	var card: PanelContainer = PanelContainer.new()
+	card.theme_type_variation = "SubPanel"
+	card.custom_minimum_size = Vector2(0.0, 30.0)
+
+	var c_accent: Color = ThemeService.get_color("accent_primary", "#ec4899")
+	var c_border: Color = ThemeService.get_color("panel_border", "#f472b6")
+	var c_sub_bg: Color = ThemeService.get_color("container_sub_bg", "#fff0f3")
+	var rad: int = ThemeService.get_corner_radius()
 
 	var row_style: StyleBoxFlat = StyleBoxFlat.new()
-	row_style.bg_color = ThemeService.get_color("container_sub_bg", "#fdf2f4")
-	row_style.border_color = ThemeService.get_color("accent_primary", "#db2777") if is_selected else ThemeService.get_color("panel_border", "#f472b6")
+	row_style.bg_color = Color(c_accent.r, c_accent.g, c_accent.b, 0.12) if is_selected else c_sub_bg
+	row_style.border_color = c_accent if is_selected else c_border
 	row_style.set_border_width_all(2 if is_selected else 1)
-	row_style.set_corner_radius_all(ThemeService.get_corner_radius())
+	row_style.set_corner_radius_all(rad)
 	row_style.content_margin_left = 8
 	row_style.content_margin_right = 8
-	row_style.content_margin_top = 4
-	row_style.content_margin_bottom = 4
-	row_panel.add_theme_stylebox_override("panel", row_style)
+	row_style.content_margin_top = 2
+	row_style.content_margin_bottom = 2
+	card.add_theme_stylebox_override("panel", row_style)
 
 	var hbox: HBoxContainer = HBoxContainer.new()
-	row_panel.add_child(hbox)
+	hbox.add_theme_constant_override("separation", 6)
+	card.add_child(hbox)
 
-	var select_button: Button = Button.new()
-	select_button.text = " %s (X: %d, Y: %d)" % [label_text, int(position.x), int(position.y)]
-	select_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	select_button.flat = true
-	select_button.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	select_button.add_theme_font_size_override("font_size", 10)
-	select_button.add_theme_constant_override("icon_max_width", 14)
-	select_button.add_theme_color_override("font_color", ThemeService.get_color("accent_primary", "#db2777") if is_selected else ThemeService.get_color("text_primary", "#4a1525"))
+	var select_btn: Button = Button.new()
+	select_btn.text = " %s  (X: %d, Y: %d)" % [anchor_key, int(pos.x), int(pos.y)]
+	select_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	select_btn.flat = true
+	select_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
+	select_btn.focus_mode = Control.FOCUS_NONE
+	select_btn.add_theme_font_size_override("font_size", 10)
+	select_btn.add_theme_constant_override("icon_max_width", 14)
 
 	var row_icon: Texture2D = ThemeService.get_icon(icon_key)
-	if row_icon != null: select_button.icon = row_icon
-	select_button.pressed.connect(on_select_callback)
-	hbox.add_child(select_button)
+	if row_icon != null: select_btn.icon = row_icon
+	if is_selected:
+		select_btn.add_theme_color_override("font_color", c_accent)
 
-	var delete_button: Button = Button.new()
-	delete_button.custom_minimum_size = Vector2(22.0, 22.0)
-	delete_button.theme_type_variation = "DangerButton"
-	delete_button.focus_mode = Control.FOCUS_NONE
-	delete_button.add_theme_constant_override("icon_max_width", 10)
-	_apply_close_icon(delete_button)
-	delete_button.pressed.connect(on_delete_callback)
-	hbox.add_child(delete_button)
+	select_btn.pressed.connect(func() -> void:
+		_select_anchor(anchor_key, is_snap)
+		_trigger_haptic(15)
+	)
+	hbox.add_child(select_btn)
 
-	anchors_list_vbox.add_child(row_panel)
+	var delete_btn: Button = Button.new()
+	delete_btn.custom_minimum_size = Vector2(20.0, 20.0)
+	delete_btn.theme_type_variation = "DangerButton"
+	delete_btn.focus_mode = Control.FOCUS_NONE
+	delete_btn.add_theme_constant_override("icon_max_width", 10)
+	_apply_close_icon(delete_btn)
+	delete_btn.pressed.connect(func() -> void:
+		if is_snap: active_entity.snap_points.erase(anchor_key)
+		else: active_entity.interaction_points.erase(anchor_key)
+		if selected_anchor_key == anchor_key: selected_anchor_key = ""
+		active_entity.rebuild_gizmos()
+		EventBus.entity_state_changed.emit(active_entity.entity_id)
+		_refresh_all()
+	)
+	hbox.add_child(delete_btn)
+	anchors_list_vbox.add_child(card)
+
+
+func _trigger_haptic(duration_ms: int = 25) -> void:
+	if SettingsManager.are_haptics_enabled() and (OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios")):
+		if Input.has_method("vibrate_handheld"):
+			Input.vibrate_handheld(duration_ms)
 
 
 func _apply_button_icon(button: Button, icon_key: String) -> void:
@@ -603,13 +835,98 @@ func _on_backdrop_gui_input(event: InputEvent) -> void:
 		close_dialog()
 
 
-class PinDot extends Control:
-	var dot_color: Color = Color("#00f2fe")
-	var is_active_selected: bool = false
+# ------------------------------------------------------------------------------
+# DYNAMIC OVERLAY DRAWING (CROSSHAIRS, SLEEK PILLS & RETICLES)
+# ------------------------------------------------------------------------------
+
+class AnchorOverlayDraw extends Control:
+	var studio_ref: SnapPointStudioDialog = null
 
 	func _draw() -> void:
-		var radius: float = 6.0 if is_active_selected else 5.0
-		draw_circle(Vector2.ZERO, radius + 2.0, Color(0.0, 0.0, 0.0, 0.75))
-		draw_circle(Vector2.ZERO, radius, dot_color)
-		if is_active_selected:
-			draw_arc(Vector2.ZERO, radius + 4.0, 0.0, TAU, 16, Color.WHITE, 1.8)
+		if studio_ref == null or studio_ref.active_entity == null:
+			return
+
+		var render_rect: Rect2 = studio_ref._get_texture_render_rect()
+		var center: Vector2 = render_rect.position + (render_rect.size * 0.5)
+
+		# 1. Subtle Sprite Frame Outline & Center Reference Axis
+		draw_rect(render_rect, Color(1.0, 1.0, 1.0, 0.15), false, 1.0)
+		draw_line(Vector2(center.x - 6.0, center.y), Vector2(center.x + 6.0, center.y), Color(1.0, 1.0, 1.0, 0.35), 1.0)
+		draw_line(Vector2(center.x, center.y - 6.0), Vector2(center.x, center.y + 6.0), Color(1.0, 1.0, 1.0, 0.35), 1.0)
+
+		var font: Font = ThemeDB.fallback_font
+		var ent: OwnEntity = studio_ref.active_entity
+		var sel_key: String = studio_ref.selected_anchor_key
+		var sel_is_snap: bool = studio_ref.is_selected_snap
+
+		# 2. Draw Interaction Zone Outlines (faint circles)
+		for i_key: String in ent.interaction_points.keys():
+			var data: Dictionary = ent.interaction_points[i_key]
+			var pt_offset: Vector2 = data.get("offset", Vector2.ZERO)
+			var radius: float = float(data.get("radius", 55.0))
+			var p_ui: Vector2 = studio_ref._sprite_offset_to_ui(pt_offset)
+			var scale_f: float = render_rect.size.x / maxf(ent.texture_size.x, 1.0)
+			var scaled_rad: float = radius * scale_f
+			var is_sel: bool = (i_key == sel_key and not sel_is_snap)
+			var col: Color = studio_ref._get_color_for_key(i_key, false)
+			draw_arc(p_ui, scaled_rad, 0.0, TAU, 32, Color(col.r, col.g, col.b, 0.35 if not is_sel else 0.7), 1.5)
+
+		# 3. Draw Crosshair Guides for Active Selection
+		if not sel_key.is_empty():
+			var active_local_pos: Vector2 = Vector2.ZERO
+			if sel_is_snap: active_local_pos = ent.snap_points.get(sel_key, Vector2.ZERO)
+			else: active_local_pos = ent.interaction_points.get(sel_key, {}).get("offset", Vector2.ZERO)
+
+			var active_ui_pos: Vector2 = studio_ref._sprite_offset_to_ui(active_local_pos)
+			var c_accent: Color = ThemeService.get_color("accent_primary", "#ec4899")
+
+			# Screen-spanning alignment crosshairs
+			draw_line(Vector2(0.0, active_ui_pos.y), Vector2(size.x, active_ui_pos.y), Color(c_accent.r, c_accent.g, c_accent.b, 0.45), 1.0)
+			draw_line(Vector2(active_ui_pos.x, 0.0), Vector2(active_ui_pos.x, size.y), Color(c_accent.r, c_accent.g, c_accent.b, 0.45), 1.0)
+
+			# Pulsing selection target ring
+			draw_circle(active_ui_pos, 14.0, Color(c_accent.r, c_accent.g, c_accent.b, 0.2))
+			draw_arc(active_ui_pos, 12.0, 0.0, TAU, 24, c_accent, 2.0)
+
+		# 4. Draw All Placed Anchor Pins
+		var all_anchors: Array[Dictionary] = []
+		for s_key: String in ent.snap_points.keys():
+			all_anchors.append({"key": s_key, "pos": ent.snap_points[s_key], "is_snap": true})
+		for i_key: String in ent.interaction_points.keys():
+			var data: Dictionary = ent.interaction_points[i_key]
+			all_anchors.append({"key": i_key, "pos": data.get("offset", Vector2.ZERO), "is_snap": false})
+
+		for anchor in all_anchors:
+			var key: String = str(anchor["key"])
+			var local_pos: Vector2 = anchor["pos"] as Vector2
+			var is_snap: bool = bool(anchor["is_snap"])
+			var ui_pos: Vector2 = studio_ref._sprite_offset_to_ui(local_pos)
+			var is_sel: bool = (key == sel_key and is_snap == sel_is_snap)
+			var pin_color: Color = studio_ref._get_color_for_key(key, is_snap)
+
+			# Drop shadow
+			draw_circle(ui_pos + Vector2(1.0, 1.0), 6.5, Color(0.0, 0.0, 0.0, 0.6))
+			# Outer colored body
+			draw_circle(ui_pos, 5.5, pin_color)
+			# Inner core
+			draw_circle(ui_pos, 2.0, Color.WHITE)
+
+			# Minimalist Pill Badge
+			var text_str: String = key
+			var font_sz: int = 9
+			var text_w: float = font.get_string_size(text_str, HORIZONTAL_ALIGNMENT_LEFT, -1, font_sz).x
+			var badge_rect: Rect2 = Rect2(ui_pos.x + 8.0, ui_pos.y - 7.0, text_w + 6.0, 13.0)
+
+			var bg_color: Color = Color("#09090b", 0.90) if is_sel else Color("#18181b", 0.65)
+			var border_color: Color = Color.WHITE if is_sel else Color(pin_color.r, pin_color.g, pin_color.b, 0.7)
+			draw_rect(badge_rect, bg_color, true)
+			draw_rect(badge_rect, border_color, false, 1.0)
+			draw_string(font, Vector2(badge_rect.position.x + 3.0, badge_rect.position.y + 9.5), text_str, HORIZONTAL_ALIGNMENT_LEFT, -1, font_sz, Color.WHITE)
+
+			# Live Floating Coordinate Tag while Dragging
+			if is_sel and studio_ref.is_dragging_anchor:
+				var coord_str: String = "(X: %d, Y: %d)" % [int(local_pos.x), int(local_pos.y)]
+				var c_text_w: float = font.get_string_size(coord_str, HORIZONTAL_ALIGNMENT_LEFT, -1, font_sz).x
+				var coord_rect: Rect2 = Rect2(ui_pos.x - (c_text_w * 0.5) - 4.0, ui_pos.y - 24.0, c_text_w + 8.0, 13.0)
+				draw_rect(coord_rect, Color("#ec4899", 0.95), true)
+				draw_string(font, Vector2(coord_rect.position.x + 4.0, coord_rect.position.y + 9.5), coord_str, HORIZONTAL_ALIGNMENT_LEFT, -1, font_sz, Color.WHITE)

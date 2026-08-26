@@ -1203,33 +1203,79 @@ func get_passengers_in_cab(all_entities_list: Array[OwnEntity]) -> Array[OwnEnti
 	return passengers
 
 
+# LIQUID SOURCE / FAUCET MANAGEMENT
+func get_faucet_stream_offset() -> Vector2:
+	for ik: String in interaction_points.keys():
+		if ik.begins_with("faucet") or ik.begins_with("liquid"):
+			return interaction_points[ik].get("offset", Vector2.ZERO)
+	for sk: String in snap_points.keys():
+		if sk.begins_with("faucet") or sk.begins_with("liquid"):
+			return snap_points[sk]
+	return Vector2(0.0, -texture_size.y * 0.1 if texture_size.y > 0 else 0.0)
+
+
+func _create_water_stream_particles(pos: Vector2) -> CPUParticles2D:
+	var stream: CPUParticles2D = CPUParticles2D.new()
+	stream.name = "WaterStream"
+	stream.position = pos
+	stream.emitting = false
+	stream.amount = 24
+	stream.lifetime = 0.4
+	stream.gravity = Vector2(0.0, 250.0)
+	stream.initial_velocity_min = 30.0
+	stream.initial_velocity_max = 50.0
+	stream.scale_amount_min = 2.0
+	stream.scale_amount_max = 3.5
+	stream.color = Color("#38bdf8")
+	stream.z_index = 5
+	return stream
+
+
+func update_faucet_particles() -> void:
+	if not is_liquid_source:
+		if linked_particles and is_instance_valid(linked_particles):
+			linked_particles.queue_free()
+			linked_particles = null
+		return
+
+	var offset_pos: Vector2 = get_faucet_stream_offset()
+
+	if not linked_particles or not is_instance_valid(linked_particles):
+		linked_particles = _create_water_stream_particles(offset_pos)
+		add_child(linked_particles)
+	else:
+		linked_particles.position = offset_pos
+
+	linked_particles.emitting = is_active
+
+
 func configure_as_liquid_source() -> void:
 	is_liquid_source = true
-	interaction_points["faucet_stream"] = {
-		"offset": Vector2(0.0, texture_size.y * 0.35),
-		"radius": 45.0,
-		"type": int(Types.InteractionPointType.LIQUID_STREAM)
-	}
-	if not linked_particles:
-		linked_particles = CPUParticles2D.new()
-		linked_particles.name = "WaterStream"
-		linked_particles.position = interaction_points["faucet_stream"]["offset"]
-		linked_particles.emitting = false
-		linked_particles.amount = 24
-		linked_particles.lifetime = 0.4
-		linked_particles.gravity = Vector2(0.0, 250.0)
-		linked_particles.initial_velocity_min = 30.0
-		linked_particles.initial_velocity_max = 50.0
-		linked_particles.scale_amount_min = 2.0
-		linked_particles.scale_amount_max = 3.5
-		linked_particles.color = Color("#38bdf8")
-		add_child(linked_particles)
+	var has_faucet_anchor: bool = false
+	for k: String in interaction_points.keys():
+		if k.begins_with("faucet") or k.begins_with("liquid"):
+			has_faucet_anchor = true
+			break
+	if not has_faucet_anchor:
+		for k: String in snap_points.keys():
+			if k.begins_with("faucet") or k.begins_with("liquid"):
+				has_faucet_anchor = true
+				break
+
+	if not has_faucet_anchor:
+		interaction_points["faucet_stream"] = {
+			"offset": Vector2(0.0, -texture_size.y * 0.1 if texture_size.y > 0 else 0.0),
+			"radius": 45.0,
+			"type": int(Types.InteractionPointType.LIQUID_STREAM)
+		}
+
+	update_faucet_particles()
 	rebuild_gizmos()
 
 
 func unconfigure_liquid_source() -> void:
 	is_liquid_source = false
-	if linked_particles:
+	if linked_particles and is_instance_valid(linked_particles):
 		linked_particles.queue_free()
 		linked_particles = null
 	interaction_points.erase("faucet_stream")
@@ -1245,8 +1291,8 @@ func toggle_active_state() -> void:
 		return
 
 	is_active = not is_active
-	if is_liquid_source and linked_particles:
-		linked_particles.emitting = is_active
+	if is_liquid_source:
+		update_faucet_particles()
 		if is_active: AudioManager.play_pour()
 	elif is_light_source:
 		_apply_current_lighting_state()
@@ -1418,6 +1464,9 @@ func rebuild_gizmos() -> void:
 		gizmo.marker_color = Color("#f59e0b")
 		gizmo.radius = 14.0
 		gizmo_root.add_child(gizmo)
+
+	if is_liquid_source:
+		update_faucet_particles()
 
 
 func update_gizmo_visibility(show_gizmos: bool) -> void:
@@ -1750,17 +1799,12 @@ func from_dict(d: Dictionary) -> void:
 	if is_door_open:
 		open_door_instant()
 
-	if is_liquid_source:
-		configure_as_liquid_source()
-		if is_active and linked_particles: linked_particles.emitting = true
-
-	if is_light_source: _apply_current_lighting_state()
-
 	logic_rules.clear()
 	var raw_rules: Array = d.get("logic_rules", [])
 	for r: Variant in raw_rules:
 		if r is Dictionary: logic_rules.append((r as Dictionary).duplicate(true))
 
+	# 1. Deserialize Anchor Points first!
 	snap_points.clear()
 	var snap_data: Dictionary = d.get("snap_points", {})
 	for k: String in snap_data.keys():
@@ -1776,6 +1820,13 @@ func from_dict(d: Dictionary) -> void:
 			"radius": float(iv.get("radius", 55.0)),
 			"type": int(iv.get("type", 0))
 		}
+
+	# 2. Configure liquid sources and lighting using the loaded anchor positions
+	if is_liquid_source:
+		configure_as_liquid_source()
+		if is_active and linked_particles: linked_particles.emitting = true
+
+	if is_light_source: _apply_current_lighting_state()
 
 	var components_dict: Dictionary = d.get("components", {})
 	for c_key: StringName in components.keys():
