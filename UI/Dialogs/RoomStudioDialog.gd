@@ -1,5 +1,5 @@
 # ==============================================================================
-# OWNWORLD — ROOM & MULTI-SLICE EXPANSION STUDIO
+# OWNWORLD — ROOM & MULTI-SLICE EXPANSION STUDIO (FLOOR LEVEL & COLOR STUDIO)
 # File: res://UI/Dialogs/RoomStudioDialog.gd
 # Base Class: CanvasLayer (class_name RoomStudioDialog)
 # ==============================================================================
@@ -8,8 +8,8 @@ class_name RoomStudioDialog
 extends CanvasLayer
 
 const MAX_SLICES: int = 10
-const MAX_PANEL_WIDTH: float = 580.0
-const MAX_PANEL_HEIGHT: float = 640.0
+const MAX_PANEL_WIDTH: float = 620.0
+const MAX_PANEL_HEIGHT: float = 680.0
 
 var root_backdrop: Control = null
 var center_container: CenterContainer = null
@@ -17,6 +17,7 @@ var root_panel: PanelContainer = null
 
 var header_lbl: Label = null
 var room_name_edit: LineEdit = null
+var floor_level_edit: LineEdit = null
 
 # Slice Expansion Controls
 var slices_tab_container: HBoxContainer = null
@@ -28,6 +29,12 @@ var room_slices: Array[Dictionary] = []
 # Active Slice Environment (Indoor vs Outdoor)
 var opt_slice_environment: OptionButton = null
 var slice_env_hint: Label = null
+
+# Procedural Wall & Floor Custom Colors
+var cp_wall_color: ColorPickerButton = null
+var cp_floor_color: ColorPickerButton = null
+var cp_trim_color: ColorPickerButton = null
+var btn_reset_slice_colors: Button = null
 
 # Floor Baseline
 var floor_slider: HSlider = null
@@ -54,7 +61,7 @@ const FILL_MODES: Array[Dictionary] = [
 	{"id": "original", "label": "1:1 Original Pixels", "stretch": TextureRect.STRETCH_KEEP_CENTERED}
 ]
 
-signal room_configured(slices_data: Array[Dictionary], floor_y: float, room_title: String)
+signal room_configured(slices_data: Array[Dictionary], floor_y: float, room_title: String, floor_level: String)
 signal floor_preview_changed(floor_y: float, p_visible: bool)
 
 
@@ -78,9 +85,11 @@ func _connect_system_signals() -> void:
 
 
 func _setup_keyboard_dodging() -> void:
-	if room_name_edit != null:
-		room_name_edit.focus_entered.connect(_on_input_focus_entered)
-		room_name_edit.focus_exited.connect(_on_input_focus_exited)
+	var edits: Array[LineEdit] = [room_name_edit, floor_level_edit]
+	for edit in edits:
+		if edit != null:
+			edit.focus_entered.connect(_on_input_focus_entered)
+			edit.focus_exited.connect(_on_input_focus_exited)
 
 
 func _on_input_focus_entered() -> void:
@@ -175,10 +184,15 @@ func _build_ui() -> void:
 	form_vbox.add_theme_constant_override("separation", 8)
 	scroll.add_child(form_vbox)
 
-	# Name
+	# Name and Floor Level Row
+	var id_row: HBoxContainer = HBoxContainer.new()
+	id_row.add_theme_constant_override("separation", 8)
+	form_vbox.add_child(id_row)
+
 	var name_box: VBoxContainer = VBoxContainer.new()
+	name_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	name_box.add_theme_constant_override("separation", 3)
-	form_vbox.add_child(name_box)
+	id_row.add_child(name_box)
 
 	var lbl_name: Label = Label.new()
 	lbl_name.text = "Room Name / Label:"
@@ -186,9 +200,25 @@ func _build_ui() -> void:
 	name_box.add_child(lbl_name)
 
 	room_name_edit = LineEdit.new()
-	room_name_edit.placeholder_text = "e.g. Mansion Hall, Living Room & Patio..."
+	room_name_edit.placeholder_text = "e.g. Mansion Living Room, Grand Hall..."
 	room_name_edit.custom_minimum_size = Vector2(0.0, 32.0)
 	name_box.add_child(room_name_edit)
+
+	var floor_box: VBoxContainer = VBoxContainer.new()
+	floor_box.custom_minimum_size = Vector2(140.0, 0.0)
+	floor_box.add_theme_constant_override("separation", 3)
+	id_row.add_child(floor_box)
+
+	var lbl_flr_lvl: Label = Label.new()
+	lbl_flr_lvl.text = "Floor Level:"
+	lbl_flr_lvl.theme_type_variation = "HintLabel"
+	floor_box.add_child(lbl_flr_lvl)
+
+	floor_level_edit = LineEdit.new()
+	floor_level_edit.placeholder_text = "e.g. 1F, 2F, B1, Attic..."
+	floor_level_edit.text = "1F"
+	floor_level_edit.custom_minimum_size = Vector2(0.0, 32.0)
+	floor_box.add_child(floor_level_edit)
 
 	# Slices Expansion Bar
 	var slices_card: PanelContainer = PanelContainer.new()
@@ -272,17 +302,82 @@ func _build_ui() -> void:
 	slice_env_hint.add_theme_font_size_override("font_size", 10)
 	env_vbox.add_child(slice_env_hint)
 
+	# Procedural Wall, Floor & Trim Custom Colors
+	var colors_card: PanelContainer = PanelContainer.new()
+	colors_card.theme_type_variation = "SubPanel"
+	form_vbox.add_child(colors_card)
+
+	var colors_vbox: VBoxContainer = VBoxContainer.new()
+	colors_vbox.add_theme_constant_override("separation", 6)
+	colors_card.add_child(colors_vbox)
+
+	var colors_title: Label = Label.new()
+	colors_title.text = "Procedural Colors (Used when no artwork is assigned):"
+	colors_title.theme_type_variation = "HeaderLabel"
+	colors_title.add_theme_font_size_override("font_size", 11)
+	colors_vbox.add_child(colors_title)
+
+	var color_pickers_grid: GridContainer = GridContainer.new()
+	color_pickers_grid.columns = 3
+	color_pickers_grid.add_theme_constant_override("h_separation", 8)
+	color_pickers_grid.add_theme_constant_override("v_separation", 6)
+	colors_vbox.add_child(color_pickers_grid)
+
+	# Wall Color
+	var wall_c_vbox: VBoxContainer = VBoxContainer.new()
+	var lbl_w_c: Label = Label.new()
+	lbl_w_c.text = "Wall Color:"
+	lbl_w_c.theme_type_variation = "HintLabel"
+	wall_c_vbox.add_child(lbl_w_c)
+	cp_wall_color = ColorPickerButton.new()
+	cp_wall_color.custom_minimum_size = Vector2(0.0, 28.0)
+	cp_wall_color.color_changed.connect(_on_procedural_wall_color_changed)
+	wall_c_vbox.add_child(cp_wall_color)
+	color_pickers_grid.add_child(wall_c_vbox)
+
+	# Baseboard Trim
+	var trim_c_vbox: VBoxContainer = VBoxContainer.new()
+	var lbl_t_c: Label = Label.new()
+	lbl_t_c.text = "Trim / Baseboard:"
+	lbl_t_c.theme_type_variation = "HintLabel"
+	trim_c_vbox.add_child(lbl_t_c)
+	cp_trim_color = ColorPickerButton.new()
+	cp_trim_color.custom_minimum_size = Vector2(0.0, 28.0)
+	cp_trim_color.color_changed.connect(_on_procedural_trim_color_changed)
+	trim_c_vbox.add_child(cp_trim_color)
+	color_pickers_grid.add_child(trim_c_vbox)
+
+	# Floor Color
+	var floor_c_vbox: VBoxContainer = VBoxContainer.new()
+	var lbl_f_c: Label = Label.new()
+	lbl_f_c.text = "Floor Color:"
+	lbl_f_c.theme_type_variation = "HintLabel"
+	floor_c_vbox.add_child(lbl_f_c)
+	cp_floor_color = ColorPickerButton.new()
+	cp_floor_color.custom_minimum_size = Vector2(0.0, 28.0)
+	cp_floor_color.color_changed.connect(_on_procedural_floor_color_changed)
+	floor_c_vbox.add_child(cp_floor_color)
+	color_pickers_grid.add_child(floor_c_vbox)
+
+	btn_reset_slice_colors = Button.new()
+	btn_reset_slice_colors.text = " Reset to Theme Palette Defaults"
+	btn_reset_slice_colors.custom_minimum_size = Vector2(0.0, 26.0)
+	btn_reset_slice_colors.focus_mode = Control.FOCUS_NONE
+	btn_reset_slice_colors.add_theme_font_size_override("font_size", 9)
+	btn_reset_slice_colors.pressed.connect(_on_reset_slice_colors_pressed)
+	colors_vbox.add_child(btn_reset_slice_colors)
+
 	# Floor Baseline Slider
 	var floor_card: PanelContainer = PanelContainer.new()
 	floor_card.theme_type_variation = "SubPanel"
 	form_vbox.add_child(floor_card)
 
-	var floor_box: VBoxContainer = VBoxContainer.new()
-	floor_box.add_theme_constant_override("separation", 6)
-	floor_card.add_child(floor_box)
+	var floor_box_c: VBoxContainer = VBoxContainer.new()
+	floor_box_c.add_theme_constant_override("separation", 6)
+	floor_card.add_child(floor_box_c)
 
 	var floor_header: HBoxContainer = HBoxContainer.new()
-	floor_box.add_child(floor_header)
+	floor_box_c.add_child(floor_header)
 
 	var lbl_floor: Label = Label.new()
 	lbl_floor.text = "Floor Baseline (Walk Level Across All Slices):"
@@ -302,7 +397,7 @@ func _build_ui() -> void:
 	floor_slider.value = 580.0
 	floor_slider.custom_minimum_size = Vector2(0.0, 24.0)
 	floor_slider.value_changed.connect(_on_floor_slider_changed)
-	floor_box.add_child(floor_slider)
+	floor_box_c.add_child(floor_slider)
 
 	check_show_floor_line = CheckBox.new()
 	check_show_floor_line.text = " Show Floor Guide Line"
@@ -310,7 +405,7 @@ func _build_ui() -> void:
 	check_show_floor_line.custom_minimum_size = Vector2(0.0, 28.0)
 	_apply_checkbox_icon(check_show_floor_line, "icon_floor")
 	check_show_floor_line.toggled.connect(func(is_toggled: bool) -> void: floor_preview_changed.emit(floor_slider.value, is_toggled))
-	floor_box.add_child(check_show_floor_line)
+	floor_box_c.add_child(check_show_floor_line)
 
 	# Active Slice Artwork Selector
 	var wall_box: VBoxContainer = VBoxContainer.new()
@@ -393,16 +488,20 @@ func _enforce_dropdown_popup_limits(option_button: OptionButton, max_height: int
 	popup.about_to_popup.connect(func() -> void: popup.max_size = Vector2i(4000, max_height))
 
 
-func open_studio(current_room_title: String, current_floor_y: float, current_slices_data: Array[Dictionary]) -> void:
+func open_studio(current_room_title: String, current_floor_y: float, current_slices_data: Array[Dictionary], current_floor_level: String = "1F") -> void:
 	art_library = UGCManager.scan_user_art_library()
 	room_name_edit.text = current_room_title
+	floor_level_edit.text = current_floor_level if not current_floor_level.is_empty() else "1F"
 	floor_slider.value = current_floor_y
 	floor_val_lbl.text = "%d px" % int(current_floor_y)
 	check_show_floor_line.button_pressed = true
 
 	room_slices = current_slices_data.duplicate(true)
 	if room_slices.is_empty():
-		room_slices.append({"wallpaper_path": "", "fill_mode": "cover", "is_outdoor": false})
+		room_slices.append({
+			"wallpaper_path": "", "fill_mode": "cover", "is_outdoor": false,
+			"wall_color": "", "floor_color": "", "baseboard_color": ""
+		})
 
 	current_selected_slice_idx = 0
 	_update_responsive_layout()
@@ -467,7 +566,10 @@ func _on_add_slice_pressed() -> void:
 	if room_slices.size() >= MAX_SLICES:
 		EventBus.notification_requested.emit("Max room length reached (%d slices)" % MAX_SLICES, true)
 		return
-	room_slices.append({"wallpaper_path": "", "fill_mode": "cover", "is_outdoor": false})
+	room_slices.append({
+		"wallpaper_path": "", "fill_mode": "cover", "is_outdoor": false,
+		"wall_color": "", "floor_color": "", "baseboard_color": ""
+	})
 	current_selected_slice_idx = room_slices.size() - 1
 	_render_slice_tabs()
 	_sync_active_slice_controls()
@@ -498,8 +600,45 @@ func _sync_active_slice_controls() -> void:
 	opt_slice_environment.selected = 1 if is_outdoor else 0
 	_update_environment_hint(is_outdoor)
 
+	# Procedural Color Pickers Sync
+	var def_wall: Color = ThemeService.get_color("window_background", "#fff5f7")
+	var def_floor: Color = ThemeService.get_color("container_sub_bg", "#fff0f3").darkened(0.12)
+	var def_trim: Color = ThemeService.get_color("panel_border", "#f9a8d4").darkened(0.08)
+
+	var w_col_str: String = str(current_sec.get("wall_color", ""))
+	var f_col_str: String = str(current_sec.get("floor_color", ""))
+	var t_col_str: String = str(current_sec.get("baseboard_color", ""))
+
+	cp_wall_color.color = Color(w_col_str) if not w_col_str.is_empty() else def_wall
+	cp_floor_color.color = Color(f_col_str) if not f_col_str.is_empty() else def_floor
+	cp_trim_color.color = Color(t_col_str) if not t_col_str.is_empty() else def_trim
+
 	_select_fill_mode(current_fill_mode)
 	_populate_art_dropdown(current_wall_path)
+
+
+func _on_procedural_wall_color_changed(new_color: Color) -> void:
+	if current_selected_slice_idx < 0 or current_selected_slice_idx >= room_slices.size(): return
+	room_slices[current_selected_slice_idx]["wall_color"] = "#" + new_color.to_html(false)
+
+
+func _on_procedural_floor_color_changed(new_color: Color) -> void:
+	if current_selected_slice_idx < 0 or current_selected_slice_idx >= room_slices.size(): return
+	room_slices[current_selected_slice_idx]["floor_color"] = "#" + new_color.to_html(false)
+
+
+func _on_procedural_trim_color_changed(new_color: Color) -> void:
+	if current_selected_slice_idx < 0 or current_selected_slice_idx >= room_slices.size(): return
+	room_slices[current_selected_slice_idx]["baseboard_color"] = "#" + new_color.to_html(false)
+
+
+func _on_reset_slice_colors_pressed() -> void:
+	if current_selected_slice_idx < 0 or current_selected_slice_idx >= room_slices.size(): return
+	room_slices[current_selected_slice_idx]["wall_color"] = ""
+	room_slices[current_selected_slice_idx]["floor_color"] = ""
+	room_slices[current_selected_slice_idx]["baseboard_color"] = ""
+	_sync_active_slice_controls()
+	EventBus.notification_requested.emit("Reset slice colors to theme palette.", true)
 
 
 func _on_slice_environment_selected(index: int) -> void:
@@ -595,10 +734,12 @@ func _on_floor_slider_changed(value: float) -> void:
 
 func _on_save_pressed() -> void:
 	var room_title: String = room_name_edit.text.strip_edges()
+	var floor_level: String = floor_level_edit.text.strip_edges()
 	floor_preview_changed.emit(floor_slider.value, false)
-	room_configured.emit(room_slices.duplicate(true), floor_slider.value, room_title)
-	EventBus.notification_requested.emit("Saved room layout (%d slice%s)" % [
-		room_slices.size(), ("s" if room_slices.size() > 1 else "")
+	room_configured.emit(room_slices.duplicate(true), floor_slider.value, room_title, floor_level)
+	EventBus.notification_requested.emit("Saved room layout: %s (%s)" % [
+		(room_title if not room_title.is_empty() else "Room"),
+		(floor_level if not floor_level.is_empty() else "1F")
 	], true)
 	visible = false
 

@@ -1,5 +1,5 @@
 # ==============================================================================
-# OWNWORLD — ROOM MANAGER
+# OWNWORLD — ROOM MANAGER (HIERARCHY TRANSIT & MULTI-FLOOR RECONSTRUCTION)
 # File: res://Systems/RoomManager.gd
 # Base Class: RefCounted (class_name RoomManager)
 # ==============================================================================
@@ -140,7 +140,7 @@ static func _load_entity_texture(texture_path: String, entity_type: Types.Entity
 		if normalized_path.begins_with("res://") and ResourceLoader.exists(normalized_path):
 			var resource: Resource = load(normalized_path)
 			if resource is Texture2D: return resource as Texture2D
-		if normalized_path.begins_with("user://") and FileAccess.file_exists(normalized_path):
+		if (normalized_path.begins_with("user://") or not normalized_path.begins_with("res://")) and FileAccess.file_exists(normalized_path):
 			var texture: Texture2D = UGCManager.load_texture_from_file(normalized_path)
 			if texture != null: return texture
 

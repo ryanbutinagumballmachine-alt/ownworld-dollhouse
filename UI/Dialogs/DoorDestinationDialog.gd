@@ -1,5 +1,5 @@
 # ==============================================================================
-# OWNWORLD — DOOR DESTINATION DIALOG
+# OWNWORLD — DOOR DESTINATION DIALOG (PURE PLAYER-SET ASSETS)
 # File: res://UI/Dialogs/DoorDestinationDialog.gd
 # Base Class: CanvasLayer (class_name DoorDestinationDialog)
 # ==============================================================================

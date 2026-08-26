@@ -1,5 +1,5 @@
 # ==============================================================================
-# OWNWORLD — ROOM LIFECYCLE CONTROLLER (MULTI-SECTION COMPATIBLE)
+# OWNWORLD — ROOM LIFECYCLE CONTROLLER (MULTI-FLOOR DESIGNATION SUPPORT)
 # File: res://Systems/World/RoomLifecycleController.gd
 # Base Class: Node (class_name RoomLifecycleController)
 # ==============================================================================
@@ -16,6 +16,7 @@ var atmosphere: Node = null
 var room_bounds: Rect2 = Rect2(0, 0, SECTION_WIDTH, ROOM_HEIGHT)
 var current_room_floor_y: float = 600.0
 var current_room_title: String = "Main Room"
+var current_room_floor_level: String = "1F"
 var room_sections: Array[Dictionary] = [{"wallpaper_path": "", "fill_mode": "cover"}]
 var _entities: Array = []
 var _active_room_id: String = ""
@@ -52,11 +53,15 @@ func load_room(room_id: String, traveler_data: Dictionary = {}) -> void:
 	_active_room_id = room_id
 	current_room_floor_y = float(state.get("floor_y", 600.0))
 	current_room_title = str(state.get("room_title", room_id))
+	current_room_floor_level = str(state.get("floor_level", "1F"))
 
 	var raw_sections: Variant = state.get("sections", null)
 	room_sections.clear()
 	if raw_sections is Array and not (raw_sections as Array).is_empty():
 		for item: Variant in (raw_sections as Array):
+			if item is Dictionary: room_sections.append((item as Dictionary).duplicate(true))
+	elif state.has("slices") and state["slices"] is Array:
+		for item: Variant in (state["slices"] as Array):
 			if item is Dictionary: room_sections.append((item as Dictionary).duplicate(true))
 	else:
 		room_sections.append({"wallpaper_path": str(state.get("wallpaper_path", "")), "fill_mode": str(state.get("wallpaper_fill_mode", "cover"))})
@@ -95,7 +100,8 @@ func get_current_room_state() -> Dictionary:
 	return SaveSchema.create_room(
 		_active_room_id if not _active_room_id.is_empty() else AppState.room_id,
 		current_room_title, current_room_floor_y, room_sections,
-		cam_pos, cam_zoom, serialized_entities
+		cam_pos, cam_zoom, serialized_entities,
+		current_room_floor_level
 	)
 
 

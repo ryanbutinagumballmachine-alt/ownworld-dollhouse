@@ -1,5 +1,5 @@
 # ==============================================================================
-# OWNWORLD — ELEVATOR FLOOR ROUTING DIALOG
+# OWNWORLD — ELEVATOR FLOOR ROUTING DIALOG (MULTI-FLOOR TRANSIT)
 # File: res://UI/Dialogs/ElevatorFloorDialog.gd
 # Base Class: CanvasLayer (class_name ElevatorFloorDialog)
 # ==============================================================================
@@ -100,7 +100,7 @@ func _build_ui() -> void:
 	main_vbox.add_child(header_hbox)
 
 	header_lbl = Label.new()
-	header_lbl.text = "Elevator & Floor Routing"
+	header_lbl.text = "Elevator & Multi-Floor Routing"
 	header_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header_lbl.theme_type_variation = "HeaderLabel"
 	header_hbox.add_child(header_lbl)

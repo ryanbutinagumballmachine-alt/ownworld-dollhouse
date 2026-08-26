@@ -19,7 +19,7 @@ func _run() -> void:
 	ProjectSettings.save()
 
 	# 3. Update export_presets.cfg
-	var cfg_path: String = "res://export_presets.cfg"
+	var cfg_path: String = "res://tools/export_presets.cfg"
 	var config: ConfigFile = ConfigFile.new()
 	var err: Error = config.load(cfg_path)
 

@@ -1,5 +1,5 @@
 # ==============================================================================
-# OWNWORLD — ENTITY RUNTIME INSTANCE (HYPER-OPTIMIZED & ROBUST)
+# OWNWORLD — ENTITY RUNTIME INSTANCE (COMPLETE & AUDITED PERSISTENCE)
 # File: res://Core/Entities/OwnEntity.gd
 # Base Class: Area2D (class_name OwnEntity)
 # ==============================================================================
@@ -33,7 +33,6 @@ var is_floor_decor: bool = false
 var base_sprite: Sprite2D = null
 var overlay_sprite: Sprite2D = null
 var glow_sprite: Sprite2D = null
-var door_label_node: Label = null
 var collision_polygon_node: CollisionPolygon2D = null
 var main_texture: Texture2D = null
 var texture_path: String = ""
@@ -89,7 +88,7 @@ var light_pulse_speed: float = 2.0
 var linked_light: PointLight2D = null
 var anchor_light_nodes: Array[PointLight2D] = []
 
-# Portals & Multi-Floor Elevators
+# Portals & Multi-Floor Elevators (Pure Player-Set Artwork)
 var is_portal: bool = false
 var target_room_id: String = ""
 var is_door_open: bool = false
@@ -131,6 +130,7 @@ signal entity_tapped(entity: OwnEntity)
 signal entity_long_pressed(entity: OwnEntity)
 signal state_changed(entity: OwnEntity, new_state: Types.EntityState)
 
+
 func _ready() -> void:
 	y_sort_enabled = true
 	add_to_group("entities")
@@ -140,9 +140,11 @@ func _ready() -> void:
 	blink_timer = randf_range(2.5, 4.5)
 	_update_process_state()
 
+
 func _update_process_state() -> void:
 	var needs_process: bool = (entity_type == Types.EntityType.CHARACTER) or (active_clip_frames.size() > 0)
 	set_process(needs_process)
+
 
 func _process(delta: float) -> void:
 	if active_clip_frames.size() > 0:
@@ -150,18 +152,21 @@ func _process(delta: float) -> void:
 	elif entity_type == Types.EntityType.CHARACTER:
 		_process_expression_and_blinking(delta)
 
-# COMPONENT LIFECYCLE API
+
 func add_component(component: EntityComponent) -> void:
 	if component == null: return
 	var key: StringName = component.get_component_key()
 	components[key] = component
 	component.initialize(self)
 
+
 func get_component(key: StringName) -> EntityComponent:
 	return components.get(key, null)
 
+
 func has_component(key: StringName) -> bool:
 	return components.has(key)
+
 
 func remove_component(key: StringName) -> void:
 	if components.has(key):
@@ -169,12 +174,15 @@ func remove_component(key: StringName) -> void:
 		comp.shutdown()
 		components.erase(key)
 
+
 func notify_tapped() -> void: entity_tapped.emit(self)
 func notify_long_pressed() -> void: entity_long_pressed.emit(self)
+
 
 func set_entity_state(new_state: Types.EntityState) -> void:
 	state = new_state
 	state_changed.emit(self, new_state)
+
 
 func setup(p_id: String, p_display_name: String, p_tex: Texture2D, p_pos: Vector2, p_type: Types.EntityType = Types.EntityType.PROP, p_tex_path: String = "") -> void:
 	entity_id = p_id
@@ -188,6 +196,7 @@ func setup(p_id: String, p_display_name: String, p_tex: Texture2D, p_pos: Vector
 	z_as_relative = false
 	rotation = 0.0
 	is_flipped_h = false
+	is_locked = false
 	entity_scale = 1.0
 	base_entity_scale = 1.0
 
@@ -220,6 +229,7 @@ func setup(p_id: String, p_display_name: String, p_tex: Texture2D, p_pos: Vector
 	rebuild_gizmos()
 	_update_process_state()
 
+
 func _initialize_character_profile_defaults() -> void:
 	if not custom_fields.has("status"): custom_fields["status"] = "Living / Active"
 	if not custom_fields.has("pronouns"): custom_fields["pronouns"] = ""
@@ -231,13 +241,11 @@ func _initialize_character_profile_defaults() -> void:
 	if not custom_fields.has("family_ties") or not (custom_fields["family_ties"] is Array): custom_fields["family_ties"] = []
 	if not custom_fields.has("relationships") or not (custom_fields["relationships"] is Array): custom_fields["relationships"] = []
 
-# --- LIVE PROFILE / LORE REFRESH API ---
+
 func update_character_profile(char_data: Dictionary) -> void:
 	var new_name: String = str(char_data.get("display_name", "")).strip_edges()
 	if not new_name.is_empty():
 		display_name = new_name
-		if door_label_node != null:
-			door_label_node.text = display_name
 
 	if char_data.has("custom_fields") and char_data["custom_fields"] is Dictionary:
 		custom_fields = (char_data["custom_fields"] as Dictionary).duplicate(true)
@@ -245,14 +253,6 @@ func update_character_profile(char_data: Dictionary) -> void:
 	_initialize_character_profile_defaults()
 	EventBus.entity_state_changed.emit(entity_id)
 
-func apply_character_lore(p_display_name: String, p_custom_fields: Dictionary) -> void:
-	if not p_display_name.is_empty():
-		display_name = p_display_name
-		if door_label_node != null:
-			door_label_node.text = display_name
-	custom_fields = p_custom_fields.duplicate(true)
-	_initialize_character_profile_defaults()
-	EventBus.entity_state_changed.emit(entity_id)
 
 func _setup_collision_layers() -> void:
 	collision_layer = 0
@@ -270,6 +270,7 @@ func _setup_collision_layers() -> void:
 			set_collision_layer_value(3, true)
 			set_collision_mask_value(1, true)
 			set_collision_mask_value(2, true)
+
 
 func _build_scene_tree() -> void:
 	base_sprite = Sprite2D.new()
@@ -307,6 +308,7 @@ func _build_scene_tree() -> void:
 
 	_build_speech_bubble_ui()
 
+
 func set_entity_type(p_type: Types.EntityType) -> void:
 	entity_type = p_type
 	_setup_collision_layers()
@@ -319,6 +321,7 @@ func set_entity_type(p_type: Types.EntityType) -> void:
 		if is_in_group("characters"):
 			remove_from_group("characters")
 	_update_process_state()
+
 
 func _generate_default_starter_anchors_if_empty() -> void:
 	if not snap_points.is_empty() or not interaction_points.is_empty():
@@ -345,10 +348,12 @@ func _generate_default_starter_anchors_if_empty() -> void:
 		Types.EntityType.CONTAINER:
 			snap_points["slot_1"] = Vector2(0.0, 0.0)
 
+
 # POSES & EXPRESSIONS
 func set_pose_state(pose_name: String) -> void:
 	current_pose_state = pose_name.to_lower()
 	_update_active_render_texture(false)
+
 
 func reset_to_default_pose() -> void:
 	current_pose_state = "default"
@@ -357,10 +362,12 @@ func reset_to_default_pose() -> void:
 	stop_animation_clip()
 	_update_active_render_texture(false)
 
+
 func set_expression(expr_name: String, duration: float = 0.0) -> void:
 	active_expression_name = expr_name
 	expression_timer = duration
 	_update_active_render_texture(false)
+
 
 func _process_expression_and_blinking(delta: float) -> void:
 	if active_clip_frames.size() > 0:
@@ -383,6 +390,7 @@ func _process_expression_and_blinking(delta: float) -> void:
 				is_blinking_active = false
 				blink_timer = randf_range(3.0, 5.0)
 				_update_active_render_texture(false)
+
 
 func _update_active_render_texture(recalculate_collision: bool = false) -> void:
 	if active_clip_frames.size() > 0:
@@ -412,6 +420,7 @@ func _update_active_render_texture(recalculate_collision: bool = false) -> void:
 
 	_apply_active_texture(chosen_tex if chosen_tex != null else _get_active_form_base_texture(), recalculate_collision)
 
+
 func _get_slot_texture(slot_name: String) -> Texture2D:
 	if wardrobe_forms.has(active_form_key):
 		var form_d: Dictionary = wardrobe_forms[active_form_key]
@@ -419,6 +428,7 @@ func _get_slot_texture(slot_name: String) -> Texture2D:
 		if sprites.has(slot_name) and sprites[slot_name] != null:
 			return sprites[slot_name] as Texture2D
 	return null
+
 
 func assign_pose_slot_texture(form_key: String, slot_name: String, tex: Texture2D, path: String = "") -> void:
 	if not wardrobe_forms.has(form_key):
@@ -432,13 +442,12 @@ func assign_pose_slot_texture(form_key: String, slot_name: String, tex: Texture2
 	if form_key == active_form_key:
 		_update_active_render_texture(false)
 
+
 func _apply_active_texture(tex: Texture2D, recalculate_collision: bool = false) -> void:
 	if not tex:
 		return
 	main_texture = tex
 	texture_size = tex.get_size()
-
-	# Instant cached alpha bitmap lookup
 	alpha_bitmap = UGCManager.generate_alpha_bitmap(main_texture)
 
 	if glow_sprite:
@@ -456,6 +465,7 @@ func _apply_active_texture(tex: Texture2D, recalculate_collision: bool = false) 
 	if recalculate_collision or collision_polygons.is_empty():
 		_recalculate_collision_geometry(main_texture)
 
+
 func _get_active_form_base_texture() -> Texture2D:
 	if wardrobe_forms.has(active_form_key):
 		var t: Variant = wardrobe_forms[active_form_key].get("tex", null)
@@ -463,12 +473,12 @@ func _get_active_form_base_texture() -> Texture2D:
 			return t as Texture2D
 	return main_texture
 
+
 func register_animation_clip(form_key: String, clip_name: String, frames: Array[Texture2D], fps: float, paths: Array[String], mode: String = "loop") -> void:
 	if not wardrobe_forms.has(form_key):
 		return
 	var form_d: Dictionary = wardrobe_forms[form_key]
-	if not form_d.has("animations"):
-		form_d["animations"] = {}
+	if not form_d.has("animations"): form_d["animations"] = {}
 
 	form_d["animations"][clip_name] = {
 		"fps": fps,
@@ -477,6 +487,7 @@ func register_animation_clip(form_key: String, clip_name: String, frames: Array[
 		"paths": paths.duplicate()
 	}
 	_update_process_state()
+
 
 func delete_animation_clip(form_key: String, clip_name: String) -> void:
 	if not wardrobe_forms.has(form_key):
@@ -487,9 +498,10 @@ func delete_animation_clip(form_key: String, clip_name: String) -> void:
 		if active_clip_name == clip_name:
 			stop_animation_clip()
 
+
 func play_named_animation(anim_name: String) -> void:
 	var clean_name: String = anim_name.strip_edges().to_lower()
-	if clean_name == "":
+	if clean_name.is_empty():
 		return
 
 	if wardrobe_forms.has(active_form_key):
@@ -502,6 +514,7 @@ func play_named_animation(anim_name: String) -> void:
 		set_expression(clean_name, 2.0)
 	elif clean_name in ["sitting", "sleeping", "default"]:
 		set_pose_state(clean_name)
+
 
 func play_animation_clip(clip_name: String) -> void:
 	if not wardrobe_forms.has(active_form_key):
@@ -530,12 +543,14 @@ func play_animation_clip(clip_name: String) -> void:
 	if not active_clip_frames.is_empty():
 		_apply_active_texture(active_clip_frames[0], false)
 
+
 func stop_animation_clip() -> void:
 	active_clip_name = ""
 	active_clip_frames.clear()
 	active_clip_paths.clear()
 	_update_process_state()
 	_update_active_render_texture(false)
+
 
 func _process_animation_clip(delta: float) -> void:
 	if active_clip_frames.is_empty():
@@ -556,6 +571,7 @@ func _process_animation_clip(delta: float) -> void:
 
 		if clip_frame_idx < active_clip_frames.size():
 			_apply_active_texture(active_clip_frames[clip_frame_idx], false)
+
 
 # SOCKET ATTACHMENT & HIERARCHY
 func attach_to_socket(target_parent: OwnEntity, socket_key: String, is_instant: bool = false) -> bool:
@@ -617,6 +633,7 @@ func attach_to_socket(target_parent: OwnEntity, socket_key: String, is_instant: 
 
 	return true
 
+
 func detach_from_socket(new_canvas_parent: Node2D) -> void:
 	if parent_socket_entity and is_instance_valid(parent_socket_entity):
 		parent_socket_entity.attached_children.erase(self)
@@ -634,12 +651,14 @@ func detach_from_socket(new_canvas_parent: Node2D) -> void:
 	set_entity_state(Types.EntityState.IDLE)
 	set_pose_state("default")
 
+
 func _would_cause_parenting_cycle(potential_parent: Node) -> bool:
 	var current: Node = potential_parent
 	while current != null:
 		if current == self: return true
 		current = current.get_parent()
 	return false
+
 
 func _is_socket_attachment_valid(target_parent: OwnEntity, socket_key: String) -> bool:
 	var sk_low: String = socket_key.to_lower()
@@ -661,6 +680,7 @@ func _is_socket_attachment_valid(target_parent: OwnEntity, socket_key: String) -
 
 	return false
 
+
 # CONTAINERS & CONSUMABLES
 func toggle_container() -> void:
 	if not is_container:
@@ -679,11 +699,13 @@ func toggle_container() -> void:
 
 	AudioManager.play_pop_grab()
 
+
 func pack_item_inside(item: OwnEntity) -> void:
 	if not is_container or not is_instance_valid(item):
 		return
 	stored_item_data.append(item.to_dict())
 	item.queue_free()
+
 
 func configure_as_consumable(custom_stages: Array[Texture2D] = [], custom_paths: Array[String] = []) -> void:
 	is_consumable = true
@@ -701,6 +723,7 @@ func configure_as_consumable(custom_stages: Array[Texture2D] = [], custom_paths:
 	else:
 		max_bites = 3
 
+
 func unconfigure_consumable() -> void:
 	is_consumable = false
 	is_drink = false
@@ -710,6 +733,7 @@ func unconfigure_consumable() -> void:
 	custom_stage_textures.clear()
 	set_entity_scale(base_entity_scale)
 	_apply_active_texture(_get_active_form_base_texture(), false)
+
 
 func take_bite() -> bool:
 	if not is_consumable or is_drink:
@@ -760,6 +784,7 @@ func take_bite() -> bool:
 	active_tween.tween_property(self, "scale", target_s, 0.2)
 	return false
 
+
 func take_sip() -> void:
 	if not is_drink or (not is_infinite and fill_level <= 0):
 		return
@@ -782,6 +807,7 @@ func take_sip() -> void:
 	active_tween = create_tween().set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
 	active_tween.tween_property(self, "scale", rest_s, 0.2)
 
+
 func fill_with_liquid() -> void:
 	fill_level = mini(fill_level + 1, 2)
 	AudioManager.play_pour()
@@ -800,6 +826,7 @@ func fill_with_liquid() -> void:
 	scale = rest_s * Vector2(1.15, 0.88)
 	active_tween = create_tween().set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
 	active_tween.tween_property(self, "scale", rest_s, 0.25)
+
 
 func _spawn_crumb_burst() -> void:
 	var crumbs: CPUParticles2D = CPUParticles2D.new()
@@ -821,7 +848,8 @@ func _spawn_crumb_burst() -> void:
 	var timer: SceneTreeTimer = get_tree().create_timer(0.5)
 	timer.timeout.connect(crumbs.queue_free)
 
-# LIGHTING & GPU OPTIMIZED SHADER
+
+# LIGHTING
 func _ensure_glow_shader() -> void:
 	if silhouette_glow_shader != null:
 		return
@@ -886,6 +914,7 @@ void fragment() {
 }
 """
 
+
 func configure_lighting_settings(mode: int, color_val: Color, intensity_val: float, radius_val: float, pulse_val: float) -> void:
 	is_light_source = true
 	light_shape_mode = mode
@@ -895,10 +924,12 @@ func configure_lighting_settings(mode: int, color_val: Color, intensity_val: flo
 	light_pulse_speed = pulse_val
 	_apply_current_lighting_state()
 
+
 func configure_as_light_source(glow_radius: int = 150) -> void:
 	is_light_source = true
 	light_radius = float(glow_radius)
 	_apply_current_lighting_state()
+
 
 func _apply_current_lighting_state() -> void:
 	_ensure_glow_shader()
@@ -935,8 +966,8 @@ func _apply_current_lighting_state() -> void:
 			add_child(linked_light)
 		linked_light.color = light_color
 		linked_light.energy = light_intensity * 0.6
-		var base_scale: float = (light_radius * 2.0) / 256.0
-		linked_light.texture_scale = base_scale * clampf(light_radius / 100.0, 0.5, 8.0)
+		var b_scale: float = (light_radius * 2.0) / 256.0
+		linked_light.texture_scale = b_scale * clampf(light_radius / 100.0, 0.5, 8.0)
 		linked_light.enabled = is_active
 
 	elif light_shape_mode == LightShapeMode.ANCHOR_POINTS:
@@ -948,11 +979,12 @@ func _apply_current_lighting_state() -> void:
 				var al: PointLight2D = AtmosphereController.create_radial_point_light(int(light_radius), light_color)
 				al.position = pt_pos
 				al.energy = light_intensity * 0.7
-				var base_scale: float = (light_radius * 2.0) / 256.0
-				al.texture_scale = base_scale * clampf(light_radius / 100.0, 0.3, 6.0)
+				var b_scale: float = (light_radius * 2.0) / 256.0
+				al.texture_scale = b_scale * clampf(light_radius / 100.0, 0.3, 6.0)
 				al.enabled = is_active
 				add_child(al)
 				anchor_light_nodes.append(al)
+
 
 func unconfigure_light_source() -> void:
 	is_light_source = false
@@ -963,6 +995,7 @@ func unconfigure_light_source() -> void:
 	for al: PointLight2D in anchor_light_nodes:
 		if is_instance_valid(al): al.queue_free()
 	anchor_light_nodes.clear()
+
 
 # GEOMETRY & WARDROBE
 func add_wardrobe_form(form_name: String, tex: Texture2D, path: String) -> void:
@@ -980,6 +1013,7 @@ func add_wardrobe_form(form_name: String, tex: Texture2D, path: String) -> void:
 		"animations": {}
 	}
 	switch_wardrobe_form(form_name)
+
 
 func switch_wardrobe_form(form_name: String) -> void:
 	if not wardrobe_forms.has(form_name):
@@ -1009,6 +1043,7 @@ func switch_wardrobe_form(form_name: String) -> void:
 		active_tween = create_tween().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 		active_tween.tween_property(self, "scale", rest_s, 0.2)
 
+
 func _recalculate_collision_geometry(tex: Texture2D) -> void:
 	if not tex:
 		collision_poly = PackedVector2Array()
@@ -1023,6 +1058,7 @@ func _recalculate_collision_geometry(tex: Texture2D) -> void:
 	collision_poly = UGCManager.generate_alpha_collision_polygon(tex, 0.05, 4.0)
 	if collision_polygon_node:
 		collision_polygon_node.polygon = collision_poly
+
 
 func get_visual_bottom_offset_local() -> float:
 	if not collision_polygons.is_empty():
@@ -1039,8 +1075,10 @@ func get_visual_bottom_offset_local() -> float:
 		return max_y
 	return texture_size.y * 0.5
 
+
 func get_visual_bottom_offset() -> float:
 	return get_visual_bottom_offset_local() * entity_scale
+
 
 func get_visual_half_width() -> float:
 	if not collision_polygons.is_empty():
@@ -1059,6 +1097,7 @@ func get_visual_half_width() -> float:
 		return max_x * entity_scale
 	return texture_size.x * 0.5 * entity_scale
 
+
 func set_entity_scale(new_scale: float) -> void:
 	entity_scale = clampf(new_scale, 0.05, 4.0)
 	var p_scale_x: float = 1.0
@@ -1071,6 +1110,7 @@ func set_entity_scale(new_scale: float) -> void:
 		entity_scale / p_scale_y
 	)
 
+
 func flip_horizontal() -> void:
 	is_flipped_h = not is_flipped_h
 	_kill_active_tween()
@@ -1082,11 +1122,14 @@ func flip_horizontal() -> void:
 	active_tween.tween_property(self, "scale:x", target_scale_x, 0.18)
 	AudioManager.play_pop_grab()
 
+
 func configure_as_floor_decor(enabled: bool) -> void:
 	is_floor_decor = enabled
 	base_layer_band = Types.LayerBands.FLOOR_DECOR if enabled else Types.LayerBands.PLAYFIELD
 	z_index = base_layer_band
 
+
+# PURE PLAYER-SET ASSET DOORS & ELEVATORS
 func configure_as_portal(p_target_room: String, p_portal_name: String) -> void:
 	is_portal = true
 	is_elevator = false
@@ -1094,15 +1137,6 @@ func configure_as_portal(p_target_room: String, p_portal_name: String) -> void:
 	target_room_id = p_target_room
 	display_name = p_portal_name if p_portal_name != "" else display_name
 
-	var base_tex: Texture2D = _get_active_form_base_texture()
-	if base_tex:
-		_apply_active_texture(base_tex, true)
-	else:
-		main_texture = UGCManager.create_door_frame_texture(Vector2(96.0, 160.0))
-		_apply_active_texture(main_texture, true)
-
-	_ensure_door_label_node()
-	update_door_visuals()
 
 func configure_as_elevator(floors: Array[Dictionary] = [], p_name: String = "Elevator") -> void:
 	is_portal = true
@@ -1118,47 +1152,13 @@ func configure_as_elevator(floors: Array[Dictionary] = [], p_name: String = "Ele
 	else:
 		elevator_floors = floors.duplicate(true)
 
-	var base_tex: Texture2D = _get_active_form_base_texture()
-	if base_tex:
-		_apply_active_texture(base_tex, true)
-	else:
-		main_texture = UGCManager.create_door_frame_texture(Vector2(110.0, 170.0))
-		_apply_active_texture(main_texture, true)
-
-	_ensure_door_label_node()
-	update_door_visuals()
 
 func unconfigure_portal_and_elevator() -> void:
 	is_portal = false
 	is_elevator = false
 	elevator_floors.clear()
 	target_room_id = ""
-	if door_label_node:
-		door_label_node.queue_free()
-		door_label_node = null
-	_apply_active_texture(_get_active_form_base_texture(), true)
 
-func _ensure_door_label_node() -> void:
-	if not door_label_node:
-		door_label_node = Label.new()
-		door_label_node.name = "DoorLabel"
-		door_label_node.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		var top_offset: float = -texture_size.y * 0.5 - 24.0
-		door_label_node.position = Vector2(-75.0, top_offset)
-		door_label_node.custom_minimum_size = Vector2(150.0, 24.0)
-		door_label_node.add_theme_color_override("font_color", Color("#f8fafc"))
-
-		var lbl_style: StyleBoxFlat = StyleBoxFlat.new()
-		lbl_style.bg_color = Color("#0f172a", 0.9)
-		lbl_style.set_corner_radius_all(6)
-		lbl_style.content_margin_left = 6
-		lbl_style.content_margin_right = 6
-		door_label_node.add_theme_stylebox_override("normal", lbl_style)
-		add_child(door_label_node)
-
-func update_door_visuals() -> void:
-	if door_label_node:
-		door_label_node.text = display_name
 
 func toggle_door() -> void:
 	is_door_open = not is_door_open
@@ -1173,9 +1173,11 @@ func toggle_door() -> void:
 		active_tween.tween_property(self, "modulate", Color.WHITE, 0.15)
 		active_tween.parallel().tween_property(self, "scale", rest_s, 0.15)
 
+
 func open_door_instant() -> void:
 	is_door_open = true
 	modulate = Color(1.2, 1.2, 1.2, 0.9)
+
 
 func close_door_animated(callback: Callable = Callable()) -> void:
 	is_door_open = false
@@ -1186,6 +1188,7 @@ func close_door_animated(callback: Callable = Callable()) -> void:
 	active_tween.parallel().tween_property(self, "scale", rest_s, 0.2)
 	if callback.is_valid():
 		active_tween.chain().tween_callback(callback)
+
 
 func get_passengers_in_cab(all_entities_list: Array[OwnEntity]) -> Array[OwnEntity]:
 	var passengers: Array[OwnEntity] = []
@@ -1198,6 +1201,7 @@ func get_passengers_in_cab(all_entities_list: Array[OwnEntity]) -> Array[OwnEnti
 			if cab_rect.has_point(ent.global_position):
 				passengers.append(ent)
 	return passengers
+
 
 func configure_as_liquid_source() -> void:
 	is_liquid_source = true
@@ -1222,6 +1226,7 @@ func configure_as_liquid_source() -> void:
 		add_child(linked_particles)
 	rebuild_gizmos()
 
+
 func unconfigure_liquid_source() -> void:
 	is_liquid_source = false
 	if linked_particles:
@@ -1229,6 +1234,7 @@ func unconfigure_liquid_source() -> void:
 		linked_particles = null
 	interaction_points.erase("faucet_stream")
 	rebuild_gizmos()
+
 
 func toggle_active_state() -> void:
 	if is_portal or is_elevator:
@@ -1261,6 +1267,7 @@ func toggle_active_state() -> void:
 	active_tween = create_tween().set_trans(Tween.TRANS_SPRING).set_ease(Tween.EASE_OUT)
 	active_tween.tween_property(self, "scale", rest_s, 0.15)
 
+
 func on_grab() -> void:
 	set_entity_state(Types.EntityState.DRAGGING)
 	z_as_relative = false
@@ -1270,6 +1277,7 @@ func on_grab() -> void:
 	active_tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 	var rest_s: Vector2 = Vector2(-entity_scale if is_flipped_h else entity_scale, entity_scale)
 	active_tween.tween_property(self, "scale", rest_s * 1.05, 0.08)
+
 
 func on_drop() -> void:
 	set_entity_state(Types.EntityState.IDLE)
@@ -1288,12 +1296,14 @@ func on_drop() -> void:
 	active_tween.tween_property(self, "scale", rest_s * Vector2(1.06, 0.94), 0.07)
 	active_tween.tween_property(self, "scale", rest_s, 0.12)
 
+
 func trigger_spawn_juice() -> void:
 	_kill_active_tween()
 	var rest_s: Vector2 = Vector2(-entity_scale if is_flipped_h else entity_scale, entity_scale)
 	scale = rest_s * Vector2(0.85, 1.15)
 	active_tween = create_tween().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 	active_tween.tween_property(self, "scale", rest_s, 0.22)
+
 
 func set_slice_ratio(ratio: float) -> void:
 	slice_y_ratio = ratio
@@ -1327,18 +1337,17 @@ func set_slice_ratio(ratio: float) -> void:
 	overlay_sprite.position = Vector2(-w * 0.5, -h * 0.5)
 	overlay_sprite.visible = true
 
+
 func contains_point(world_p: Vector2, touch_padding: float = 0.0) -> bool:
 	var local_p: Vector2 = to_local(world_p)
 	var scale_mag: float = absf(entity_scale) if entity_scale != 0.0 else 1.0
 	var scaled_padding: float = touch_padding / scale_mag
 
-	# 1. FAST EARLY EXIT: Bounding box check in O(1)
 	if texture_size.x > 0.0 and texture_size.y > 0.0:
 		var half_box: Vector2 = (texture_size * 0.5) + Vector2(scaled_padding + 8.0, scaled_padding + 8.0)
 		if not Rect2(-half_box, half_box * 2.0).has_point(local_p):
 			return false
 
-	# 2. O(1) DIRECT BITMAP LOOKUP (Mapped accurately to texture space)
 	if alpha_bitmap != null and texture_size.x > 0.0 and texture_size.y > 0.0:
 		var bm_size: Vector2i = alpha_bitmap.get_size()
 		if bm_size.x > 0 and bm_size.y > 0:
@@ -1352,7 +1361,6 @@ func contains_point(world_p: Vector2, touch_padding: float = 0.0) -> bool:
 				if alpha_bitmap.get_bit(px, py):
 					return true
 
-	# 3. FAST POLYGON CHECK
 	if not collision_polygons.is_empty():
 		for poly: PackedVector2Array in collision_polygons:
 			if poly.size() >= 3 and Geometry2D.is_point_in_polygon(local_p, poly):
@@ -1361,16 +1369,17 @@ func contains_point(world_p: Vector2, touch_padding: float = 0.0) -> bool:
 		if Geometry2D.is_point_in_polygon(local_p, collision_poly):
 			return true
 
-	# 4. Fallback for touch padding around bounds
 	if scaled_padding > 0.0 and texture_size.x > 0.0 and texture_size.y > 0.0:
 		var half_pad_box: Vector2 = (texture_size * 0.5) + Vector2(scaled_padding, scaled_padding)
 		return Rect2(-half_pad_box, half_pad_box * 2.0).has_point(local_p)
 
 	return false
 
+
 func _kill_active_tween() -> void:
 	if active_tween and active_tween.is_valid():
 		active_tween.kill()
+
 
 func rebuild_gizmos() -> void:
 	if not gizmo_root:
@@ -1399,9 +1408,11 @@ func rebuild_gizmos() -> void:
 		gizmo.radius = 14.0
 		gizmo_root.add_child(gizmo)
 
+
 func update_gizmo_visibility(show_gizmos: bool) -> void:
 	if gizmo_root:
 		gizmo_root.visible = show_gizmos
+
 
 func _build_speech_bubble_ui() -> void:
 	speech_bubble_node = PanelContainer.new()
@@ -1431,6 +1442,7 @@ func _build_speech_bubble_ui() -> void:
 	speech_bubble_node.add_child(speech_label)
 	add_child(speech_bubble_node)
 
+
 func show_speech_bubble(text_to_say: String) -> void:
 	if not speech_bubble_node or not speech_label:
 		return
@@ -1447,6 +1459,7 @@ func show_speech_bubble(text_to_say: String) -> void:
 	speech_tween.chain().tween_property(speech_bubble_node, "scale", Vector2.ZERO, 0.15)
 	speech_tween.chain().tween_callback(func() -> void: speech_bubble_node.visible = false)
 
+
 func spray_emotion(symbol_char: String) -> void:
 	if symbol_char == "":
 		return
@@ -1461,6 +1474,7 @@ func spray_emotion(symbol_char: String) -> void:
 	tw.parallel().tween_property(lbl, "modulate:a", 0.0, 0.8)
 	tw.chain().tween_callback(lbl.queue_free)
 
+
 func get_full_hierarchy_bundle() -> Array[Dictionary]:
 	var bundle: Array[Dictionary] = [to_dict()]
 	for child: OwnEntity in attached_children:
@@ -1468,45 +1482,8 @@ func get_full_hierarchy_bundle() -> Array[Dictionary]:
 			bundle.append_array(child.get_full_hierarchy_bundle())
 	return bundle
 
-# PROFILE & CUSTOM FIELDS
-func get_profile_field(field_key: String, default_val: String = "") -> String:
-	return str(custom_fields.get(field_key, default_val))
 
-func set_profile_field(field_key: String, val: String) -> void:
-	custom_fields[field_key] = val
-
-func get_traits() -> Dictionary:
-	var traits_data: Variant = custom_fields.get("traits", {})
-	return (traits_data as Dictionary).duplicate(true) if traits_data is Dictionary else {}
-
-func set_trait(trait_name: String, val: String) -> void:
-	if not custom_fields.has("traits") or not (custom_fields["traits"] is Dictionary):
-		custom_fields["traits"] = {}
-	custom_fields["traits"][trait_name] = val
-
-func get_family_ties() -> Array[Dictionary]:
-	var raw_ties: Variant = custom_fields.get("family_ties", [])
-	var list: Array[Dictionary] = []
-	if raw_ties is Array:
-		for b: Variant in (raw_ties as Array):
-			if b is Dictionary: list.append((b as Dictionary).duplicate(true))
-	return list
-
-func set_family_ties(ties: Array[Dictionary]) -> void:
-	custom_fields["family_ties"] = ties.duplicate(true)
-
-func get_relationships() -> Array[Dictionary]:
-	var raw_bonds: Variant = custom_fields.get("relationships", [])
-	var list: Array[Dictionary] = []
-	if raw_bonds is Array:
-		for b: Variant in (raw_bonds as Array):
-			if b is Dictionary: list.append((b as Dictionary).duplicate(true))
-	return list
-
-func set_relationships(bonds: Array[Dictionary]) -> void:
-	custom_fields["relationships"] = bonds.duplicate(true)
-
-# SERIALIZATION
+# COMPLETE AUDITED SERIALIZATION
 func to_dict() -> Dictionary:
 	var snap_dict: Dictionary = {}
 	for k: String in snap_points.keys():
@@ -1559,10 +1536,16 @@ func to_dict() -> Dictionary:
 		"texture_path": texture_path,
 		"x": global_position.x,
 		"y": global_position.y,
+		"rotation": rotation,
+		"z_index": z_index,
+		"z_as_relative": z_as_relative,
+		"modulate": "#" + modulate.to_html(true),
 		"layer_band": base_layer_band,
 		"slice_y_ratio": slice_y_ratio,
 		"active_form_key": active_form_key,
 		"current_pose_state": current_pose_state,
+		"active_expression_name": active_expression_name,
+		"is_locked": is_locked,
 		"is_flipped_h": is_flipped_h,
 		"entity_scale": entity_scale,
 		"base_entity_scale": base_entity_scale,
@@ -1586,6 +1569,7 @@ func to_dict() -> Dictionary:
 		"light_pulse_speed": light_pulse_speed,
 		"is_portal": is_portal,
 		"target_room_id": target_room_id,
+		"is_door_open": is_door_open,
 		"is_elevator": is_elevator,
 		"elevator_floors": elevator_floors.duplicate(true),
 		"is_active": is_active,
@@ -1603,15 +1587,24 @@ func to_dict() -> Dictionary:
 		"attached_socket_key": attached_socket_key
 	}
 
+
 func from_dict(d: Dictionary) -> void:
-	display_name = d.get("display_name", entity_id)
+	if d.has("id"):
+		entity_id = str(d["id"]).strip_edges()
+	display_name = str(d.get("display_name", entity_id))
 	entity_type = int(d.get("entity_type", Types.EntityType.PROP)) as Types.EntityType
 	_setup_collision_layers()
 
+	is_locked = bool(d.get("is_locked", false))
 	is_floor_decor = bool(d.get("is_floor_decor", false))
-	base_layer_band = Types.LayerBands.FLOOR_DECOR if is_floor_decor else Types.LayerBands.PLAYFIELD
-	z_index = base_layer_band
-	z_as_relative = false
+	base_layer_band = int(d.get("layer_band", Types.LayerBands.FLOOR_DECOR if is_floor_decor else Types.LayerBands.PLAYFIELD))
+	z_index = int(d.get("z_index", base_layer_band))
+	z_as_relative = bool(d.get("z_as_relative", false))
+
+	if d.has("rotation"):
+		rotation = float(d["rotation"])
+	if d.has("modulate"):
+		modulate = Color(str(d["modulate"]))
 
 	slice_y_ratio = float(d.get("slice_y_ratio", 0.0))
 	is_flipped_h = bool(d.get("is_flipped_h", false))
@@ -1648,6 +1641,7 @@ func from_dict(d: Dictionary) -> void:
 
 	is_portal = bool(d.get("is_portal", false))
 	target_room_id = str(d.get("target_room_id", ""))
+	is_door_open = bool(d.get("is_door_open", false))
 	is_elevator = bool(d.get("is_elevator", false))
 
 	elevator_floors.clear()
@@ -1723,7 +1717,11 @@ func from_dict(d: Dictionary) -> void:
 
 	active_form_key = str(d.get("active_form_key", "Default"))
 	current_pose_state = str(d.get("current_pose_state", "default"))
+	active_expression_name = str(d.get("active_expression_name", "eyes_open"))
 	_update_active_render_texture(true)
+
+	if is_open and container_open_texture != null:
+		_apply_active_texture(container_open_texture, false)
 
 	stored_item_data.clear()
 	var raw_stored: Array = d.get("stored_item_data", [])
@@ -1737,6 +1735,9 @@ func from_dict(d: Dictionary) -> void:
 
 	if is_elevator: configure_as_elevator(elevator_floors, display_name)
 	elif is_portal: configure_as_portal(target_room_id, display_name)
+
+	if is_door_open:
+		open_door_instant()
 
 	if is_liquid_source:
 		configure_as_liquid_source()
@@ -1773,6 +1774,7 @@ func from_dict(d: Dictionary) -> void:
 
 	rebuild_gizmos()
 	_update_process_state()
+
 
 class AnchorMarker extends Node2D:
 	var anchor_name: String = ""

@@ -1,5 +1,5 @@
 # ==============================================================================
-# OWNWORLD — DRAWER TRAY ORCHESTRATOR
+# OWNWORLD — DRAWER TRAY ORCHESTRATOR (DYNAMIC ADAPTIVE CARDS)
 # File: res://UI/Drawer/DrawerTray.gd
 # Base Class: CanvasLayer (class_name DrawerTray)
 # ==============================================================================
@@ -9,8 +9,8 @@ extends CanvasLayer
 
 const DRAWER_MAX_WIDTH: float = 780.0
 const DRAWER_HEIGHT: float = 230.0
-const CARD_WIDTH: float = 74.0
-const CARD_HEIGHT: float = 82.0
+const CARD_WIDTH: float = 76.0
+const CARD_HEIGHT: float = 86.0
 const GRID_SPACING: int = 6
 
 enum TrayMode { ASSETS, PROPS, FURNITURE, CAST }
@@ -66,21 +66,30 @@ signal spawn_ugc_requested(item_name: String, tex: Texture2D, file_path: String)
 signal character_spawn_requested(char_data: Dictionary)
 signal template_spawn_requested(template_data: Dictionary)
 
+
 func _get_props_path() -> String:
 	return DrawerMetadataService.get_props_path(SaveSystem.get_current_universe_id())
+
+
 func _get_furniture_path() -> String:
 	return DrawerMetadataService.get_furniture_path(SaveSystem.get_current_universe_id())
+
+
 func _get_cast_path() -> String:
 	return DrawerMetadataService.get_cast_path(SaveSystem.get_current_universe_id())
+
+
 func _get_current_universe_id() -> String: return SaveSystem.get_current_universe_id()
 func _generate_entity_uuid(base_name: String) -> String: return base_name.validate_node_name() + "_" + str(Time.get_ticks_usec())
 func _notify(message: String, is_success: bool = true) -> void: EventBus.notification_requested.emit(message, is_success)
+
 
 func _get_next_z_index() -> int:
 	var max_z: int = 100
 	for node: Node in get_tree().get_nodes_in_group("entities"):
 		if node is Node2D: max_z = maxi(max_z, (node as Node2D).z_index)
 	return max_z + 1
+
 
 func _ready() -> void:
 	layer = 105
@@ -97,13 +106,16 @@ func _ready() -> void:
 		tree.root.size_changed.connect(_update_responsive_columns)
 	_update_responsive_columns()
 
+
 func _connect_theme_signals() -> void:
 	if not ThemeService.theme_changed.is_connected(_on_theme_changed):
 		ThemeService.theme_changed.connect(_on_theme_changed)
 
+
 func _on_theme_changed(_theme_data: Dictionary) -> void:
 	_apply_theme()
 	if is_drawer_open: refresh_tray()
+
 
 func is_point_inside_drawer(screen_point: Vector2) -> bool:
 	if not is_drawer_open:
@@ -114,10 +126,12 @@ func is_point_inside_drawer(screen_point: Vector2) -> bool:
 		return root_panel.get_global_rect().has_point(screen_point)
 	return false
 
+
 func _setup_keyboard_dodging() -> void:
 	if search_input:
 		search_input.focus_entered.connect(_on_input_focus_entered)
 		search_input.focus_exited.connect(_on_input_focus_exited)
+
 
 func _on_input_focus_entered() -> void:
 	if OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios"):
@@ -128,10 +142,12 @@ func _on_input_focus_entered() -> void:
 			var tween: Tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 			tween.tween_property(drawer_root_container, "position:y", -kb_height, 0.25)
 
+
 func _on_input_focus_exited() -> void:
 	if OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios"):
 		var tween: Tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 		tween.tween_property(drawer_root_container, "position:y", 0.0, 0.25)
+
 
 func _build_ui() -> void:
 	toggle_pill_container = CenterContainer.new()
@@ -291,6 +307,7 @@ func _build_ui() -> void:
 
 	_set_tray_mode(TrayMode.ASSETS)
 
+
 func _build_batch_action_bar() -> void:
 	batch_bar_panel = PanelContainer.new()
 	batch_bar_panel.theme_type_variation = "SubPanel"
@@ -358,6 +375,7 @@ func _build_batch_action_bar() -> void:
 	btn_batch_done.pressed.connect(func() -> void: _set_batch_mode(false))
 	bar_hbox.add_child(btn_batch_done)
 
+
 func _apply_theme() -> void:
 	var global_theme: Theme = ThemeService.create_theme()
 	if toggle_pill_container: toggle_pill_container.theme = global_theme
@@ -386,6 +404,7 @@ func _apply_theme() -> void:
 	_render_breadcrumbs()
 	_build_category_filter_buttons()
 
+
 func _build_modals() -> void:
 	folder_modal = DrawerFolderModal.new()
 	folder_modal.folder_create_confirmed.connect(_on_folder_created_by_modal)
@@ -397,6 +416,7 @@ func _build_modals() -> void:
 	organize_modal.tag_deleted.connect(_delete_tag_globally)
 	organize_modal.custom_tag_added.connect(_on_custom_tag_added_by_modal)
 	add_child(organize_modal)
+
 
 func _create_compact_tab_btn(title: String, icon_key: String, callback: Callable) -> Button:
 	var btn: Button = Button.new()
@@ -410,6 +430,7 @@ func _create_compact_tab_btn(title: String, icon_key: String, callback: Callable
 	btn.pressed.connect(callback)
 	return btn
 
+
 func _toggle_drawer_state() -> void:
 	is_drawer_open = not is_drawer_open
 	toggle_pill_container.visible = not is_drawer_open
@@ -418,8 +439,10 @@ func _toggle_drawer_state() -> void:
 		_update_responsive_columns()
 		refresh_tray()
 
+
 func _toggle_batch_mode() -> void:
 	_set_batch_mode(not is_batch_mode)
+
 
 func _set_batch_mode(enabled: bool) -> void:
 	is_batch_mode = enabled
@@ -429,9 +452,11 @@ func _set_batch_mode(enabled: bool) -> void:
 	_update_tab_buttons_appearance()
 	refresh_tray()
 
+
 func _update_batch_count_label() -> void:
 	if batch_count_lbl:
 		batch_count_lbl.text = str(selected_batch_items.size()) + " Selected"
+
 
 func _set_tray_mode(mode: TrayMode) -> void:
 	current_mode = mode
@@ -448,6 +473,7 @@ func _set_tray_mode(mode: TrayMode) -> void:
 	if is_drawer_open:
 		_update_responsive_columns()
 		refresh_tray()
+
 
 func _update_tab_buttons_appearance() -> void:
 	var c_accent: Color = ThemeService.get_color("accent_primary", "#db2777")
@@ -489,6 +515,7 @@ func _update_tab_buttons_appearance() -> void:
 			btn.add_theme_color_override("font_color", Color.WHITE)
 			btn.add_theme_color_override("icon_normal_color", Color.WHITE)
 
+
 func _update_responsive_columns() -> void:
 	if not is_instance_valid(root_panel) or not is_instance_valid(items_grid): return
 	var win_w: float = get_viewport().get_visible_rect().size.x if get_viewport() else 1152.0
@@ -505,6 +532,7 @@ func _update_responsive_columns() -> void:
 	var col_stride: float = CARD_WIDTH + float(GRID_SPACING)
 	var max_cols: int = int((usable_w + float(GRID_SPACING)) / col_stride)
 	items_grid.columns = clampi(max_cols, 3, 10)
+
 
 func _render_breadcrumbs() -> void:
 	for child: Node in breadcrumbs_hbox.get_children():
@@ -539,6 +567,7 @@ func _render_breadcrumbs() -> void:
 			)
 			breadcrumbs_hbox.add_child(btn_part)
 
+
 func _create_breadcrumb_pill(label_text: String, icon_key: String, is_active: bool) -> Button:
 	var btn: Button = Button.new()
 	btn.text = " " + label_text
@@ -552,6 +581,7 @@ func _create_breadcrumb_pill(label_text: String, icon_key: String, is_active: bo
 	if icon_tex: btn.icon = icon_tex
 	return btn
 
+
 func _navigate_up_one_folder() -> void:
 	if current_folder_path == "" or current_folder_path == "Root": return
 	if "/" in current_folder_path:
@@ -562,6 +592,7 @@ func _navigate_up_one_folder() -> void:
 		current_folder_path = ""
 	_render_breadcrumbs()
 	refresh_tray()
+
 
 func _create_folder_grid_card(folder_name: String) -> void:
 	var card: Button = Button.new()
@@ -612,7 +643,7 @@ func _create_folder_grid_card(folder_name: String) -> void:
 	var icon_box: PanelContainer = PanelContainer.new()
 	icon_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	icon_box.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	icon_box.custom_minimum_size = Vector2(0.0, 32.0)
+	icon_box.custom_minimum_size = Vector2(0.0, 34.0)
 	icon_box.clip_contents = true
 	icon_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
@@ -638,7 +669,7 @@ func _create_folder_grid_card(folder_name: String) -> void:
 
 	var label_box: PanelContainer = PanelContainer.new()
 	label_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	label_box.custom_minimum_size = Vector2(0.0, 16.0)
+	label_box.custom_minimum_size = Vector2(0.0, 18.0)
 	label_box.clip_contents = true
 	label_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
@@ -654,6 +685,7 @@ func _create_folder_grid_card(folder_name: String) -> void:
 	name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	name_lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	name_lbl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	name_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	name_lbl.clip_text = true
 	name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	name_lbl.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -670,6 +702,7 @@ func _create_folder_grid_card(folder_name: String) -> void:
 	)
 	items_grid.add_child(card)
 
+
 func refresh_tray() -> void:
 	for child: Node in items_grid.get_children():
 		child.queue_free()
@@ -679,6 +712,7 @@ func refresh_tray() -> void:
 		TrayMode.PROPS: _render_templates_tab(_get_props_path(), Types.EntityType.PROP, "props")
 		TrayMode.FURNITURE: _render_templates_tab(_get_furniture_path(), Types.EntityType.FURNITURE, "furniture")
 		TrayMode.CAST: _render_cast_tab()
+
 
 func _render_assets_tab() -> void:
 	var norm_folder: String = current_folder_path.replace("\\", "/").strip_edges().trim_prefix("/").trim_suffix("/")
@@ -713,6 +747,7 @@ func _render_assets_tab() -> void:
 			if f_path != norm_folder: continue
 
 		_create_asset_card(art_data)
+
 
 func _create_asset_card(art_data: Dictionary) -> void:
 	var fname: String = str(art_data.get("name", "Art"))
@@ -776,6 +811,7 @@ func _create_asset_card(art_data: Dictionary) -> void:
 			_notify("Spawned: " + fname, true)
 	)
 	items_grid.add_child(card)
+
 
 func _render_templates_tab(file_path: String, type: Types.EntityType, category_key: String) -> void:
 	var templates: Array[Dictionary] = DrawerMetadataService.load_template_array(file_path)
@@ -879,6 +915,7 @@ func _render_templates_tab(file_path: String, type: Types.EntityType, category_k
 				_notify("Spawned: " + item_name, true)
 		)
 		items_grid.add_child(card)
+
 
 func _render_cast_tab() -> void:
 	var raw_cast_list: Array[Dictionary] = _load_cast_data()
@@ -992,6 +1029,7 @@ func _render_cast_tab() -> void:
 		)
 		items_grid.add_child(card)
 
+
 func _apply_card_selection_style(card: Button, is_selected: bool) -> void:
 	var c_bg: Color = ThemeService.get_color("container_sub_bg", "#fdf2f4")
 	var c_border: Color = ThemeService.get_color("panel_border", "#f472b6")
@@ -1011,11 +1049,13 @@ func _apply_card_selection_style(card: Button, is_selected: bool) -> void:
 	card.add_theme_stylebox_override("pressed", s_hover)
 	card.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
 
+
 func _toggle_item_batch_selection(key: String, data: Dictionary) -> void:
 	if selected_batch_items.has(key): selected_batch_items.erase(key)
 	else: selected_batch_items[key] = data
 	_update_batch_count_label()
 	refresh_tray()
+
 
 func _select_all_visible_items() -> void:
 	match current_mode:
@@ -1039,10 +1079,12 @@ func _select_all_visible_items() -> void:
 	_update_batch_count_label()
 	refresh_tray()
 
+
 func _deselect_all_items() -> void:
 	selected_batch_items.clear()
 	_update_batch_count_label()
 	refresh_tray()
+
 
 func _on_batch_organize_pressed() -> void:
 	if selected_batch_items.is_empty():
@@ -1062,6 +1104,7 @@ func _on_batch_organize_pressed() -> void:
 		item_arr.append(selected_batch_items[k] as Dictionary)
 
 	organize_modal.open_batch_organizer(item_arr, mode_key, user_available_tags, folder_list)
+
 
 func _on_batch_delete_pressed() -> void:
 	if selected_batch_items.is_empty(): return
@@ -1088,6 +1131,7 @@ func _on_batch_delete_pressed() -> void:
 	_update_batch_count_label()
 	_notify("Batch Deleted " + str(count) + " items.", true)
 	refresh_tray()
+
 
 func _on_batch_organization_saved(items: Array[Dictionary], mode_type: String, target_folder: String, chosen_tags: Array[String]) -> void:
 	if mode_type == "assets":
@@ -1137,6 +1181,7 @@ func _on_batch_organization_saved(items: Array[Dictionary], mode_type: String, t
 	_notify("Batch organization saved (" + str(items.size()) + " items)", true)
 	refresh_tray()
 
+
 func _create_card_icon_btn(icon_key: String, is_danger: bool = false) -> Button:
 	var btn: Button = Button.new()
 	btn.custom_minimum_size = Vector2(18.0, 18.0)
@@ -1174,11 +1219,13 @@ func _create_card_icon_btn(icon_key: String, is_danger: bool = false) -> Button:
 		btn.add_theme_font_size_override("font_size", 9)
 	return btn
 
+
+# DYNAMIC CARD VISUAL LAYOUT (NO AWKWARD STRETCHING FOR LONG NAMES)
 func _attach_card_visuals(vbox: VBoxContainer, tex: Texture2D, label_text: String) -> void:
 	var thumb_box: PanelContainer = PanelContainer.new()
 	thumb_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	thumb_box.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	thumb_box.custom_minimum_size = Vector2(0.0, 32.0)
+	thumb_box.custom_minimum_size = Vector2(0.0, 34.0)
 	thumb_box.clip_contents = true
 	thumb_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
@@ -1200,7 +1247,7 @@ func _attach_card_visuals(vbox: VBoxContainer, tex: Texture2D, label_text: Strin
 
 	var label_box: PanelContainer = PanelContainer.new()
 	label_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	label_box.custom_minimum_size = Vector2(0.0, 16.0)
+	label_box.custom_minimum_size = Vector2(0.0, 18.0)
 	label_box.clip_contents = true
 	label_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
@@ -1216,6 +1263,7 @@ func _attach_card_visuals(vbox: VBoxContainer, tex: Texture2D, label_text: Strin
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	lbl.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	lbl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	lbl.clip_text = true
 	lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	lbl.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -1224,12 +1272,14 @@ func _attach_card_visuals(vbox: VBoxContainer, tex: Texture2D, label_text: Strin
 	label_box.add_child(lbl)
 	vbox.add_child(label_box)
 
+
 func _build_category_filter_buttons() -> void:
 	for child: Node in filter_scroll_container.get_children():
 		child.queue_free()
 	_add_filter_pill("All", active_category_filter == "All")
 	for tag: String in user_available_tags:
 		_add_filter_pill(tag, active_category_filter == tag)
+
 
 func _add_filter_pill(label_text: String, is_active: bool) -> void:
 	var btn: Button = Button.new()
@@ -1246,9 +1296,11 @@ func _add_filter_pill(label_text: String, is_active: bool) -> void:
 	)
 	filter_scroll_container.add_child(btn)
 
+
 func _on_search_query_changed(query: String) -> void:
 	active_search_query = query.strip_edges().to_lower()
 	refresh_tray()
+
 
 func _build_import_dialogs() -> void:
 	art_import_dialog = FileDialog.new()
@@ -1262,6 +1314,7 @@ func _build_import_dialogs() -> void:
 	art_import_dialog.files_selected.connect(_on_art_files_imported)
 	add_child(art_import_dialog)
 
+
 func _on_art_files_imported(paths: PackedStringArray) -> void:
 	var imported_items: Array[Dictionary] = UGCManager.import_art_files(paths, current_folder_path)
 	for item in imported_items:
@@ -1271,6 +1324,7 @@ func _on_art_files_imported(paths: PackedStringArray) -> void:
 
 	_save_all_metadata()
 	refresh_tray()
+
 
 func _on_folder_created_by_modal(folder_name: String) -> void:
 	var full_f_path: String = folder_name
@@ -1286,6 +1340,7 @@ func _on_folder_created_by_modal(folder_name: String) -> void:
 			raw_arr.append(full_f_path)
 			_save_all_metadata()
 	refresh_tray()
+
 
 func _request_delete_folder(folder_name: String) -> void:
 	var full_rel_path: String = folder_name
@@ -1320,6 +1375,7 @@ func _request_delete_folder(folder_name: String) -> void:
 	_notify("Deleted Folder: " + folder_name, true)
 	refresh_tray()
 
+
 func _open_organizer_for_item(item_data: Dictionary, mode_type: String, item_index: int = -1) -> void:
 	if not organize_modal: return
 	var item_name: String = str(item_data.get("display_name", item_data.get("name", "Item")))
@@ -1334,6 +1390,7 @@ func _open_organizer_for_item(item_data: Dictionary, mode_type: String, item_ind
 
 	var curr_tags: Array = asset_tags_registry.get(item_name, []) if mode_type == "assets" else item_data.get("tags", [])
 	organize_modal.open_organizer(item_data, mode_type, item_index, user_available_tags, curr_tags, folder_list)
+
 
 func _on_organization_saved_by_modal(item_data: Dictionary, mode_type: String, item_idx: int, target_folder: String, chosen_tags: Array[String]) -> void:
 	if mode_type == "assets":
@@ -1365,6 +1422,7 @@ func _on_organization_saved_by_modal(item_data: Dictionary, mode_type: String, i
 	_save_all_metadata()
 	refresh_tray()
 
+
 func _delete_tag_globally(tag_name: String) -> void:
 	user_available_tags.erase(tag_name)
 	for k: String in asset_tags_registry.keys():
@@ -1376,11 +1434,13 @@ func _delete_tag_globally(tag_name: String) -> void:
 	_notify("Deleted Tag: " + tag_name, true)
 	refresh_tray()
 
+
 func _on_custom_tag_added_by_modal(tag_name: String) -> void:
 	if not tag_name in user_available_tags:
 		user_available_tags.append(tag_name)
 		_save_all_metadata()
 		_build_category_filter_buttons()
+
 
 func _spawn_and_relocate_character_from_cast(char_data: Dictionary) -> void:
 	var c_name: String = str(char_data.get("display_name", "Character"))
@@ -1417,6 +1477,7 @@ func _spawn_and_relocate_character_from_cast(char_data: Dictionary) -> void:
 	_notify("Summoned: " + c_name, true)
 	refresh_tray()
 
+
 func _duplicate_cast_character(_idx: int, char_data: Dictionary) -> void:
 	var clone_d: Dictionary = char_data.duplicate(true)
 	var orig_name: String = str(clone_d.get("display_name", "Character"))
@@ -1427,6 +1488,7 @@ func _duplicate_cast_character(_idx: int, char_data: Dictionary) -> void:
 	cast_list.append(clone_d)
 	_save_cast_data(cast_list)
 	refresh_tray()
+
 
 func store_character_in_tray(char_ent: OwnEntity) -> void:
 	if not is_instance_valid(char_ent): return
@@ -1450,6 +1512,7 @@ func store_character_in_tray(char_ent: OwnEntity) -> void:
 	_notify("Returned to Cast: " + char_ent.display_name, true)
 	refresh_tray()
 
+
 func store_entity_as_template(entity: OwnEntity) -> void:
 	if not is_instance_valid(entity): return
 	var file_path: String = _get_props_path() if entity.entity_type == Types.EntityType.PROP else _get_furniture_path()
@@ -1461,6 +1524,7 @@ func store_entity_as_template(entity: OwnEntity) -> void:
 	_notify("Saved Template: " + entity.display_name, true)
 	refresh_tray()
 
+
 func _duplicate_template_in_file(file_path: String, data: Dictionary) -> void:
 	var templates: Array[Dictionary] = DrawerMetadataService.load_template_array(file_path)
 	var clone_d: Dictionary = data.duplicate(true)
@@ -1471,12 +1535,14 @@ func _duplicate_template_in_file(file_path: String, data: Dictionary) -> void:
 	DrawerMetadataService.save_template_array(file_path, templates)
 	refresh_tray()
 
+
 func _delete_template_from_file(file_path: String, idx: int) -> void:
 	var templates: Array[Dictionary] = DrawerMetadataService.load_template_array(file_path)
 	if idx >= 0 and idx < templates.size():
 		templates.remove_at(idx)
 		DrawerMetadataService.save_template_array(file_path, templates)
 		refresh_tray()
+
 
 func _delete_character_from_cast(char_data: Dictionary) -> void:
 	var char_id: String = str(char_data.get("id", ""))
@@ -1499,27 +1565,33 @@ func _delete_character_from_cast(char_data: Dictionary) -> void:
 	DrawerMetadataService.scrub_character_from_universe_rooms(char_id, char_name)
 	refresh_tray()
 
+
 func _delete_art_file(fpath: String, fname: String) -> void:
 	if UGCManager.delete_art_file(fpath):
 		asset_tags_registry.erase(fname)
 		_save_all_metadata()
 		refresh_tray()
 
+
 func _load_all_metadata() -> void:
 	user_available_tags = DrawerMetadataService.load_tags_list()
 	asset_tags_registry = DrawerMetadataService.load_asset_tags()
 	user_registered_folders = DrawerMetadataService.load_registered_folders()
+
 
 func _save_all_metadata() -> void:
 	DrawerMetadataService.save_tags_list(user_available_tags)
 	DrawerMetadataService.save_asset_tags(asset_tags_registry)
 	DrawerMetadataService.save_registered_folders(user_registered_folders)
 
+
 func _load_cast_data() -> Array[Dictionary]:
 	return DrawerMetadataService.load_template_array(SaveSystem.get_universe_cast_path(_get_current_universe_id()))
 
+
 func _save_cast_data(cast_list: Array[Dictionary]) -> void:
 	DrawerMetadataService.save_template_array(SaveSystem.get_universe_cast_path(_get_current_universe_id()), cast_list)
+
 
 func save_cast_tray_for_current_universe() -> void: _save_all_metadata()
 func load_cast_tray_for_current_universe() -> void:

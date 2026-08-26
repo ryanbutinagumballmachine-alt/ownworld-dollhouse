@@ -1,5 +1,5 @@
 # ==============================================================================
-# OWNWORLD — MAIN APPLICATION ORCHESTRATOR (FULL UNDO/REDO SCOPE INTEGRATED)
+# OWNWORLD — MAIN APPLICATION ORCHESTRATOR (FLOOR DESIGNATIONS & COMPLETE STATE)
 # File: res://Core/Main.gd
 # Base Class: Node2D
 # ==============================================================================
@@ -10,10 +10,14 @@ const BASE_ROOM_SIZE: Vector2 = Vector2(1280.0, 720.0)
 
 var TAP_PIXEL_THRESHOLD: float = 24.0 if OS.has_feature("mobile") else 14.0
 
-var room_slices: Array[Dictionary] = [{"wallpaper_path": "", "fill_mode": "cover", "is_outdoor": false}]
+var room_slices: Array[Dictionary] = [{
+	"wallpaper_path": "", "fill_mode": "cover", "is_outdoor": false,
+	"wall_color": "", "floor_color": "", "baseboard_color": ""
+}]
 var room_bounds: Rect2 = Rect2(Vector2.ZERO, BASE_ROOM_SIZE)
 var current_room_floor_y: float = 580.0
 var current_room_title: String = "Main Room"
+var current_room_floor_level: String = "1F"
 
 var world_canvas: Node2D = null
 var room_default_bg: ColorRect = null
@@ -73,8 +77,6 @@ var _next_entity_uid: int = 1
 
 func _ready() -> void:
 	set_process(false)
-
-	# Override Android back button to respect in-game UI stack
 	get_tree().quit_on_go_back = false
 
 	if OS.has_feature("android") or OS.has_feature("mobile"):
@@ -346,12 +348,8 @@ func _connect_system_signals() -> void:
 		EventBus.room_changed.connect(_on_game_room_changed)
 	if EventBus.has_signal("global_atmosphere_changed") and not EventBus.global_atmosphere_changed.is_connected(_on_atmosphere_changed):
 		EventBus.global_atmosphere_changed.connect(_on_atmosphere_changed)
-
-	# Connect Live Character Synchronization Event
 	if EventBus.has_signal("character_data_changed") and not EventBus.character_data_changed.is_connected(_on_character_data_changed):
 		EventBus.character_data_changed.connect(_on_character_data_changed)
-
-	# Connect Logic Engine Spawns & Teleports
 	if EventBus.has_signal("entity_spawn_requested") and not EventBus.entity_spawn_requested.is_connected(_on_entity_spawn_requested):
 		EventBus.entity_spawn_requested.connect(_on_entity_spawn_requested)
 	if EventBus.has_signal("room_change_requested") and not EventBus.room_change_requested.is_connected(_on_room_change_requested):
@@ -388,13 +386,16 @@ func _update_room_bg_theme_color() -> void:
 
 
 # ------------------------------------------------------------------------------
-# MULTI-SLICE ROOM SPATIAL RENDERING (ALTERNATING WALL/FLOOR PATTERNS & SEAMS)
+# MULTI-SLICE ROOM SPATIAL RENDERING & PROCEDURAL PALETTES
 # ------------------------------------------------------------------------------
 
 func _apply_room_slices(slices_data: Array[Dictionary]) -> void:
 	room_slices = slices_data.duplicate(true)
 	if room_slices.is_empty():
-		room_slices.append({"wallpaper_path": "", "fill_mode": "cover", "is_outdoor": false})
+		room_slices.append({
+			"wallpaper_path": "", "fill_mode": "cover", "is_outdoor": false,
+			"wall_color": "", "floor_color": "", "baseboard_color": ""
+		})
 
 	var slice_size: Vector2 = _get_device_screen_slice_size()
 	var slice_w: float = slice_size.x
@@ -407,18 +408,10 @@ func _apply_room_slices(slices_data: Array[Dictionary]) -> void:
 	for child: Node in room_slices_container.get_children():
 		child.queue_free()
 
-	# Base Theme Colors
-	var wall_color_a: Color = ThemeService.get_color("window_background", "#fff5f7")
-	var sub_color_a: Color = ThemeService.get_color("container_sub_bg", "#fff0f3")
-	var border_color: Color = ThemeService.get_color("panel_border", "#f9a8d4")
+	var default_wall: Color = ThemeService.get_color("window_background", "#fff5f7")
+	var default_sub: Color = ThemeService.get_color("container_sub_bg", "#fff0f3")
+	var default_border: Color = ThemeService.get_color("panel_border", "#f9a8d4")
 	var baseboard_h: float = 8.0
-
-	# Alternating Shades
-	var wall_color_b: Color = wall_color_a.darkened(0.055)
-	var floor_color_a: Color = sub_color_a.darkened(0.12)
-	var floor_color_b: Color = sub_color_a.darkened(0.20)
-	var baseboard_color_a: Color = border_color.darkened(0.08)
-	var baseboard_color_b: Color = border_color.darkened(0.15)
 
 	for i: int in range(room_slices.size()):
 		var sec_data: Dictionary = room_slices[i]
@@ -441,10 +434,18 @@ func _apply_room_slices(slices_data: Array[Dictionary]) -> void:
 				_apply_slice_sprite_scaling(sprite, wall_texture, fill_mode, slice_w, slice_h)
 				slice_node.add_child(sprite)
 		else:
-			# 1. Upper Wall with Alternating Tints
+			var custom_wall_str: String = str(sec_data.get("wall_color", "")).strip_edges()
+			var custom_floor_str: String = str(sec_data.get("floor_color", "")).strip_edges()
+			var custom_trim_str: String = str(sec_data.get("baseboard_color", "")).strip_edges()
+
+			var slice_wall_color: Color = Color(custom_wall_str) if not custom_wall_str.is_empty() else (default_wall.darkened(0.055) if is_odd_slice else default_wall)
+			var slice_floor_color: Color = Color(custom_floor_str) if not custom_floor_str.is_empty() else (default_sub.darkened(0.20) if is_odd_slice else default_sub.darkened(0.12))
+			var slice_trim_color: Color = Color(custom_trim_str) if not custom_trim_str.is_empty() else (default_border.darkened(0.15) if is_odd_slice else default_border.darkened(0.08))
+
+			# 1. Upper Wall
 			var wall_rect: ColorRect = ColorRect.new()
 			wall_rect.name = "Wall"
-			wall_rect.color = wall_color_b if is_odd_slice else wall_color_a
+			wall_rect.color = slice_wall_color
 			wall_rect.position = Vector2.ZERO
 			wall_rect.size = Vector2(slice_w, current_room_floor_y)
 			wall_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -453,28 +454,28 @@ func _apply_room_slices(slices_data: Array[Dictionary]) -> void:
 			# 2. Baseboard Trim
 			var baseboard_rect: ColorRect = ColorRect.new()
 			baseboard_rect.name = "Baseboard"
-			baseboard_rect.color = baseboard_color_b if is_odd_slice else baseboard_color_a
+			baseboard_rect.color = slice_trim_color
 			baseboard_rect.position = Vector2(0.0, current_room_floor_y - baseboard_h)
 			baseboard_rect.size = Vector2(slice_w, baseboard_h)
 			baseboard_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			slice_node.add_child(baseboard_rect)
 
-			# 3. Lower Floor with Alternating Depth Shading
+			# 3. Lower Floor
 			var floor_rect: ColorRect = ColorRect.new()
 			floor_rect.name = "Floor"
-			floor_rect.color = floor_color_b if is_odd_slice else floor_color_a
+			floor_rect.color = slice_floor_color
 			floor_rect.position = Vector2(0.0, current_room_floor_y)
 			floor_rect.size = Vector2(slice_w, maxf(0.0, slice_h - current_room_floor_y))
 			floor_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			slice_node.add_child(floor_rect)
 
-		# 4. Vertical Architectural Divider Seam between adjacent slices
+		# 4. Vertical Divider Seam
 		if i > 0:
 			var seam_line: ColorRect = ColorRect.new()
 			seam_line.name = "SliceDividerSeam"
 			seam_line.position = Vector2(0.0, 0.0)
 			seam_line.size = Vector2(2.5, slice_h)
-			seam_line.color = Color(border_color.r * 0.4, border_color.g * 0.4, border_color.b * 0.4, 0.45)
+			seam_line.color = Color(default_border.r * 0.4, default_border.g * 0.4, default_border.b * 0.4, 0.45)
 			seam_line.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			slice_node.add_child(seam_line)
 
@@ -694,7 +695,14 @@ func _update_active_drag_position(world_pointer_pos: Vector2) -> void:
 	var top_offset: float = active_dragged_entity.texture_size.y * 0.5 * active_dragged_entity.entity_scale
 
 	target_pos.x = clampf(target_pos.x, room_bounds.position.x + half_width, room_bounds.end.x - half_width)
-	target_pos.y = clampf(target_pos.y, room_bounds.position.y + top_offset, room_bounds.end.y - bottom_offset)
+
+	# STRICT WALL-MOUNTED CONSTRAINT: Items marked wall-mounted cannot be placed on the floor
+	if active_dragged_entity.is_wall_mounted:
+		var max_wall_y: float = current_room_floor_y - bottom_offset - 4.0
+		target_pos.y = clampf(target_pos.y, room_bounds.position.y + top_offset, maxf(room_bounds.position.y + top_offset, max_wall_y))
+	else:
+		target_pos.y = clampf(target_pos.y, room_bounds.position.y + top_offset, room_bounds.end.y - bottom_offset)
+
 	active_dragged_entity.global_position = target_pos
 
 
@@ -768,18 +776,25 @@ func _handle_press_end(_world_pos: Vector2) -> void:
 		if drag_dist <= TAP_PIXEL_THRESHOLD and elapsed_time <= 0.28:
 			_handle_layer1_tap(released)
 		else:
+			# Direct Portal & Multi-Floor Elevator Transportation with Parenting Hierarchy
 			if released.entity_type == Types.EntityType.CHARACTER:
 				for portal_ent: OwnEntity in all_entities:
-					if portal_ent != released and portal_ent.is_portal and not portal_ent.is_elevator and portal_ent.contains_point(released.global_position):
-						var target_room: String = portal_ent.target_room_id
-						if target_room != "" and target_room != _get_current_room_id():
-							var bundle: Array[Dictionary] = released.get_full_hierarchy_bundle()
-							_remove_hierarchy(released)
-							released.queue_free()
-							SaveSystem.save_current_room_state()
-							_transition_to_room(target_room, {"bundle": bundle})
+					if portal_ent != released and portal_ent.is_portal and portal_ent.contains_point(released.global_position):
+						if portal_ent.is_elevator:
+							elevator_dialog.open_keypad(portal_ent)
+							_apply_physical_gravity_settle(released)
 							_update_active_process_state()
 							return
+						else:
+							var target_room: String = portal_ent.target_room_id
+							if target_room != "" and target_room != _get_current_room_id():
+								var bundle: Array[Dictionary] = released.get_full_hierarchy_bundle()
+								_remove_hierarchy(released)
+								released.queue_free()
+								SaveSystem.save_current_room_state()
+								_transition_to_room(target_room, {"bundle": bundle, "source": "portal"})
+								_update_active_process_state()
+								return
 
 			if released.entity_type == Types.EntityType.PROP:
 				for container_ent: OwnEntity in all_entities:
@@ -855,8 +870,8 @@ func _on_elevator_floor_travel_requested(elevator: OwnEntity, target_room_id: St
 	SaveSystem.save_current_room_state()
 	elevator.close_door_animated(func() -> void:
 		AudioManager.play_snap_chime()
-		EventBus.notification_requested.emit("Arriving at " + floor_name + "...", true)
-		_transition_to_room(target_room_id, {"bundle": bundle, "arrival_elevator": true})
+		EventBus.notification_requested.emit("Floor Arrival: " + floor_name, true)
+		_transition_to_room(target_room_id, {"bundle": bundle, "arrival_elevator": true, "floor_name": floor_name})
 	)
 
 
@@ -1017,7 +1032,7 @@ func _on_open_universe_journal() -> void:
 func _on_open_room_studio() -> void:
 	_update_floor_guide_visuals(current_room_floor_y, true)
 	if room_studio_ui != null:
-		room_studio_ui.open_studio(current_room_title, current_room_floor_y, room_slices)
+		room_studio_ui.open_studio(current_room_title, current_room_floor_y, room_slices, current_room_floor_level)
 
 
 func _on_floor_preview_changed(preview_y: float, preview_visible: bool) -> void:
@@ -1026,9 +1041,10 @@ func _on_floor_preview_changed(preview_y: float, preview_visible: bool) -> void:
 	_update_floor_guide_visuals(preview_y, preview_visible)
 
 
-func _on_room_configured(slices_data: Array[Dictionary], floor_y: float, room_name: String) -> void:
+func _on_room_configured(slices_data: Array[Dictionary], floor_y: float, room_name: String, floor_level: String) -> void:
 	current_room_floor_y = floor_y
 	current_room_title = room_name if not room_name.is_empty() else _get_current_room_id()
+	current_room_floor_level = floor_level if not floor_level.is_empty() else "1F"
 
 	_apply_room_slices(slices_data)
 	_update_floor_guide_visuals(floor_y, false)
@@ -1054,6 +1070,7 @@ func _load_active_room(room_id: String, traveler_data: Dictionary = {}) -> void:
 	var saved_state: Dictionary = SaveSystem.load_room_state(room_id)
 	current_room_floor_y = float(saved_state.get("floor_y", 580.0))
 	current_room_title = str(saved_state.get("room_title", room_id))
+	current_room_floor_level = str(saved_state.get("floor_level", "1F"))
 
 	var raw_slices: Variant = saved_state.get("slices", null)
 	var loaded_slices: Array[Dictionary] = []
@@ -1067,7 +1084,10 @@ func _load_active_room(room_id: String, traveler_data: Dictionary = {}) -> void:
 		var wall_path: String = str(saved_state.get("wallpaper_path", ""))
 		var fill_mode: String = str(saved_state.get("wallpaper_fill_mode", "cover"))
 		var is_outdoor: bool = bool(saved_state.get("is_outdoor", false))
-		loaded_slices.append({"wallpaper_path": wall_path, "fill_mode": fill_mode, "is_outdoor": is_outdoor})
+		loaded_slices.append({
+			"wallpaper_path": wall_path, "fill_mode": fill_mode, "is_outdoor": is_outdoor,
+			"wall_color": "", "floor_color": "", "baseboard_color": ""
+		})
 
 	_apply_room_slices(loaded_slices)
 
@@ -1086,7 +1106,6 @@ func _load_active_room(room_id: String, traveler_data: Dictionary = {}) -> void:
 	if drawer_tray_ui != null: drawer_tray_ui.refresh_tray()
 	is_room_loaded = true
 
-	# Initialize baseline history snapshot on room load
 	var history_manager: Node = get_node_or_null("/root/HistoryManager")
 	if history_manager != null:
 		history_manager.call("clear_history")
@@ -1155,13 +1174,15 @@ func _serialize_state() -> Dictionary:
 		room_slices,
 		camera_position,
 		camera_zoom,
-		entities
+		entities,
+		current_room_floor_level
 	)
 
 
 func _on_history_state_restored(snapshot: Dictionary) -> void:
 	if snapshot.has("floor_y"): current_room_floor_y = float(snapshot["floor_y"])
 	if snapshot.has("room_title"): current_room_title = str(snapshot["room_title"])
+	if snapshot.has("floor_level"): current_room_floor_level = str(snapshot["floor_level"])
 	if snapshot.has("slices") and snapshot["slices"] is Array:
 		var restored_slices: Array[Dictionary] = []
 		for s in (snapshot["slices"] as Array):

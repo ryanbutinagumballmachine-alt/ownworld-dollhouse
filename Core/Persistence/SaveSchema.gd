@@ -1,5 +1,5 @@
 # ==============================================================================
-# OWNWORLD — SAVE SCHEMA (PER-SLICE INDOOR/OUTDOOR PERSISTENCE)
+# OWNWORLD — SAVE SCHEMA (MULTI-FLOOR DESIGNATION & SLICE PALETTES)
 # File: res://Core/Persistence/SaveSchema.gd
 # Base Class: RefCounted (class_name SaveSchema)
 # ==============================================================================
@@ -7,12 +7,13 @@
 class_name SaveSchema
 extends RefCounted
 
-const CURRENT_VERSION: int = 6
+const CURRENT_VERSION: int = 8
 const ROOM_SCHEMA_NAME: String = "ownworld.room"
 
 const DEFAULT_UNIVERSE_ID: String = "default_universe"
 const DEFAULT_ROOM_ID: String = "room_main"
 const DEFAULT_ROOM_TITLE: String = "Main Room"
+const DEFAULT_FLOOR_LEVEL: String = "1F"
 const DEFAULT_FLOOR_Y: float = 580.0
 const MAX_SLICES: int = 10
 
@@ -27,7 +28,8 @@ static func create_room(
 	slices: Array[Dictionary],
 	camera_position: Vector2,
 	camera_zoom: float,
-	entities: Array[Dictionary]
+	entities: Array[Dictionary],
+	floor_level: String = DEFAULT_FLOOR_LEVEL
 ) -> Dictionary:
 	var normalized_room_id: String = room_id.strip_edges()
 	if normalized_room_id.is_empty(): normalized_room_id = DEFAULT_ROOM_ID
@@ -35,9 +37,26 @@ static func create_room(
 	var normalized_title: String = room_title.strip_edges()
 	if normalized_title.is_empty(): normalized_title = normalized_room_id
 
-	var safe_slices: Array[Dictionary] = slices.duplicate(true)
+	var normalized_floor_level: String = floor_level.strip_edges()
+	if normalized_floor_level.is_empty(): normalized_floor_level = DEFAULT_FLOOR_LEVEL
+
+	var safe_slices: Array[Dictionary] = []
+	for slice_item in slices:
+		if slice_item is Dictionary:
+			var s_dict: Dictionary = (slice_item as Dictionary).duplicate(true)
+			if not s_dict.has("wallpaper_path"): s_dict["wallpaper_path"] = ""
+			if not s_dict.has("fill_mode"): s_dict["fill_mode"] = "cover"
+			if not s_dict.has("is_outdoor"): s_dict["is_outdoor"] = false
+			if not s_dict.has("wall_color"): s_dict["wall_color"] = ""
+			if not s_dict.has("floor_color"): s_dict["floor_color"] = ""
+			if not s_dict.has("baseboard_color"): s_dict["baseboard_color"] = ""
+			safe_slices.append(s_dict)
+
 	if safe_slices.is_empty():
-		safe_slices.append({"wallpaper_path": "", "fill_mode": "cover", "is_outdoor": false})
+		safe_slices.append({
+			"wallpaper_path": "", "fill_mode": "cover", "is_outdoor": false,
+			"wall_color": "", "floor_color": "", "baseboard_color": ""
+		})
 	elif safe_slices.size() > MAX_SLICES:
 		safe_slices.resize(MAX_SLICES)
 
@@ -46,10 +65,10 @@ static func create_room(
 		"version": CURRENT_VERSION,
 		"room_id": normalized_room_id,
 		"room_title": normalized_title,
+		"floor_level": normalized_floor_level,
 		"floor_y": floor_y,
 		"slice_count": safe_slices.size(),
 		"slices": safe_slices,
-		# Legacy fallbacks
 		"wallpaper_path": safe_slices[0].get("wallpaper_path", ""),
 		"wallpaper_fill_mode": safe_slices[0].get("fill_mode", "cover"),
 		"is_outdoor": safe_slices[0].get("is_outdoor", false),
@@ -69,6 +88,7 @@ static func normalize_room(raw_data: Dictionary, fallback_room_id: String = DEFA
 	var room_id: String = str(raw_data.get("room_id", fallback_room_id))
 	if room_id.is_empty(): room_id = fallback_room_id
 	var room_title: String = str(raw_data.get("room_title", room_id))
+	var floor_level: String = str(raw_data.get("floor_level", DEFAULT_FLOOR_LEVEL))
 	var floor_y: float = float(raw_data.get("floor_y", DEFAULT_FLOOR_Y))
 
 	var raw_slices: Variant = raw_data.get("slices", null)
@@ -92,7 +112,10 @@ static func normalize_room(raw_data: Dictionary, fallback_room_id: String = DEFA
 		var wall_path: String = str(raw_data.get("wallpaper_path", ""))
 		var fill_mode: String = str(raw_data.get("wallpaper_fill_mode", "cover"))
 		var is_outdoor: bool = bool(raw_data.get("is_outdoor", false))
-		slices_list.append({"wallpaper_path": wall_path, "fill_mode": fill_mode, "is_outdoor": is_outdoor})
+		slices_list.append({
+			"wallpaper_path": wall_path, "fill_mode": fill_mode, "is_outdoor": is_outdoor,
+			"wall_color": "", "floor_color": "", "baseboard_color": ""
+		})
 
 	return create_room(
 		room_id,
@@ -101,7 +124,8 @@ static func normalize_room(raw_data: Dictionary, fallback_room_id: String = DEFA
 		slices_list,
 		_read_camera_position(raw_data),
 		_read_camera_zoom(raw_data),
-		_read_entities(raw_data)
+		_read_entities(raw_data),
+		floor_level
 	)
 
 
@@ -110,10 +134,14 @@ static func create_empty_room(room_id: String = DEFAULT_ROOM_ID) -> Dictionary:
 		room_id,
 		room_id,
 		DEFAULT_FLOOR_Y,
-		[{"wallpaper_path": "", "fill_mode": "cover", "is_outdoor": false}],
+		[{
+			"wallpaper_path": "", "fill_mode": "cover", "is_outdoor": false,
+			"wall_color": "", "floor_color": "", "baseboard_color": ""
+		}],
 		DEFAULT_CAMERA_POSITION,
 		DEFAULT_CAMERA_ZOOM,
-		[]
+		[],
+		DEFAULT_FLOOR_LEVEL
 	)
 
 

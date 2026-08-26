@@ -1,5 +1,5 @@
 # ==============================================================================
-# OWNWORLD — IN-GAME TUTORIAL & CREATOR HANDBOOK
+# OWNWORLD — IN-GAME TUTORIAL & CREATOR HANDBOOK (UPDATED GUIDE)
 # File: res://UI/Dialogs/TutorialDialog.gd
 # Base Class: CanvasLayer (class_name TutorialDialog)
 # ==============================================================================
@@ -41,7 +41,7 @@ var tutorial_chapters: Array[Dictionary] = [
 			},
 			{
 				"title": "Side-Scrolling by Default",
-				"body": "• Horizontal Gliding: Rooms fit your device screen height with zero up/down scrolling. Drag any empty background area left or right with your mouse or finger to glide smoothly between room slices.\n• Screen-Fitting View: Each room slice is automatically formatted to fit your screen aspect ratio perfectly."
+				"body": "• Horizontal Gliding: Rooms fit your device screen height with zero vertical scrolling. Drag any empty background area left or right with your mouse or finger to glide smoothly between room slices.\n• Screen-Fitting View: Each room slice is automatically formatted to fit your screen aspect ratio perfectly."
 			},
 			{
 				"title": "Focus / Zoom Mode",
@@ -49,11 +49,11 @@ var tutorial_chapters: Array[Dictionary] = [
 			},
 			{
 				"title": "Interacting with Objects",
-				"body": "• Tap / Click: Tap on lights, doors, containers, or appliances to trigger their default action (turn on/off, open/close, toggle).\n• Drag & Drop: Press and drag any unlocked item or character. Drop them onto chairs, tables, beds, or other characters to snap them into place.\n• Magic Wheel: Long-press any item or character (or right-click) to open the Magic Wheel context menu for rapid customization, wardrobe changes, and logic scripting."
+				"body": "• Tap / Click: Tap on lights, doors, elevators, containers, or appliances to trigger their default action (turn on/off, open/close, travel floors, toggle).\n• Drag & Drop: Press and drag any unlocked item or character. Drop them onto chairs, tables, beds, or other characters to snap them into place.\n• Magic Wheel: Long-press any item or character (or right-click) to open the Magic Wheel context menu for rapid customization, wardrobe changes, and logic scripting."
 			},
 			{
 				"title": "The Bottom Drawer Tray",
-				"body": "Tap the floating '▲' button at the bottom of the screen to open your Drawer Tray. This gives you instant access to your imported Art drawings, saved Props, Furniture prefabs, and your Cast Roster."
+				"body": "Tap the floating '▲' button at the bottom of the screen to open your Drawer Tray. This gives you instant access to your imported Art drawings, saved Props, Furniture prefabs, and your Cast Roster with dynamic cards that neatly fit long names."
 			}
 		]
 	},
@@ -85,7 +85,7 @@ var tutorial_chapters: Array[Dictionary] = [
 		"sections": [
 			{
 				"title": "The Cast Tray (Persistent Characters)",
-				"body": "Characters saved in your Cast Tray are persistent story actors. When you summon a character from the Cast Tray into a room, they will remember their custom outfits, profile notes, family ties, and relationship feelings across every room in your Universe."
+				"body": "Characters saved in your Cast Tray are persistent story actors. When you summon a character from the Cast Tray into a room, they will remember their custom outfits, profile notes, family ties, and relationship feelings across every room and floor in your Universe."
 			},
 			{
 				"title": "The 6-Pose Expressive Sprites",
@@ -171,33 +171,33 @@ var tutorial_chapters: Array[Dictionary] = [
 	},
 	{
 		"id": "rooms_elevators_map",
-		"title": "7. Rooms, Slices, Elevators & Maps",
+		"title": "7. Rooms, Floors, Elevators & Maps",
 		"icon": "icon_room",
 		"badge": "Worldbuilding",
 		"sections": [
 			{
-				"title": "Room & Expansion Studio",
-				"body": "Tap 'Room' in the Top Nav Bar to customize your active room layout, expand room space, set floor levels, and configure weather environments."
+				"title": "Room Studio & Floor Level Designation",
+				"body": "Tap 'Room' in the Top Nav Bar to customize your room. You can now set the room's exact Floor Level (e.g. 1F, 2F, 3F, Basement, Attic) so elevators, doorways, and maps recognize which building level the room belongs to."
 			},
 			{
-				"title": "Multi-Slice Room Expansion (Up to 10 Screens Wide)",
-				"body": "• 1 Slice = 1 Screen: Every slice is tailored to the exact width and height of your device display.\n• Expand Space: Tap '+ Add Room Slice' to expand your room up to 10 slices long. You can build expansive multi-room corridors, mega-mansions, or outdoor streets that scroll seamlessly side-to-side without any vertical scrolling."
+				"title": "Multi-Slice Expansion (Up to 10 Screens Wide)",
+				"body": "• 1 Slice = 1 Screen: Every slice is tailored to the exact width and height of your device display.\n• Expand Space: Tap '+ Add Room Slice' to expand your room up to 10 slices long. You can build expansive multi-room corridors, mansions, or streets that scroll seamlessly side-to-side without any vertical scrolling."
 			},
 			{
-				"title": "Procedural Wall, Floor & Baseboard Shading",
-				"body": "• Procedural Slices: Slices without custom artwork automatically render a distinct Upper Wall, Molding Baseboard, and Lower Floor.\n• Alternating Colors: Slices use alternating color tones and vertical divider seams so you can easily tell when you've scrolled into the next room section.\n• Live Floor Slider: Dragging the Floor Baseline slider in the Room Studio dynamically resizes the wall and floor across all procedural slices in real time!"
+				"title": "Custom Procedural Wall, Floor & Trim Colors",
+				"body": "In the Room Studio, you can choose custom colors for each slice's Wall, Floor, and Baseboard/Trim using live color pickers, or reset them back to the active theme palette with one tap."
 			},
 			{
-				"title": "Custom Art as Physical Baseline",
-				"body": "• Per-Slice Custom Backgrounds: Select any slice in the Room Studio and assign a custom drawing from your Art library.\n• Baseline Function: When custom art is assigned to a slice, procedural wall/floor graphics are hidden and your art takes visual focus. The Floor Baseline line then defines the physical ground level where characters walk and furniture rests."
+				"title": "Wall-Mounted Items Stay on Walls",
+				"body": "Items configured as 'Wall-Mounted' (wall clocks, paintings, windows, wall lamps) are strictly locked to the upper wall space above the floor baseline during dragging and dropping—they can never accidentally fall or be placed on the floor."
 			},
 			{
-				"title": "Combination Rooms (Per-Slice Indoors vs. Outdoors)",
-				"body": "• Mixed Environments: Each slice can be set independently as '🏠 Indoors' or '🌳 Outdoors'.\n• Realistic Weather: Precipitation (rain, snow, autumn leaves) falls only across outdoor slices. Slices marked as indoors remain completely dry, letting you build houses with outdoor patios, open-air balconies, or attached rooftop gardens!"
+				"title": "Pure Asset Elevators, Stairs & Doorways",
+				"body": "• Any Art as a Door/Elevator: Configure any drawing in your room as a Doorway or Elevator with zero forced frame graphics.\n• Complete Hierarchy Transit: When characters travel through doors or elevators, everything attached to them (held props, hats, back accessories, pets) travels seamlessly with them to the new floor/room.\n• Elevator Cabin Passengers: Tapping an elevator with characters standing inside automatically routes the entire group to the selected floor."
 			},
 			{
-				"title": "Doorways, Elevators & World Maps",
-				"body": "• Portals & Doors: Mark any prop as a Doorway and configure its target room. Dragging characters to it teleports them to their destination.\n• Elevators: Transport multiple characters across floors with interactive cabin keypads.\n• World Map: Place interactive location pins on your universe map for quick-travel navigation."
+				"title": "Cardless Building Artwork Map Pins",
+				"body": "Open the World Map to place location pins. Pins render purely as your custom building illustrations directly on the map canvas with no card boxes or borders breaking the visual world immersion."
 			}
 		]
 	},
@@ -252,24 +252,24 @@ var tutorial_chapters: Array[Dictionary] = [
 				"body": "• UI Scale: Scale up UI menus for phones or tablets.\n• Touch / Grab Padding: Expands invisible hitboxes around tiny drawings so they are effortless to pick up on mobile touchscreens.\n• Hold Duration: Adjust the long-press duration required to summon the Magic Wheel."
 			},
 			{
-				"title": "Developer Diagnostics (F1)",
-				"body": "Enable Developer Mode in Settings (or press F1 on keyboards) to display live FPS counters, coordinate data, visual collision outlines, and socket attachment lines."
+				"title": "Audited State Persistence & Diagnostics",
+				"body": "• Complete Save Integrity: Entity locking, rotations, custom modulate tints, layer stacking, and open container states remain completely intact across floor and universe transitions.\n• Developer Diagnostics (F1): Enable Developer Mode in Settings (or press F1 on keyboards) to display live FPS counters, coordinate data, visual collision outlines, and socket attachment lines."
 			}
 		]
 	},
 	{
 		"id": "wip_known_issues",
-		"title": "11. In-Development & What to Watch For",
+		"title": "11. In-Development & Roadmap",
 		"icon": "icon_dev",
 		"badge": "WIP & Roadmap",
 		"sections": [
 			{
 				"title": "🚧 Active Development Notice",
-				"body": "OwnWorld: Dollhouse is an actively evolving creative sandbox. Below is a guide to features currently being refined, edge-case quirks being addressed, and what to expect in upcoming patches."
+				"body": "OwnWorld: Dollhouse is an actively evolving creative sandbox. Below is a guide to features currently being refined and what to expect in upcoming patches."
 			},
 			{
-				"title": "⚡ Advanced Logic Rule Triggers (Proximity & Containers)",
-				"body": "• Active & Tested: 'When Tapped', 'When Item Dropped Onto It', 'When Grabbed', and 'When Dropped' are fully active and stable for building interactive puzzles, speech bubbles, item spawners, and weather shifts.\n• In-Progress Triggers: Automatic proximity detection (walking near an object) and container open/close triggers are currently being tuned for performance and will be fully enabled in upcoming builds."
+				"title": "⚡ Advanced Logic Rule Triggers",
+				"body": "• Active & Tested: 'When Tapped', 'When Item Dropped Onto It', 'When Grabbed', and 'When Dropped' are fully active and stable for building interactive puzzles, speech bubbles, item spawners, and weather shifts.\n• Upcoming Triggers: Automatic proximity detection (walking near an object) and container open/close triggers are currently being tuned for performance."
 			},
 			{
 				"title": "📱 Android 11+ Scoped Storage & Documents Access",
@@ -278,10 +278,6 @@ var tutorial_chapters: Array[Dictionary] = [
 			{
 				"title": "🌦️ Multi-Slice Outdoor Weather on Budget Mobile Hardware",
 				"body": "• Performance Tip: Outdoor slices feature dynamic particle weather systems (rain, snow, drifting leaves). If you expand a room to 8–10 continuous outdoor slices on entry-level mobile hardware, consider alternating indoor and outdoor slices or choosing 'Clear' weather in the World Map if you notice frame dips."
-			},
-			{
-				"title": "🔮 Roadmap & Upcoming Features",
-				"body": "Keep an eye out for upcoming updates, including sound recording imports, additional interactive entity components, and expanded world map markers."
 			}
 		]
 	}
@@ -379,8 +375,8 @@ func _build_ui() -> void:
 	header_hbox.add_child(header_title_lbl)
 
 	search_input = LineEdit.new()
-	search_input.placeholder_text = "Search topics (e.g. slices, focus, weather, roadmap)..."
-	search_input.custom_minimum_size = Vector2(240.0, 30.0)
+	search_input.placeholder_text = "Search topics (e.g. floors, elevators, doors, colors)..."
+	search_input.custom_minimum_size = Vector2(260.0, 30.0)
 	search_input.text_changed.connect(_on_search_query_changed)
 	header_hbox.add_child(search_input)
 

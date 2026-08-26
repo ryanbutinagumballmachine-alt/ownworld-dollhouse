@@ -13,6 +13,7 @@ var world_camera: Camera2D = null
 var atmosphere: Node = null
 var current_room_floor_y: float = 600.0
 var current_room_title: String = "Main Room"
+var current_room_floor_level: String = "1F"
 var current_wallpaper_path: String = ""
 var current_wallpaper_fill_mode: String = "cover"
 
@@ -80,10 +81,11 @@ func save_active_room() -> bool:
 	return SaveSystem.save_room_state(AppState.room_id, get_current_room_state())
 
 
-func configure_room_presentation(wallpaper_path: String, _wallpaper_texture: Texture2D, floor_y: float, room_title: String, fill_mode: String) -> void:
+func configure_room_presentation(wallpaper_path: String, _wallpaper_texture: Texture2D, floor_y: float, room_title: String, fill_mode: String, floor_level: String = "1F") -> void:
 	current_wallpaper_path = wallpaper_path
 	current_room_floor_y = floor_y
 	current_room_title = room_title if not room_title.is_empty() else AppState.room_id
+	current_room_floor_level = floor_level if not floor_level.is_empty() else "1F"
 	current_wallpaper_fill_mode = fill_mode if not fill_mode.is_empty() else "cover"
 	room_presentation_changed.emit()
 
