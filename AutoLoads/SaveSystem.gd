@@ -24,6 +24,26 @@ func get_current_universe_id() -> String:
 	var universe_id: String = str(session.get("universe_id", DEFAULT_UNIVERSE_ID)).strip_edges()
 	return universe_id if not universe_id.is_empty() else DEFAULT_UNIVERSE_ID
 
+
+static func get_floor_rank(floor_level_str: String) -> int:
+	var s: String = floor_level_str.strip_edges().to_upper()
+	if s.begins_with("B") and s.trim_prefix("B").is_valid_int():
+		return -s.trim_prefix("B").to_int()
+	if s.ends_with("F") and s.trim_suffix("F").is_valid_int():
+		return s.trim_suffix("F").to_int()
+	if s in ["G", "GF", "LG", "LOBBY", "GROUND"]:
+		return 1
+	if s in ["MEZZANINE"]:
+		return 800
+	if s in ["ATTIC"]:
+		return 900
+	if s in ["ROOF", "ROOFTOP"]:
+		return 1000
+	if s.is_valid_int():
+		return s.to_int()
+	return 1
+
+
 # Helper to retrieve all rooms/floors belonging to a specific building in the current universe
 func get_building_floors(building_id: String, universe_id: String = "") -> Array[Dictionary]:
 	var resolved_bldg_id: String = building_id.strip_edges()
@@ -53,6 +73,32 @@ func get_building_floors(building_id: String, universe_id: String = "") -> Array
 
 	return floors
 
+
+# Finds the next floor level above the active room in the same building
+func get_next_floor_above(building_id: String, current_room_id: String, universe_id: String = "") -> Dictionary:
+	var floors: Array[Dictionary] = get_building_floors(building_id, universe_id)
+	if floors.size() <= 1:
+		return {}
+
+	# Sort all building floors in ascending order by rank
+	floors.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		var rank_a: int = SaveSystem.get_floor_rank(str(a.get("floor_level", "1F")))
+		var rank_b: int = SaveSystem.get_floor_rank(str(b.get("floor_level", "1F")))
+		return rank_a < rank_b
+	)
+
+	var current_index: int = -1
+	for i: int in range(floors.size()):
+		if str(floors[i].get("room_id", "")) == current_room_id:
+			current_index = i
+			break
+
+	if current_index >= 0 and current_index + 1 < floors.size():
+		return floors[current_index + 1]
+
+	return {}
+
+
 # Gets the 1F / ground entry room ID for a building
 func get_building_entry_room_id(building_id: String, universe_id: String = "") -> String:
 	var floors: Array[Dictionary] = get_building_floors(building_id, universe_id)
@@ -62,8 +108,8 @@ func get_building_entry_room_id(building_id: String, universe_id: String = "") -
 	if not floors.is_empty():
 		return str(floors[0].get("room_id", ""))
 	
-	# Clean fallback
 	return building_id + "_1f" if building_id != "building_main" else "room_main"
+
 
 func get_current_room_id() -> String:
 	var session: Dictionary = _load_session()
@@ -108,7 +154,6 @@ func save_current_room_state() -> void:
 
 	var room_payload: Dictionary = {}
 
-	# Grab the complete serialized room state from Main (slices, floor_y, title, entities)
 	if main_node.has_method("get_current_room_state"):
 		room_payload = main_node.call("get_current_room_state")
 	elif main_node.has_method("_serialize_state"):
@@ -144,10 +189,8 @@ func update_character_data_in_cast(char_data: Dictionary) -> void:
 	if character_id.is_empty() and character_name.is_empty():
 		return
 
-	# 1. Instantly update live in-room entities in memory
 	sync_live_character_entities(char_data)
 
-	# 2. Persist to cast repository
 	var cast_path: String = get_universe_cast_path()
 	var cast_list: Array[Dictionary] = []
 

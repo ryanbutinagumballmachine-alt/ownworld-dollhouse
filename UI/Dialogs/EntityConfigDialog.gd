@@ -1,5 +1,5 @@
 # ==============================================================================
-# OWNWORLD — ENTITY CONFIGURATION DIALOG
+# OWNWORLD — ENTITY CONFIGURATION DIALOG (STAIRS & CAPABILITIES)
 # File: res://UI/Dialogs/EntityConfigDialog.gd
 # Base Class: CanvasLayer (class_name EntityConfigDialog)
 # ==============================================================================
@@ -35,6 +35,7 @@ var check_cup: CheckBox = null
 var check_faucet: CheckBox = null
 var check_lamp: CheckBox = null
 var check_portal: CheckBox = null
+var check_stairs: CheckBox = null
 var check_elevator: CheckBox = null
 
 var btn_save: Button = null
@@ -264,6 +265,9 @@ func _build_capabilities_section(parent: VBoxContainer) -> void:
 	check_portal = _create_icon_check("icon_door", "Doorway")
 	roles_grid.add_child(check_portal)
 
+	check_stairs = _create_icon_check("icon_stairs", "Stairs (Auto-Climb Floor Above)")
+	roles_grid.add_child(check_stairs)
+
 	check_elevator = _create_icon_check("icon_elevator", "Elevator")
 	roles_grid.add_child(check_elevator)
 
@@ -289,6 +293,8 @@ func _create_icon_check(icon_key: String, title: String) -> CheckBox:
 	checkbox.custom_minimum_size = Vector2(0.0, 28.0)
 	checkbox.add_theme_constant_override("icon_max_width", 16)
 	var icon_texture: Texture2D = ThemeService.get_icon(icon_key)
+	if icon_texture == null and icon_key == "icon_stairs":
+		icon_texture = ThemeService.get_icon("icon_up")
 	if icon_texture != null: checkbox.icon = icon_texture
 	return checkbox
 
@@ -315,7 +321,8 @@ func open_for_entity(entity: OwnEntity) -> void:
 	check_cup.button_pressed = entity.is_liquid_container
 	check_faucet.button_pressed = entity.is_liquid_source
 	check_lamp.button_pressed = entity.is_light_source
-	check_portal.button_pressed = (entity.is_portal and not entity.is_elevator)
+	check_portal.button_pressed = (entity.is_portal and not entity.is_elevator and not entity.is_stairs)
+	check_stairs.button_pressed = entity.is_stairs
 	check_elevator.button_pressed = entity.is_elevator
 	visible = true
 
@@ -359,10 +366,13 @@ func save_and_close() -> void:
 		else:
 			active_entity.unconfigure_light_source()
 
-		if check_elevator.button_pressed:
+		if check_stairs.button_pressed:
+			if not active_entity.is_stairs: active_entity.configure_as_stairs(active_entity.display_name)
+		elif check_elevator.button_pressed:
 			if not active_entity.is_elevator: active_entity.configure_as_elevator(active_entity.elevator_floors, active_entity.display_name)
 		elif check_portal.button_pressed:
-			if not active_entity.is_portal or active_entity.is_elevator: active_entity.configure_as_portal(active_entity.target_room_id, active_entity.display_name)
+			if not active_entity.is_portal or active_entity.is_elevator or active_entity.is_stairs:
+				active_entity.configure_as_portal(active_entity.target_room_id, active_entity.display_name)
 		else:
 			active_entity.unconfigure_portal_and_elevator()
 
@@ -389,12 +399,15 @@ func _refresh_theme_icons() -> void:
 	if check_faucet != null: _apply_checkbox_icon(check_faucet, "icon_faucet")
 	if check_lamp != null: _apply_checkbox_icon(check_lamp, "icon_lighting")
 	if check_portal != null: _apply_checkbox_icon(check_portal, "icon_door")
+	if check_stairs != null: _apply_checkbox_icon(check_stairs, "icon_stairs")
 	if check_elevator != null: _apply_checkbox_icon(check_elevator, "icon_elevator")
 
 
 func _apply_checkbox_icon(checkbox: CheckBox, icon_key: String) -> void:
 	if checkbox == null: return
 	var icon_texture: Texture2D = ThemeService.get_icon(icon_key)
+	if icon_texture == null and icon_key == "icon_stairs":
+		icon_texture = ThemeService.get_icon("icon_up")
 	if icon_texture != null: checkbox.icon = icon_texture
 
 

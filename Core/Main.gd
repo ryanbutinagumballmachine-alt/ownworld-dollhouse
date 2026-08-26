@@ -1,5 +1,5 @@
 # ==============================================================================
-# OWNWORLD — MAIN APPLICATION ORCHESTRATOR (FLOOR DESIGNATIONS & COMPLETE STATE)
+# OWNWORLD — MAIN APPLICATION ORCHESTRATOR (SMOOTH TRANSITIONS & STAIRS ROUTING)
 # File: res://Core/Main.gd
 # Base Class: Node2D
 # ==============================================================================
@@ -28,6 +28,11 @@ var room_slices_container: Node2D = null
 var floor_guide_line: Line2D = null
 var main_camera: TouchCameraController = null
 var atmosphere: AtmosphereController = null
+
+# Smooth Cross-Fade Transition Overlay
+var transition_layer: CanvasLayer = null
+var transition_rect: ColorRect = null
+var is_transitioning_room: bool = false
 
 var main_menu_ui: MainMenuUI = null
 var world_map_screen: WorldMapController = null
@@ -233,6 +238,19 @@ func _mount_subsystems() -> void:
 	main_camera = TouchCameraController.new()
 	add_child(main_camera)
 
+	# Dedicated Cross-Fade Overlay
+	transition_layer = CanvasLayer.new()
+	transition_layer.name = "RoomTransitionCanvas"
+	transition_layer.layer = 127
+	add_child(transition_layer)
+
+	transition_rect = ColorRect.new()
+	transition_rect.name = "TransitionFadeRect"
+	transition_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	transition_rect.color = Color(0.0, 0.0, 0.0, 0.0)
+	transition_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	transition_layer.add_child(transition_rect)
+
 	main_menu_ui = MainMenuUI.new()
 	main_menu_ui.open_universe_hub_requested.connect(func() -> void: if universe_hub_ui: universe_hub_ui.open_hub())
 	main_menu_ui.open_world_map_requested.connect(func() -> void: if world_map_screen: world_map_screen.open_map())
@@ -320,6 +338,7 @@ func _mount_subsystems() -> void:
 	top_nav_bar.open_room_studio_requested.connect(_on_open_room_studio)
 	top_nav_bar.toggle_zoom_mode_requested.connect(_toggle_camera_zoom_mode)
 	top_nav_bar.undo_requested.connect(_on_undo_requested)
+	top_nav_bar.open_floor_switcher_requested.connect(_on_top_nav_floor_switcher_requested)
 	add_child(top_nav_bar)
 
 	tutorial_dialog = TutorialDialog.new()
@@ -549,6 +568,9 @@ func _is_any_modal_open() -> bool:
 
 
 func _input(event: InputEvent) -> void:
+	if is_transitioning_room:
+		return
+
 	if event is InputEventScreenTouch:
 		var screen_touch: InputEventScreenTouch = event as InputEventScreenTouch
 		var touch_idx: int = screen_touch.index
@@ -698,7 +720,6 @@ func _update_active_drag_position(world_pointer_pos: Vector2) -> void:
 
 	target_pos.x = clampf(target_pos.x, room_bounds.position.x + half_width, room_bounds.end.x - half_width)
 
-	# STRICT WALL-MOUNTED CONSTRAINT: Items marked wall-mounted cannot be placed on the floor
 	if active_dragged_entity.is_wall_mounted:
 		var max_wall_y: float = current_room_floor_y - bottom_offset - 4.0
 		target_pos.y = clampf(target_pos.y, room_bounds.position.y + top_offset, maxf(room_bounds.position.y + top_offset, max_wall_y))
@@ -732,7 +753,6 @@ func _handle_press_begin(world_pos: Vector2, screen_pos: Vector2) -> void:
 		if topmost.parent_socket_entity != null:
 			topmost.detach_from_socket(world_canvas)
 
-		# Ensure the dragged entity's root is at the front of the tree
 		var root_ent: OwnEntity = _get_ysort_root_entity(topmost)
 		if root_ent.get_parent() == world_canvas:
 			world_canvas.move_child(root_ent, -1)
@@ -768,18 +788,12 @@ func _handle_press_end(_world_pos: Vector2) -> void:
 	var drag_dist: float = press_start_screen_pos.distance_to(current_pointer_screen_pos)
 	var is_quick_tap: bool = drag_dist <= TAP_PIXEL_THRESHOLD and elapsed_time <= 0.35
 
-	# --------------------------------------------------------------------------
-	# 1. LOCKED ENTITY TAP: Execute all functional actions without moving/dragging
-	# --------------------------------------------------------------------------
 	if active_dragged_entity == null:
 		if released_target != null and is_instance_valid(released_target) and is_quick_tap:
 			_handle_layer1_tap(released_target)
 		_update_active_process_state()
 		return
 
-	# --------------------------------------------------------------------------
-	# 2. UNLOCKED ENTITY DRAG & DROP / TAP HANDLING
-	# --------------------------------------------------------------------------
 	if is_instance_valid(active_dragged_entity):
 		var released: OwnEntity = active_dragged_entity
 		active_dragged_entity = null
@@ -790,13 +804,16 @@ func _handle_press_end(_world_pos: Vector2) -> void:
 		if is_quick_tap:
 			_handle_layer1_tap(released)
 		else:
-			# Direct Portal & Multi-Floor Elevator Transportation with Parenting Hierarchy
+			# Portal / Stairs / Elevator Routing
 			if released.entity_type == Types.EntityType.CHARACTER:
 				for portal_ent: OwnEntity in all_entities:
 					if portal_ent != released and portal_ent.is_portal and portal_ent.contains_point(released.global_position):
-						if portal_ent.is_elevator:
-							elevator_dialog.open_keypad(portal_ent)
-							_apply_physical_gravity_settle(released)
+						if portal_ent.is_stairs:
+							_handle_stairs_travel(portal_ent, released)
+							_update_active_process_state()
+							return
+						elif portal_ent.is_elevator:
+							_handle_elevator_interaction(portal_ent, released)
 							_update_active_process_state()
 							return
 						else:
@@ -861,8 +878,10 @@ func _handle_layer1_tap(entity: OwnEntity) -> void:
 	_trigger_haptic(20)
 	LogicEngine.evaluate_trigger(Types.TriggerEvent.ON_TAPPED, entity)
 
-	if entity.is_elevator:
-		elevator_dialog.open_keypad(entity)
+	if entity.is_stairs:
+		_handle_stairs_tap(entity)
+	elif entity.is_elevator:
+		_handle_elevator_tap(entity)
 	elif entity.is_container:
 		entity.toggle_container()
 	elif entity.has_method("toggle_active_state"):
@@ -870,6 +889,111 @@ func _handle_layer1_tap(entity: OwnEntity) -> void:
 
 	_record_history()
 	SaveSystem.save_current_room_state()
+
+
+# --- STAIRS ROUTING LOGIC ---
+
+func _handle_stairs_travel(_stairs: OwnEntity, traveler: OwnEntity) -> void:
+	var current_room: String = _get_current_room_id()
+	var bldg_floors: Array[Dictionary] = SaveSystem.get_building_floors(current_building_id)
+
+	if bldg_floors.size() <= 1:
+		_trigger_haptic(40)
+		EventBus.notification_requested.emit("There are no other floors in this building.", true)
+		_apply_physical_gravity_settle(traveler)
+		return
+
+	var next_floor: Dictionary = SaveSystem.get_next_floor_above(current_building_id, current_room)
+	if next_floor.is_empty():
+		_trigger_haptic(40)
+		EventBus.notification_requested.emit("There are no other floors above in this building.", true)
+		_apply_physical_gravity_settle(traveler)
+		return
+		
+
+	var target_room_id: String = str(next_floor.get("room_id", "")).strip_edges()
+	var target_floor_label: String = str(next_floor.get("label", next_floor.get("floor_level", "Floor Above")))
+
+	var bundle: Array[Dictionary] = traveler.get_full_hierarchy_bundle()
+	_remove_hierarchy(traveler)
+	traveler.queue_free()
+
+	for item: Dictionary in bundle:
+		var c_id: String = str(item.get("id", ""))
+		var c_name: String = str(item.get("display_name", ""))
+		if not c_id.is_empty():
+			DrawerMetadataService.scrub_character_from_universe_rooms(c_id, c_name)
+
+	AudioManager.play_snap_chime()
+	EventBus.notification_requested.emit("Climbing to: " + target_floor_label, true)
+	_transition_to_room(target_room_id, {
+		"bundle": bundle,
+		"arrival_stairs": true,
+		"floor_name": target_floor_label,
+		"building_id": current_building_id,
+		"building_name": current_building_name,
+		"source": "stairs"
+	})
+
+
+func _handle_stairs_tap(stairs: OwnEntity) -> void:
+	var current_room: String = _get_current_room_id()
+	var bldg_floors: Array[Dictionary] = SaveSystem.get_building_floors(current_building_id)
+
+	if bldg_floors.size() <= 1:
+		_trigger_haptic(40)
+		EventBus.notification_requested.emit("There are no other floors in this building.", true)
+		return
+
+	var next_floor: Dictionary = SaveSystem.get_next_floor_above(current_building_id, current_room)
+	if next_floor.is_empty():
+		_trigger_haptic(40)
+		EventBus.notification_requested.emit("There are no other floors above in this building.", true)
+		return
+
+	var target_room_id: String = str(next_floor.get("room_id", "")).strip_edges()
+	var target_floor_label: String = str(next_floor.get("label", next_floor.get("floor_level", "Floor Above")))
+
+	var passengers: Array[OwnEntity] = stairs.get_passengers_in_cab(all_entities)
+	var bundle: Array[Dictionary] = []
+	for p: OwnEntity in passengers:
+		if is_instance_valid(p):
+			bundle.append_array(p.get_full_hierarchy_bundle())
+			_remove_hierarchy(p)
+			p.queue_free()
+
+	AudioManager.play_snap_chime()
+	EventBus.notification_requested.emit("Climbing to: " + target_floor_label, true)
+	_transition_to_room(target_room_id, {
+		"bundle": bundle,
+		"arrival_stairs": true,
+		"floor_name": target_floor_label,
+		"building_id": current_building_id,
+		"building_name": current_building_name,
+		"source": "stairs"
+	})
+
+
+# --- ELEVATOR ROUTING LOGIC WITH EMPTY-FLOORS CHECK ---
+
+func _handle_elevator_tap(elevator: OwnEntity) -> void:
+	var bldg_floors: Array[Dictionary] = SaveSystem.get_building_floors(current_building_id)
+	if bldg_floors.size() <= 1:
+		_trigger_haptic(40)
+		EventBus.notification_requested.emit("There are no other floors in this building.", true)
+		return
+	elevator_dialog.open_keypad(elevator)
+
+
+func _handle_elevator_interaction(elevator: OwnEntity, traveler: OwnEntity) -> void:
+	var bldg_floors: Array[Dictionary] = SaveSystem.get_building_floors(current_building_id)
+	if bldg_floors.size() <= 1:
+		_trigger_haptic(40)
+		EventBus.notification_requested.emit("There are no other floors in this building.", true)
+		_apply_physical_gravity_settle(traveler)
+		return
+	elevator_dialog.open_keypad(elevator)
+	_apply_physical_gravity_settle(traveler)
 
 
 func _trigger_haptic(duration_ms: int = 30) -> void:
@@ -893,7 +1017,14 @@ func _on_elevator_floor_travel_requested(elevator: OwnEntity, target_room_id: St
 	elevator.close_door_animated(func() -> void:
 		AudioManager.play_snap_chime()
 		EventBus.notification_requested.emit("Floor Arrival: " + floor_name, true)
-		_transition_to_room(target_room_id, {"bundle": bundle, "arrival_elevator": true, "floor_name": floor_name})
+		_transition_to_room(target_room_id, {
+			"bundle": bundle,
+			"arrival_elevator": true,
+			"floor_name": floor_name,
+			"building_id": current_building_id,
+			"building_name": current_building_name,
+			"source": "elevator"
+		})
 	)
 
 
@@ -936,7 +1067,6 @@ func _get_topmost_at(world_pos: Vector2, touch_padding: float = 0.0) -> OwnEntit
 			elif entity.contains_point(world_pos, touch_padding):
 				padded_hits.append(entity)
 
-	# Priority 1: Solid visible pixels on screen take precedence over transparent padding
 	var candidates: Array[OwnEntity] = exact_hits if not exact_hits.is_empty() else padded_hits
 
 	var best: OwnEntity = null
@@ -954,33 +1084,26 @@ func _is_entity_in_front_of(a: OwnEntity, b: OwnEntity) -> bool:
 	if not is_instance_valid(b):
 		return true
 
-	# 1. Direct parent/child socket attachment hierarchy
 	if a.parent_socket_entity == b:
 		return a.z_index >= 0
 	if b.parent_socket_entity == a:
 		return b.z_index < 0
 
-	# 2. Compare effective Z-index
 	var z_a: int = _calculate_effective_z(a)
 	var z_b: int = _calculate_effective_z(b)
 	if z_a != z_b:
 		return z_a > z_b
 
-	# 3. Y-Sorting: Compare the root Y position in the Y-sort canvas
 	var root_a: OwnEntity = _get_ysort_root_entity(a)
 	var root_b: OwnEntity = _get_ysort_root_entity(b)
 
 	if root_a != root_b:
 		var y_a: float = root_a.global_position.y
 		var y_b: float = root_b.global_position.y
-		# If Y coordinates differ by more than sub-pixel epsilon, higher Y is in front (lower on screen)
 		if not is_equal_approx(y_a, y_b) and absf(y_a - y_b) > 0.5:
 			return y_a > y_b
-
-		# 4. If Y position is identical, Godot renders the higher tree index on top
 		return root_a.get_index() > root_b.get_index()
 
-	# If they share the same parent entity, compare local child tree indices
 	return a.get_index() > b.get_index()
 
 
@@ -1034,17 +1157,42 @@ func _on_atmosphere_changed(time_preset: String, weather_preset: String) -> void
 		atmosphere.set_weather(weather_preset)
 
 
+# Smooth Cross-Fade Transition Implementation
 func _transition_to_room(target_room_id: String, traveler_data: Dictionary = {}) -> void:
 	var current_room_id_str: String = _get_current_room_id()
-	if target_room_id.is_empty() or (target_room_id == current_room_id_str and traveler_data.is_empty()):
+	if target_room_id.is_empty() or is_transitioning_room:
+		return
+	if target_room_id == current_room_id_str and traveler_data.is_empty():
 		return
 
+	is_transitioning_room = true
+	SaveSystem.save_current_room_state()
+
+	# 1. Smooth Fade-Out
+	if transition_rect != null:
+		transition_rect.mouse_filter = Control.MOUSE_FILTER_STOP
+		var tw_out: Tween = create_tween().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
+		tw_out.tween_property(transition_rect, "color:a", 1.0, 0.18)
+		await tw_out.finished
+
+	# 2. Write session & stream target room
 	var session: Dictionary = _load_session()
 	session["room_id"] = target_room_id
 	var file: FileAccess = FileAccess.open("user://session.json", FileAccess.WRITE)
 	if file != null:
 		file.store_string(JSON.stringify(session, "\t"))
 		file.close()
+
+	_load_active_room(target_room_id, traveler_data)
+
+	# 3. Smooth Fade-In
+	if transition_rect != null:
+		var tw_in: Tween = create_tween().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+		tw_in.tween_property(transition_rect, "color:a", 0.0, 0.22)
+		await tw_in.finished
+		transition_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+
+	is_transitioning_room = false
 
 	if EventBus.has_signal("room_changed"):
 		EventBus.room_changed.emit(target_room_id, current_room_id_str, traveler_data)
@@ -1104,8 +1252,10 @@ func _on_open_room_studio() -> void:
 			room_slices,
 			current_room_floor_level,
 			current_building_name,
-			current_building_id
+			current_building_id,
+			_get_current_room_id()
 		)
+
 
 func _on_floor_preview_changed(preview_y: float, preview_visible: bool) -> void:
 	current_room_floor_y = preview_y
@@ -1136,9 +1286,6 @@ func _update_floor_guide_visuals(floor_y: float, preview_visible: bool) -> void:
 	else:
 		floor_guide_line.visible = false
 
-# ------------------------------------------------------------------------------
-# FLOOR LEVEL & TITLE TRANSLATION HELPER
-# ------------------------------------------------------------------------------
 
 static func parse_floor_info(raw_label: String) -> Dictionary:
 	var text: String = raw_label.strip_edges()
@@ -1152,13 +1299,11 @@ static func parse_floor_info(raw_label: String) -> Dictionary:
 	var first_word: String = words[0].strip_edges()
 	var upper_first: String = first_word.to_upper()
 
-	# Pattern 1: "1F", "2F", "3F", "B1", "B2", "-1F", "GF", "LG"
 	if (upper_first.ends_with("F") and upper_first.trim_suffix("F").is_valid_int()) or (upper_first.begins_with("B") and upper_first.trim_prefix("B").is_valid_int()):
 		var fl: String = upper_first
 		var title: String = text.trim_prefix(first_word).strip_edges().trim_prefix("-").strip_edges()
 		return {"floor_level": fl, "title": title if not title.is_empty() else text}
 
-	# Pattern 2: "Floor 2", "Level 3", "Fl 2"
 	if (upper_first == "FLOOR" or upper_first == "LEVEL" or upper_first == "FL") and words.size() >= 2:
 		var num: String = words[1].strip_edges()
 		if num.is_valid_int():
@@ -1167,26 +1312,16 @@ static func parse_floor_info(raw_label: String) -> Dictionary:
 			var title: String = text.substr(prefix_len).strip_edges().trim_prefix("-").strip_edges()
 			return {"floor_level": fl, "title": title if not title.is_empty() else text}
 
-	# Pattern 3: Named levels ("Attic", "Roof", "Basement", "Cellar", "Lobby")
 	if upper_first in ["ATTIC", "ROOF", "ROOFTOP", "BASEMENT", "CELLAR", "LOBBY", "MEZZANINE"]:
 		var fl: String = first_word.capitalize()
 		var title: String = text.trim_prefix(first_word).strip_edges().trim_prefix("-").strip_edges()
 		return {"floor_level": fl, "title": title if not title.is_empty() else text}
 
-	# Fallback for short codes like "2F" or custom titles
 	if text.length() <= 4:
 		return {"floor_level": text.to_upper(), "title": text}
 
 	return {"floor_level": "1F", "title": text}
 
-
-func _find_elevator_floor_definition(target_room: String) -> Dictionary:
-	for ent: OwnEntity in all_entities:
-		if is_instance_valid(ent) and ent.is_elevator:
-			for fl: Dictionary in ent.elevator_floors:
-				if str(fl.get("room_id", "")) == target_room:
-					return fl
-	return {}
 
 func _load_active_room(room_id: String, traveler_data: Dictionary = {}) -> void:
 	is_room_loaded = false
@@ -1206,6 +1341,9 @@ func _load_active_room(room_id: String, traveler_data: Dictionary = {}) -> void:
 
 	if target_bldg_id.is_empty(): target_bldg_id = "building_main"
 	if target_bldg_name.is_empty(): target_bldg_name = "Main Building"
+	
+	if top_nav_bar != null:
+		top_nav_bar.update_current_floor_display(current_room_floor_level, current_room_title)
 
 	current_building_id = target_bldg_id
 	current_building_name = target_bldg_name
@@ -1242,7 +1380,7 @@ func _load_active_room(room_id: String, traveler_data: Dictionary = {}) -> void:
 			if item is Dictionary: loaded_slices.append((item as Dictionary).duplicate(true))
 	else:
 		var wall_path: String = str(saved_state.get("wallpaper_path", ""))
-		var fill_mode: String = str(saved_state.get("wallpaper_fill_mode", "cover"))
+		var fill_mode: String = str(saved_state.get("fill_mode", "cover"))
 		var is_outdoor: bool = bool(saved_state.get("is_outdoor", false))
 		loaded_slices.append({
 			"wallpaper_path": wall_path, "fill_mode": fill_mode, "is_outdoor": is_outdoor,
@@ -1266,7 +1404,6 @@ func _load_active_room(room_id: String, traveler_data: Dictionary = {}) -> void:
 	if drawer_tray_ui != null: drawer_tray_ui.refresh_tray()
 	is_room_loaded = true
 
-	# Save room state with building_id & floor_level
 	SaveSystem.save_current_room_state()
 
 	var history_manager: Node = get_node_or_null("/root/HistoryManager")
@@ -1442,10 +1579,10 @@ func _on_magic_wheel_action(action_name: String, target: OwnEntity) -> void:
 			if logic_rule_dialog != null: logic_rule_dialog.open_for_entity(target)
 		"edit_door":
 			if door_editor_dialog != null: door_editor_dialog.open_for_door(target)
+		"climb_stairs":
+			_handle_stairs_tap(target)
 		"elevator":
-			if elevator_dialog != null: elevator_dialog.open_keypad(target)
-		"edit_floors":
-			if elevator_dialog != null: elevator_dialog.open_floor_studio(target)
+			_handle_elevator_tap(target)
 		"save_template":
 			if drawer_tray_ui != null: drawer_tray_ui.store_entity_as_template(target)
 		"lock":
@@ -1483,3 +1620,42 @@ func _on_undo_requested() -> void:
 	var history: Node = get_node_or_null("/root/HistoryManager")
 	if history != null and history.has_method("undo"):
 		history.call("undo")
+		
+func _on_top_nav_floor_switcher_requested() -> void:
+	var floors: Array[Dictionary] = SaveSystem.get_building_floors(current_building_id)
+
+	if floors.size() <= 1:
+		_trigger_haptic(30)
+		EventBus.notification_requested.emit("There are no other floors in this building.", true)
+		return
+
+	var popup: PopupMenu = PopupMenu.new()
+	popup.theme = ThemeService.create_theme()
+	add_child(popup)
+
+	for i: int in range(floors.size()):
+		var fl: Dictionary = floors[i]
+		var r_id: String = str(fl.get("room_id", ""))
+		var fl_label: String = str(fl.get("label", r_id))
+		var is_current: bool = (r_id == _get_current_room_id())
+		popup.add_item(fl_label + (" (Current)" if is_current else ""), i)
+		popup.set_item_disabled(i, is_current)
+
+	popup.id_pressed.connect(func(id: int) -> void:
+		if id >= 0 and id < floors.size():
+			var target_fl: Dictionary = floors[id]
+			var target_room_id: String = str(target_fl.get("room_id", ""))
+			var target_label: String = str(target_fl.get("label", target_room_id))
+			popup.queue_free()
+			_transition_to_room(target_room_id, {
+				"source": "nav_bar_switcher",
+				"floor_name": target_label,
+				"building_id": current_building_id,
+				"building_name": current_building_name
+			})
+	)
+
+	popup.popup_hide.connect(popup.queue_free)
+	var btn_rect: Rect2 = top_nav_bar.btn_floors.get_global_rect() if top_nav_bar.btn_floors else Rect2(Vector2(640, 50), Vector2.ZERO)
+	popup.position = Vector2i(int(btn_rect.position.x - 20.0), int(btn_rect.end.y + 6.0))
+	popup.popup()

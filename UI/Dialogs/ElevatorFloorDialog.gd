@@ -1,5 +1,5 @@
 # ==============================================================================
-# OWNWORLD — ELEVATOR FLOOR ROUTING DIALOG (MULTI-FLOOR TRANSIT)
+# OWNWORLD — ELEVATOR FLOOR ROUTING DIALOG (KEYPAD TRANSIT ONLY)
 # File: res://UI/Dialogs/ElevatorFloorDialog.gd
 # Base Class: CanvasLayer (class_name ElevatorFloorDialog)
 # ==============================================================================
@@ -7,8 +7,8 @@
 class_name ElevatorFloorDialog
 extends CanvasLayer
 
-const MAX_PANEL_WIDTH: float = 480.0
-const MAX_PANEL_HEIGHT: float = 520.0
+const MAX_PANEL_WIDTH: float = 460.0
+const MAX_PANEL_HEIGHT: float = 420.0
 const SESSION_FILE: String = "user://session.json"
 
 var root_backdrop: Control = null
@@ -17,18 +17,8 @@ var root_panel: PanelContainer = null
 
 var active_elevator: OwnEntity = null
 var header_lbl: Label = null
-var tab_container: TabContainer = null
-
-var keypad_vbox: VBoxContainer = null
-var keypad_grid: GridContainer = null
 var current_floor_label: Label = null
-
-var studio_vbox: VBoxContainer = null
-var studio_hdr: Label = null
-var floors_list_vbox: VBoxContainer = null
-
-var btn_add_floor: Button = null
-var btn_save_routes: Button = null
+var keypad_grid: GridContainer = null
 
 signal floor_travel_requested(elevator: OwnEntity, target_room_id: String, floor_name: String)
 
@@ -52,18 +42,16 @@ func _connect_system_signals() -> void:
 
 
 func _on_theme_changed(_theme_data: Dictionary) -> void:
-	_refresh_theme_icons()
 	_update_responsive_layout()
 	if active_elevator != null and is_instance_valid(active_elevator):
 		_render_keypad_buttons()
-		_render_studio_floors()
 
 
 func _update_responsive_layout() -> void:
 	if not is_instance_valid(root_panel): return
 	var viewport_size: Vector2 = get_viewport().get_visible_rect().size if get_viewport() else Vector2(1280.0, 720.0)
 	var target_width: float = clampf(viewport_size.x * 0.90, 280.0, MAX_PANEL_WIDTH)
-	var target_height: float = clampf(viewport_size.y * 0.90, 320.0, MAX_PANEL_HEIGHT)
+	var target_height: float = clampf(viewport_size.y * 0.80, 240.0, MAX_PANEL_HEIGHT)
 	root_panel.custom_minimum_size = Vector2(target_width, target_height)
 	root_panel.size = Vector2(target_width, target_height)
 
@@ -100,7 +88,7 @@ func _build_ui() -> void:
 	main_vbox.add_child(header_hbox)
 
 	header_lbl = Label.new()
-	header_lbl.text = "Elevator & Multi-Floor Routing"
+	header_lbl.text = "Elevator Keypad"
 	header_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header_lbl.theme_type_variation = "HeaderLabel"
 	header_hbox.add_child(header_lbl)
@@ -115,36 +103,19 @@ func _build_ui() -> void:
 
 	main_vbox.add_child(HSeparator.new())
 
-	tab_container = TabContainer.new()
-	tab_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	tab_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	main_vbox.add_child(tab_container)
-
-	_build_keypad_tab()
-	_build_studio_tab()
-
-
-func _build_keypad_tab() -> void:
-	keypad_vbox = VBoxContainer.new()
-	keypad_vbox.name = "Floor Keypad"
-	keypad_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	keypad_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	keypad_vbox.add_theme_constant_override("separation", 8)
-	tab_container.add_child(keypad_vbox)
-
 	current_floor_label = Label.new()
-	current_floor_label.text = "Active Room: Loading..."
+	current_floor_label.text = "Active Building Floor: ..."
 	current_floor_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	current_floor_label.theme_type_variation = "HintLabel"
 	current_floor_label.add_theme_font_size_override("font_size", 11)
-	keypad_vbox.add_child(current_floor_label)
+	main_vbox.add_child(current_floor_label)
 
 	var keypad_scroll: ScrollContainer = ScrollContainer.new()
 	keypad_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	keypad_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	keypad_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	keypad_scroll.follow_focus = false
-	keypad_vbox.add_child(keypad_scroll)
+	main_vbox.add_child(keypad_scroll)
 
 	keypad_grid = GridContainer.new()
 	keypad_grid.columns = 2
@@ -154,68 +125,11 @@ func _build_keypad_tab() -> void:
 	keypad_scroll.add_child(keypad_grid)
 
 
-func _build_studio_tab() -> void:
-	studio_vbox = VBoxContainer.new()
-	studio_vbox.name = "Configure Floors"
-	studio_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	studio_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	studio_vbox.add_theme_constant_override("separation", 6)
-	tab_container.add_child(studio_vbox)
-
-	studio_hdr = Label.new()
-	studio_hdr.text = "Add or link destination rooms to this elevator:"
-	studio_hdr.theme_type_variation = "HintLabel"
-	studio_hdr.add_theme_font_size_override("font_size", 10)
-	studio_vbox.add_child(studio_hdr)
-
-	var studio_scroll: ScrollContainer = ScrollContainer.new()
-	studio_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	studio_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	studio_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	studio_scroll.follow_focus = false
-	studio_vbox.add_child(studio_scroll)
-
-	floors_list_vbox = VBoxContainer.new()
-	floors_list_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	floors_list_vbox.add_theme_constant_override("separation", 6)
-	studio_scroll.add_child(floors_list_vbox)
-
-	btn_add_floor = Button.new()
-	btn_add_floor.text = " Add New Floor Route"
-	btn_add_floor.custom_minimum_size = Vector2(0.0, 32.0)
-	btn_add_floor.focus_mode = Control.FOCUS_NONE
-	btn_add_floor.add_theme_constant_override("icon_max_width", 14)
-	_apply_button_icon(btn_add_floor, "icon_plus")
-	btn_add_floor.pressed.connect(_on_add_floor_pressed)
-	studio_vbox.add_child(btn_add_floor)
-
-	btn_save_routes = Button.new()
-	btn_save_routes.text = " Save Floor Routes"
-	btn_save_routes.custom_minimum_size = Vector2(0.0, 36.0)
-	btn_save_routes.focus_mode = Control.FOCUS_NONE
-	btn_save_routes.add_theme_constant_override("icon_max_width", 16)
-	_apply_button_icon(btn_save_routes, "icon_save")
-	btn_save_routes.pressed.connect(_on_save_routes_pressed)
-	studio_vbox.add_child(btn_save_routes)
-
-
 func open_keypad(elevator_ent: OwnEntity) -> void:
 	if not is_instance_valid(elevator_ent): return
 	active_elevator = elevator_ent
-	tab_container.current_tab = 0
 	_update_responsive_layout()
 	_render_keypad_buttons()
-	_render_studio_floors()
-	visible = true
-
-
-func open_floor_studio(elevator_ent: OwnEntity) -> void:
-	if not is_instance_valid(elevator_ent): return
-	active_elevator = elevator_ent
-	tab_container.current_tab = 1
-	_update_responsive_layout()
-	_render_keypad_buttons()
-	_render_studio_floors()
 	visible = true
 
 
@@ -233,36 +147,34 @@ func _render_keypad_buttons() -> void:
 		return
 
 	var current_room_id: String = _get_current_room_id()
+	var current_room_state: Dictionary = SaveSystem.load_room_state(current_room_id)
+	var bldg_id: String = str(current_room_state.get("building_id", "building_main"))
+	var bldg_name: String = str(current_room_state.get("building_name", "Main Building"))
+	var current_floor_level: String = str(current_room_state.get("floor_level", "1F"))
+	var current_title: String = str(current_room_state.get("room_title", "Main Room"))
 
-	# Display Active Building and Floor
-	var current_floor_display: String = current_room_id
-	for fl_var in active_elevator.elevator_floors:
-		if fl_var is Dictionary and str(fl_var.get("room_id", "")) == current_room_id:
-			current_floor_display = str(fl_var.get("label", current_room_id))
-			break
+	header_lbl.text = "Elevator — " + bldg_name
+	current_floor_label.text = "Current Location: %s [%s]" % [current_title, current_floor_level]
 
-	current_floor_label.text = "Active Floor: " + current_floor_display
+	var floors: Array[Dictionary] = SaveSystem.get_building_floors(bldg_id)
 
-	var floors: Array = active_elevator.elevator_floors
 	if floors.is_empty():
 		var empty_label: Label = Label.new()
-		empty_label.text = "No floors configured for this building yet!\nSwitch to 'Configure Floors' to add floors."
+		empty_label.text = "No additional floors registered for %s.\nOpen the World Map in Edit Mode to add floors!" % bldg_name
 		empty_label.theme_type_variation = "HintLabel"
 		empty_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		empty_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		keypad_grid.add_child(empty_label)
 		return
 
-	var accent_color: Color = ThemeService.get_color("accent_primary", "#db2777")
-	var button_normal: Color = ThemeService.get_color("button_normal", "#fce7f3")
-	var button_hover: Color = ThemeService.get_color("button_hover", "#fbcfe8")
-	var panel_border: Color = ThemeService.get_color("panel_border", "#f472b6")
-	var text_primary: Color = ThemeService.get_color("text_primary", "#4a1525")
+	var accent_color: Color = ThemeService.get_color("accent_primary", "#ec4899")
+	var button_normal: Color = ThemeService.get_color("button_normal", "#fce7ed")
+	var button_hover: Color = ThemeService.get_color("button_hover", "#fbcfe0")
+	var panel_border: Color = ThemeService.get_color("panel_border", "#f9a8d4")
+	var text_primary: Color = ThemeService.get_color("text_primary", "#6c2e3f")
 	var corner_radius: int = ThemeService.get_corner_radius()
 
-	for floor_data_variant: Variant in floors:
-		if not floor_data_variant is Dictionary: continue
-		var floor_data: Dictionary = floor_data_variant as Dictionary
+	for floor_data: Dictionary in floors:
 		var room_id: String = str(floor_data.get("room_id", "")).strip_edges()
 		var floor_label: String = str(floor_data.get("label", room_id)).strip_edges()
 		var is_current: bool = (room_id == current_room_id)
@@ -307,94 +219,6 @@ func _render_keypad_buttons() -> void:
 		keypad_grid.add_child(button)
 
 
-func _render_studio_floors() -> void:
-	if floors_list_vbox == null: return
-	for child: Node in floors_list_vbox.get_children():
-		child.queue_free()
-
-	if active_elevator == null or not is_instance_valid(active_elevator):
-		return
-
-	var floors: Array = active_elevator.elevator_floors
-	for index: int in range(floors.size()):
-		if not floors[index] is Dictionary: continue
-		var floor_data: Dictionary = floors[index] as Dictionary
-		var row: HBoxContainer = HBoxContainer.new()
-		row.add_theme_constant_override("separation", 6)
-
-		var name_input: LineEdit = LineEdit.new()
-		name_input.text = str(floor_data.get("label", "Floor %d" % (index + 1)))
-		name_input.placeholder_text = "Floor Label (e.g. 1F Lobby)"
-		name_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		name_input.custom_minimum_size = Vector2(0.0, 32.0)
-		row.add_child(name_input)
-
-		var room_input: LineEdit = LineEdit.new()
-		room_input.text = str(floor_data.get("room_id", "room_main"))
-		room_input.placeholder_text = "Room ID"
-		room_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		room_input.custom_minimum_size = Vector2(0.0, 32.0)
-		row.add_child(room_input)
-
-		var delete_button: Button = Button.new()
-		delete_button.custom_minimum_size = Vector2(24.0, 24.0)
-		delete_button.theme_type_variation = "DangerButton"
-		delete_button.focus_mode = Control.FOCUS_NONE
-		delete_button.add_theme_constant_override("icon_max_width", 10)
-		_apply_close_icon(delete_button)
-
-		var captured_index: int = index
-		delete_button.pressed.connect(func() -> void: _remove_floor(captured_index))
-		row.add_child(delete_button)
-		floors_list_vbox.add_child(row)
-
-
-func _remove_floor(index: int) -> void:
-	if active_elevator == null or not is_instance_valid(active_elevator): return
-	if index < 0 or index >= active_elevator.elevator_floors.size(): return
-	active_elevator.elevator_floors.remove_at(index)
-	_render_studio_floors()
-	_render_keypad_buttons()
-
-
-func _on_add_floor_pressed() -> void:
-	if active_elevator == null or not is_instance_valid(active_elevator): return
-	var count: int = active_elevator.elevator_floors.size() + 1
-	active_elevator.elevator_floors.append({"label": "%dF Floor" % count, "room_id": "room_floor_%d" % count})
-	_render_studio_floors()
-	_render_keypad_buttons()
-
-
-func _on_save_routes_pressed() -> void:
-	if active_elevator == null or not is_instance_valid(active_elevator):
-		return
-
-	var updated_floors: Array[Dictionary] = []
-	for child: Node in floors_list_vbox.get_children():
-		if not child is HBoxContainer: continue
-		var edits: Array[Node] = (child as HBoxContainer).get_children()
-		if edits.size() < 2: continue
-
-		var label_edit: LineEdit = edits[0] as LineEdit
-		var room_edit: LineEdit = edits[1] as LineEdit
-		if label_edit == null or room_edit == null: continue
-
-		var label_text: String = label_edit.text.strip_edges()
-		var room_text: String = room_edit.text.strip_edges()
-		if not label_text.is_empty() and not room_text.is_empty():
-			updated_floors.append({"label": label_text, "room_id": room_text})
-
-	active_elevator.elevator_floors = updated_floors
-	if active_elevator.entity_type == Types.EntityType.CHARACTER:
-		SaveSystem.update_character_in_cast(active_elevator)
-
-	SaveSystem.save_current_room_state()
-	EventBus.entity_state_changed.emit(active_elevator.entity_id)
-	EventBus.notification_requested.emit("Elevator Routes Saved!", true)
-	_render_keypad_buttons()
-	tab_container.current_tab = 0
-
-
 func _on_floor_selected(target_room_id: String, floor_name: String) -> void:
 	var current_room_id: String = _get_current_room_id()
 	if target_room_id.is_empty() or target_room_id == current_room_id or active_elevator == null or not is_instance_valid(active_elevator):
@@ -413,15 +237,6 @@ func _get_current_room_id() -> String:
 	if parsed is Dictionary:
 		return str((parsed as Dictionary).get("room_id", "room_main"))
 	return "room_main"
-
-
-func _refresh_theme_icons() -> void:
-	_apply_button_icon(btn_add_floor, "icon_plus")
-	_apply_button_icon(btn_save_routes, "icon_save")
-	if root_panel == null: return
-	for node: Node in root_panel.find_children("*", "Button", true, false):
-		if node is Button and (node as Button).text == "✕":
-			_apply_close_icon(node as Button)
 
 
 func _apply_button_icon(button: Button, icon_key: String) -> void:

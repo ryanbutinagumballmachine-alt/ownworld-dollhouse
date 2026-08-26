@@ -1,5 +1,5 @@
 # ==============================================================================
-# OWNWORLD — ROOM MANAGER (HIERARCHY TRANSIT & MULTI-FLOOR RECONSTRUCTION)
+# OWNWORLD — ROOM MANAGER (DEDUPLICATED HIERARCHY TRANSIT & MULTI-FLOOR)
 # File: res://Systems/RoomManager.gd
 # Base Class: RefCounted (class_name RoomManager)
 # ==============================================================================
@@ -26,8 +26,38 @@ static func stream_room(room_id: String, traveler_data: Dictionary, canvas: Node
 	if not traveler_data.is_empty():
 		var bundle: Array = traveler_data.get("bundle", [])
 		if not bundle.is_empty():
+			# Purge any stale ghost copies of arriving characters from saved state
+			_deduplicate_bundle_entities(bundle, canvas, all_entities)
 			var spawn_position: Vector2 = resolve_traveler_spawn_position(traveler_data, all_entities)
 			reconstruct_traveler_bundle(bundle, spawn_position, canvas, all_entities)
+
+
+static func _deduplicate_bundle_entities(bundle: Array, _canvas: Node2D, all_entities: Array[OwnEntity]) -> void:
+	var incoming_ids: Dictionary = {}
+	var incoming_names: Dictionary = {}
+
+	for item: Variant in bundle:
+		if item is Dictionary:
+			var d: Dictionary = item as Dictionary
+			var id_str: String = str(d.get("id", "")).strip_edges()
+			var name_str: String = str(d.get("display_name", "")).strip_edges().to_lower()
+			var type_val: int = int(d.get("entity_type", -1))
+			if not id_str.is_empty(): incoming_ids[id_str] = true
+			if type_val == int(Types.EntityType.CHARACTER) and not name_str.is_empty():
+				incoming_names[name_str] = true
+
+	for i: int in range(all_entities.size() - 1, -1, -1):
+		var ent: OwnEntity = all_entities[i]
+		if not is_instance_valid(ent): continue
+		var ent_id: String = ent.entity_id.strip_edges()
+		var ent_name: String = ent.display_name.strip_edges().to_lower()
+
+		var is_duplicate_id: bool = not ent_id.is_empty() and incoming_ids.has(ent_id)
+		var is_duplicate_char: bool = (ent.entity_type == Types.EntityType.CHARACTER and not ent_name.is_empty() and incoming_names.has(ent_name))
+
+		if is_duplicate_id or is_duplicate_char:
+			all_entities.remove_at(i)
+			ent.queue_free()
 
 
 static func clear_runtime_entities(canvas: Node2D, all_entities: Array[OwnEntity]) -> void:
@@ -43,13 +73,21 @@ static func clear_runtime_entities(canvas: Node2D, all_entities: Array[OwnEntity
 
 
 static func resolve_traveler_spawn_position(traveler_data: Dictionary, all_entities: Array[OwnEntity]) -> Vector2:
+	# 1. Stairs Arrival Spawn
+	if bool(traveler_data.get("arrival_stairs", false)):
+		for entity: OwnEntity in all_entities:
+			if is_instance_valid(entity) and entity.is_stairs:
+				return entity.global_position + Vector2(30.0, 0.0)
+
+	# 2. Elevator Arrival Spawn
 	if bool(traveler_data.get("arrival_elevator", false)):
 		for entity: OwnEntity in all_entities:
 			if is_instance_valid(entity) and entity.is_elevator:
 				return entity.global_position
 
+	# 3. Doorway Arrival Spawn
 	for entity: OwnEntity in all_entities:
-		if is_instance_valid(entity) and entity.is_portal and not entity.is_elevator:
+		if is_instance_valid(entity) and entity.is_portal and not entity.is_elevator and not entity.is_stairs:
 			return entity.global_position + Vector2(100.0, 0.0)
 
 	return Vector2(300.0, SaveSchema.DEFAULT_FLOOR_Y - 80.0)

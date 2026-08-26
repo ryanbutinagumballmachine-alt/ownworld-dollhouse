@@ -1,5 +1,5 @@
 # ==============================================================================
-# OWNWORLD — WORLD MAP CONTROLLER (BUILDINGS & 1F ENTRY ROUTING)
+# OWNWORLD — WORLD MAP CONTROLLER (BUILDING SETTINGS & FLOOR MANAGEMENT)
 # File: res://Systems/WorldMapController.gd
 # Base Class: CanvasLayer (class_name WorldMapController)
 # ==============================================================================
@@ -26,11 +26,20 @@ var edit_building_id_lbl: Label = null
 var edit_img_lbl: Label = null
 var edit_name_input: LineEdit = null
 var edit_building_id_input: LineEdit = null
-var edit_image_option: OptionButton = null
+var btn_choose_pin_art: Button = null
+var btn_clear_pin_art: Button = null
 var edit_preview_rect: TextureRect = null
-var active_editing_pin: MapPin = null
+var selected_pin_art_path: String = ""
 
-var bg_select_dialog: FileDialog = null
+# Floor Management in Building Settings
+var floors_vbox: VBoxContainer = null
+var btn_add_floor_to_bldg: Button = null
+var working_floors_list: Array[Dictionary] = []
+var deleted_room_ids: Array[String] = []
+
+var active_editing_pin: MapPin = null
+var asset_picker: AssetPickerDialog = null
+
 var is_edit_mode: bool = false
 var map_pins: Array[MapPin] = []
 
@@ -51,8 +60,10 @@ func _ready() -> void:
 	add_to_group("modal_ui")
 	_build_map_ui()
 	_build_pin_editor_dialog()
-	_build_bg_file_dialog()
 	_setup_keyboard_dodging()
+
+	asset_picker = AssetPickerDialog.new()
+	add_child(asset_picker)
 
 	if not ThemeService.theme_changed.is_connected(_on_theme_changed):
 		ThemeService.theme_changed.connect(_on_theme_changed)
@@ -209,7 +220,7 @@ func _build_map_ui() -> void:
 	map_display.add_child(map_background_rect)
 
 	empty_hint_label = Label.new()
-	empty_hint_label.text = "Blank Map Canvas\nPlace custom map images into Documents/OwnWorld/Dollhouse/Art to select."
+	empty_hint_label.text = "Blank Map Canvas\nTap 'Map Art' above to choose a background illustration from your library."
 	empty_hint_label.theme_type_variation = "HintLabel"
 	empty_hint_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	empty_hint_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
@@ -319,25 +330,45 @@ func _build_pin_editor_dialog() -> void:
 	modal_backdrop.add_child(center)
 
 	pin_editor_panel = PanelContainer.new()
-	pin_editor_panel.custom_minimum_size = Vector2(420.0, 380.0)
+	pin_editor_panel.custom_minimum_size = Vector2(480.0, 520.0)
 	pin_editor_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	center.add_child(pin_editor_panel)
 
-	var vbox: VBoxContainer = VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 8)
-	pin_editor_panel.add_child(vbox)
+	var outer_vbox: VBoxContainer = VBoxContainer.new()
+	outer_vbox.add_theme_constant_override("separation", 6)
+	pin_editor_panel.add_child(outer_vbox)
 
 	edit_title_lbl = Label.new()
-	edit_title_lbl.text = "Configure Building Location"
+	edit_title_lbl.text = "Building Settings & Floor Management"
 	edit_title_lbl.theme_type_variation = "HeaderLabel"
 	edit_title_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	vbox.add_child(edit_title_lbl)
+	edit_title_lbl.add_theme_font_size_override("font_size", 13)
+	outer_vbox.add_child(edit_title_lbl)
 
-	vbox.add_child(HSeparator.new())
+	outer_vbox.add_child(HSeparator.new())
+
+	var scroll: ScrollContainer = ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	scroll.follow_focus = false
+	outer_vbox.add_child(scroll)
+
+	var vbox: VBoxContainer = VBoxContainer.new()
+	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	vbox.add_theme_constant_override("separation", 8)
+	scroll.add_child(vbox)
+
+	# --- Building Identity ---
+	var id_grid: GridContainer = GridContainer.new()
+	id_grid.columns = 2
+	id_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	id_grid.add_theme_constant_override("h_separation", 8)
+	vbox.add_child(id_grid)
 
 	var name_box: VBoxContainer = VBoxContainer.new()
-	name_box.add_theme_constant_override("separation", 3)
-	vbox.add_child(name_box)
+	name_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_box.add_theme_constant_override("separation", 2)
+	id_grid.add_child(name_box)
 
 	edit_name_lbl = Label.new()
 	edit_name_lbl.text = "Building Name:"
@@ -345,40 +376,42 @@ func _build_pin_editor_dialog() -> void:
 	name_box.add_child(edit_name_lbl)
 
 	edit_name_input = LineEdit.new()
-	edit_name_input.placeholder_text = "e.g. Castle, Magic Guild, Bakery, Clock Tower..."
+	edit_name_input.placeholder_text = "e.g. Castle, Bakery, Tower..."
 	edit_name_input.custom_minimum_size = Vector2(0.0, 32.0)
 	name_box.add_child(edit_name_input)
 
 	var bldg_id_box: VBoxContainer = VBoxContainer.new()
-	bldg_id_box.add_theme_constant_override("separation", 3)
-	vbox.add_child(bldg_id_box)
+	bldg_id_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	bldg_id_box.add_theme_constant_override("separation", 2)
+	id_grid.add_child(bldg_id_box)
 
 	edit_building_id_lbl = Label.new()
-	edit_building_id_lbl.text = "Shared Building ID (All floors in this building share this):"
+	edit_building_id_lbl.text = "Shared Building ID:"
 	edit_building_id_lbl.theme_type_variation = "HintLabel"
 	bldg_id_box.add_child(edit_building_id_lbl)
 
 	edit_building_id_input = LineEdit.new()
-	edit_building_id_input.placeholder_text = "e.g. building_castle, building_bakery"
+	edit_building_id_input.placeholder_text = "e.g. building_castle"
 	edit_building_id_input.custom_minimum_size = Vector2(0.0, 32.0)
 	bldg_id_box.add_child(edit_building_id_input)
 
+	# --- Building Artwork Picker ---
 	var img_section: VBoxContainer = VBoxContainer.new()
 	img_section.add_theme_constant_override("separation", 3)
 	vbox.add_child(img_section)
 
 	edit_img_lbl = Label.new()
-	edit_img_lbl.text = "Building Artwork on Map:"
+	edit_img_lbl.text = "Map Pin Illustration (Cardless Artwork):"
 	edit_img_lbl.theme_type_variation = "HintLabel"
 	img_section.add_child(edit_img_lbl)
 
 	var img_hbox: HBoxContainer = HBoxContainer.new()
-	img_hbox.add_theme_constant_override("separation", 10)
+	img_hbox.add_theme_constant_override("separation", 8)
 	img_section.add_child(img_hbox)
 
 	var prev_card: PanelContainer = PanelContainer.new()
 	prev_card.theme_type_variation = "SubPanel"
-	prev_card.custom_minimum_size = Vector2(48.0, 48.0)
+	prev_card.custom_minimum_size = Vector2(44.0, 44.0)
 	prev_card.clip_contents = true
 	img_hbox.add_child(prev_card)
 
@@ -388,55 +421,234 @@ func _build_pin_editor_dialog() -> void:
 	edit_preview_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	prev_card.add_child(edit_preview_rect)
 
-	edit_image_option = OptionButton.new()
-	edit_image_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	edit_image_option.custom_minimum_size = Vector2(0.0, 32.0)
-	edit_image_option.item_selected.connect(_on_image_option_selected)
-	img_hbox.add_child(edit_image_option)
+	btn_choose_pin_art = Button.new()
+	btn_choose_pin_art.text = " Choose Drawing from Library..."
+	btn_choose_pin_art.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	btn_choose_pin_art.custom_minimum_size = Vector2(0.0, 32.0)
+	btn_choose_pin_art.focus_mode = Control.FOCUS_NONE
+	var f_icon: Texture2D = ThemeService.get_icon("icon_folder")
+	if f_icon: btn_choose_pin_art.icon = f_icon
+	btn_choose_pin_art.pressed.connect(_on_choose_pin_art_pressed)
+	img_hbox.add_child(btn_choose_pin_art)
+
+	btn_clear_pin_art = Button.new()
+	btn_clear_pin_art.text = "Reset Art"
+	btn_clear_pin_art.custom_minimum_size = Vector2(80.0, 32.0)
+	btn_clear_pin_art.focus_mode = Control.FOCUS_NONE
+	btn_clear_pin_art.pressed.connect(_on_clear_pin_art_pressed)
+	img_hbox.add_child(btn_clear_pin_art)
 
 	vbox.add_child(HSeparator.new())
 
+	# --- Building Floors Management ---
+	var floors_section: PanelContainer = PanelContainer.new()
+	floors_section.theme_type_variation = "SubPanel"
+	vbox.add_child(floors_section)
+
+	var floors_inner_vbox: VBoxContainer = VBoxContainer.new()
+	floors_inner_vbox.add_theme_constant_override("separation", 6)
+	floors_section.add_child(floors_inner_vbox)
+
+	var floors_hdr_hbox: HBoxContainer = HBoxContainer.new()
+	floors_inner_vbox.add_child(floors_hdr_hbox)
+
+	var lbl_floors: Label = Label.new()
+	lbl_floors.text = "Building Floors & Elevator Levels:"
+	lbl_floors.theme_type_variation = "HeaderLabel"
+	lbl_floors.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	lbl_floors.add_theme_font_size_override("font_size", 11)
+	floors_hdr_hbox.add_child(lbl_floors)
+
+	btn_add_floor_to_bldg = Button.new()
+	btn_add_floor_to_bldg.text = " + Add Floor"
+	btn_add_floor_to_bldg.custom_minimum_size = Vector2(95.0, 26.0)
+	btn_add_floor_to_bldg.focus_mode = Control.FOCUS_NONE
+	btn_add_floor_to_bldg.add_theme_font_size_override("font_size", 10)
+	btn_add_floor_to_bldg.pressed.connect(_on_add_floor_to_building_pressed)
+	floors_hdr_hbox.add_child(btn_add_floor_to_bldg)
+
+	var floor_col_header: HBoxContainer = HBoxContainer.new()
+	floor_col_header.add_theme_constant_override("separation", 6)
+	floors_inner_vbox.add_child(floor_col_header)
+
+	var h_lvl: Label = Label.new()
+	h_lvl.text = "Level (1F, 2F)"
+	h_lvl.custom_minimum_size = Vector2(90.0, 0.0)
+	h_lvl.theme_type_variation = "HintLabel"
+	h_lvl.add_theme_font_size_override("font_size", 9)
+	floor_col_header.add_child(h_lvl)
+
+	var h_title: Label = Label.new()
+	h_title.text = "Room Name / Title"
+	h_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	h_title.theme_type_variation = "HintLabel"
+	h_title.add_theme_font_size_override("font_size", 9)
+	floor_col_header.add_child(h_title)
+
+	var h_id: Label = Label.new()
+	h_id.text = "Room ID (File Key)"
+	h_id.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	h_id.theme_type_variation = "HintLabel"
+	h_id.add_theme_font_size_override("font_size", 9)
+	floor_col_header.add_child(h_id)
+
+	var h_del: Control = Control.new()
+	h_del.custom_minimum_size = Vector2(24.0, 0.0)
+	floor_col_header.add_child(h_del)
+
+	floors_vbox = VBoxContainer.new()
+	floors_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	floors_vbox.add_theme_constant_override("separation", 4)
+	floors_inner_vbox.add_child(floors_vbox)
+
+	outer_vbox.add_child(HSeparator.new())
+
 	var btn_save: Button = Button.new()
-	btn_save.text = " Save Building"
+	btn_save.text = " Save Building & Floors"
 	btn_save.custom_minimum_size = Vector2(0.0, 36.0)
 	btn_save.focus_mode = Control.FOCUS_NONE
 	btn_save.add_theme_constant_override("icon_max_width", 16)
 	var s_icon: Texture2D = ThemeService.get_icon("icon_save")
 	if s_icon: btn_save.icon = s_icon
 	btn_save.pressed.connect(_on_save_pin_editor_pressed)
-	vbox.add_child(btn_save)
+	outer_vbox.add_child(btn_save)
 
 
 func open_pin_editor(pin: MapPin) -> void:
 	active_editing_pin = pin
 	edit_name_input.text = pin.building_name
 	edit_building_id_input.text = pin.building_id
+	selected_pin_art_path = pin.image_path
 
-	edit_image_option.clear()
-	edit_image_option.add_item("(Default Location Icon)", 0)
+	if selected_pin_art_path != "" and FileAccess.file_exists(selected_pin_art_path):
+		edit_preview_rect.texture = UGCManager.get_thumbnail_async(selected_pin_art_path, 128)
+		btn_choose_pin_art.text = " Art: " + selected_pin_art_path.get_file().get_basename()
+	else:
+		edit_preview_rect.texture = pin.pin_texture
+		btn_choose_pin_art.text = " Choose Drawing from Library..."
 
-	var art_files: Array[Dictionary] = UGCManager.scan_user_art_library()
-	var selected_idx: int = 0
-	for i: int in range(art_files.size()):
-		var art_data: Dictionary = art_files[i]
-		var a_name: String = str(art_data.get("name", "Art"))
-		var a_path: String = str(art_data.get("file_path", ""))
-		edit_image_option.add_item(a_name, i + 1)
-		if a_path == pin.image_path: selected_idx = i + 1
-
-	edit_image_option.selected = selected_idx
-	edit_preview_rect.texture = pin.pin_texture
+	deleted_room_ids.clear()
+	_load_floors_for_editing_building(pin.building_id, pin.building_name)
 	modal_backdrop.visible = true
 
 
-func _on_image_option_selected(idx: int) -> void:
-	if idx == 0:
-		edit_preview_rect.texture = UGCManager.create_blank_starter_graphic(Vector2(64.0, 64.0), Color("#0284c7"))
+func _on_choose_pin_art_pressed() -> void:
+	if asset_picker == null: return
+	asset_picker.open_picker("Choose Building Pin Drawing", "", func(art_name: String, texture: Texture2D, file_path: String) -> void:
+		selected_pin_art_path = file_path
+		edit_preview_rect.texture = texture
+		btn_choose_pin_art.text = " Art: " + art_name
+	)
+
+
+func _on_clear_pin_art_pressed() -> void:
+	selected_pin_art_path = ""
+	edit_preview_rect.texture = UGCManager.create_blank_starter_graphic(Vector2(64.0, 64.0), Color("#0284c7"))
+	btn_choose_pin_art.text = " Choose Drawing from Library..."
+
+
+func _load_floors_for_editing_building(bldg_id: String, bldg_name: String) -> void:
+	working_floors_list.clear()
+	var raw_floors: Array[Dictionary] = SaveSystem.get_building_floors(bldg_id)
+
+	if raw_floors.is_empty():
+		var entry_room_id: String = "room_main" if bldg_id == "building_main" else bldg_id + "_1f"
+		working_floors_list.append({
+			"floor_level": "1F",
+			"room_title": bldg_name + " (1F)",
+			"room_id": entry_room_id
+		})
 	else:
-		var art_files: Array[Dictionary] = UGCManager.scan_user_art_library()
-		var chosen: Dictionary = art_files[idx - 1]
-		var fpath: String = str(chosen.get("file_path", ""))
-		edit_preview_rect.texture = UGCManager.get_thumbnail_async(fpath, 128)
+		for fl_data: Dictionary in raw_floors:
+			var r_id: String = str(fl_data.get("room_id", ""))
+			var room_state: Dictionary = SaveSystem.load_room_state(r_id)
+			working_floors_list.append({
+				"floor_level": str(fl_data.get("floor_level", "1F")),
+				"room_title": str(room_state.get("room_title", fl_data.get("label", "Floor"))),
+				"room_id": r_id
+			})
+
+	_render_floors_list()
+
+
+func _render_floors_list() -> void:
+	if floors_vbox == null: return
+	for child: Node in floors_vbox.get_children():
+		child.queue_free()
+
+	for index: int in range(working_floors_list.size()):
+		var fl_data: Dictionary = working_floors_list[index]
+		var row: HBoxContainer = HBoxContainer.new()
+		row.add_theme_constant_override("separation", 6)
+
+		var lvl_edit: LineEdit = LineEdit.new()
+		lvl_edit.text = str(fl_data.get("floor_level", "1F"))
+		lvl_edit.placeholder_text = "1F, 2F..."
+		lvl_edit.custom_minimum_size = Vector2(90.0, 30.0)
+		var target_idx: int = index
+		lvl_edit.text_changed.connect(func(new_lvl: String) -> void:
+			working_floors_list[target_idx]["floor_level"] = new_lvl.strip_edges()
+		)
+		row.add_child(lvl_edit)
+
+		var title_edit: LineEdit = LineEdit.new()
+		title_edit.text = str(fl_data.get("room_title", "Room"))
+		title_edit.placeholder_text = "Room Name..."
+		title_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		title_edit.custom_minimum_size = Vector2(0.0, 30.0)
+		title_edit.text_changed.connect(func(new_title: String) -> void:
+			working_floors_list[target_idx]["room_title"] = new_title.strip_edges()
+		)
+		row.add_child(title_edit)
+
+		var id_edit: LineEdit = LineEdit.new()
+		id_edit.text = str(fl_data.get("room_id", ""))
+		id_edit.placeholder_text = "Room ID..."
+		id_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		id_edit.custom_minimum_size = Vector2(0.0, 30.0)
+		id_edit.text_changed.connect(func(new_id: String) -> void:
+			working_floors_list[target_idx]["room_id"] = new_id.strip_edges()
+		)
+		row.add_child(id_edit)
+
+		var del_btn: Button = Button.new()
+		del_btn.text = "✕"
+		del_btn.custom_minimum_size = Vector2(26.0, 26.0)
+		del_btn.theme_type_variation = "DangerButton"
+		del_btn.focus_mode = Control.FOCUS_NONE
+		del_btn.pressed.connect(func() -> void: _remove_floor_from_building(target_idx))
+		row.add_child(del_btn)
+
+		floors_vbox.add_child(row)
+
+
+func _on_add_floor_to_building_pressed() -> void:
+	var next_num: int = working_floors_list.size() + 1
+	var b_id: String = edit_building_id_input.text.strip_edges()
+	if b_id.is_empty(): b_id = "building_main"
+	var b_name: String = edit_name_input.text.strip_edges()
+	if b_name.is_empty(): b_name = "Building"
+
+	var next_level_str: String = "%dF" % next_num
+	var next_room_id: String = "%s_%df" % [b_id.to_lower().replace(" ", "_"), next_num]
+	var next_title: String = "%s (%s)" % [b_name, next_level_str]
+
+	working_floors_list.append({
+		"floor_level": next_level_str,
+		"room_title": next_title,
+		"room_id": next_room_id
+	})
+	_render_floors_list()
+
+
+func _remove_floor_from_building(index: int) -> void:
+	if index < 0 or index >= working_floors_list.size(): return
+	var r_id_to_delete: String = str(working_floors_list[index].get("room_id", "")).strip_edges()
+	if not r_id_to_delete.is_empty() and r_id_to_delete != "room_main":
+		deleted_room_ids.append(r_id_to_delete)
+
+	working_floors_list.remove_at(index)
+	_render_floors_list()
 
 
 func _on_save_pin_editor_pressed() -> void:
@@ -450,19 +662,43 @@ func _on_save_pin_editor_pressed() -> void:
 		active_editing_pin.building_name = b_name
 		active_editing_pin.building_id = b_id
 
-		var sel_idx: int = edit_image_option.selected
-		if sel_idx == 0:
+		if selected_pin_art_path != "" and FileAccess.file_exists(selected_pin_art_path):
+			active_editing_pin.set_pin_image(selected_pin_art_path, UGCManager.get_thumbnail_async(selected_pin_art_path, 128))
+		else:
 			active_editing_pin.image_path = ""
 			active_editing_pin.set_pin_image("", UGCManager.create_blank_starter_graphic(Vector2(64.0, 64.0), Color("#0284c7")))
-		else:
-			var art_files: Array[Dictionary] = UGCManager.scan_user_art_library()
-			var chosen: Dictionary = art_files[sel_idx - 1]
-			var fpath: String = str(chosen.get("file_path", ""))
-			active_editing_pin.set_pin_image(fpath, UGCManager.get_thumbnail_async(fpath, 128))
 
 		active_editing_pin.update_visuals()
+
+		# 1. Delete removed room files
+		var save_dir: String = SaveSystem.get_universe_save_dir()
+		for del_id: String in deleted_room_ids:
+			var del_path: String = save_dir.path_join(del_id + ".json")
+			if FileAccess.file_exists(del_path):
+				DirAccess.remove_absolute(del_path)
+
+		# 2. Persist / Update all floor rooms for this building
+		for fl_data: Dictionary in working_floors_list:
+			var r_id: String = str(fl_data.get("room_id", "")).strip_edges()
+			if r_id.is_empty(): continue
+
+			var r_level: String = str(fl_data.get("floor_level", "1F")).strip_edges()
+			var r_title: String = str(fl_data.get("room_title", b_name + " (" + r_level + ")")).strip_edges()
+
+			var existing_state: Dictionary = SaveSystem.load_room_state(r_id)
+			if existing_state.is_empty():
+				existing_state = SaveSchema.create_empty_room(r_id, b_id, b_name, r_level)
+				existing_state["room_title"] = r_title
+			else:
+				existing_state["building_id"] = b_id
+				existing_state["building_name"] = b_name
+				existing_state["floor_level"] = r_level
+				existing_state["room_title"] = r_title
+
+			SaveSystem.save_room_state(r_id, existing_state)
+
 		save_map_for_current_universe()
-		EventBus.notification_requested.emit("Saved Building: " + active_editing_pin.building_name, true)
+		EventBus.notification_requested.emit("Saved Building & Floors: " + b_name, true)
 
 	modal_backdrop.visible = false
 	active_editing_pin = null
@@ -486,18 +722,20 @@ func close_map() -> void:
 	visible = false
 
 
+# Sourced directly from AssetPickerDialog
 func _on_change_bg_pressed() -> void:
-	bg_select_dialog.theme = ThemeService.create_theme()
-	bg_select_dialog.current_dir = UGCManager.get_art_root_directory()
-	bg_select_dialog.popup_centered_ratio(0.7)
+	if asset_picker == null: return
+	asset_picker.open_picker("Choose Map Background Artwork", "", func(_name: String, texture: Texture2D, file_path: String) -> void:
+		_on_bg_asset_selected(file_path, texture)
+	)
 
 
-func _on_bg_file_selected(fpath: String) -> void:
-	if FileAccess.file_exists(fpath):
-		current_bg_image_path = fpath
-		map_background_rect.texture = UGCManager.load_texture_from_file(fpath)
-		empty_hint_label.visible = false
-		save_map_for_current_universe()
+func _on_bg_asset_selected(fpath: String, texture: Texture2D) -> void:
+	current_bg_image_path = fpath
+	map_background_rect.texture = texture if texture != null else UGCManager.load_texture_from_file(fpath)
+	empty_hint_label.visible = false
+	save_map_for_current_universe()
+	EventBus.notification_requested.emit("Map background updated!", true)
 
 
 func _update_pins_edit_mode() -> void:
@@ -554,7 +792,7 @@ func save_map_for_current_universe() -> void:
 				"name": pin.building_name,
 				"building_name": pin.building_name,
 				"building_id": pin.building_id,
-				"room_id": pin.building_id, # Compatibility fallback
+				"room_id": pin.building_id,
 				"image_path": pin.image_path,
 				"x": pin.position.x,
 				"y": pin.position.y
@@ -603,9 +841,48 @@ func _on_reset_rooms_pressed() -> void:
 	reset_all_rooms_requested.emit()
 
 
-# When clicking a building on the map -> open the First Floor (1F) of that building!
+# Routes to 1F Ground Floor of the tapped building
 func _on_pin_selected(pin: MapPin) -> void:
-	if not is_edit_mode:
+	if is_edit_mode:
+		return
+
+	var floors: Array[Dictionary] = SaveSystem.get_building_floors(pin.building_id)
+
+	if floors.size() > 1:
+		# Show quick floor entrance popup directly under the tapped building pin
+		var pop: PopupMenu = PopupMenu.new()
+		pop.theme = ThemeService.create_theme()
+		add_child(pop)
+
+		for i: int in range(floors.size()):
+			var fl: Dictionary = floors[i]
+			var fl_label: String = str(fl.get("label", fl.get("room_id", "Floor")))
+			pop.add_item(fl_label, i)
+
+		pop.id_pressed.connect(func(id: int) -> void:
+			if id >= 0 and id < floors.size():
+				var chosen_fl: Dictionary = floors[id]
+				var r_id: String = str(chosen_fl.get("room_id", ""))
+				var fl_lvl: String = str(chosen_fl.get("floor_level", "1F"))
+				var fl_label: String = str(chosen_fl.get("label", pin.building_name))
+				pop.queue_free()
+				close_map()
+
+				var traveler_data: Dictionary = {
+					"building_id": pin.building_id,
+					"building_name": pin.building_name,
+					"floor_level": fl_lvl,
+					"room_title": fl_label,
+					"source": "world_map"
+				}
+				EventBus.room_change_requested.emit(r_id, traveler_data)
+		)
+
+		pop.popup_hide.connect(pop.queue_free)
+		var pin_global_pos: Vector2 = pin.get_global_rect().position
+		pop.position = Vector2i(int(pin_global_pos.x - 20.0), int(pin_global_pos.y + 70.0))
+		pop.popup()
+	else:
 		close_map()
 		var target_entry_room: String = SaveSystem.get_building_entry_room_id(pin.building_id)
 		var traveler_data: Dictionary = {
@@ -616,18 +893,6 @@ func _on_pin_selected(pin: MapPin) -> void:
 			"source": "world_map"
 		}
 		EventBus.room_change_requested.emit(target_entry_room, traveler_data)
-
-
-func _build_bg_file_dialog() -> void:
-	bg_select_dialog = FileDialog.new()
-	bg_select_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
-	bg_select_dialog.access = FileDialog.ACCESS_FILESYSTEM
-	bg_select_dialog.use_native_dialog = true
-	bg_select_dialog.filters = ["*.png, *.jpg, *.jpeg, *.webp ; Image Files"]
-	bg_select_dialog.min_size = Vector2i(760, 480)
-	bg_select_dialog.current_dir = UGCManager.get_art_root_directory()
-	bg_select_dialog.file_selected.connect(_on_bg_file_selected)
-	add_child(bg_select_dialog)
 
 
 # ------------------------------------------------------------------------------

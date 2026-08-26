@@ -1,5 +1,5 @@
 # ==============================================================================
-# OWNWORLD — TOP NAVIGATION BAR
+# OWNWORLD — TOP NAVIGATION BAR (WITH DIRECT FLOOR SWITCHER)
 # File: res://UI/TopNavBar.gd
 # Base Class: CanvasLayer (class_name TopNavBar)
 # ==============================================================================
@@ -12,6 +12,7 @@ var capsule_panel: PanelContainer = null
 var hbox: HBoxContainer = null
 
 var btn_menu: Button = null
+var btn_floors: Button = null
 var btn_zoom: Button = null
 var btn_map: Button = null
 var btn_room: Button = null
@@ -20,6 +21,7 @@ var btn_undo: Button = null
 signal open_main_menu_requested()
 signal open_world_map_requested()
 signal open_room_studio_requested()
+signal open_floor_switcher_requested()
 signal toggle_zoom_mode_requested()
 signal undo_requested()
 signal open_tutorial_requested()
@@ -60,6 +62,10 @@ func _build_nav_ui() -> void:
 	var btn_help: Button = _create_nav_btn("Guide", "icon_lore", func() -> void: open_tutorial_requested.emit())
 	hbox.add_child(btn_help)
 
+	# Direct Floor Switcher Button
+	btn_floors = _create_nav_btn("1F ▼", "icon_elevator", func() -> void: open_floor_switcher_requested.emit())
+	hbox.add_child(btn_floors)
+
 	btn_zoom = _create_nav_btn("Zoom", "icon_search", func() -> void: toggle_zoom_mode_requested.emit())
 	btn_zoom.toggle_mode = true
 	hbox.add_child(btn_zoom)
@@ -85,6 +91,11 @@ func set_zoom_button_state(is_zoom_active: bool) -> void:
 		btn_zoom.button_pressed = is_zoom_active
 		btn_zoom.text = " Focus" if is_zoom_active else " Zoom"
 		btn_zoom.modulate = Color(1.3, 1.3, 1.3) if is_zoom_active else Color.WHITE
+
+
+func update_current_floor_display(floor_level: String, _floor_title: String = "") -> void:
+	if btn_floors != null:
+		btn_floors.text = " %s ▼ " % (floor_level if not floor_level.is_empty() else "1F")
 
 
 func _create_nav_btn(title: String, icon_key: String, on_click: Callable) -> Button:
@@ -115,6 +126,7 @@ func _apply_theme() -> void:
 		root_container.theme = ThemeService.create_theme()
 
 	_apply_nav_icon(btn_menu, "icon_menu")
+	_apply_nav_icon(btn_floors, "icon_elevator")
 	_apply_nav_icon(btn_zoom, "icon_search")
 	_apply_nav_icon(btn_map, "icon_map")
 	_apply_nav_icon(btn_room, "icon_room")

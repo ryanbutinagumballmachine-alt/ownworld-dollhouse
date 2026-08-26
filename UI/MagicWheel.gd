@@ -106,9 +106,12 @@ func _populate_context_tools(entity: OwnEntity) -> void:
 		tools.append({"name": "lore", "label": "Profile", "icon": "icon_lore"})
 		tools.append({"name": "anchors", "label": "Anchors", "icon": "icon_anchors"})
 		tools.append({"name": "flip", "label": "Flip Horizontal", "icon": "icon_flip"})
+	elif entity.is_stairs:
+		tools.append({"name": "climb_stairs", "label": "Climb Above", "icon": "icon_up"})
+		tools.append({"name": "save_template", "label": "Save Prefab", "icon": "icon_prefab"})
+		tools.append({"name": "flip", "label": "Flip Horizontal", "icon": "icon_flip"})
 	elif entity.is_elevator:
 		tools.append({"name": "elevator", "label": "Keypad", "icon": "icon_elevator"})
-		tools.append({"name": "edit_floors", "label": "Floor Studio", "icon": "icon_settings"})
 		tools.append({"name": "save_template", "label": "Save Prefab", "icon": "icon_prefab"})
 		tools.append({"name": "flip", "label": "Flip Horizontal", "icon": "icon_flip"})
 	elif entity.is_portal:
@@ -149,6 +152,8 @@ func _populate_context_tools(entity: OwnEntity) -> void:
 		btn.add_theme_constant_override("icon_max_width", 14)
 
 		var icon_texture: Texture2D = ThemeService.get_icon(str(tool_data["icon"]))
+		if icon_texture == null and str(tool_data["icon"]) == "icon_up":
+			icon_texture = ThemeService.get_icon("icon_stairs")
 		if icon_texture != null:
 			btn.icon = icon_texture
 			btn.expand_icon = false

@@ -88,8 +88,9 @@ var light_pulse_speed: float = 2.0
 var linked_light: PointLight2D = null
 var anchor_light_nodes: Array[PointLight2D] = []
 
-# Portals & Multi-Floor Elevators (Pure Player-Set Artwork)
+# Portals, Stairs & Multi-Floor Elevators
 var is_portal: bool = false
+var is_stairs: bool = false
 var target_room_id: String = ""
 var is_door_open: bool = false
 var is_elevator: bool = false
@@ -1129,17 +1130,26 @@ func configure_as_floor_decor(enabled: bool) -> void:
 	z_index = base_layer_band
 
 
-# PURE PLAYER-SET ASSET DOORS & ELEVATORS
+# PURE PLAYER-SET ASSET DOORS, STAIRS & ELEVATORS
 func configure_as_portal(p_target_room: String, p_portal_name: String) -> void:
 	is_portal = true
+	is_stairs = false
 	is_elevator = false
 	is_wall_mounted = true
 	target_room_id = p_target_room
 	display_name = p_portal_name if p_portal_name != "" else display_name
 
 
+func configure_as_stairs(p_name: String = "Stairs") -> void:
+	is_portal = true
+	is_stairs = true
+	is_elevator = false
+	display_name = p_name if p_name != "" else display_name
+
+
 func configure_as_elevator(floors: Array[Dictionary] = [], p_name: String = "Elevator") -> void:
 	is_portal = true
+	is_stairs = false
 	is_elevator = true
 	is_wall_mounted = true
 	display_name = p_name if p_name != "" else display_name
@@ -1155,6 +1165,7 @@ func configure_as_elevator(floors: Array[Dictionary] = [], p_name: String = "Ele
 
 func unconfigure_portal_and_elevator() -> void:
 	is_portal = false
+	is_stairs = false
 	is_elevator = false
 	elevator_floors.clear()
 	target_room_id = ""
@@ -1628,6 +1639,7 @@ func to_dict() -> Dictionary:
 		"light_radius": light_radius,
 		"light_pulse_speed": light_pulse_speed,
 		"is_portal": is_portal,
+		"is_stairs": is_stairs,
 		"target_room_id": target_room_id,
 		"is_door_open": is_door_open,
 		"is_elevator": is_elevator,
@@ -1700,6 +1712,7 @@ func from_dict(d: Dictionary) -> void:
 	light_pulse_speed = float(d.get("light_pulse_speed", 2.0))
 
 	is_portal = bool(d.get("is_portal", false))
+	is_stairs = bool(d.get("is_stairs", false))
 	target_room_id = str(d.get("target_room_id", ""))
 	is_door_open = bool(d.get("is_door_open", false))
 	is_elevator = bool(d.get("is_elevator", false))
@@ -1794,6 +1807,7 @@ func from_dict(d: Dictionary) -> void:
 	set_entity_scale(entity_scale)
 
 	if is_elevator: configure_as_elevator(elevator_floors, display_name)
+	elif is_stairs: configure_as_stairs(display_name)
 	elif is_portal: configure_as_portal(target_room_id, display_name)
 
 	if is_door_open:
@@ -1804,7 +1818,6 @@ func from_dict(d: Dictionary) -> void:
 	for r: Variant in raw_rules:
 		if r is Dictionary: logic_rules.append((r as Dictionary).duplicate(true))
 
-	# 1. Deserialize Anchor Points first!
 	snap_points.clear()
 	var snap_data: Dictionary = d.get("snap_points", {})
 	for k: String in snap_data.keys():
@@ -1821,7 +1834,6 @@ func from_dict(d: Dictionary) -> void:
 			"type": int(iv.get("type", 0))
 		}
 
-	# 2. Configure liquid sources and lighting using the loaded anchor positions
 	if is_liquid_source:
 		configure_as_liquid_source()
 		if is_active and linked_particles: linked_particles.emitting = true

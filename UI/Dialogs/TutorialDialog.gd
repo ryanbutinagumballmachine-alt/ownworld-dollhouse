@@ -49,7 +49,7 @@ var tutorial_chapters: Array[Dictionary] = [
 			},
 			{
 				"title": "Interacting with Objects",
-				"body": "• Tap / Click: Tap on lights, doors, elevators, containers, or appliances to trigger their default action (turn on/off, open/close, travel floors, toggle).\n• Drag & Drop: Press and drag any unlocked item or character. Drop them onto chairs, tables, beds, or other characters to snap them into place.\n• Magic Wheel: Long-press any item or character (or right-click) to open the Magic Wheel context menu for rapid customization, wardrobe changes, and logic scripting."
+				"body": "• Tap / Click: Tap on lights, doors, elevators, stairs, containers, or appliances to trigger their default action (turn on/off, climb upstairs, open/close, travel floors, toggle).\n• Drag & Drop: Press and drag any unlocked item or character. Drop them onto chairs, tables, beds, or stairs to snap or travel.\n• Magic Wheel: Long-press any item or character (or right-click) to open the Magic Wheel context menu for rapid customization, wardrobe changes, and logic scripting."
 			},
 			{
 				"title": "The Bottom Drawer Tray",
@@ -68,12 +68,16 @@ var tutorial_chapters: Array[Dictionary] = [
 				"body": "OwnWorld automatically manages your drawings inside your device's Documents directory:\n\n📁 Documents / OwnWorld / Dollhouse / Art\n\nAny transparent PNG, WebP, JPG, or JPEG placed in this folder (or any subfolder inside it) will appear instantly in your Assets Drawer with zero loading lag."
 			},
 			{
-				"title": "Creating Perfect Transparent Cutouts",
-				"body": "• Use Transparent PNG or WebP files with transparent backgrounds.\n• The engine automatically generates pixel-perfect collision silhouettes around non-transparent pixels (no manual collision tracing required)!\n• Crop transparent borders closely around your art for the best dragging and snapping experience."
+				"title": "Centralized Image Importing",
+				"body": "To keep file management simple and clean, all image imports are restricted to the Drawer Tray. Tap 'Import' inside the Assets Drawer to import drawings from your device's camera roll or storage."
 			},
 			{
-				"title": "In-Game Importing & Folders",
-				"body": "• Tap the 'Import' button in the Assets Drawer to select pictures directly from your device storage or camera roll.\n• Tap the '+ Folder' button to create custom organizational categories (e.g. 'Outfits', 'Food', 'Bakery_Items').\n• Tap the Tag icon on any item card to assign hashtags (#food, #props, #magic) or move it between folders."
+				"title": "Visual Asset Picker Across All Studios",
+				"body": "All in-game studios (World Map, Character Profiles, Outfits, Room Slices, and Logic) use the in-app Asset Picker dialog to select from your drawings with instant zero-lag thumbnails and tag filtering."
+			},
+			{
+				"title": "Creating Perfect Transparent Cutouts",
+				"body": "• Use Transparent PNG or WebP files with transparent backgrounds.\n• The engine automatically generates pixel-perfect collision silhouettes around non-transparent pixels (no manual collision tracing required)!\n• Crop transparent borders closely around your art for the best dragging and snapping experience."
 			}
 		]
 	},
@@ -176,28 +180,24 @@ var tutorial_chapters: Array[Dictionary] = [
 		"badge": "Worldbuilding",
 		"sections": [
 			{
-				"title": "Room Studio & Floor Level Designation",
-				"body": "Tap 'Room' in the Top Nav Bar to customize your room. You can now set the room's exact Floor Level (e.g. 1F, 2F, 3F, Basement, Attic) so elevators, doorways, and maps recognize which building level the room belongs to."
+				"title": "Building Settings on the World Map",
+				"body": "In the World Map (Edit Mode), tap the settings icon on any building pin to open Building Settings. Here, you can:\n• Add and Delete building floors (1F, 2F, 3F, Basement, Attic) in one place.\n• Assign custom floor levels, room titles, and room ID keys.\n• Pick custom cardless building artwork directly from your library."
+			},
+			{
+				"title": "Stairs (Direct Climb Upstairs)",
+				"body": "Items configured as Stairs allow characters to climb directly into the floor above without opening a keypad! Simply tap the stairs or drop a character onto them to climb. If you are already at the top floor, a helpful notification informs you."
+			},
+			{
+				"title": "Elevators (Keypad Transit)",
+				"body": "Elevators automatically recognize all registered floors in the building. Tapping an elevator opens a keypad to travel to any floor. If a building has no other floors, a notification alerts you to add floors in the World Map."
+			},
+			{
+				"title": "Smooth Cross-Fade Transitions",
+				"body": "All transitions—climbing stairs, riding elevators, walking through doors, or entering buildings from the World Map—now feature smooth, cinematic cross-fades."
 			},
 			{
 				"title": "Multi-Slice Expansion (Up to 10 Screens Wide)",
-				"body": "• 1 Slice = 1 Screen: Every slice is tailored to the exact width and height of your device display.\n• Expand Space: Tap '+ Add Room Slice' to expand your room up to 10 slices long. You can build expansive multi-room corridors, mansions, or streets that scroll seamlessly side-to-side without any vertical scrolling."
-			},
-			{
-				"title": "Custom Procedural Wall, Floor & Trim Colors",
-				"body": "In the Room Studio, you can choose custom colors for each slice's Wall, Floor, and Baseboard/Trim using live color pickers, or reset them back to the active theme palette with one tap."
-			},
-			{
-				"title": "Wall-Mounted Items Stay on Walls",
-				"body": "Items configured as 'Wall-Mounted' (wall clocks, paintings, windows, wall lamps) are strictly locked to the upper wall space above the floor baseline during dragging and dropping—they can never accidentally fall or be placed on the floor."
-			},
-			{
-				"title": "Pure Asset Elevators, Stairs & Doorways",
-				"body": "• Any Art as a Door/Elevator: Configure any drawing in your room as a Doorway or Elevator with zero forced frame graphics.\n• Complete Hierarchy Transit: When characters travel through doors or elevators, everything attached to them (held props, hats, back accessories, pets) travels seamlessly with them to the new floor/room.\n• Elevator Cabin Passengers: Tapping an elevator with characters standing inside automatically routes the entire group to the selected floor."
-			},
-			{
-				"title": "Cardless Building Artwork Map Pins",
-				"body": "Open the World Map to place location pins. Pins render purely as your custom building illustrations directly on the map canvas with no card boxes or borders breaking the visual world immersion."
+				"body": "• 1 Slice = 1 Screen: Every slice is tailored to the exact width and height of your device display.\n• Expand Space: Tap '+ Add Room Slice' in the Room Studio to expand your room up to 10 slices long for seamless side-to-side scrolling."
 			}
 		]
 	},
@@ -209,7 +209,7 @@ var tutorial_chapters: Array[Dictionary] = [
 		"sections": [
 			{
 				"title": "Character Lore Cards",
-				"body": "Long-press any character and select 'Profile' to open their 3-tab Lore Card:\n• Tab 1 (Profile): Name, Pronouns, Role/Title, Life Status (Living/Spirit/Missing), custom avatar image, and unlimited customizable traits.\n• Tab 2 (Family & Feelings): Two-way symmetrical family trees (Parents, Children, Siblings, Partners) and directional relationship feelings (Best Friends, Rivals, Secret Crushes, Mentors).\n• Tab 3 (Backstory): Full text area for backstories, secrets, and character notes."
+				"body": "Long-press any character and select 'Profile' to open their 3-tab Lore Card:\n• Tab 1 (Profile): Name, Pronouns, Role/Title, Life Status (Living/Spirit/Missing), custom avatar image picked from your drawing library, and unlimited customizable traits.\n• Tab 2 (Family & Feelings): Two-way symmetrical family trees (Parents, Children, Siblings, Partners) and directional relationship feelings (Best Friends, Rivals, Secret Crushes, Mentors).\n• Tab 3 (Backstory): Full text area for backstories, secrets, and character notes."
 			},
 			{
 				"title": "World Journal & Chronicles",
@@ -375,7 +375,7 @@ func _build_ui() -> void:
 	header_hbox.add_child(header_title_lbl)
 
 	search_input = LineEdit.new()
-	search_input.placeholder_text = "Search topics (e.g. floors, elevators, doors, colors)..."
+	search_input.placeholder_text = "Search topics (e.g. floors, stairs, elevators, art)..."
 	search_input.custom_minimum_size = Vector2(260.0, 30.0)
 	search_input.text_changed.connect(_on_search_query_changed)
 	header_hbox.add_child(search_input)
@@ -444,7 +444,6 @@ func _render_topics_sidebar() -> void:
 		var chapter: Dictionary = tutorial_chapters[i]
 		var c_title: String = str(chapter["title"])
 
-		# Filter matches
 		if not active_filter_query.is_empty():
 			var matches_query: bool = active_filter_query in c_title.to_lower()
 			if not matches_query:
@@ -564,7 +563,7 @@ func _render_active_topic_content() -> void:
 		sb_lbl.add_theme_color_override("font_color", ThemeService.get_color("text_primary", "#6c2e3f"))
 		card_vbox.add_child(sb_lbl)
 
-	# Bottom Navigation Row (Prev / Next Chapter)
+	# Bottom Navigation Row
 	var nav_row: HBoxContainer = HBoxContainer.new()
 	nav_row.add_theme_constant_override("separation", 10)
 	content_vbox.add_child(nav_row)

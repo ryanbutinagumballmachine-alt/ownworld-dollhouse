@@ -18,6 +18,7 @@ var center_container: CenterContainer = null
 var root_panel: PanelContainer = null
 var active_entity: OwnEntity = null
 var fallback_char_dict: Dictionary = {}
+var asset_picker: AssetPickerDialog = null
 
 # Header Controls
 var header_lbl: Label = null
@@ -38,7 +39,6 @@ var tab_notes_container: VBoxContainer = null
 var avatar_btn: Button = null
 var avatar_texture_rect: TextureRect = null
 var avatar_path_stored: String = ""
-var avatar_file_dialog: FileDialog = null
 
 var name_edit: LineEdit = null
 var pronouns_edit: LineEdit = null
@@ -99,6 +99,7 @@ const FEELING_PRESETS: Array[String] = [
 	"Guarded / Suspicious Of"
 ]
 
+
 func _ready() -> void:
 	name = "CharacterLoreCard"
 	layer = 130
@@ -111,6 +112,10 @@ func _ready() -> void:
 	_update_responsive_layout()
 	_setup_keyboard_dodging()
 
+	asset_picker = AssetPickerDialog.new()
+	add_child(asset_picker)
+
+
 func _connect_system_signals() -> void:
 	if not ThemeService.theme_changed.is_connected(_on_theme_changed):
 		ThemeService.theme_changed.connect(_on_theme_changed)
@@ -119,12 +124,14 @@ func _connect_system_signals() -> void:
 	if tree and tree.root and not tree.root.size_changed.is_connected(_update_responsive_layout):
 		tree.root.size_changed.connect(_update_responsive_layout)
 
+
 func _setup_keyboard_dodging() -> void:
 	var inputs: Array[Control] = [name_edit, pronouns_edit, role_edit, lore_text_edit]
 	for input in inputs:
 		if input != null:
 			input.focus_entered.connect(_on_input_focus_entered)
 			input.focus_exited.connect(_on_input_focus_exited)
+
 
 func _on_input_focus_entered() -> void:
 	if OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios"):
@@ -135,10 +142,12 @@ func _on_input_focus_entered() -> void:
 			var tween: Tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 			tween.tween_property(center_container, "position:y", -kb_height * 0.4, 0.25)
 
+
 func _on_input_focus_exited() -> void:
 	if OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios"):
 		var tween: Tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 		tween.tween_property(center_container, "position:y", 0.0, 0.25)
+
 
 func _update_responsive_layout() -> void:
 	if not is_instance_valid(root_panel):
@@ -149,10 +158,12 @@ func _update_responsive_layout() -> void:
 	root_panel.custom_minimum_size = Vector2(target_w, target_h)
 	root_panel.size = Vector2(target_w, target_h)
 
+
 func _on_theme_changed(_theme_data: Dictionary) -> void:
 	_apply_theme_styling()
 	if visible:
 		_switch_tab(current_tab)
+
 
 func _apply_theme_styling() -> void:
 	var c_bg: Color = ThemeService.get_color("panel_background", "#fff5f7")
@@ -184,6 +195,7 @@ func _apply_theme_styling() -> void:
 		btn_close.icon = close_icon
 
 	_switch_tab(current_tab)
+
 
 func _build_ui() -> void:
 	root_backdrop = Control.new()
@@ -303,19 +315,8 @@ func _build_ui() -> void:
 	btn_save.pressed.connect(save_and_close)
 	main_vbox.add_child(btn_save)
 
-	_build_avatar_file_dialog()
 	_switch_tab(CardTab.PROFILE)
 
-func _build_avatar_file_dialog() -> void:
-	avatar_file_dialog = FileDialog.new()
-	avatar_file_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
-	avatar_file_dialog.access = FileDialog.ACCESS_FILESYSTEM
-	avatar_file_dialog.use_native_dialog = true
-	avatar_file_dialog.filters = ["*.png, *.webp, *.jpg ; Image Files"]
-	avatar_file_dialog.min_size = Vector2i(760, 480)
-	avatar_file_dialog.current_dir = UGCManager.get_art_root_directory()
-	avatar_file_dialog.file_selected.connect(_on_avatar_file_selected)
-	add_child(avatar_file_dialog)
 
 func _create_tab_button(title: String, icon_key: String, tab_target: CardTab) -> Button:
 	var btn: Button = Button.new()
@@ -332,6 +333,7 @@ func _create_tab_button(title: String, icon_key: String, tab_target: CardTab) ->
 
 	btn.pressed.connect(func() -> void: _switch_tab(tab_target))
 	return btn
+
 
 func _switch_tab(target: CardTab) -> void:
 	current_tab = target
@@ -376,6 +378,7 @@ func _switch_tab(target: CardTab) -> void:
 			btn.add_theme_stylebox_override("focus", s_act)
 			btn.add_theme_color_override("font_color", Color.WHITE)
 			btn.add_theme_color_override("icon_normal_color", Color.WHITE)
+
 
 func _build_profile_tab() -> void:
 	var scroll: ScrollContainer = ScrollContainer.new()
@@ -508,6 +511,7 @@ func _build_profile_tab() -> void:
 	traits_vbox.add_theme_constant_override("separation", 6)
 	vbox.add_child(traits_vbox)
 
+
 func _add_trait_row(trait_key: String, trait_value: String) -> void:
 	var row: HBoxContainer = HBoxContainer.new()
 	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -540,13 +544,19 @@ func _add_trait_row(trait_key: String, trait_value: String) -> void:
 
 	traits_vbox.add_child(row)
 
+
+# Sourced directly from AssetPickerDialog instead of FileDialog
 func _on_avatar_btn_pressed() -> void:
-	if avatar_file_dialog:
-		avatar_file_dialog.popup_centered_ratio(0.75)
+	if asset_picker != null:
+		asset_picker.open_picker("Choose Character Portrait Drawing", "", func(_art_name: String, _tex: Texture2D, file_path: String) -> void:
+			_on_avatar_file_selected(file_path)
+		)
+
 
 func _on_avatar_file_selected(file_path: String) -> void:
 	avatar_path_stored = file_path
 	_update_avatar_preview()
+
 
 func _update_avatar_preview() -> void:
 	if not avatar_texture_rect:
@@ -555,6 +565,7 @@ func _update_avatar_preview() -> void:
 		active_entity.to_dict() if is_instance_valid(active_entity) else fallback_char_dict,
 		avatar_path_stored
 	)
+
 
 func _resolve_character_portrait(char_dict: Dictionary, explicit_avatar_path: String = "") -> Texture2D:
 	if explicit_avatar_path != "" and FileAccess.file_exists(explicit_avatar_path):
@@ -571,6 +582,7 @@ func _resolve_character_portrait(char_dict: Dictionary, explicit_avatar_path: St
 			return UGCManager.get_thumbnail_async(path_str, 128)
 
 	return null
+
 
 func _build_bonds_tab() -> void:
 	var scroll: ScrollContainer = ScrollContainer.new()
@@ -651,6 +663,7 @@ func _build_bonds_tab() -> void:
 	feelings_vbox.add_theme_constant_override("separation", 6)
 	main_content.add_child(feelings_vbox)
 
+
 func _add_family_row(target_name: String, relation_type: String, notes: String) -> void:
 	var card: PanelContainer = _create_card_container()
 	var vbox: VBoxContainer = VBoxContainer.new()
@@ -705,6 +718,7 @@ func _add_family_row(target_name: String, relation_type: String, notes: String) 
 	vbox.add_child(notes_edit)
 
 	family_vbox.add_child(card)
+
 
 func _add_feeling_row(target_name: String, relation_type: String, notes: String) -> void:
 	var card: PanelContainer = _create_card_container()
@@ -761,11 +775,13 @@ func _add_feeling_row(target_name: String, relation_type: String, notes: String)
 
 	feelings_vbox.add_child(card)
 
+
 func _create_card_container() -> PanelContainer:
 	var card: PanelContainer = PanelContainer.new()
 	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	card.theme_type_variation = "SubPanel"
 	return card
+
 
 func _enforce_dropdown_popup_limits(opt_btn: OptionButton, max_height: int = 200) -> void:
 	if not is_instance_valid(opt_btn): return
@@ -773,6 +789,7 @@ func _enforce_dropdown_popup_limits(opt_btn: OptionButton, max_height: int = 200
 	if pop:
 		pop.max_size = Vector2i(4000, max_height)
 		pop.about_to_popup.connect(func() -> void: pop.max_size = Vector2i(4000, max_height))
+
 
 func _build_notes_tab() -> void:
 	var lbl_lore: Label = Label.new()
@@ -788,6 +805,7 @@ func _build_notes_tab() -> void:
 	lore_text_edit.custom_minimum_size = Vector2(0.0, 180.0)
 	tab_notes_container.add_child(lore_text_edit)
 
+
 func open_card(entity: OwnEntity) -> void:
 	if not is_instance_valid(entity): return
 	active_entity = entity
@@ -796,12 +814,14 @@ func open_card(entity: OwnEntity) -> void:
 	_apply_theme_styling()
 	_populate_from_data(entity.display_name, entity.custom_fields)
 
+
 func open_card_for_character_dict(char_dict: Dictionary) -> void:
 	active_entity = null
 	fallback_char_dict = char_dict.duplicate(true)
 	_update_responsive_layout()
 	_apply_theme_styling()
 	_populate_from_data(str(char_dict.get("display_name", "Character")), char_dict.get("custom_fields", {}))
+
 
 func _populate_from_data(char_name: String, fields: Dictionary) -> void:
 	name_edit.text = char_name
@@ -841,6 +861,7 @@ func _populate_from_data(char_name: String, fields: Dictionary) -> void:
 
 	_switch_tab(CardTab.PROFILE)
 	visible = true
+
 
 func save_and_close() -> void:
 	var new_char_name: String = name_edit.text.strip_edges()
@@ -897,6 +918,7 @@ func save_and_close() -> void:
 	active_entity = null
 	fallback_char_dict = {}
 
+
 func _scrape_bond_cards(vbox_container: VBoxContainer, fallback_rel: String) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for card: Node in vbox_container.get_children():
@@ -914,6 +936,7 @@ func _scrape_bond_cards(vbox_container: VBoxContainer, fallback_rel: String) -> 
 					var b_notes: String = notes_edit_node.text.strip_edges() if notes_edit_node else ""
 					result.append({"target_name": tgt_name, "relation_type": rel_name, "notes": b_notes})
 	return result
+
 
 func _enforce_symmetrical_family(source_name: String, current_family: Array[Dictionary], old_family: Array[Dictionary]) -> void:
 	var all_chars: Array[Dictionary] = _load_universe_character_data()
@@ -968,6 +991,7 @@ func _enforce_symmetrical_family(source_name: String, current_family: Array[Dict
 			tgt["custom_fields"] = c_fields
 			_update_universe_character_data(tgt)
 
+
 func _get_reciprocal_family_role(rel_type: String) -> String:
 	match rel_type:
 		"Parent (Biological)": return "Child (Biological)"
@@ -981,6 +1005,7 @@ func _get_reciprocal_family_role(rel_type: String) -> String:
 		"Ex-Partner / Divorced": return "Ex-Partner / Divorced"
 		"Separated": return "Separated"
 	return "Sibling"
+
 
 func _sync_directional_feelings(source_name: String, current_feelings: Array[Dictionary], old_feelings: Array[Dictionary]) -> void:
 	var all_chars: Array[Dictionary] = _load_universe_character_data()
@@ -1033,6 +1058,7 @@ func _sync_directional_feelings(source_name: String, current_feelings: Array[Dic
 				tgt["custom_fields"] = c_fields
 				_update_universe_character_data(tgt)
 
+
 func _on_open_journal_from_card() -> void:
 	save_and_close()
 	var main_loop: MainLoop = Engine.get_main_loop()
@@ -1042,6 +1068,7 @@ func _on_open_journal_from_card() -> void:
 			var existing: CanvasLayer = root.find_child("UniverseJournalDialog", true, false) as CanvasLayer
 			if existing and is_instance_valid(existing) and existing.has_method("open_journal"):
 				existing.call("open_journal")
+
 
 func _get_universe_character_names() -> Array[String]:
 	var result: Array[String] = []
@@ -1056,23 +1083,37 @@ func _get_universe_character_names() -> Array[String]:
 	result.sort()
 	return result
 
+
 func _load_universe_character_data() -> Array[Dictionary]:
-	var result: Array[Dictionary] = []
-	var cast_path: String = SaveSystem.get_universe_cast_path(SaveSystem.get_current_universe_id())
-	if not FileAccess.file_exists(cast_path): return result
+	var roster: Array[Dictionary] = []
+	var seen_ids: Dictionary = {}
+	var seen_names: Dictionary = {}
+	var universe_id: String = SaveSystem.get_current_universe_id()
+	var cast_path: String = SaveSystem.get_universe_cast_path(universe_id)
 
-	var file: FileAccess = FileAccess.open(cast_path, FileAccess.READ)
-	if file == null: return result
-	var parsed: Variant = JSON.parse_string(file.get_as_text())
-	file.close()
+	if FileAccess.file_exists(cast_path):
+		var cast_file: FileAccess = FileAccess.open(cast_path, FileAccess.READ)
+		if cast_file != null:
+			var parsed_cast: Variant = JSON.parse_string(cast_file.get_as_text())
+			cast_file.close()
+			if parsed_cast is Array:
+				for item: Variant in (parsed_cast as Array):
+					if item is Dictionary:
+						var c_data: Dictionary = (item as Dictionary).duplicate(true)
+						var c_id: String = str(c_data.get("id", ""))
+						var c_name: String = str(c_data.get("display_name", "")).strip_edges().to_lower()
+						if c_id.is_empty() or seen_ids.has(c_id): continue
+						if not c_name.is_empty() and seen_names.has(c_name): continue
+						roster.append(c_data)
+						seen_ids[c_id] = true
+						if not c_name.is_empty(): seen_names[c_name] = true
 
-	if parsed is Array:
-		for item: Variant in (parsed as Array):
-			if item is Dictionary: result.append((item as Dictionary).duplicate(true))
-	return result
+	return roster
+
 
 func _update_universe_character_data(character_data: Dictionary) -> void:
 	SaveSystem.update_character_data_in_cast(character_data)
+
 
 func _on_backdrop_gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
