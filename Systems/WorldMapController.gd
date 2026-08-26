@@ -1,5 +1,5 @@
 # ==============================================================================
-# OWNWORLD — WORLD MAP CONTROLLER (CARDLESS BUILDING ARTWORK PINS)
+# OWNWORLD — WORLD MAP CONTROLLER (BUILDINGS & 1F ENTRY ROUTING)
 # File: res://Systems/WorldMapController.gd
 # Base Class: CanvasLayer (class_name WorldMapController)
 # ==============================================================================
@@ -22,10 +22,10 @@ var modal_backdrop: Control = null
 var pin_editor_panel: PanelContainer = null
 var edit_title_lbl: Label = null
 var edit_name_lbl: Label = null
-var edit_room_lbl: Label = null
+var edit_building_id_lbl: Label = null
 var edit_img_lbl: Label = null
 var edit_name_input: LineEdit = null
-var edit_room_input: LineEdit = null
+var edit_building_id_input: LineEdit = null
 var edit_image_option: OptionButton = null
 var edit_preview_rect: TextureRect = null
 var active_editing_pin: MapPin = null
@@ -44,57 +44,6 @@ func _get_current_map_path() -> String:
 	return MAP_DIRECTORY + SaveSystem.get_current_universe_id() + "_map.json"
 
 
-func _request_room_transition(target_room_id: String) -> void:
-	if target_room_id.is_empty():
-		return
-	EventBus.room_change_requested.emit(target_room_id, {})
-
-
-func _set_global_time(preset_name: String) -> void:
-	_set_atmosphere_state(preset_name.to_lower(), _get_current_atmosphere_weather())
-
-
-func _set_global_weather(weather_name: String) -> void:
-	_set_atmosphere_state(_get_current_atmosphere_time(), weather_name.to_lower())
-
-
-func _get_current_atmosphere_time() -> String:
-	var session: Dictionary = _load_session()
-	return str(session.get("time_preset", "day"))
-
-
-func _get_current_atmosphere_weather() -> String:
-	var session: Dictionary = _load_session()
-	return str(session.get("weather_preset", "none"))
-
-
-func _set_atmosphere_state(time_preset: String, weather_preset: String) -> void:
-	var session: Dictionary = _load_session()
-	session["time_preset"] = time_preset
-	session["weather_preset"] = weather_preset
-	_save_session(session)
-	EventBus.global_atmosphere_changed.emit(time_preset, weather_preset)
-
-
-func _load_session() -> Dictionary:
-	if not FileAccess.file_exists(SESSION_FILE):
-		return {"universe_id": "default_universe", "universe_name": "Default Universe", "room_id": "room_main", "time_preset": "day", "weather_preset": "none"}
-	var file: FileAccess = FileAccess.open(SESSION_FILE, FileAccess.READ)
-	if file == null:
-		return {"universe_id": "default_universe", "universe_name": "Default Universe", "room_id": "room_main", "time_preset": "day", "weather_preset": "none"}
-	var parsed: Variant = JSON.parse_string(file.get_as_text())
-	file.close()
-	return parsed as Dictionary if parsed is Dictionary else {"universe_id": "default_universe", "universe_name": "Default Universe", "room_id": "room_main", "time_preset": "day", "weather_preset": "none"}
-
-
-func _save_session(session: Dictionary) -> void:
-	var file: FileAccess = FileAccess.open(SESSION_FILE, FileAccess.WRITE)
-	if file != null:
-		file.store_string(JSON.stringify(session, "\t"))
-		file.flush()
-		file.close()
-
-
 func _ready() -> void:
 	name = "WorldMapController"
 	layer = 110
@@ -110,7 +59,7 @@ func _ready() -> void:
 
 
 func _setup_keyboard_dodging() -> void:
-	var inputs: Array[LineEdit] = [edit_name_input, edit_room_input]
+	var inputs: Array[LineEdit] = [edit_name_input, edit_building_id_input]
 	for input in inputs:
 		if input != null:
 			input.focus_entered.connect(_on_input_focus_entered)
@@ -198,23 +147,25 @@ func _build_map_ui() -> void:
 		var mode_icon: Texture2D = ThemeService.get_icon("icon_pencil" if is_edit_mode else "icon_play")
 		if mode_icon: btn_mode.icon = mode_icon
 		_update_pins_edit_mode()
-		EventBus.notification_requested.emit("Mode: " + ("Edit Pins" if is_edit_mode else "Play Navigation"), true)
+		EventBus.notification_requested.emit("Mode: " + ("Edit Buildings" if is_edit_mode else "Play Exploration"), true)
 	)
 	tb_tools_hbox.add_child(btn_mode)
 
 	var btn_add_pin: Button = Button.new()
-	btn_add_pin.text = " Pin"
+	btn_add_pin.text = " + Building"
 	btn_add_pin.custom_minimum_size = Vector2(0.0, 32.0)
 	btn_add_pin.focus_mode = Control.FOCUS_NONE
-	btn_add_theme_icon(btn_add_pin, "icon_pin", "icon_anchors")
-	btn_add_pin.pressed.connect(_on_add_pin_pressed)
+	var bldg_icon: Texture2D = ThemeService.get_icon("icon_room")
+	if bldg_icon: btn_add_pin.icon = bldg_icon
+	btn_add_pin.pressed.connect(_on_add_building_pressed)
 	tb_tools_hbox.add_child(btn_add_pin)
 
 	var btn_change_bg: Button = Button.new()
 	btn_change_bg.text = " Map Art"
 	btn_change_bg.custom_minimum_size = Vector2(0.0, 32.0)
 	btn_change_bg.focus_mode = Control.FOCUS_NONE
-	btn_add_theme_icon(btn_change_bg, "icon_brush", "icon_palette")
+	var brush_icon: Texture2D = ThemeService.get_icon("icon_palette")
+	if brush_icon: btn_change_bg.icon = brush_icon
 	btn_change_bg.pressed.connect(_on_change_bg_pressed)
 	tb_tools_hbox.add_child(btn_change_bg)
 
@@ -274,13 +225,6 @@ func _build_map_ui() -> void:
 	_build_atmosphere_control_bar(main_vbox)
 
 
-func btn_add_theme_icon(btn: Button, primary_icon: String, fallback_icon: String) -> void:
-	btn.add_theme_constant_override("icon_max_width", 14)
-	var icon: Texture2D = ThemeService.get_icon(primary_icon)
-	if not icon: icon = ThemeService.get_icon(fallback_icon)
-	if icon: btn.icon = icon
-
-
 func _build_atmosphere_control_bar(parent_vbox: VBoxContainer) -> void:
 	atmo_panel = PanelContainer.new()
 	atmo_panel.theme_type_variation = "SubPanel"
@@ -319,7 +263,7 @@ func _build_atmosphere_control_bar(parent_vbox: VBoxContainer) -> void:
 		if t_icon: btn.icon = t_icon
 		var cap_t: String = str(t_data["name"])
 		btn.pressed.connect(func() -> void:
-			_set_global_time(cap_t)
+			EventBus.global_atmosphere_changed.emit(cap_t.to_lower(), "none")
 			EventBus.notification_requested.emit("Mood: " + cap_t, true)
 		)
 		hbox.add_child(btn)
@@ -346,10 +290,10 @@ func _build_atmosphere_control_bar(parent_vbox: VBoxContainer) -> void:
 		btn.add_theme_font_size_override("font_size", 10)
 		var w_icon: Texture2D = ThemeService.get_icon(str(w_data["icon"]))
 		if w_icon: btn.icon = w_icon
-		var w_name: String = str(w_data["name"])
+		var w_name: String = str(w_data["name"]).to_lower()
 		var w_lbl: String = str(w_data["label"])
 		btn.pressed.connect(func() -> void:
-			_set_global_weather(w_name)
+			EventBus.global_atmosphere_changed.emit("day", w_name)
 			EventBus.notification_requested.emit("Weather: " + w_lbl, true)
 		)
 		hbox.add_child(btn)
@@ -384,7 +328,7 @@ func _build_pin_editor_dialog() -> void:
 	pin_editor_panel.add_child(vbox)
 
 	edit_title_lbl = Label.new()
-	edit_title_lbl.text = "Configure Location Pin"
+	edit_title_lbl.text = "Configure Building Location"
 	edit_title_lbl.theme_type_variation = "HeaderLabel"
 	edit_title_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(edit_title_lbl)
@@ -396,35 +340,35 @@ func _build_pin_editor_dialog() -> void:
 	vbox.add_child(name_box)
 
 	edit_name_lbl = Label.new()
-	edit_name_lbl.text = "Location Name:"
+	edit_name_lbl.text = "Building Name:"
 	edit_name_lbl.theme_type_variation = "HintLabel"
 	name_box.add_child(edit_name_lbl)
 
 	edit_name_input = LineEdit.new()
-	edit_name_input.placeholder_text = "e.g. Castle, Magic Guild, Noodle Bar..."
+	edit_name_input.placeholder_text = "e.g. Castle, Magic Guild, Bakery, Clock Tower..."
 	edit_name_input.custom_minimum_size = Vector2(0.0, 32.0)
 	name_box.add_child(edit_name_input)
 
-	var room_box: VBoxContainer = VBoxContainer.new()
-	room_box.add_theme_constant_override("separation", 3)
-	vbox.add_child(room_box)
+	var bldg_id_box: VBoxContainer = VBoxContainer.new()
+	bldg_id_box.add_theme_constant_override("separation", 3)
+	vbox.add_child(bldg_id_box)
 
-	edit_room_lbl = Label.new()
-	edit_room_lbl.text = "Destination Room ID:"
-	edit_room_lbl.theme_type_variation = "HintLabel"
-	room_box.add_child(edit_room_lbl)
+	edit_building_id_lbl = Label.new()
+	edit_building_id_lbl.text = "Shared Building ID (All floors in this building share this):"
+	edit_building_id_lbl.theme_type_variation = "HintLabel"
+	bldg_id_box.add_child(edit_building_id_lbl)
 
-	edit_room_input = LineEdit.new()
-	edit_room_input.placeholder_text = "e.g. room_castle_1f"
-	edit_room_input.custom_minimum_size = Vector2(0.0, 32.0)
-	room_box.add_child(edit_room_input)
+	edit_building_id_input = LineEdit.new()
+	edit_building_id_input.placeholder_text = "e.g. building_castle, building_bakery"
+	edit_building_id_input.custom_minimum_size = Vector2(0.0, 32.0)
+	bldg_id_box.add_child(edit_building_id_input)
 
 	var img_section: VBoxContainer = VBoxContainer.new()
 	img_section.add_theme_constant_override("separation", 3)
 	vbox.add_child(img_section)
 
 	edit_img_lbl = Label.new()
-	edit_img_lbl.text = "Building / Location Artwork:"
+	edit_img_lbl.text = "Building Artwork on Map:"
 	edit_img_lbl.theme_type_variation = "HintLabel"
 	img_section.add_child(edit_img_lbl)
 
@@ -447,14 +391,13 @@ func _build_pin_editor_dialog() -> void:
 	edit_image_option = OptionButton.new()
 	edit_image_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	edit_image_option.custom_minimum_size = Vector2(0.0, 32.0)
-	_enforce_dropdown_popup_limits(edit_image_option, 200)
 	edit_image_option.item_selected.connect(_on_image_option_selected)
 	img_hbox.add_child(edit_image_option)
 
 	vbox.add_child(HSeparator.new())
 
 	var btn_save: Button = Button.new()
-	btn_save.text = " Save Pin"
+	btn_save.text = " Save Building"
 	btn_save.custom_minimum_size = Vector2(0.0, 36.0)
 	btn_save.focus_mode = Control.FOCUS_NONE
 	btn_save.add_theme_constant_override("icon_max_width", 16)
@@ -464,18 +407,10 @@ func _build_pin_editor_dialog() -> void:
 	vbox.add_child(btn_save)
 
 
-func _enforce_dropdown_popup_limits(opt_btn: OptionButton, max_height: int = 200) -> void:
-	if not is_instance_valid(opt_btn): return
-	var pop: PopupMenu = opt_btn.get_popup()
-	if pop:
-		pop.max_size = Vector2i(4000, max_height)
-		pop.about_to_popup.connect(func() -> void: pop.max_size = Vector2i(4000, max_height))
-
-
 func open_pin_editor(pin: MapPin) -> void:
 	active_editing_pin = pin
-	edit_name_input.text = pin.location_name
-	edit_room_input.text = pin.target_room_id
+	edit_name_input.text = pin.building_name
+	edit_building_id_input.text = pin.building_id
 
 	edit_image_option.clear()
 	edit_image_option.add_item("(Default Location Icon)", 0)
@@ -490,28 +425,30 @@ func open_pin_editor(pin: MapPin) -> void:
 		if a_path == pin.image_path: selected_idx = i + 1
 
 	edit_image_option.selected = selected_idx
-	_update_editor_preview(pin.pin_texture)
+	edit_preview_rect.texture = pin.pin_texture
 	modal_backdrop.visible = true
-
-
-func _update_editor_preview(tex: Texture2D) -> void:
-	edit_preview_rect.texture = tex
 
 
 func _on_image_option_selected(idx: int) -> void:
 	if idx == 0:
-		_update_editor_preview(UGCManager.create_blank_starter_graphic(Vector2(64.0, 64.0), Color("#0284c7")))
+		edit_preview_rect.texture = UGCManager.create_blank_starter_graphic(Vector2(64.0, 64.0), Color("#0284c7"))
 	else:
 		var art_files: Array[Dictionary] = UGCManager.scan_user_art_library()
 		var chosen: Dictionary = art_files[idx - 1]
 		var fpath: String = str(chosen.get("file_path", ""))
-		_update_editor_preview(UGCManager.get_thumbnail_async(fpath, 128))
+		edit_preview_rect.texture = UGCManager.get_thumbnail_async(fpath, 128)
 
 
 func _on_save_pin_editor_pressed() -> void:
 	if active_editing_pin and is_instance_valid(active_editing_pin):
-		active_editing_pin.location_name = edit_name_input.text.strip_edges() if edit_name_input.text.strip_edges() != "" else "Location"
-		active_editing_pin.target_room_id = edit_room_input.text.strip_edges() if edit_room_input.text.strip_edges() != "" else "room_main"
+		var b_name: String = edit_name_input.text.strip_edges()
+		if b_name.is_empty(): b_name = "Building"
+
+		var b_id: String = edit_building_id_input.text.strip_edges().to_lower().replace(" ", "_")
+		if b_id.is_empty(): b_id = "building_" + b_name.to_lower().replace(" ", "_")
+
+		active_editing_pin.building_name = b_name
+		active_editing_pin.building_id = b_id
 
 		var sel_idx: int = edit_image_option.selected
 		if sel_idx == 0:
@@ -525,7 +462,7 @@ func _on_save_pin_editor_pressed() -> void:
 
 		active_editing_pin.update_visuals()
 		save_map_for_current_universe()
-		EventBus.notification_requested.emit("Saved Location: " + active_editing_pin.location_name, true)
+		EventBus.notification_requested.emit("Saved Building: " + active_editing_pin.building_name, true)
 
 	modal_backdrop.visible = false
 	active_editing_pin = null
@@ -592,19 +529,19 @@ func load_map_for_current_universe() -> void:
 				for p_dict_var: Variant in pins_data:
 					if not (p_dict_var is Dictionary): continue
 					var p_dict: Dictionary = p_dict_var as Dictionary
-					var p_name: String = str(p_dict.get("name", "Location"))
-					var p_room: String = str(p_dict.get("room_id", "room_main"))
+					var b_name: String = str(p_dict.get("name", p_dict.get("building_name", "Building")))
+					var b_id: String = str(p_dict.get("building_id", p_dict.get("room_id", "building_main")))
 					var p_img_path: String = str(p_dict.get("image_path", ""))
 					var p_pos: Vector2 = Vector2(float(p_dict.get("x", 400.0)), float(p_dict.get("y", 200.0)))
 					var tex: Texture2D = UGCManager.get_thumbnail_async(p_img_path, 128) if (p_img_path != "" and FileAccess.file_exists(p_img_path)) else UGCManager.create_blank_starter_graphic(Vector2(64.0, 64.0), Color("#0284c7"))
-					create_pin(p_name, p_room, p_pos, p_img_path, tex)
+					create_pin(b_name, b_id, p_pos, p_img_path, tex)
 				_update_pins_edit_mode()
 				return
 
 	current_bg_image_path = ""
 	map_background_rect.texture = null
 	empty_hint_label.visible = true
-	create_pin(SaveSystem.get_current_universe_name() + " Main", "room_main", Vector2(400.0, 200.0))
+	create_pin(SaveSystem.get_current_universe_name() + " Main", "building_main", Vector2(400.0, 200.0))
 	_update_pins_edit_mode()
 	save_map_for_current_universe()
 
@@ -614,8 +551,13 @@ func save_map_for_current_universe() -> void:
 	for pin: MapPin in map_pins:
 		if is_instance_valid(pin):
 			pins_data.append({
-				"name": pin.location_name, "room_id": pin.target_room_id,
-				"image_path": pin.image_path, "x": pin.position.x, "y": pin.position.y
+				"name": pin.building_name,
+				"building_name": pin.building_name,
+				"building_id": pin.building_id,
+				"room_id": pin.building_id, # Compatibility fallback
+				"image_path": pin.image_path,
+				"x": pin.position.x,
+				"y": pin.position.y
 			})
 
 	var map_payload: Dictionary = {
@@ -630,10 +572,10 @@ func save_map_for_current_universe() -> void:
 		f.close()
 
 
-func create_pin(loc_name: String, target_room: String, pos: Vector2, img_path: String = "", tex: Texture2D = null) -> MapPin:
+func create_pin(b_name: String, b_id: String, pos: Vector2, img_path: String = "", tex: Texture2D = null) -> MapPin:
 	var pin: MapPin = MapPin.new()
 	var final_tex: Texture2D = tex if tex != null else UGCManager.create_blank_starter_graphic(Vector2(64.0, 64.0), Color("#0284c7"))
-	pin.setup(loc_name, target_room, pos, img_path, final_tex, self)
+	pin.setup(b_name, b_id, pos, img_path, final_tex, self)
 	pin.pin_selected.connect(_on_pin_selected)
 	pin.pin_deleted.connect(_on_pin_deleted)
 	pin.pin_configure_requested.connect(open_pin_editor)
@@ -642,9 +584,9 @@ func create_pin(loc_name: String, target_room: String, pos: Vector2, img_path: S
 	return pin
 
 
-func _on_add_pin_pressed() -> void:
+func _on_add_building_pressed() -> void:
 	var count: int = map_pins.size() + 1
-	var new_pin: MapPin = create_pin("Location " + str(count), "room_" + str(count), Vector2(250.0 + float(count * 40), 160.0))
+	var new_pin: MapPin = create_pin("Building " + str(count), "building_" + str(count), Vector2(250.0 + float(count * 40), 160.0))
 	new_pin.set_edit_mode(is_edit_mode)
 	save_map_for_current_universe()
 	open_pin_editor(new_pin)
@@ -661,10 +603,19 @@ func _on_reset_rooms_pressed() -> void:
 	reset_all_rooms_requested.emit()
 
 
+# When clicking a building on the map -> open the First Floor (1F) of that building!
 func _on_pin_selected(pin: MapPin) -> void:
 	if not is_edit_mode:
 		close_map()
-		_request_room_transition(pin.target_room_id)
+		var target_entry_room: String = SaveSystem.get_building_entry_room_id(pin.building_id)
+		var traveler_data: Dictionary = {
+			"building_id": pin.building_id,
+			"building_name": pin.building_name,
+			"floor_level": "1F",
+			"room_title": pin.building_name + " (1F)",
+			"source": "world_map"
+		}
+		EventBus.room_change_requested.emit(target_entry_room, traveler_data)
 
 
 func _build_bg_file_dialog() -> void:
@@ -680,12 +631,12 @@ func _build_bg_file_dialog() -> void:
 
 
 # ------------------------------------------------------------------------------
-# PURE CARDLESS MAP PIN (BUILDING ARTWORK ON MAP CANVAS)
+# CARDLESS MAP BUILDING PIN
 # ------------------------------------------------------------------------------
 
 class MapPin extends Control:
-	var location_name: String = ""
-	var target_room_id: String = ""
+	var building_name: String = ""
+	var building_id: String = ""
 	var image_path: String = ""
 	var pin_texture: Texture2D = null
 
@@ -704,9 +655,9 @@ class MapPin extends Control:
 	signal pin_configure_requested(pin: MapPin)
 
 
-	func setup(p_name: String, p_room: String, p_pos: Vector2, p_img_path: String, p_tex: Texture2D, controller_ref: WorldMapController) -> void:
-		location_name = p_name
-		target_room_id = p_room
+	func setup(p_name: String, p_bldg_id: String, p_pos: Vector2, p_img_path: String, p_tex: Texture2D, controller_ref: WorldMapController) -> void:
+		building_name = p_name
+		building_id = p_bldg_id
 		position = p_pos
 		image_path = p_img_path
 		pin_texture = p_tex
@@ -725,7 +676,6 @@ class MapPin extends Control:
 
 
 	func _build_visuals() -> void:
-		# Direct building texture with no surrounding card box/border
 		texture_rect = TextureRect.new()
 		texture_rect.texture = pin_texture
 		texture_rect.position = Vector2(10.0, 0.0)
@@ -736,9 +686,8 @@ class MapPin extends Control:
 		texture_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		add_child(texture_rect)
 
-		# Floating Location Label
 		label_node = Label.new()
-		label_node.text = location_name
+		label_node.text = building_name
 		label_node.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		label_node.position = Vector2(-20.0, 62.0)
 		label_node.custom_minimum_size = Vector2(120.0, 18.0)
@@ -750,7 +699,6 @@ class MapPin extends Control:
 		label_node.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		add_child(label_node)
 
-		# Edit Actions Bar (Appears on top when in Edit Mode)
 		delete_btn = Button.new()
 		delete_btn.custom_minimum_size = Vector2(20.0, 20.0)
 		delete_btn.size = Vector2(20.0, 20.0)
@@ -784,7 +732,7 @@ class MapPin extends Control:
 
 
 	func update_visuals() -> void:
-		if label_node: label_node.text = location_name
+		if label_node: label_node.text = building_name
 		if texture_rect and pin_texture: texture_rect.texture = pin_texture
 
 
@@ -795,11 +743,11 @@ class MapPin extends Control:
 
 	func refresh_theme_icons() -> void:
 		if delete_btn != null:
-			var refreshed_delete_icon: Texture2D = ThemeService.get_icon("icon_close")
-			if refreshed_delete_icon != null: delete_btn.icon = refreshed_delete_icon
+			var del_i: Texture2D = ThemeService.get_icon("icon_close")
+			if del_i: delete_btn.icon = del_i
 		if config_btn != null:
-			var refreshed_config_icon: Texture2D = ThemeService.get_icon("icon_settings")
-			if refreshed_config_icon != null: config_btn.icon = refreshed_config_icon
+			var cfg_i: Texture2D = ThemeService.get_icon("icon_settings")
+			if cfg_i: config_btn.icon = cfg_i
 
 
 	func _on_pin_gui_input(event: InputEvent) -> void:

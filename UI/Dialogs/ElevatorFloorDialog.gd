@@ -233,12 +233,20 @@ func _render_keypad_buttons() -> void:
 		return
 
 	var current_room_id: String = _get_current_room_id()
-	current_floor_label.text = "Active Room: " + current_room_id
+
+	# Display Active Building and Floor
+	var current_floor_display: String = current_room_id
+	for fl_var in active_elevator.elevator_floors:
+		if fl_var is Dictionary and str(fl_var.get("room_id", "")) == current_room_id:
+			current_floor_display = str(fl_var.get("label", current_room_id))
+			break
+
+	current_floor_label.text = "Active Floor: " + current_floor_display
 
 	var floors: Array = active_elevator.elevator_floors
 	if floors.is_empty():
 		var empty_label: Label = Label.new()
-		empty_label.text = "No floors configured yet!\nSwitch to 'Configure Floors' to add routes."
+		empty_label.text = "No floors configured for this building yet!\nSwitch to 'Configure Floors' to add floors."
 		empty_label.theme_type_variation = "HintLabel"
 		empty_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		empty_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL

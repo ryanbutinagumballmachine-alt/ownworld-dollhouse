@@ -24,6 +24,46 @@ func get_current_universe_id() -> String:
 	var universe_id: String = str(session.get("universe_id", DEFAULT_UNIVERSE_ID)).strip_edges()
 	return universe_id if not universe_id.is_empty() else DEFAULT_UNIVERSE_ID
 
+# Helper to retrieve all rooms/floors belonging to a specific building in the current universe
+func get_building_floors(building_id: String, universe_id: String = "") -> Array[Dictionary]:
+	var resolved_bldg_id: String = building_id.strip_edges()
+	var save_dir: String = get_universe_save_dir(universe_id)
+	var floors: Array[Dictionary] = []
+
+	if not DirAccess.dir_exists_absolute(save_dir):
+		return floors
+
+	var dir: DirAccess = DirAccess.open(save_dir)
+	if dir == null: return floors
+
+	dir.list_dir_begin()
+	var file_name: String = dir.get_next()
+	while not file_name.is_empty():
+		if not dir.current_is_dir() and file_name.ends_with(".json") and file_name != "recipes.json":
+			var room_path: String = save_dir.path_join(file_name)
+			var room_state: Dictionary = JsonFileStore.read_dictionary(room_path)
+			if str(room_state.get("building_id", "building_main")) == resolved_bldg_id:
+				floors.append({
+					"room_id": str(room_state.get("room_id", file_name.trim_suffix(".json"))),
+					"floor_level": str(room_state.get("floor_level", "1F")),
+					"label": "%s %s" % [str(room_state.get("floor_level", "1F")), str(room_state.get("room_title", "Room"))]
+				})
+		file_name = dir.get_next()
+	dir.list_dir_end()
+
+	return floors
+
+# Gets the 1F / ground entry room ID for a building
+func get_building_entry_room_id(building_id: String, universe_id: String = "") -> String:
+	var floors: Array[Dictionary] = get_building_floors(building_id, universe_id)
+	for floor_item: Dictionary in floors:
+		if str(floor_item.get("floor_level", "")).to_upper() == "1F":
+			return str(floor_item.get("room_id", ""))
+	if not floors.is_empty():
+		return str(floors[0].get("room_id", ""))
+	
+	# Clean fallback
+	return building_id + "_1f" if building_id != "building_main" else "room_main"
 
 func get_current_room_id() -> String:
 	var session: Dictionary = _load_session()
@@ -293,4 +333,5 @@ func _load_session() -> Dictionary:
 	file.close()
 	if parsed is Dictionary:
 		return parsed as Dictionary
+		
 	return default_session

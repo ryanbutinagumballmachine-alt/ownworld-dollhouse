@@ -18,6 +18,9 @@ var root_panel: PanelContainer = null
 var header_lbl: Label = null
 var room_name_edit: LineEdit = null
 var floor_level_edit: LineEdit = null
+var current_building_id: String = "building_main"
+var current_building_name: String = "Main Building"
+var building_lbl: Label = null
 
 # Slice Expansion Controls
 var slices_tab_container: HBoxContainer = null
@@ -61,8 +64,9 @@ const FILL_MODES: Array[Dictionary] = [
 	{"id": "original", "label": "1:1 Original Pixels", "stretch": TextureRect.STRETCH_KEEP_CENTERED}
 ]
 
-signal room_configured(slices_data: Array[Dictionary], floor_y: float, room_title: String, floor_level: String)
+signal room_configured(slices_data: Array[Dictionary], floor_y: float, room_title: String, floor_level: String, bldg_name: String, bldg_id: String)
 signal floor_preview_changed(floor_y: float, p_visible: bool)
+
 
 
 func _ready() -> void:
@@ -219,6 +223,16 @@ func _build_ui() -> void:
 	floor_level_edit.text = "1F"
 	floor_level_edit.custom_minimum_size = Vector2(0.0, 32.0)
 	floor_box.add_child(floor_level_edit)
+	
+	# Building Title Banner
+	var bldg_banner: PanelContainer = PanelContainer.new()
+	bldg_banner.theme_type_variation = "SubPanel"
+	form_vbox.add_child(bldg_banner)
+
+	building_lbl = Label.new()
+	building_lbl.text = "Building: Main Building (building_main)"
+	building_lbl.theme_type_variation = "HeaderLabel"
+	bldg_banner.add_child(building_lbl)
 
 	# Slices Expansion Bar
 	var slices_card: PanelContainer = PanelContainer.new()
@@ -488,8 +502,14 @@ func _enforce_dropdown_popup_limits(option_button: OptionButton, max_height: int
 	popup.about_to_popup.connect(func() -> void: popup.max_size = Vector2i(4000, max_height))
 
 
-func open_studio(current_room_title: String, current_floor_y: float, current_slices_data: Array[Dictionary], current_floor_level: String = "1F") -> void:
+func open_studio(current_room_title: String, current_floor_y: float, current_slices_data: Array[Dictionary], current_floor_level: String = "1F", bldg_name: String = "Main Building", bldg_id: String = "building_main") -> void:
 	art_library = UGCManager.scan_user_art_library()
+	current_building_name = bldg_name if not bldg_name.is_empty() else "Main Building"
+	current_building_id = bldg_id if not bldg_id.is_empty() else "building_main"
+
+	if building_lbl != null:
+		building_lbl.text = "Building: %s (%s)" % [current_building_name, current_building_id]
+
 	room_name_edit.text = current_room_title
 	floor_level_edit.text = current_floor_level if not current_floor_level.is_empty() else "1F"
 	floor_slider.value = current_floor_y
@@ -736,9 +756,10 @@ func _on_save_pressed() -> void:
 	var room_title: String = room_name_edit.text.strip_edges()
 	var floor_level: String = floor_level_edit.text.strip_edges()
 	floor_preview_changed.emit(floor_slider.value, false)
-	room_configured.emit(room_slices.duplicate(true), floor_slider.value, room_title, floor_level)
-	EventBus.notification_requested.emit("Saved room layout: %s (%s)" % [
+	room_configured.emit(room_slices.duplicate(true), floor_slider.value, room_title, floor_level, current_building_name, current_building_id)
+	EventBus.notification_requested.emit("Saved: %s (%s - %s)" % [
 		(room_title if not room_title.is_empty() else "Room"),
+		current_building_name,
 		(floor_level if not floor_level.is_empty() else "1F")
 	], true)
 	visible = false

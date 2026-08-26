@@ -77,9 +77,14 @@ func _release(world_pos: Vector2) -> void:
 	is_pointer_down = false
 	if main_camera and main_camera.has_method("end_drag_pan"):
 		main_camera.end_drag_pan()
+
 	if active_dragged_entity == null:
+		if pressed_target_entity != null and is_instance_valid(pressed_target_entity):
+			if interaction_router and interaction_router.has_method("handle_tap"):
+				interaction_router.handle_tap(pressed_target_entity)
 		set_process(false)
 		return
+
 	var entity: OwnEntity = active_dragged_entity
 	active_dragged_entity = null
 	entity.on_drop()
@@ -93,19 +98,40 @@ func _release(world_pos: Vector2) -> void:
 	set_process(false)
 
 func _find_topmost(world_pos: Vector2) -> OwnEntity:
-	var best: OwnEntity = null
-	var best_z: int = -2147483648
 	if entity_root == null:
 		return null
+
 	var touch_padding: float = SettingsManager.get_touch_padding(active_touch_count > 0)
+	var exact_hits: Array[OwnEntity] = []
+	var padded_hits: Array[OwnEntity] = []
+
 	for child: Node in entity_root.get_children():
 		if not child is OwnEntity: continue
 		var entity: OwnEntity = child as OwnEntity
-		if not entity.visible or not entity.contains_point(world_pos, touch_padding): continue
-		if entity.z_index >= best_z:
-			best_z = entity.z_index
+		if not entity.visible: continue
+		
+		if entity.has_point_exact(world_pos):
+			exact_hits.append(entity)
+		elif entity.contains_point(world_pos, touch_padding):
+			padded_hits.append(entity)
+
+	var candidates: Array[OwnEntity] = exact_hits if not exact_hits.is_empty() else padded_hits
+	var best: OwnEntity = null
+
+	for entity: OwnEntity in candidates:
+		if best == null or _is_entity_in_front(entity, best):
 			best = entity
+
 	return best
+
+
+func _is_entity_in_front(a: OwnEntity, b: OwnEntity) -> bool:
+	if a == b: return false
+	if a.z_index != b.z_index:
+		return a.z_index > b.z_index
+	if not is_equal_approx(a.global_position.y, b.global_position.y) and absf(a.global_position.y - b.global_position.y) > 0.5:
+		return a.global_position.y > b.global_position.y
+	return a.get_index() > b.get_index()
 
 func _screen_to_world(screen_position: Vector2) -> Vector2:
 	var viewport: Viewport = get_viewport()

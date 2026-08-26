@@ -1,16 +1,12 @@
-# ==============================================================================
-# OWNWORLD — SAVE SCHEMA (MULTI-FLOOR DESIGNATION & SLICE PALETTES)
-# File: res://Core/Persistence/SaveSchema.gd
-# Base Class: RefCounted (class_name SaveSchema)
-# ==============================================================================
-
 class_name SaveSchema
 extends RefCounted
 
-const CURRENT_VERSION: int = 8
+const CURRENT_VERSION: int = 9
 const ROOM_SCHEMA_NAME: String = "ownworld.room"
 
 const DEFAULT_UNIVERSE_ID: String = "default_universe"
+const DEFAULT_BUILDING_ID: String = "building_main"
+const DEFAULT_BUILDING_NAME: String = "Main Building"
 const DEFAULT_ROOM_ID: String = "room_main"
 const DEFAULT_ROOM_TITLE: String = "Main Room"
 const DEFAULT_FLOOR_LEVEL: String = "1F"
@@ -29,7 +25,9 @@ static func create_room(
 	camera_position: Vector2,
 	camera_zoom: float,
 	entities: Array[Dictionary],
-	floor_level: String = DEFAULT_FLOOR_LEVEL
+	floor_level: String = DEFAULT_FLOOR_LEVEL,
+	building_id: String = DEFAULT_BUILDING_ID,
+	building_name: String = DEFAULT_BUILDING_NAME
 ) -> Dictionary:
 	var normalized_room_id: String = room_id.strip_edges()
 	if normalized_room_id.is_empty(): normalized_room_id = DEFAULT_ROOM_ID
@@ -39,6 +37,12 @@ static func create_room(
 
 	var normalized_floor_level: String = floor_level.strip_edges()
 	if normalized_floor_level.is_empty(): normalized_floor_level = DEFAULT_FLOOR_LEVEL
+
+	var normalized_building_id: String = building_id.strip_edges()
+	if normalized_building_id.is_empty(): normalized_building_id = DEFAULT_BUILDING_ID
+
+	var normalized_building_name: String = building_name.strip_edges()
+	if normalized_building_name.is_empty(): normalized_building_name = DEFAULT_BUILDING_NAME
 
 	var safe_slices: Array[Dictionary] = []
 	for slice_item in slices:
@@ -63,6 +67,8 @@ static func create_room(
 	return {
 		"schema": ROOM_SCHEMA_NAME,
 		"version": CURRENT_VERSION,
+		"building_id": normalized_building_id,
+		"building_name": normalized_building_name,
 		"room_id": normalized_room_id,
 		"room_title": normalized_title,
 		"floor_level": normalized_floor_level,
@@ -89,6 +95,8 @@ static func normalize_room(raw_data: Dictionary, fallback_room_id: String = DEFA
 	if room_id.is_empty(): room_id = fallback_room_id
 	var room_title: String = str(raw_data.get("room_title", room_id))
 	var floor_level: String = str(raw_data.get("floor_level", DEFAULT_FLOOR_LEVEL))
+	var building_id: String = str(raw_data.get("building_id", DEFAULT_BUILDING_ID))
+	var building_name: String = str(raw_data.get("building_name", DEFAULT_BUILDING_NAME))
 	var floor_y: float = float(raw_data.get("floor_y", DEFAULT_FLOOR_Y))
 
 	var raw_slices: Variant = raw_data.get("slices", null)
@@ -125,11 +133,13 @@ static func normalize_room(raw_data: Dictionary, fallback_room_id: String = DEFA
 		_read_camera_position(raw_data),
 		_read_camera_zoom(raw_data),
 		_read_entities(raw_data),
-		floor_level
+		floor_level,
+		building_id,
+		building_name
 	)
 
 
-static func create_empty_room(room_id: String = DEFAULT_ROOM_ID) -> Dictionary:
+static func create_empty_room(room_id: String = DEFAULT_ROOM_ID, building_id: String = DEFAULT_BUILDING_ID, building_name: String = DEFAULT_BUILDING_NAME, floor_level: String = DEFAULT_FLOOR_LEVEL) -> Dictionary:
 	return create_room(
 		room_id,
 		room_id,
@@ -141,7 +151,9 @@ static func create_empty_room(room_id: String = DEFAULT_ROOM_ID) -> Dictionary:
 		DEFAULT_CAMERA_POSITION,
 		DEFAULT_CAMERA_ZOOM,
 		[],
-		DEFAULT_FLOOR_LEVEL
+		floor_level,
+		building_id,
+		building_name
 	)
 
 

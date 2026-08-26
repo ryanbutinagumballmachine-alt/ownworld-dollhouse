@@ -1338,14 +1338,12 @@ func set_slice_ratio(ratio: float) -> void:
 	overlay_sprite.visible = true
 
 
-func contains_point(world_p: Vector2, touch_padding: float = 0.0) -> bool:
+func has_point_exact(world_p: Vector2) -> bool:
 	var local_p: Vector2 = to_local(world_p)
-	var scale_mag: float = absf(entity_scale) if entity_scale != 0.0 else 1.0
-	var scaled_padding: float = touch_padding / scale_mag
 
 	if texture_size.x > 0.0 and texture_size.y > 0.0:
-		var half_box: Vector2 = (texture_size * 0.5) + Vector2(scaled_padding + 8.0, scaled_padding + 8.0)
-		if not Rect2(-half_box, half_box * 2.0).has_point(local_p):
+		var half_box: Vector2 = texture_size * 0.5
+		if not Rect2(-half_box, texture_size).has_point(local_p):
 			return false
 
 	if alpha_bitmap != null and texture_size.x > 0.0 and texture_size.y > 0.0:
@@ -1353,23 +1351,36 @@ func contains_point(world_p: Vector2, touch_padding: float = 0.0) -> bool:
 		if bm_size.x > 0 and bm_size.y > 0:
 			var norm_x: float = (local_p.x + (texture_size.x * 0.5)) / texture_size.x
 			var norm_y: float = (local_p.y + (texture_size.y * 0.5)) / texture_size.y
-			
-			var px: int = int(norm_x * bm_size.x)
-			var py: int = int(norm_y * bm_size.y)
+
+			var px: int = int(norm_x * float(bm_size.x))
+			var py: int = int(norm_y * float(bm_size.y))
 
 			if px >= 0 and px < bm_size.x and py >= 0 and py < bm_size.y:
-				if alpha_bitmap.get_bit(px, py):
-					return true
+				return alpha_bitmap.get_bit(px, py)
 
 	if not collision_polygons.is_empty():
 		for poly: PackedVector2Array in collision_polygons:
 			if poly.size() >= 3 and Geometry2D.is_point_in_polygon(local_p, poly):
 				return true
+		return false
 	elif collision_poly.size() >= 3:
-		if Geometry2D.is_point_in_polygon(local_p, collision_poly):
-			return true
+		return Geometry2D.is_point_in_polygon(local_p, collision_poly)
 
-	if scaled_padding > 0.0 and texture_size.x > 0.0 and texture_size.y > 0.0:
+	if texture_size.x > 0.0 and texture_size.y > 0.0:
+		var half_box: Vector2 = texture_size * 0.5
+		return Rect2(-half_box, texture_size).has_point(local_p)
+
+	return false
+
+
+func contains_point(world_p: Vector2, touch_padding: float = 0.0) -> bool:
+	if has_point_exact(world_p):
+		return true
+
+	if touch_padding > 0.0 and texture_size.x > 0.0 and texture_size.y > 0.0:
+		var local_p: Vector2 = to_local(world_p)
+		var scale_mag: float = absf(entity_scale) if entity_scale != 0.0 else 1.0
+		var scaled_padding: float = touch_padding / scale_mag
 		var half_pad_box: Vector2 = (texture_size * 0.5) + Vector2(scaled_padding, scaled_padding)
 		return Rect2(-half_pad_box, half_pad_box * 2.0).has_point(local_p)
 
