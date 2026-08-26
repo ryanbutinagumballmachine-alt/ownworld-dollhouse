@@ -20,8 +20,8 @@ enum CheckResult {
 
 static func get_current_app_version() -> String:
 	# Reads version from Project Settings -> application/config/version, fallback to "1.0.0"
-	var ver: String = str(ProjectSettings.get_setting("application/config/version", "1.0.22")).strip_edges()
-	return ver if not ver.is_empty() else "1.0.22"
+	var ver: String = str(ProjectSettings.get_setting("application/config/version", "1.0.0")).strip_edges()
+	return ver if not ver.is_empty() else "1.0.0"
 
 
 # --- 2. CHECK FOR UPDATES ---
