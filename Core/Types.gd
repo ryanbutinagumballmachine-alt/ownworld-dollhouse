@@ -1,11 +1,13 @@
 # ==============================================================================
-# Script: res://Core/Types.gd
+# OWNWORLD — CORE TYPES & ENUMS
+# File: res://Core/Types.gd
 # Base Class: RefCounted (class_name Types)
 # ==============================================================================
 
 class_name Types
 extends RefCounted
 
+## Classification of interactive runtime entities.
 enum EntityType {
 	PROP = 0,
 	CHARACTER = 1,
@@ -14,6 +16,7 @@ enum EntityType {
 	APPLIANCE = 4
 }
 
+## Primary physical and behavioral states for an entity.
 enum EntityState {
 	IDLE = 0,
 	DRAGGING = 1,
@@ -24,6 +27,7 @@ enum EntityState {
 	LOCKED = 6
 }
 
+## Semantic types for custom interaction zones and socket points.
 enum InteractionPointType {
 	DEFAULT = 0,
 	MOUTH = 1,
@@ -31,6 +35,7 @@ enum InteractionPointType {
 	CONTAINER_SLOT = 3
 }
 
+## Trigger conditions evaluated by the visual Logic Engine.
 enum TriggerEvent {
 	ON_TAPPED = 0,
 	ON_DRAG_STARTED = 1,
@@ -41,6 +46,7 @@ enum TriggerEvent {
 	ON_PROXIMITY_ENTERED = 6
 }
 
+## Action commands executed upon trigger condition satisfaction.
 enum ActionCommand {
 	SWAP_FORM = 0,
 	PLAY_SOUND = 1,
@@ -53,6 +59,15 @@ enum ActionCommand {
 	SPAWN_ITEM = 8
 }
 
+## Target categories for action execution in Logic Rules.
+enum ActionTarget {
+	SELF = 0,
+	TRIGGER_ITEM = 1,
+	ROOM_ALL_CHARACTERS = 2,
+	ENVIRONMENT = 3
+}
+
+## Discrete Z-index layer bands for predictable 2D depth sorting.
 enum LayerBands {
 	BACKGROUND = -100,
 	FLOOR_DECOR = -20,
@@ -60,4 +75,18 @@ enum LayerBands {
 	FURNITURE_OVERLAY = 20,
 	DRAGGING = 100,
 	FOREGROUND = 200
+}
+
+## Visual lighting shape configurations.
+enum LightShapeMode {
+	SILHOUETTE_CONTOUR = 0,
+	RADIAL_ROOM = 1,
+	ANCHOR_POINTS = 2
+}
+
+## Playback behaviors for custom animation clips.
+enum PlaybackMode {
+	LOOP = 0,
+	NATURAL_BLINK = 1,
+	ONE_SHOT = 2
 }

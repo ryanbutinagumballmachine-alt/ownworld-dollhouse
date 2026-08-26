@@ -342,20 +342,14 @@ func _on_export_pack_pressed() -> void:
 
 
 func _save_universe_manifest(u_data: Dictionary) -> void:
-	DirAccess.make_dir_recursive_absolute(UNIVERSES_DIR)
 	var universe_id: String = str(u_data.get("id", ""))
 	if universe_id.is_empty(): return
-
-	var file: FileAccess = FileAccess.open(UNIVERSES_DIR + universe_id + ".json", FileAccess.WRITE)
-	if file != null:
-		file.store_string(JSON.stringify(u_data, "\t"))
-		file.flush()
-		file.close()
+	JsonFileStore.write_dictionary(UNIVERSES_DIR + universe_id + ".json", u_data)
 
 
 func _load_universe_manifests() -> void:
 	universe_registry.clear()
-	DirAccess.make_dir_recursive_absolute(UNIVERSES_DIR)
+	JsonFileStore.ensure_directory(UNIVERSES_DIR)
 	var dir: DirAccess = DirAccess.open(UNIVERSES_DIR)
 
 	if dir != null:
@@ -363,11 +357,9 @@ func _load_universe_manifests() -> void:
 		var file_name: String = dir.get_next()
 		while not file_name.is_empty():
 			if not dir.current_is_dir() and file_name.ends_with(".json") and not file_name.ends_with("_cast.json") and not file_name.ends_with("_journal.json"):
-				var file: FileAccess = FileAccess.open(UNIVERSES_DIR + file_name, FileAccess.READ)
-				if file != null:
-					var parsed: Variant = JSON.parse_string(file.get_as_text())
-					file.close()
-					if parsed is Dictionary: universe_registry.append(parsed as Dictionary)
+				var parsed: Dictionary = JsonFileStore.read_dictionary(UNIVERSES_DIR + file_name)
+				if not parsed.is_empty():
+					universe_registry.append(parsed)
 			file_name = dir.get_next()
 		dir.list_dir_end()
 

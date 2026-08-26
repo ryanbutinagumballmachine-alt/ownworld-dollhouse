@@ -1,6 +1,6 @@
 # ==============================================================================
-# Script: res://Systems/InteractionSolver.gd
-# Node Tree Placement: Static Utility (DO NOT register as AutoLoad)
+# OWNWORLD — INTERACTION SOLVER & DYNAMIC HOVER PHYSICS
+# File: res://Systems/InteractionSolver.gd
 # Base Class: RefCounted (class_name InteractionSolver)
 # ==============================================================================
 
@@ -45,22 +45,22 @@ static func process_live_interactions(delta: float, active_dragged: OwnEntity, a
 static func _get_character_mouth_data(character: OwnEntity) -> Dictionary:
 	if character.interaction_points.has("mouth_1"):
 		var m_data: Dictionary = character.interaction_points["mouth_1"]
-		var offset: Vector2 = m_data.get("offset", Vector2(0.0, -32.0))
+		var offset_pos: Vector2 = m_data.get("offset", Vector2(0.0, -32.0))
 		var radius: float = float(m_data.get("radius", 60.0))
 		return {
 			"found": true,
-			"global_pos": character.to_global(offset),
+			"global_pos": character.to_global(offset_pos),
 			"radius_sq": radius * radius
 		}
 
 	for ik: String in character.interaction_points.keys():
 		if ik.begins_with("mouth"):
 			var m_data: Dictionary = character.interaction_points[ik]
-			var offset: Vector2 = m_data.get("offset", Vector2(0.0, -32.0))
+			var offset_pos: Vector2 = m_data.get("offset", Vector2(0.0, -32.0))
 			var radius: float = float(m_data.get("radius", 60.0))
 			return {
 				"found": true,
-				"global_pos": character.to_global(offset),
+				"global_pos": character.to_global(offset_pos),
 				"radius_sq": radius * radius
 			}
 	return {"found": false, "global_pos": Vector2.ZERO, "radius_sq": 0.0}
@@ -70,19 +70,19 @@ static func _get_faucet_stream_data(source: OwnEntity) -> Dictionary:
 	for ik: String in source.interaction_points.keys():
 		if ik.begins_with("faucet") or ik.begins_with("liquid"):
 			var f_data: Dictionary = source.interaction_points[ik]
-			var offset: Vector2 = f_data.get("offset", Vector2.ZERO)
+			var offset_pos: Vector2 = f_data.get("offset", Vector2.ZERO)
 			var radius: float = float(f_data.get("radius", 50.0))
 			return {
 				"found": true,
-				"global_pos": source.to_global(offset),
+				"global_pos": source.to_global(offset_pos),
 				"radius_sq": radius * radius
 			}
 	for sk: String in source.snap_points.keys():
 		if sk.begins_with("faucet") or sk.begins_with("liquid"):
-			var offset: Vector2 = source.snap_points[sk]
+			var offset_pos: Vector2 = source.snap_points[sk]
 			return {
 				"found": true,
-				"global_pos": source.to_global(offset),
+				"global_pos": source.to_global(offset_pos),
 				"radius_sq": 50.0 * 50.0
 			}
 	return {"found": true, "global_pos": source.global_position, "radius_sq": 50.0 * 50.0}
@@ -216,7 +216,7 @@ static func check_and_execute_crafting(dropped: OwnEntity, all_entities: Array[O
 					var uid: String = AppState.generate_entity_uuid(res_name)
 					
 					var res_tex: Texture2D = null
-					if res_path != "" and FileAccess.file_exists(res_path):
+					if not res_path.is_empty() and FileAccess.file_exists(res_path):
 						res_tex = UGCManager.load_texture_from_file(res_path)
 					else:
 						res_tex = UGCManager.create_blank_starter_graphic(Vector2(48.0, 48.0), Color("#b45309"))

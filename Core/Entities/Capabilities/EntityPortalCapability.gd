@@ -51,7 +51,8 @@ func set_door_open(open: bool) -> void:
 	if door_open == open:
 		return
 	door_open = open
-	EventBus.entity_state_changed.emit(entity.entity_id)
+	if entity != null:
+		EventBus.entity_state_changed.emit(entity.entity_id)
 
 
 func serialize() -> Dictionary:

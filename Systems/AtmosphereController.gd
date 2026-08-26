@@ -1,5 +1,6 @@
 # ==============================================================================
-# Script: res://Systems/AtmosphereController.gd (PER-SLICE WEATHER ZONES)
+# OWNWORLD — ATMOSPHERE & WEATHER CONTROLLER
+# File: res://Systems/AtmosphereController.gd
 # Base Class: Node2D (class_name AtmosphereController)
 # ==============================================================================
 
@@ -19,6 +20,8 @@ var current_preset: String = "day"
 var slice_emitters: Array[CPUParticles2D] = []
 var cached_slices: Array[Dictionary] = []
 var cached_slice_width: float = 1280.0
+
+static var _cached_radial_texture: ImageTexture = null
 
 
 func _ready() -> void:
@@ -126,8 +129,6 @@ func _update_all_slice_weather_emitters() -> void:
 				emitter.color = Color(1.0, 0.95, 0.6, 0.5)
 				emitter.emitting = true
 
-
-static var _cached_radial_texture: ImageTexture = null
 
 static func get_cached_radial_texture() -> ImageTexture:
 	if _cached_radial_texture != null:

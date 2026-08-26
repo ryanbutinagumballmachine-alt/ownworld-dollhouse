@@ -22,15 +22,7 @@ static func load_recipes_for_universe(universe_id: String) -> void:
 		return
 
 	var path: String = get_recipes_path(clean_universe_id)
-	if not FileAccess.file_exists(path):
-		return
-
-	var file: FileAccess = FileAccess.open(path, FileAccess.READ)
-	if file != null:
-		var parsed: Variant = JSON.parse_string(file.get_as_text())
-		file.close()
-		if parsed is Dictionary:
-			active_recipes = (parsed as Dictionary).duplicate(true)
+	active_recipes = JsonFileStore.read_dictionary(path)
 
 
 static func save_recipes_for_universe(universe_id: String) -> void:
@@ -38,23 +30,8 @@ static func save_recipes_for_universe(universe_id: String) -> void:
 	if clean_universe_id.is_empty():
 		return
 
-	var universe_dir: String = SaveSystem.get_universe_save_dir(clean_universe_id)
-	if not DirAccess.dir_exists_absolute(universe_dir):
-		DirAccess.make_dir_recursive_absolute(universe_dir)
-
-	var path: String = universe_dir + RECIPES_FILE_NAME
-	var temp_path: String = path + ".tmp"
-	var file: FileAccess = FileAccess.open(temp_path, FileAccess.WRITE)
-	if file == null:
-		return
-
-	file.store_string(JSON.stringify(active_recipes, "\t"))
-	file.flush()
-	file.close()
-
-	if FileAccess.file_exists(path):
-		DirAccess.remove_absolute(path)
-	DirAccess.rename_absolute(temp_path, path)
+	var path: String = get_recipes_path(clean_universe_id)
+	JsonFileStore.write_dictionary(path, active_recipes)
 
 
 static func register_recipe(item_a_name: String, item_b_name: String, result_name: String, result_type: Types.EntityType, result_texture_path: String = "") -> void:

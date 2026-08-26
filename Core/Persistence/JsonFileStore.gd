@@ -1,5 +1,5 @@
 # ==============================================================================
-# OWNWORLD — JSON FILE STORE
+# OWNWORLD — JSON FILE STORE (ATOMIC DISK I/O)
 # File: res://Core/Persistence/JsonFileStore.gd
 # Base Class: RefCounted (class_name JsonFileStore)
 # ==============================================================================
@@ -8,6 +8,7 @@ class_name JsonFileStore
 extends RefCounted
 
 
+## Atomically writes a dictionary to disk using a temporary file swap.
 static func write_dictionary(file_path: String, data: Dictionary) -> bool:
 	var normalized_path: String = file_path.strip_edges()
 	if normalized_path.is_empty():
@@ -41,28 +42,30 @@ static func write_dictionary(file_path: String, data: Dictionary) -> bool:
 	return true
 
 
+## Fast C++ level file content read and JSON parse.
 static func read_dictionary(file_path: String) -> Dictionary:
 	var normalized_path: String = file_path.strip_edges()
 	if normalized_path.is_empty() or not FileAccess.file_exists(normalized_path):
 		return {}
 
-	# Optimized: Single-call C++ level file read. Bypasses GDScript file handle overhead.
 	var content: String = FileAccess.get_file_as_string(normalized_path)
 	var parsed: Variant = JSON.parse_string(content)
-	
 	return (parsed as Dictionary).duplicate(true) if parsed is Dictionary else {}
 
 
+## Safely removes a file from disk.
 static func delete_file(file_path: String) -> bool:
 	if file_path.is_empty() or not FileAccess.file_exists(file_path):
 		return false
 	return DirAccess.remove_absolute(file_path) == OK
 
 
+## Checks if a file exists on disk.
 static func file_exists(file_path: String) -> bool:
 	return not file_path.is_empty() and FileAccess.file_exists(file_path)
 
 
+## Ensures a target directory exists on disk.
 static func ensure_directory(directory_path: String) -> bool:
 	if directory_path.is_empty():
 		return false

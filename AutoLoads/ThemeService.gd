@@ -1,12 +1,7 @@
-# ============================================================
-# File: res://AutoLoads/ThemeService.gd
-# ============================================================
-
 # ==============================================================================
-# OWNWORLD — THEME SERVICE
+# OWNWORLD — THEME SERVICE AUTOLOAD
 # File: res://AutoLoads/ThemeService.gd
-# Placement: AutoLoad Singleton
-# Base Class: Node (ThemeService)
+# Autoload Singleton: ThemeService
 # ==============================================================================
 
 extends Node
@@ -17,24 +12,8 @@ const FALLBACK_RES_ICONS_DIRECTORY: String = "res://assets/icons/"
 const DEFAULT_CORNER_RADIUS: int = 6
 const DEFAULT_FONT_SIZE: int = 12
 
-const DEFAULT_COLORS: Dictionary = {
-	"panel_background": "#fff5f7",
-	"panel_border": "#f9a8d4",
-	"container_sub_bg": "#fff0f3",
-	"button_normal": "#fce7ed",
-	"button_hover": "#fbcfe0",
-	"button_pressed": "#f9a8d4",
-	"button_focus": "#f9a8d4",
-	"input_background": "#ffffff",
-	"text_primary": "#6c2e3f",
-	"text_muted": "#a36374",
-	"accent_primary": "#ec4899",
-	"accent_danger": "#f43f5e",
-	"window_background": "#fff5f7"
-}
-
 var active_theme_cache: Dictionary = {
-	"colors": DEFAULT_COLORS.duplicate(true),
+	"colors": ThemeEngine.DEFAULT_PALETTE.duplicate(true),
 	"font_path": ""
 }
 
@@ -44,6 +23,7 @@ var _popup_icon_cache: Dictionary = {}
 var _registered_backgrounds: Array[WeakRef] = []
 
 signal theme_changed(theme_data: Dictionary)
+
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
@@ -55,6 +35,7 @@ func _ready() -> void:
 		tree.node_added.connect(_on_node_added)
 
 	call_deferred("apply_theme_globally")
+
 
 func _on_node_added(node: Node) -> void:
 	if _theme_cache == null:
@@ -68,7 +49,7 @@ func _on_node_added(node: Node) -> void:
 		for child: Node in node.get_children():
 			if child is Control:
 				(child as Control).theme = _theme_cache
-	
+
 	if node is OptionButton:
 		var pop: PopupMenu = (node as OptionButton).get_popup()
 		if pop != null:
@@ -78,14 +59,16 @@ func _on_node_added(node: Node) -> void:
 		if pop != null:
 			pop.theme = _theme_cache
 
+
 func _initialize_theme_directories() -> void:
 	UGCManager.get_theme_root_directory()
 	UGCManager.get_theme_icons_directory()
 	UGCManager.get_font_root_directory()
 
+
 func _load_persisted_theme() -> void:
 	active_theme_cache = {
-		"colors": DEFAULT_COLORS.duplicate(true),
+		"colors": ThemeEngine.DEFAULT_PALETTE.duplicate(true),
 		"font_path": ""
 	}
 
@@ -94,36 +77,26 @@ func _load_persisted_theme() -> void:
 		_save_theme_to_disk()
 		return
 
-	var file: FileAccess = FileAccess.open(theme_file_path, FileAccess.READ)
-	if file == null:
+	var persisted: Dictionary = JsonFileStore.read_dictionary(theme_file_path)
+	if persisted.is_empty():
 		return
 
-	var parsed: Variant = JSON.parse_string(file.get_as_text())
-	file.close()
-
-	if not parsed is Dictionary:
-		return
-
-	var persisted: Dictionary = parsed as Dictionary
 	var persisted_colors: Variant = persisted.get("colors", {})
-
 	if persisted_colors is Dictionary:
 		for key: Variant in (persisted_colors as Dictionary).keys():
 			active_theme_cache["colors"][str(key)] = (persisted_colors as Dictionary)[key]
 
 	active_theme_cache["font_path"] = str(persisted.get("font_path", ""))
 
+
 func _save_theme_to_disk() -> void:
 	_initialize_theme_directories()
-	var file: FileAccess = FileAccess.open(UGCManager.get_theme_file_path(), FileAccess.WRITE)
-	if file == null:
-		return
-	file.store_string(JSON.stringify(active_theme_cache, "\t"))
-	file.flush()
-	file.close()
+	JsonFileStore.write_dictionary(UGCManager.get_theme_file_path(), active_theme_cache)
+
 
 func save_theme_to_disk() -> void:
 	_save_theme_to_disk()
+
 
 func get_color(color_key: String, fallback_hex: String = "#ffffff") -> Color:
 	var colors: Dictionary = active_theme_cache.get("colors", {})
@@ -131,20 +104,24 @@ func get_color(color_key: String, fallback_hex: String = "#ffffff") -> Color:
 
 	if raw_value != null:
 		var parsed_color: Color = Color(str(raw_value))
-		if parsed_color != Color(0, 0, 0, 0) or str(raw_value).to_lower() == "#00000000":
+		if parsed_color != Color.TRANSPARENT or str(raw_value).to_lower() == "#00000000":
 			return parsed_color
 
 	return Color(fallback_hex)
 
+
 func get_corner_radius() -> int: return DEFAULT_CORNER_RADIUS
 func get_theme_data() -> Dictionary: return active_theme_cache.duplicate(true)
+
 
 func create_theme() -> Theme:
 	_rebuild_theme_cache()
 	return _theme_cache
 
+
 func _rebuild_theme_cache() -> void:
 	_theme_cache = ThemeEngine.create_theme(active_theme_cache, DEFAULT_CORNER_RADIUS)
+
 
 func apply_theme(theme_data: Dictionary) -> void:
 	if theme_data.is_empty():
@@ -164,12 +141,11 @@ func apply_theme(theme_data: Dictionary) -> void:
 
 	var payload: Dictionary = get_theme_data()
 	theme_changed.emit(payload)
+	EventBus.theme_changed.emit(payload)
 
-	var eb: Node = get_node_or_null("/root/EventBus")
-	if eb and eb.has_signal("theme_changed"):
-		eb.emit_signal("theme_changed", payload)
 
 func apply_global_theme(theme_data: Dictionary) -> void: apply_theme(theme_data)
+
 
 func apply_theme_globally() -> void:
 	var tree: SceneTree = get_tree()
@@ -179,6 +155,7 @@ func apply_theme_globally() -> void:
 	ThemeEngine.clear_procedural_icon_cache()
 	_theme_cache = ThemeEngine.apply_theme_globally(tree, active_theme_cache, DEFAULT_CORNER_RADIUS)
 	_refresh_registered_backgrounds()
+
 
 func create_stylebox(background_key: String, border_key: String, radius: int = DEFAULT_CORNER_RADIUS) -> StyleBoxFlat:
 	var s: StyleBoxFlat = StyleBoxFlat.new()
@@ -191,6 +168,7 @@ func create_stylebox(background_key: String, border_key: String, radius: int = D
 	s.content_margin_top = 5
 	s.content_margin_bottom = 5
 	return s
+
 
 func get_icon(icon_name: String) -> Texture2D:
 	if icon_name.is_empty():
@@ -224,12 +202,13 @@ func get_icon(icon_name: String) -> Texture2D:
 				if (path.begins_with("user://") or not path.begins_with("res://")) and FileAccess.file_exists(path):
 					var image: Image = Image.load_from_file(path)
 					if image != null and not image.is_empty():
-						image.generate_mipmaps() # OPTIMIZATION: Mipmaps for UI Icons
+						image.generate_mipmaps()
 						var user_texture: ImageTexture = ImageTexture.create_from_image(image)
 						_theme_icon_cache[icon_name] = user_texture
 						return user_texture
 
 	return null
+
 
 func get_popup_icon(icon_name: String) -> Texture2D:
 	var tint_color: Color = get_color("text_primary", "#6c2e3f")
@@ -260,9 +239,11 @@ func get_popup_icon(icon_name: String) -> Texture2D:
 	_popup_icon_cache[cache_key] = result
 	return result
 
+
 func clear_icon_cache() -> void:
 	_theme_icon_cache.clear()
 	_popup_icon_cache.clear()
+
 
 func register_background(control: Control) -> void:
 	if control == null:
@@ -275,6 +256,7 @@ func register_background(control: Control) -> void:
 	_registered_backgrounds.append(weakref(control))
 	_update_background_control(control)
 
+
 func unregister_background(control: Control) -> void:
 	if control == null:
 		return
@@ -282,6 +264,7 @@ func unregister_background(control: Control) -> void:
 		var target: Control = _registered_backgrounds[index].get_ref() as Control
 		if target == null or target == control:
 			_registered_backgrounds.remove_at(index)
+
 
 func _refresh_registered_backgrounds() -> void:
 	for index: int in range(_registered_backgrounds.size() - 1, -1, -1):
@@ -291,13 +274,15 @@ func _refresh_registered_backgrounds() -> void:
 			continue
 		_update_background_control(bg)
 
+
 func _update_background_control(control: Control) -> void:
 	if control is ColorRect:
 		(control as ColorRect).color = get_color("window_background", "#fff5f7")
 
+
 func reset_to_default_theme() -> void:
 	active_theme_cache = {
-		"colors": DEFAULT_COLORS.duplicate(true),
+		"colors": ThemeEngine.DEFAULT_PALETTE.duplicate(true),
 		"font_path": ""
 	}
 	clear_icon_cache()
@@ -306,7 +291,4 @@ func reset_to_default_theme() -> void:
 
 	var payload: Dictionary = get_theme_data()
 	theme_changed.emit(payload)
-
-	var eb: Node = get_node_or_null("/root/EventBus")
-	if eb and eb.has_signal("theme_changed"):
-		eb.emit_signal("theme_changed", payload)
+	EventBus.theme_changed.emit(payload)

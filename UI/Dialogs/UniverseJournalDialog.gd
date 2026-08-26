@@ -641,9 +641,9 @@ func _render_timeline_list() -> void:
 		var btn: Button = Button.new()
 		var e_era: String = str(entry.get("era", "")).strip_edges()
 		var e_title: String = str(entry.get("title", "")).strip_edges()
-		if e_title == "": e_title = "Untitled Event"
+		if e_title.is_empty(): e_title = "Untitled Event"
 
-		btn.text = "%s\n%s" % [e_title, e_era if e_era != "" else "Undated"]
+		btn.text = "%s\n%s" % [e_title, e_era if not e_era.is_empty() else "Undated"]
 		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		btn.custom_minimum_size = Vector2(0.0, 44.0)
 		btn.focus_mode = Control.FOCUS_NONE
@@ -697,10 +697,10 @@ func _render_factions_list() -> void:
 		var f_dict: Dictionary = factions_arr[i] as Dictionary
 		var btn: Button = Button.new()
 		var f_name: String = str(f_dict.get("name", "")).strip_edges()
-		if f_name == "": f_name = "Unnamed Faction"
+		if f_name.is_empty(): f_name = "Unnamed Faction"
 		var f_motto: String = str(f_dict.get("motto", "")).strip_edges()
 
-		btn.text = "%s\n%s" % [f_name, f_motto if f_motto != "" else "No motto"]
+		btn.text = "%s\n%s" % [f_name, f_motto if not f_motto.is_empty() else "No motto"]
 		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 		btn.custom_minimum_size = Vector2(0.0, 44.0)
 		btn.focus_mode = Control.FOCUS_NONE
@@ -853,7 +853,7 @@ func _populate_add_member_dropdown() -> void:
 func _on_add_member_selected(index: int) -> void:
 	if index <= 0: return
 	var c_id: String = str(f_add_member_opt.get_item_metadata(index))
-	if c_id == "": return
+	if c_id.is_empty(): return
 
 	var factions_arr: Array = journal_data.get("factions", [])
 	if active_faction_idx >= 0 and active_faction_idx < factions_arr.size():
@@ -882,12 +882,12 @@ func _on_faction_hq_selected(index: int) -> void:
 func _resolve_character_portrait(char_dict: Dictionary) -> Texture2D:
 	var custom_f: Dictionary = char_dict.get("custom_fields", {})
 	var av_path: String = str(custom_f.get("avatar_path", ""))
-	if av_path != "" and FileAccess.file_exists(av_path):
+	if not av_path.is_empty() and FileAccess.file_exists(av_path):
 		return UGCManager.load_texture_from_file(av_path)
 
 	for k: String in ["ugc_texture_path", "texture_path", "path_to_texture", "ugc_tex"]:
 		var path_str: String = str(char_dict.get(k, ""))
-		if path_str != "" and FileAccess.file_exists(path_str):
+		if not path_str.is_empty() and FileAccess.file_exists(path_str):
 			return UGCManager.load_texture_from_file(path_str)
 	return null
 
@@ -905,7 +905,7 @@ func _populate_character_chips(container: Control, active_id_list: Array, on_tog
 	for char_dict: Dictionary in cached_roster:
 		var c_id: String = str(char_dict.get("id", ""))
 		var c_name: String = str(char_dict.get("display_name", "Character"))
-		if c_id == "": continue
+		if c_id.is_empty(): continue
 
 		var is_selected: bool = active_id_list.has(c_id)
 		var chip_btn: Button = Button.new()
@@ -928,12 +928,12 @@ func _populate_room_selector(opt_btn: OptionButton, selected_room_id: String) ->
 	var save_dir: String = SaveSystem.get_universe_save_dir(SaveSystem.get_current_universe_id())
 	var rooms: Array[String] = ["room_main"]
 
-	if save_dir != "" and DirAccess.dir_exists_absolute(save_dir):
+	if not save_dir.is_empty() and DirAccess.dir_exists_absolute(save_dir):
 		var dir: DirAccess = DirAccess.open(save_dir)
 		if dir:
 			dir.list_dir_begin()
 			var fname: String = dir.get_next()
-			while fname != "":
+			while not fname.is_empty():
 				if not dir.current_is_dir() and fname.ends_with(".json"):
 					var r_id: String = fname.get_basename()
 					if not rooms.has(r_id): rooms.append(r_id)
@@ -993,7 +993,7 @@ func _commit_active_timeline_field(field_key: String, value: Variant) -> void:
 			if btn_node:
 				var e_title: String = str(timeline_arr[active_timeline_idx].get("title", "Untitled Event"))
 				var e_era: String = str(timeline_arr[active_timeline_idx].get("era", "Undated"))
-				btn_node.text = "%s\n%s" % [e_title if e_title != "" else "Untitled Event", e_era if e_era != "" else "Undated"]
+				btn_node.text = "%s\n%s" % [e_title if not e_title.is_empty() else "Untitled Event", e_era if not e_era.is_empty() else "Undated"]
 
 
 func _on_add_faction_entry() -> void:
@@ -1036,7 +1036,7 @@ func _commit_active_faction_field(field_key: String, value: Variant) -> void:
 			if btn_node:
 				var f_name: String = str(factions_arr[active_faction_idx].get("name", "Unnamed Faction"))
 				var f_motto: String = str(factions_arr[active_faction_idx].get("motto", "No motto"))
-				btn_node.text = "%s\n%s" % [f_name if f_name != "" else "Unnamed Faction", f_motto if f_motto != "" else "No motto"]
+				btn_node.text = "%s\n%s" % [f_name if not f_name.is_empty() else "Unnamed Faction", f_motto if not f_motto.is_empty() else "No motto"]
 
 
 func _on_faction_color_changed(new_color: Color) -> void:

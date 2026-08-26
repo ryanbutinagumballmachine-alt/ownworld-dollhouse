@@ -545,7 +545,6 @@ func _add_trait_row(trait_key: String, trait_value: String) -> void:
 	traits_vbox.add_child(row)
 
 
-# Sourced directly from AssetPickerDialog instead of FileDialog
 func _on_avatar_btn_pressed() -> void:
 	if asset_picker != null:
 		asset_picker.open_picker("Choose Character Portrait Drawing", "", func(_art_name: String, _tex: Texture2D, file_path: String) -> void:
@@ -568,17 +567,17 @@ func _update_avatar_preview() -> void:
 
 
 func _resolve_character_portrait(char_dict: Dictionary, explicit_avatar_path: String = "") -> Texture2D:
-	if explicit_avatar_path != "" and FileAccess.file_exists(explicit_avatar_path):
+	if not explicit_avatar_path.is_empty() and FileAccess.file_exists(explicit_avatar_path):
 		return UGCManager.get_thumbnail_async(explicit_avatar_path, 128)
 
 	var custom_f: Dictionary = char_dict.get("custom_fields", {})
 	var av_path: String = str(custom_f.get("avatar_path", ""))
-	if av_path != "" and FileAccess.file_exists(av_path):
+	if not av_path.is_empty() and FileAccess.file_exists(av_path):
 		return UGCManager.get_thumbnail_async(av_path, 128)
 
 	for k: String in ["ugc_texture_path", "texture_path", "path_to_texture", "ugc_tex"]:
 		var path_str: String = str(char_dict.get(k, ""))
-		if path_str != "" and FileAccess.file_exists(path_str):
+		if not path_str.is_empty() and FileAccess.file_exists(path_str):
 			return UGCManager.get_thumbnail_async(path_str, 128)
 
 	return null
@@ -865,7 +864,7 @@ func _populate_from_data(char_name: String, fields: Dictionary) -> void:
 
 func save_and_close() -> void:
 	var new_char_name: String = name_edit.text.strip_edges()
-	if new_char_name == "":
+	if new_char_name.is_empty():
 		new_char_name = active_entity.display_name if is_instance_valid(active_entity) else str(fallback_char_dict.get("display_name", "Character"))
 
 	var updated_traits: Dictionary = {}
@@ -873,7 +872,7 @@ func save_and_close() -> void:
 		if child is HBoxContainer:
 			var k_node: LineEdit = child.get_child(0) as LineEdit
 			var v_node: LineEdit = child.get_child(1) as LineEdit
-			if k_node and v_node and k_node.text.strip_edges() != "":
+			if k_node and v_node and not k_node.text.strip_edges().is_empty():
 				updated_traits[k_node.text.strip_edges()] = v_node.text.strip_edges()
 
 	var updated_family: Array[Dictionary] = _scrape_bond_cards(family_vbox, "Sibling")
@@ -946,7 +945,7 @@ func _enforce_symmetrical_family(source_name: String, current_family: Array[Dict
 		if c_var is Dictionary:
 			var d: Dictionary = (c_var as Dictionary).duplicate(true)
 			var c_name: String = str(d.get("display_name", ""))
-			if c_name != "": char_map[c_name] = d
+			if not c_name.is_empty(): char_map[c_name] = d
 
 	for old_f: Dictionary in old_family:
 		var old_target: String = str(old_f.get("target_name", ""))
@@ -955,7 +954,7 @@ func _enforce_symmetrical_family(source_name: String, current_family: Array[Dict
 			if str(cur_f.get("target_name", "")) == old_target:
 				still_exists = true
 				break
-		if not still_exists and old_target != "" and char_map.has(old_target):
+		if not still_exists and not old_target.is_empty() and char_map.has(old_target):
 			var tgt: Dictionary = char_map[old_target]
 			var c_fields: Dictionary = tgt.get("custom_fields", {})
 			var fam: Array = c_fields.get("family_ties", [])
@@ -970,7 +969,7 @@ func _enforce_symmetrical_family(source_name: String, current_family: Array[Dict
 		var target_name: String = str(cur_f.get("target_name", ""))
 		var rel_type: String = str(cur_f.get("relation_type", ""))
 
-		if target_name != "" and target_name != source_name and char_map.has(target_name):
+		if not target_name.is_empty() and target_name != source_name and char_map.has(target_name):
 			var tgt: Dictionary = char_map[target_name]
 			var c_fields: Dictionary = tgt.get("custom_fields", {})
 			var fam: Array = c_fields.get("family_ties", [])
@@ -1015,7 +1014,7 @@ func _sync_directional_feelings(source_name: String, current_feelings: Array[Dic
 		if c_var is Dictionary:
 			var d: Dictionary = (c_var as Dictionary).duplicate(true)
 			var c_name: String = str(d.get("display_name", ""))
-			if c_name != "": char_map[c_name] = d
+			if not c_name.is_empty(): char_map[c_name] = d
 
 	for old_b: Dictionary in old_feelings:
 		var old_target: String = str(old_b.get("target_name", ""))
@@ -1024,7 +1023,7 @@ func _sync_directional_feelings(source_name: String, current_feelings: Array[Dic
 			if str(cur_b.get("target_name", "")) == old_target:
 				still_exists = true
 				break
-		if not still_exists and old_target != "" and char_map.has(old_target):
+		if not still_exists and not old_target.is_empty() and char_map.has(old_target):
 			var tgt: Dictionary = char_map[old_target]
 			var c_fields: Dictionary = tgt.get("custom_fields", {})
 			var rels: Array = c_fields.get("relationships", [])
@@ -1033,7 +1032,7 @@ func _sync_directional_feelings(source_name: String, current_feelings: Array[Dic
 				if rels[i] is Dictionary and str(rels[i].get("target_name", "")) == source_name:
 					var existing_rel: String = str(rels[i].get("relation_type", ""))
 					var existing_notes: String = str(rels[i].get("notes", ""))
-					if existing_rel == "Distant / Acquaintance" and existing_notes == "":
+					if existing_rel == "Distant / Acquaintance" and existing_notes.is_empty():
 						rels.remove_at(i)
 						modified = true
 			if modified:
@@ -1043,7 +1042,7 @@ func _sync_directional_feelings(source_name: String, current_feelings: Array[Dic
 
 	for cur_b: Dictionary in current_feelings:
 		var target_name: String = str(cur_b.get("target_name", ""))
-		if target_name != "" and target_name != source_name and char_map.has(target_name):
+		if not target_name.is_empty() and target_name != source_name and char_map.has(target_name):
 			var tgt: Dictionary = char_map[target_name]
 			var c_fields: Dictionary = tgt.get("custom_fields", {})
 			var rels: Array = c_fields.get("relationships", [])
@@ -1077,7 +1076,7 @@ func _get_universe_character_names() -> Array[String]:
 	for c_var: Variant in all_chars:
 		if c_var is Dictionary:
 			var c_name: String = str((c_var as Dictionary).get("display_name", ""))
-			if c_name != "" and c_name != my_name and not (c_name in result):
+			if not c_name.is_empty() and c_name != my_name and not (c_name in result):
 				result.append(c_name)
 
 	result.sort()

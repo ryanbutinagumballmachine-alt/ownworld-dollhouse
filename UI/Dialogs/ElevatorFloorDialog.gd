@@ -1,5 +1,5 @@
 # ==============================================================================
-# OWNWORLD — ELEVATOR FLOOR ROUTING DIALOG (KEYPAD TRANSIT ONLY)
+# OWNWORLD — ELEVATOR FLOOR ROUTING DIALOG
 # File: res://UI/Dialogs/ElevatorFloorDialog.gd
 # Base Class: CanvasLayer (class_name ElevatorFloorDialog)
 # ==============================================================================
@@ -229,14 +229,8 @@ func _on_floor_selected(target_room_id: String, floor_name: String) -> void:
 
 
 func _get_current_room_id() -> String:
-	if not FileAccess.file_exists(SESSION_FILE): return "room_main"
-	var file: FileAccess = FileAccess.open(SESSION_FILE, FileAccess.READ)
-	if file == null: return "room_main"
-	var parsed: Variant = JSON.parse_string(file.get_as_text())
-	file.close()
-	if parsed is Dictionary:
-		return str((parsed as Dictionary).get("room_id", "room_main"))
-	return "room_main"
+	var session: Dictionary = JsonFileStore.read_dictionary(SESSION_FILE)
+	return str(session.get("room_id", "room_main"))
 
 
 func _apply_button_icon(button: Button, icon_key: String) -> void:

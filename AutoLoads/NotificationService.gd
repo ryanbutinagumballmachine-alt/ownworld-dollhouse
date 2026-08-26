@@ -1,7 +1,7 @@
 # ==============================================================================
-# OWNWORLD — NOTIFICATION SERVICE
+# OWNWORLD — NOTIFICATION TOAST SERVICE
 # File: res://AutoLoads/NotificationService.gd
-# Autoload: NotificationService
+# Autoload Singleton: NotificationService
 # ==============================================================================
 
 extends Node
@@ -67,7 +67,7 @@ func _build_notification_ui() -> void:
 
 	toast_container = Control.new()
 	toast_container.name = "NotificationContainer"
-	toast_container.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	toast_container.set_anchors_preset(Control.PRESET_FULL_RECT)
 	toast_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	toast_layer.add_child(toast_container)
 
@@ -105,16 +105,17 @@ func _apply_style(is_success: bool) -> void:
 	if toast_panel == null:
 		return
 
-	var background: Color = ThemeService.get_color("panel_background", "#fff5f7")
-	var accent: Color = ThemeService.get_color("accent_primary", "#ec4899")
-	var danger: Color = ThemeService.get_color("accent_danger", "#f43f5e")
-	var text: Color = ThemeService.get_color("text_primary", "#6c2e3f")
+	var background: Color = ThemeService.get_color("panel_background", "#fff5f7") if Engine.has_singleton("ThemeService") or has_node("/root/ThemeService") else Color("#fff5f7")
+	var accent: Color = ThemeService.get_color("accent_primary", "#ec4899") if Engine.has_singleton("ThemeService") or has_node("/root/ThemeService") else Color("#ec4899")
+	var danger: Color = ThemeService.get_color("accent_danger", "#f43f5e") if Engine.has_singleton("ThemeService") or has_node("/root/ThemeService") else Color("#f43f5e")
+	var text: Color = ThemeService.get_color("text_primary", "#6c2e3f") if Engine.has_singleton("ThemeService") or has_node("/root/ThemeService") else Color("#6c2e3f")
+	var corner_radius: int = ThemeService.get_corner_radius() if Engine.has_singleton("ThemeService") or has_node("/root/ThemeService") else 6
 
 	var style: StyleBoxFlat = StyleBoxFlat.new()
 	style.bg_color = background
 	style.border_color = accent if is_success else danger
 	style.set_border_width_all(1)
-	style.set_corner_radius_all(ThemeService.get_corner_radius())
+	style.set_corner_radius_all(corner_radius)
 	style.content_margin_left = 10.0
 	style.content_margin_right = 10.0
 	style.content_margin_top = 6.0

@@ -1,7 +1,3 @@
-# ============================================================
-# File: res://UI/DiagnosticOverlay.gd
-# ============================================================
-
 # ==============================================================================
 # OWNWORLD — DIAGNOSTIC OVERLAY
 # File: res://UI/DiagnosticOverlay.gd
@@ -24,6 +20,7 @@ var dev_pill_btn: Button = null
 
 var _update_timer: float = 0.0
 
+
 func _ready() -> void:
 	name = "DiagnosticOverlay"
 	layer = 126
@@ -33,9 +30,11 @@ func _ready() -> void:
 	_connect_settings_signal()
 	_sync_with_settings()
 
+
 func setup(p_main: Node2D) -> void:
 	main_ref = p_main
 	if is_inside_tree(): _sync_with_settings()
+
 
 func _connect_settings_signal() -> void:
 	if not is_inside_tree(): return
@@ -43,27 +42,30 @@ func _connect_settings_signal() -> void:
 		if not SettingsManager.is_connected("developer_mode_changed", Callable(self, "_on_dev_mode_changed")):
 			SettingsManager.developer_mode_changed.connect(_on_dev_mode_changed)
 
+
 func _sync_with_settings() -> void:
 	if not is_inside_tree(): return
 	_on_dev_mode_changed(SettingsManager.is_developer_mode_enabled())
+
 
 func _on_dev_mode_changed(enabled: bool) -> void:
 	if dev_pill_btn: dev_pill_btn.visible = enabled
 	set_diagnostic_active(enabled)
 
+
 func _process(delta: float) -> void:
 	if not is_debug_active or not is_instance_valid(main_ref):
 		set_process(false)
 		return
-		
-	# Throttled updates to preserve mobile battery
+
 	_update_timer += delta
 	if _update_timer >= 0.25:
 		_update_timer = 0.0
 		_update_stats_display()
-		
+
 	if debug_canvas and debug_canvas.visible:
 		debug_canvas.queue_redraw()
+
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not (event is InputEventKey and event.pressed and not event.echo):
@@ -72,8 +74,10 @@ func _unhandled_input(event: InputEvent) -> void:
 		toggle_diagnostic_hud()
 		get_viewport().set_input_as_handled()
 
+
 func toggle_diagnostic_hud() -> void:
 	set_diagnostic_active(not is_debug_active)
+
 
 func set_diagnostic_active(active: bool) -> void:
 	is_debug_active = active
@@ -92,6 +96,7 @@ func set_diagnostic_active(active: bool) -> void:
 					(ent_var as OwnEntity).update_gizmo_visibility(active)
 
 	EventBus.notification_requested.emit("Diagnostics: " + ("ENABLED" if active else "DISABLED"), true)
+
 
 func _build_diagnostic_hud() -> void:
 	debug_canvas = DebugCanvasDraw.new()
@@ -172,6 +177,7 @@ func _build_diagnostic_hud() -> void:
 	btn_copy_state.add_theme_color_override("font_color", Color.WHITE)
 	vbox.add_child(btn_copy_state)
 
+
 func _update_stats_display() -> void:
 	if not main_ref: return
 
@@ -194,10 +200,12 @@ func _update_stats_display() -> void:
 		int(fps), room_id, entity_count, int(cam_pos.x), int(cam_pos.y), cam_zoom
 	]
 
+
 func main_camera_valid() -> bool:
 	if main_ref == null: return false
 	var cam: Variant = main_ref.get("main_camera")
 	return cam != null and is_instance_valid(cam as Node)
+
 
 func _on_copy_state_json_pressed() -> void:
 	if not is_instance_valid(main_ref): return
@@ -236,15 +244,10 @@ func _on_copy_state_json_pressed() -> void:
 	DisplayServer.clipboard_set(json_payload)
 	EventBus.notification_requested.emit("State Copied to Clipboard", true)
 
+
 func _load_session() -> Dictionary:
-	if not FileAccess.file_exists(SESSION_FILE):
-		return {"universe_id": "default_universe", "universe_name": "Default Universe", "room_id": "room_main", "time_preset": "day", "weather_preset": "none"}
-	var file: FileAccess = FileAccess.open(SESSION_FILE, FileAccess.READ)
-	if file == null:
-		return {"universe_id": "default_universe", "universe_name": "Default Universe", "room_id": "room_main", "time_preset": "day", "weather_preset": "none"}
-	var parsed: Variant = JSON.parse_string(file.get_as_text())
-	file.close()
-	return parsed as Dictionary if parsed is Dictionary else {"universe_id": "default_universe", "universe_name": "Default Universe", "room_id": "room_main", "time_preset": "day", "weather_preset": "none"}
+	return JsonFileStore.read_dictionary(SESSION_FILE)
+
 
 class DebugCanvasDraw extends Control:
 	var overlay_ref: DiagnosticOverlay = null
@@ -300,6 +303,7 @@ class DebugCanvasDraw extends Control:
 			draw_rect(badge_bg, Color("#09090b", 0.9), true)
 			draw_rect(badge_bg, Color("#00f2fe", 0.8), false, 1.0)
 			draw_string(font, badge_pos + Vector2(0.0, 10.0), badge_text, HORIZONTAL_ALIGNMENT_CENTER, -1, font_sz, Color.WHITE)
+
 
 	func _world_to_screen(world_pos: Vector2, cam: Camera2D) -> Vector2:
 		var vp_center: Vector2 = get_viewport_rect().size * 0.5

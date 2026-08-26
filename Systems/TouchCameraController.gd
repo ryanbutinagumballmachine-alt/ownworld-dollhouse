@@ -122,9 +122,7 @@ func _clamp_camera_position() -> void:
 	position = clamped_pos
 
 
-# ------------------------------------------------------------------------------
-# SIDE-SCROLLING PANNING & ZOOM
-# ------------------------------------------------------------------------------
+# --- SIDE-SCROLLING PANNING & ZOOM ---
 
 func start_drag_pan(screen_pos: Vector2) -> void:
 	is_panning = true
@@ -139,11 +137,9 @@ func update_drag_pan(screen_pos: Vector2) -> void:
 	var delta_screen: Vector2 = (screen_pos - pan_start_screen_pos) / current_zoom
 
 	if not is_zoom_mode:
-		# Pure horizontal scroll across room slices
 		position.x = pan_start_cam_pos.x - delta_screen.x
 		position.y = room_bounds.get_center().y
 	else:
-		# Full 2D inspect pan
 		position = pan_start_cam_pos - delta_screen
 
 	_clamp_camera_position()

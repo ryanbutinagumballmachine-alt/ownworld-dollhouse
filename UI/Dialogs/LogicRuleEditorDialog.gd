@@ -211,10 +211,10 @@ func _build_target_section(parent: VBoxContainer) -> void:
 
 	opt_target = OptionButton.new()
 	opt_target.custom_minimum_size = Vector2(0.0, 34.0)
-	opt_target.add_item("This Item / Self", int(LogicEngine.ActionTarget.SELF))
-	opt_target.add_item("The Item Dropped Onto It", int(LogicEngine.ActionTarget.TRIGGER_ITEM))
-	opt_target.add_item("All Characters in Room", int(LogicEngine.ActionTarget.ROOM_ALL_CHARACTERS))
-	opt_target.add_item("Room Environment (Mood / Weather)", int(LogicEngine.ActionTarget.ENVIRONMENT))
+	opt_target.add_item("This Item / Self", int(Types.ActionTarget.SELF))
+	opt_target.add_item("The Item Dropped Onto It", int(Types.ActionTarget.TRIGGER_ITEM))
+	opt_target.add_item("All Characters in Room", int(Types.ActionTarget.ROOM_ALL_CHARACTERS))
+	opt_target.add_item("Room Environment (Mood / Weather)", int(Types.ActionTarget.ENVIRONMENT))
 	target_vbox.add_child(opt_target)
 
 
@@ -499,10 +499,10 @@ func _get_when_label(id: int) -> String:
 
 func _get_target_label(id: int) -> String:
 	match id:
-		int(LogicEngine.ActionTarget.SELF): return "Self"
-		int(LogicEngine.ActionTarget.TRIGGER_ITEM): return "Dropped Item"
-		int(LogicEngine.ActionTarget.ROOM_ALL_CHARACTERS): return "All OCs"
-		int(LogicEngine.ActionTarget.ENVIRONMENT): return "Environment"
+		int(Types.ActionTarget.SELF): return "Self"
+		int(Types.ActionTarget.TRIGGER_ITEM): return "Dropped Item"
+		int(Types.ActionTarget.ROOM_ALL_CHARACTERS): return "All OCs"
+		int(Types.ActionTarget.ENVIRONMENT): return "Environment"
 	return "Target"
 
 

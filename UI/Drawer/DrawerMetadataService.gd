@@ -1,7 +1,3 @@
-# ============================================================
-# File: res://UI/Drawer/DrawerMetadataService.gd
-# ============================================================
-
 # ==============================================================================
 # OWNWORLD — DRAWER METADATA SERVICE
 # File: res://UI/Drawer/DrawerMetadataService.gd
@@ -35,10 +31,11 @@ static func get_cast_path(universe_id: String = "") -> String:
 
 static func load_tags_list() -> Array[String]:
 	var result: Array[String] = []
-	var stored: Variant = _read_json(PATH_TAGS_LIST_FILE)
+	var stored: Dictionary = JsonFileStore.read_dictionary(PATH_TAGS_LIST_FILE)
 
-	if stored is Array:
-		for value: Variant in (stored as Array):
+	var list_variant: Variant = stored.get("tags", [])
+	if list_variant is Array:
+		for value: Variant in (list_variant as Array):
 			var tag: String = str(value).strip_edges().to_lower()
 			if tag.is_empty(): continue
 			if not tag.begins_with("#"): tag = "#" + tag
@@ -56,25 +53,23 @@ static func save_tags_list(tags: Array[String]) -> bool:
 		if not normalized.has(tag): normalized.append(tag)
 
 	if normalized.is_empty(): normalized = default_tags.duplicate()
-	return _write_json(PATH_TAGS_LIST_FILE, normalized)
+	return JsonFileStore.write_dictionary(PATH_TAGS_LIST_FILE, {"tags": normalized})
 
 
 static func load_asset_tags() -> Dictionary:
-	var stored: Variant = _read_json(PATH_ITEM_TAGS_FILE)
-	return (stored as Dictionary).duplicate(true) if stored is Dictionary else {}
+	return JsonFileStore.read_dictionary(PATH_ITEM_TAGS_FILE)
 
 
 static func save_asset_tags(tags_dictionary: Dictionary) -> bool:
-	return _write_json(PATH_ITEM_TAGS_FILE, tags_dictionary.duplicate(true))
+	return JsonFileStore.write_dictionary(PATH_ITEM_TAGS_FILE, tags_dictionary.duplicate(true))
 
 
 static func load_registered_folders() -> Dictionary:
 	var defaults: Dictionary = {"props": [], "furniture": [], "cast": []}
-	var stored: Variant = _read_json(PATH_TEMPLATE_FOLDERS_FILE)
-	if not stored is Dictionary: return defaults
+	var stored_dictionary: Dictionary = JsonFileStore.read_dictionary(PATH_TEMPLATE_FOLDERS_FILE)
+	if stored_dictionary.is_empty(): return defaults
 
 	var result: Dictionary = defaults.duplicate(true)
-	var stored_dictionary: Dictionary = stored as Dictionary
 
 	for key: String in ["props", "furniture", "cast"]:
 		var raw_values: Variant = stored_dictionary.get(key, [])
@@ -90,7 +85,7 @@ static func load_registered_folders() -> Dictionary:
 
 
 static func save_registered_folders(folder_dictionary: Dictionary) -> bool:
-	return _write_json(PATH_TEMPLATE_FOLDERS_FILE, folder_dictionary.duplicate(true))
+	return JsonFileStore.write_dictionary(PATH_TEMPLATE_FOLDERS_FILE, folder_dictionary.duplicate(true))
 
 
 static func load_template_array(file_path: String) -> Array[Dictionary]:
@@ -98,10 +93,11 @@ static func load_template_array(file_path: String) -> Array[Dictionary]:
 	var normalized_path: String = file_path.strip_edges()
 	if normalized_path.is_empty(): return result
 
-	var stored: Variant = _read_json(normalized_path)
-	if not stored is Array: return result
+	var stored: Dictionary = JsonFileStore.read_dictionary(normalized_path)
+	var raw_items: Variant = stored.get("templates", stored.get("cast", []))
+	if not raw_items is Array: return result
 
-	for value: Variant in (stored as Array):
+	for value: Variant in (raw_items as Array):
 		if value is Dictionary:
 			result.append((value as Dictionary).duplicate(true))
 	return result
@@ -109,7 +105,7 @@ static func load_template_array(file_path: String) -> Array[Dictionary]:
 
 static func save_template_array(file_path: String, items: Array[Dictionary]) -> bool:
 	if file_path.strip_edges().is_empty(): return false
-	return _write_json(file_path, items.duplicate(true))
+	return JsonFileStore.write_dictionary(file_path, {"templates": items.duplicate(true)})
 
 
 static func load_current_props() -> Array[Dictionary]:
@@ -167,43 +163,6 @@ static func scrub_character_from_universe_rooms(character_id: String, character_
 		if modified:
 			room_data["entities"] = entities
 			RoomRepository.save_room(universe_id, room_id, room_data)
-
-
-static func _read_json(file_path: String) -> Variant:
-	var path: String = file_path.strip_edges()
-	if path.is_empty() or not FileAccess.file_exists(path): return null
-	var file: FileAccess = FileAccess.open(path, FileAccess.READ)
-	if file == null: return null
-	var text: String = file.get_as_text()
-	file.close()
-	return JSON.parse_string(text)
-
-
-static func _write_json(file_path: String, value: Variant) -> bool:
-	var path: String = file_path.strip_edges()
-	if path.is_empty(): return false
-
-	var parent_directory: String = path.get_base_dir()
-	if not parent_directory.is_empty() and not DirAccess.dir_exists_absolute(parent_directory):
-		if DirAccess.make_dir_recursive_absolute(parent_directory) != OK: return false
-
-	if value is Dictionary:
-		return JsonFileStore.write_dictionary(path, value as Dictionary)
-
-	var temporary_path: String = path + ".tmp"
-	var file: FileAccess = FileAccess.open(temporary_path, FileAccess.WRITE)
-	if file == null: return false
-
-	file.store_string(JSON.stringify(value, "\t"))
-	file.flush()
-	file.close()
-
-	if FileAccess.file_exists(path):
-		if DirAccess.remove_absolute(path) != OK:
-			DirAccess.remove_absolute(temporary_path)
-			return false
-
-	return DirAccess.rename_absolute(temporary_path, path) == OK
 
 
 static func _normalize_universe_id(universe_id: String) -> String:

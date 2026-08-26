@@ -1,5 +1,5 @@
 # ==============================================================================
-# OWNWORLD — UPDATE MANAGER & IN-APP INSTALLER
+# OWNWORLD — IN-APP UPDATE MANAGER & APK INSTALLER
 # File: res://Systems/UpdateManager.gd
 # Base Class: RefCounted (class_name UpdateManager)
 # ==============================================================================
@@ -16,16 +16,14 @@ enum CheckResult {
 	ERROR
 }
 
-# --- 1. GET INSTALLED VERSION ---
 
+## Reads the installed application version from project configuration.
 static func get_current_app_version() -> String:
-	# Reads version from Project Settings -> application/config/version, fallback to "1.0.0"
 	var ver: String = str(ProjectSettings.get_setting("application/config/version", "1.0.0")).strip_edges()
 	return ver if not ver.is_empty() else "1.0.0"
 
 
-# --- 2. CHECK FOR UPDATES ---
-
+## Queries GitHub releases API asynchronously to check for newer build tags.
 static func check_for_updates(caller_node: Node, on_result: Callable) -> void:
 	if caller_node == null:
 		return
@@ -44,7 +42,7 @@ static func check_for_updates(caller_node: Node, on_result: Callable) -> void:
 		http_request.queue_free()
 
 		if result != HTTPRequest.RESULT_SUCCESS or response_code != 200:
-			var err_msg = "Network error (HTTP %d)" % response_code if response_code != 0 else "Cannot connect to update server"
+			var err_msg: String = "Network error (HTTP %d)" % response_code if response_code != 0 else "Cannot connect to update server"
 			on_result.call(CheckResult.ERROR, "", "", err_msg)
 			return
 
@@ -58,18 +56,17 @@ static func check_for_updates(caller_node: Node, on_result: Callable) -> void:
 		var assets: Array = data.get("assets", [])
 		var apk_download_url: String = ""
 
-		for asset in assets:
+		for asset: Variant in assets:
 			if asset is Dictionary:
-				var asset_name: String = str(asset.get("name", ""))
+				var asset_name: String = str((asset as Dictionary).get("name", ""))
 				if asset_name.ends_with(".apk"):
-					apk_download_url = str(asset.get("browser_download_url", ""))
+					apk_download_url = str((asset as Dictionary).get("browser_download_url", ""))
 					break
 
 		if release_tag.is_empty():
 			on_result.call(CheckResult.ERROR, "", "", "No release tag found on GitHub")
 			return
 
-		# Check if remote release is newer than current app version
 		if not is_remote_version_newer(current_version, release_tag):
 			on_result.call(CheckResult.UP_TO_DATE, release_tag, "", "You are on the latest version (%s)" % current_version)
 			return
@@ -87,8 +84,6 @@ static func check_for_updates(caller_node: Node, on_result: Callable) -> void:
 		on_result.call(CheckResult.ERROR, "", "", "Failed to send update request")
 
 
-# --- 3. IN-APP DOWNLOAD & INSTALLATION ---
-
 static func get_apk_target_path() -> String:
 	if OS.has_feature("android"):
 		var downloads_dir: String = OS.get_system_dir(OS.SYSTEM_DIR_DOWNLOADS)
@@ -97,6 +92,7 @@ static func get_apk_target_path() -> String:
 	return "user://update.apk"
 
 
+## Downloads the remote APK file with polled progress callbacks and triggers installation.
 static func download_and_install_update(caller_node: Node, apk_url: String, on_progress: Callable, on_complete: Callable, on_error: Callable) -> void:
 	if caller_node == null or apk_url.is_empty():
 		if on_error.is_valid(): on_error.call("Invalid download parameters")
@@ -110,7 +106,6 @@ static func download_and_install_update(caller_node: Node, apk_url: String, on_p
 	http_downloader.download_file = target_file_path
 	caller_node.add_child(http_downloader)
 
-	# Progress polling timer
 	var progress_timer: Timer = Timer.new()
 	progress_timer.wait_time = 0.1
 	progress_timer.autostart = true
@@ -140,7 +135,6 @@ static func download_and_install_update(caller_node: Node, apk_url: String, on_p
 		if on_complete.is_valid():
 			on_complete.call()
 
-		# Trigger system package installer
 		install_apk_file(target_file_path)
 	)
 
@@ -151,53 +145,51 @@ static func download_and_install_update(caller_node: Node, apk_url: String, on_p
 		on_error.call("Failed to initiate download stream")
 
 
+## Invokes native package installer on Android or opens target file in OS shell.
 static func install_apk_file(apk_file_path: String) -> void:
 	var global_path: String = ProjectSettings.globalize_path(apk_file_path)
 
 	if OS.has_feature("android"):
-		var android_runtime = Engine.get_singleton("AndroidRuntime")
+		var android_runtime: Object = Engine.get_singleton("AndroidRuntime") if Engine.has_singleton("AndroidRuntime") else null
 		if android_runtime:
-			var activity = android_runtime.getActivity()
-			var context = android_runtime.getApplicationContext()
+			var activity: Object = android_runtime.getActivity()
+			var context: Object = android_runtime.getApplicationContext()
 
-			var File = JavaClassWrapper.wrap("java.io.File")
-			var Intent = JavaClassWrapper.wrap("android.content.Intent")
-			var Uri = JavaClassWrapper.wrap("android.net.Uri")
-			var Build = JavaClassWrapper.wrap("android.os.Build$VERSION")
+			var FileClass: JavaClass = JavaClassWrapper.wrap("java.io.File")
+			var IntentClass: JavaClass = JavaClassWrapper.wrap("android.content.Intent")
+			var UriClass: JavaClass = JavaClassWrapper.wrap("android.net.Uri")
+			var BuildClass: JavaClass = JavaClassWrapper.wrap("android.os.Build$VERSION")
 
-			var apk_file = File.new(global_path)
-			var intent = Intent.new(Intent.ACTION_VIEW)
+			var apk_file: Variant = FileClass.new(global_path)
+			var intent: Variant = IntentClass.new(IntentClass.ACTION_VIEW)
 
-			if Build.SDK_INT >= 24: # Android 7.0+
-				var FileProvider = JavaClassWrapper.wrap("androidx.core.content.FileProvider")
-				var authority = context.getPackageName() + ".fileprovider"
-				
-				# If FileProvider authority fails, fall back to direct file URI
-				var content_uri = null
-				if FileProvider != null:
-					content_uri = FileProvider.getUriForFile(context, authority, apk_file)
-				
+			if BuildClass.SDK_INT >= 24:
+				var FileProviderClass: JavaClass = JavaClassWrapper.wrap("androidx.core.content.FileProvider")
+				var authority: String = str(context.getPackageName()) + ".fileprovider"
+				var content_uri: Variant = null
+
+				if FileProviderClass != null:
+					content_uri = FileProviderClass.getUriForFile(context, authority, apk_file)
+
 				if content_uri != null:
 					intent.setDataAndType(content_uri, "application/vnd.android.package-archive")
-					intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+					intent.addFlags(IntentClass.FLAG_GRANT_READ_URI_PERMISSION)
 				else:
-					intent.setDataAndType(Uri.fromFile(apk_file), "application/vnd.android.package-archive")
+					intent.setDataAndType(UriClass.fromFile(apk_file), "application/vnd.android.package-archive")
 			else:
-				intent.setDataAndType(Uri.fromFile(apk_file), "application/vnd.android.package-archive")
+				intent.setDataAndType(UriClass.fromFile(apk_file), "application/vnd.android.package-archive")
 
-			intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+			intent.addFlags(IntentClass.FLAG_ACTIVITY_NEW_TASK)
 			activity.startActivity(intent)
 			return
 
-	# Fallback for Windows desktop or systems with native handlers
 	OS.shell_open(global_path)
 
 
-# --- 4. VERSION COMPARISON HELPER ---
-
+## Compares two semver strings (e.g. "1.0.22" vs "1.0.23").
 static func is_remote_version_newer(local_ver_str: String, remote_ver_str: String) -> bool:
-	var clean_local = local_ver_str.trim_prefix("v").trim_prefix("V").strip_edges()
-	var clean_remote = remote_ver_str.trim_prefix("v").trim_prefix("V").strip_edges()
+	var clean_local: String = local_ver_str.trim_prefix("v").trim_prefix("V").strip_edges()
+	var clean_remote: String = remote_ver_str.trim_prefix("v").trim_prefix("V").strip_edges()
 
 	if clean_local == clean_remote:
 		return false
@@ -206,7 +198,7 @@ static func is_remote_version_newer(local_ver_str: String, remote_ver_str: Strin
 	var remote_parts: PackedStringArray = clean_remote.split(".")
 
 	var max_len: int = maxi(local_parts.size(), remote_parts.size())
-	for i in range(max_len):
+	for i: int in range(max_len):
 		var local_num: int = local_parts[i].to_int() if i < local_parts.size() and local_parts[i].is_valid_int() else 0
 		var remote_num: int = remote_parts[i].to_int() if i < remote_parts.size() and remote_parts[i].is_valid_int() else 0
 

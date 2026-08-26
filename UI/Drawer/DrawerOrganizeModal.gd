@@ -227,7 +227,7 @@ func _populate_tag_checkboxes(preselected_tags: Array) -> void:
 
 func _on_add_tag_clicked() -> void:
 	var t: String = tag_new_input.text.strip_edges().to_lower()
-	if t != "":
+	if not t.is_empty():
 		if not t.begins_with("#"): t = "#" + t
 		custom_tag_added.emit(t)
 	tag_new_input.text = ""

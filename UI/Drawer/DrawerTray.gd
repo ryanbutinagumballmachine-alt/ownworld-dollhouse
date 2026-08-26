@@ -1,5 +1,5 @@
 # ==============================================================================
-# OWNWORLD — DRAWER TRAY ORCHESTRATOR (DYNAMIC ADAPTIVE CARDS)
+# OWNWORLD — DRAWER TRAY ORCHESTRATOR
 # File: res://UI/Drawer/DrawerTray.gd
 # Base Class: CanvasLayer (class_name DrawerTray)
 # ==============================================================================
@@ -476,7 +476,7 @@ func _set_tray_mode(mode: TrayMode) -> void:
 
 
 func _update_tab_buttons_appearance() -> void:
-	var c_accent: Color = ThemeService.get_color("accent_primary", "#db2777")
+	var c_accent: Color = ThemeService.get_color("accent_primary", "#ec4899")
 	var rad: int = ThemeService.get_corner_radius()
 
 	var tabs: Array[Dictionary] = [
@@ -945,13 +945,13 @@ func _render_cast_tab() -> void:
 		var c_name: String = str(char_data.get("display_name", "Character"))
 		var c_id: String = str(char_data.get("id", ""))
 		var name_key: String = c_name.strip_edges().to_lower()
-		var item_key: String = c_id if c_id != "" else name_key
+		var item_key: String = c_id if not c_id.is_empty() else name_key
 		var is_selected: bool = selected_batch_items.has(item_key)
 
-		if seen_characters.has(c_id) or (name_key != "" and seen_characters.has(name_key)):
+		if seen_characters.has(c_id) or (not name_key.is_empty() and seen_characters.has(name_key)):
 			continue
-		if c_id != "": seen_characters[c_id] = true
-		if name_key != "": seen_characters[name_key] = true
+		if not c_id.is_empty(): seen_characters[c_id] = true
+		if not name_key.is_empty(): seen_characters[name_key] = true
 
 		var c_path: String = str(char_data.get("texture_path", ""))
 		var f_path: String = str(char_data.get("folder", "")).strip_edges().trim_prefix("/").trim_suffix("/")
@@ -1220,7 +1220,6 @@ func _create_card_icon_btn(icon_key: String, is_danger: bool = false) -> Button:
 	return btn
 
 
-# DYNAMIC CARD VISUAL LAYOUT (NO AWKWARD STRETCHING FOR LONG NAMES)
 func _attach_card_visuals(vbox: VBoxContainer, tex: Texture2D, label_text: String) -> void:
 	var thumb_box: PanelContainer = PanelContainer.new()
 	thumb_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -1317,7 +1316,7 @@ func _build_import_dialogs() -> void:
 
 func _on_art_files_imported(paths: PackedStringArray) -> void:
 	var imported_items: Array[Dictionary] = UGCManager.import_art_files(paths, current_folder_path)
-	for item in imported_items:
+	for item: Dictionary in imported_items:
 		var fname: String = str(item.get("name", ""))
 		if not asset_tags_registry.has(fname):
 			asset_tags_registry[fname] = ["#props"]
@@ -1452,7 +1451,7 @@ func _spawn_and_relocate_character_from_cast(char_data: Dictionary) -> void:
 		for node: Node in tree.get_nodes_in_group("characters"):
 			if node is OwnEntity:
 				var ent: OwnEntity = node as OwnEntity
-				if ent.entity_id == c_id or (c_name != "" and ent.display_name.strip_edges().to_lower() == c_name.strip_edges().to_lower()):
+				if ent.entity_id == c_id or (not c_name.is_empty() and ent.display_name.strip_edges().to_lower() == c_name.strip_edges().to_lower()):
 					existing_live_char = ent
 					break
 
@@ -1468,7 +1467,7 @@ func _spawn_and_relocate_character_from_cast(char_data: Dictionary) -> void:
 	var cast_list: Array[Dictionary] = _load_cast_data()
 	var cast_mod: bool = false
 	for i: int in range(cast_list.size() - 1, -1, -1):
-		if str(cast_list[i].get("id", "")) == c_id or (c_name != "" and str(cast_list[i].get("display_name", "")).strip_edges().to_lower() == c_name.strip_edges().to_lower()):
+		if str(cast_list[i].get("id", "")) == c_id or (not c_name.is_empty() and str(cast_list[i].get("display_name", "")).strip_edges().to_lower() == c_name.strip_edges().to_lower()):
 			cast_list.remove_at(i)
 			cast_mod = true
 	if cast_mod: _save_cast_data(cast_list)
@@ -1550,7 +1549,7 @@ func _delete_character_from_cast(char_data: Dictionary) -> void:
 
 	var cast_list: Array[Dictionary] = _load_cast_data()
 	for i: int in range(cast_list.size() - 1, -1, -1):
-		if str(cast_list[i].get("id", "")) == char_id or (char_name != "" and str(cast_list[i].get("display_name", "")).strip_edges().to_lower() == char_name.strip_edges().to_lower()):
+		if str(cast_list[i].get("id", "")) == char_id or (not char_name.is_empty() and str(cast_list[i].get("display_name", "")).strip_edges().to_lower() == char_name.strip_edges().to_lower()):
 			cast_list.remove_at(i)
 	_save_cast_data(cast_list)
 
@@ -1559,7 +1558,7 @@ func _delete_character_from_cast(char_data: Dictionary) -> void:
 		for node: Node in tree.get_nodes_in_group("characters"):
 			if node is OwnEntity:
 				var ent: OwnEntity = node as OwnEntity
-				if ent.entity_id == char_id or (char_name != "" and ent.display_name.strip_edges().to_lower() == char_name.strip_edges().to_lower()):
+				if ent.entity_id == char_id or (not char_name.is_empty() and ent.display_name.strip_edges().to_lower() == char_name.strip_edges().to_lower()):
 					ent.queue_free()
 
 	DrawerMetadataService.scrub_character_from_universe_rooms(char_id, char_name)

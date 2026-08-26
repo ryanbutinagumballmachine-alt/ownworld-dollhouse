@@ -7,16 +7,10 @@ class_name EntityLightCapability
 extends EntityCapability
 
 signal active_changed(active: bool)
-signal configuration_changed
-
-enum ShapeMode {
-	SILHOUETTE_CONTOUR = 0,
-	RADIAL_ROOM = 1,
-	ANCHOR_POINTS = 2
-}
+signal configuration_changed()
 
 var active: bool = false
-var shape_mode: int = ShapeMode.SILHOUETTE_CONTOUR
+var shape_mode: int = Types.LightShapeMode.SILHOUETTE_CONTOUR
 var light_color: Color = Color(1.0, 0.88, 0.50, 0.85)
 var intensity: float = 2.0
 var radius: float = 160.0
@@ -27,14 +21,15 @@ func get_component_key() -> StringName:
 	return &"EntityLightCapability"
 
 
-func configure(color: Color, new_intensity: float, new_radius: float, new_pulse_speed: float, new_shape_mode: int = ShapeMode.SILHOUETTE_CONTOUR) -> void:
+func configure(color: Color, new_intensity: float, new_radius: float, new_pulse_speed: float, new_shape_mode: int = Types.LightShapeMode.SILHOUETTE_CONTOUR) -> void:
 	light_color = color
 	intensity = maxf(new_intensity, 0.0)
 	radius = maxf(new_radius, 0.0)
 	pulse_speed = maxf(new_pulse_speed, 0.0)
-	shape_mode = clampi(new_shape_mode, int(ShapeMode.SILHOUETTE_CONTOUR), int(ShapeMode.ANCHOR_POINTS))
+	shape_mode = clampi(new_shape_mode, int(Types.LightShapeMode.SILHOUETTE_CONTOUR), int(Types.LightShapeMode.ANCHOR_POINTS))
 	configuration_changed.emit()
-	EventBus.entity_state_changed.emit(entity.entity_id)
+	if entity != null:
+		EventBus.entity_state_changed.emit(entity.entity_id)
 
 
 func set_active(value: bool) -> void:
@@ -42,7 +37,8 @@ func set_active(value: bool) -> void:
 		return
 	active = value
 	active_changed.emit(active)
-	EventBus.entity_state_changed.emit(entity.entity_id)
+	if entity != null:
+		EventBus.entity_state_changed.emit(entity.entity_id)
 
 
 func toggle() -> void:
@@ -62,7 +58,7 @@ func serialize() -> Dictionary:
 
 func deserialize(data: Dictionary) -> void:
 	active = bool(data.get("active", false))
-	shape_mode = clampi(int(data.get("shape_mode", ShapeMode.SILHOUETTE_CONTOUR)), int(ShapeMode.SILHOUETTE_CONTOUR), int(ShapeMode.ANCHOR_POINTS))
+	shape_mode = clampi(int(data.get("shape_mode", Types.LightShapeMode.SILHOUETTE_CONTOUR)), int(Types.LightShapeMode.SILHOUETTE_CONTOUR), int(Types.LightShapeMode.ANCHOR_POINTS))
 	light_color = Color(str(data.get("light_color", "#ffe080")))
 	intensity = maxf(float(data.get("intensity", 2.0)), 0.0)
 	radius = maxf(float(data.get("radius", 160.0)), 0.0)

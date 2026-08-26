@@ -1,7 +1,7 @@
 # ==============================================================================
-# OWNWORLD — PERSISTENCE SERVICE (COMPLETE ROOM METADATA & ENTITY PERSISTENCE)
+# OWNWORLD — PERSISTENCE SERVICE COORDINATOR
 # File: res://AutoLoads/SaveSystem.gd
-# Autoload: SaveSystem
+# Autoload Singleton: SaveSystem
 # ==============================================================================
 
 extends Node
@@ -19,96 +19,20 @@ signal cast_saved()
 signal journal_saved(universe_id: String)
 
 
+func _ready() -> void:
+	process_mode = Node.PROCESS_MODE_ALWAYS
+	_initialize_directories()
+
+
+func _initialize_directories() -> void:
+	JsonFileStore.ensure_directory(PATH_SAVES_ROOT)
+	JsonFileStore.ensure_directory(PATH_UNIVERSES_DIR)
+
+
 func get_current_universe_id() -> String:
 	var session: Dictionary = _load_session()
 	var universe_id: String = str(session.get("universe_id", DEFAULT_UNIVERSE_ID)).strip_edges()
 	return universe_id if not universe_id.is_empty() else DEFAULT_UNIVERSE_ID
-
-
-static func get_floor_rank(floor_level_str: String) -> int:
-	var s: String = floor_level_str.strip_edges().to_upper()
-	if s.begins_with("B") and s.trim_prefix("B").is_valid_int():
-		return -s.trim_prefix("B").to_int()
-	if s.ends_with("F") and s.trim_suffix("F").is_valid_int():
-		return s.trim_suffix("F").to_int()
-	if s in ["G", "GF", "LG", "LOBBY", "GROUND"]:
-		return 1
-	if s in ["MEZZANINE"]:
-		return 800
-	if s in ["ATTIC"]:
-		return 900
-	if s in ["ROOF", "ROOFTOP"]:
-		return 1000
-	if s.is_valid_int():
-		return s.to_int()
-	return 1
-
-
-# Helper to retrieve all rooms/floors belonging to a specific building in the current universe
-func get_building_floors(building_id: String, universe_id: String = "") -> Array[Dictionary]:
-	var resolved_bldg_id: String = building_id.strip_edges()
-	var save_dir: String = get_universe_save_dir(universe_id)
-	var floors: Array[Dictionary] = []
-
-	if not DirAccess.dir_exists_absolute(save_dir):
-		return floors
-
-	var dir: DirAccess = DirAccess.open(save_dir)
-	if dir == null: return floors
-
-	dir.list_dir_begin()
-	var file_name: String = dir.get_next()
-	while not file_name.is_empty():
-		if not dir.current_is_dir() and file_name.ends_with(".json") and file_name != "recipes.json":
-			var room_path: String = save_dir.path_join(file_name)
-			var room_state: Dictionary = JsonFileStore.read_dictionary(room_path)
-			if str(room_state.get("building_id", "building_main")) == resolved_bldg_id:
-				floors.append({
-					"room_id": str(room_state.get("room_id", file_name.trim_suffix(".json"))),
-					"floor_level": str(room_state.get("floor_level", "1F")),
-					"label": "%s %s" % [str(room_state.get("floor_level", "1F")), str(room_state.get("room_title", "Room"))]
-				})
-		file_name = dir.get_next()
-	dir.list_dir_end()
-
-	return floors
-
-
-# Finds the next floor level above the active room in the same building
-func get_next_floor_above(building_id: String, current_room_id: String, universe_id: String = "") -> Dictionary:
-	var floors: Array[Dictionary] = get_building_floors(building_id, universe_id)
-	if floors.size() <= 1:
-		return {}
-
-	# Sort all building floors in ascending order by rank
-	floors.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
-		var rank_a: int = SaveSystem.get_floor_rank(str(a.get("floor_level", "1F")))
-		var rank_b: int = SaveSystem.get_floor_rank(str(b.get("floor_level", "1F")))
-		return rank_a < rank_b
-	)
-
-	var current_index: int = -1
-	for i: int in range(floors.size()):
-		if str(floors[i].get("room_id", "")) == current_room_id:
-			current_index = i
-			break
-
-	if current_index >= 0 and current_index + 1 < floors.size():
-		return floors[current_index + 1]
-
-	return {}
-
-
-# Gets the 1F / ground entry room ID for a building
-func get_building_entry_room_id(building_id: String, universe_id: String = "") -> String:
-	var floors: Array[Dictionary] = get_building_floors(building_id, universe_id)
-	for floor_item: Dictionary in floors:
-		if str(floor_item.get("floor_level", "")).to_upper() == "1F":
-			return str(floor_item.get("room_id", ""))
-	if not floors.is_empty():
-		return str(floors[0].get("room_id", ""))
-	
-	return building_id + "_1f" if building_id != "building_main" else "room_main"
 
 
 func get_current_room_id() -> String:
@@ -141,6 +65,92 @@ func get_universe_journal_path(universe_id: String = "") -> String:
 	return PATH_UNIVERSES_DIR + resolved_id + "_journal.json"
 
 
+static func get_floor_rank(floor_level_str: String) -> int:
+	var s: String = floor_level_str.strip_edges().to_upper()
+	if s.begins_with("B") and s.trim_prefix("B").is_valid_int():
+		return -s.trim_prefix("B").to_int()
+	if s.ends_with("F") and s.trim_suffix("F").is_valid_int():
+		return s.trim_suffix("F").to_int()
+	if s in ["G", "GF", "LG", "LOBBY", "GROUND"]:
+		return 1
+	if s in ["MEZZANINE"]:
+		return 800
+	if s in ["ATTIC"]:
+		return 900
+	if s in ["ROOF", "ROOFTOP"]:
+		return 1000
+	if s.is_valid_int():
+		return s.to_int()
+	return 1
+
+
+## Retrieves all registered floors for a building in the universe.
+func get_building_floors(building_id: String, universe_id: String = "") -> Array[Dictionary]:
+	var resolved_bldg_id: String = building_id.strip_edges()
+	var save_dir: String = get_universe_save_dir(universe_id)
+	var floors: Array[Dictionary] = []
+
+	if not DirAccess.dir_exists_absolute(save_dir):
+		return floors
+
+	var dir: DirAccess = DirAccess.open(save_dir)
+	if dir == null: return floors
+
+	dir.list_dir_begin()
+	var file_name: String = dir.get_next()
+	while not file_name.is_empty():
+		if not dir.current_is_dir() and file_name.ends_with(".json") and file_name != "recipes.json":
+			var room_path: String = save_dir.path_join(file_name)
+			var room_state: Dictionary = JsonFileStore.read_dictionary(room_path)
+			if str(room_state.get("building_id", "building_main")) == resolved_bldg_id:
+				floors.append({
+					"room_id": str(room_state.get("room_id", file_name.trim_suffix(".json"))),
+					"floor_level": str(room_state.get("floor_level", "1F")),
+					"label": "%s %s" % [str(room_state.get("floor_level", "1F")), str(room_state.get("room_title", "Room"))]
+				})
+		file_name = dir.get_next()
+	dir.list_dir_end()
+
+	return floors
+
+
+## Finds the floor directly above the current active room in the same building.
+func get_next_floor_above(building_id: String, current_room_id: String, universe_id: String = "") -> Dictionary:
+	var floors: Array[Dictionary] = get_building_floors(building_id, universe_id)
+	if floors.size() <= 1:
+		return {}
+
+	floors.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		var rank_a: int = SaveSystem.get_floor_rank(str(a.get("floor_level", "1F")))
+		var rank_b: int = SaveSystem.get_floor_rank(str(b.get("floor_level", "1F")))
+		return rank_a < rank_b
+	)
+
+	var current_index: int = -1
+	for i: int in range(floors.size()):
+		if str(floors[i].get("room_id", "")) == current_room_id:
+			current_index = i
+			break
+
+	if current_index >= 0 and current_index + 1 < floors.size():
+		return floors[current_index + 1]
+
+	return {}
+
+
+## Gets the entry level (1F) room ID for a building.
+func get_building_entry_room_id(building_id: String, universe_id: String = "") -> String:
+	var floors: Array[Dictionary] = get_building_floors(building_id, universe_id)
+	for floor_item: Dictionary in floors:
+		if str(floor_item.get("floor_level", "")).to_upper() == "1F":
+			return str(floor_item.get("room_id", ""))
+	if not floors.is_empty():
+		return str(floors[0].get("room_id", ""))
+	
+	return building_id + "_1f" if building_id != "building_main" else "room_main"
+
+
+## Saves the active room hierarchy state.
 func save_current_room_state() -> void:
 	var tree: SceneTree = get_tree()
 	if tree == null:
@@ -153,24 +163,12 @@ func save_current_room_state() -> void:
 		return
 
 	var room_payload: Dictionary = {}
-
 	if main_node.has_method("get_current_room_state"):
 		room_payload = main_node.call("get_current_room_state")
 	elif main_node.has_method("_serialize_state"):
 		room_payload = main_node.call("_serialize_state")
 	else:
-		var entity_bundles: Array[Dictionary] = []
-		var raw_entities: Variant = main_node.get("all_entities")
-		if raw_entities is Array:
-			for entity_variant: Variant in (raw_entities as Array):
-				if not entity_variant is OwnEntity or not is_instance_valid(entity_variant):
-					continue
-				var entity: OwnEntity = entity_variant as OwnEntity
-				if entity.parent_socket_entity == null:
-					entity_bundles.append_array(entity.get_full_hierarchy_bundle())
-				if entity.entity_type == Types.EntityType.CHARACTER:
-					update_character_in_cast(entity)
-		room_payload = {"entities": entity_bundles}
+		return
 
 	save_room_state(room_id, room_payload)
 
@@ -217,19 +215,11 @@ func update_character_data_in_cast(char_data: Dictionary) -> void:
 	if not updated:
 		cast_list.append(char_data.duplicate(true))
 
-	if not DirAccess.dir_exists_absolute(PATH_UNIVERSES_DIR):
-		DirAccess.make_dir_recursive_absolute(PATH_UNIVERSES_DIR)
-
-	var write_file: FileAccess = FileAccess.open(cast_path, FileAccess.WRITE)
-	if write_file != null:
-		write_file.store_string(JSON.stringify(cast_list, "\t"))
-		write_file.flush()
-		write_file.close()
+	JsonFileStore.ensure_directory(PATH_UNIVERSES_DIR)
+	var success: bool = JsonFileStore.write_dictionary(cast_path, {"cast": cast_list})
+	if success:
 		cast_saved.emit()
-
-	var eb: Node = get_node_or_null("/root/EventBus")
-	if eb and eb.has_signal("character_data_changed"):
-		eb.emit_signal("character_data_changed", character_id, char_data.duplicate(true))
+		EventBus.character_data_changed.emit(character_id, char_data.duplicate(true))
 
 
 func sync_live_character_entities(char_data: Dictionary) -> void:
@@ -256,28 +246,11 @@ func save_room_state(room_id: String, room_data: Dictionary) -> bool:
 	if resolved_room_id.is_empty():
 		resolved_room_id = DEFAULT_ROOM_ID
 
-	var save_dir: String = get_universe_save_dir()
-	if not DirAccess.dir_exists_absolute(save_dir):
-		DirAccess.make_dir_recursive_absolute(save_dir)
-
-	var file_path: String = save_dir + resolved_room_id + ".json"
-	var temp_path: String = file_path + ".tmp"
-
-	var file: FileAccess = FileAccess.open(temp_path, FileAccess.WRITE)
-	if file == null:
-		return false
-	file.store_string(JSON.stringify(room_data, "\t"))
-	file.flush()
-	file.close()
-
-	if FileAccess.file_exists(file_path):
-		DirAccess.remove_absolute(file_path)
-
-	var rename_error: Error = DirAccess.rename_absolute(temp_path, file_path)
-	if rename_error == OK:
+	var success: bool = RoomRepository.save_room(get_current_universe_id(), resolved_room_id, room_data)
+	if success:
 		room_saved.emit(resolved_room_id)
-		return true
-	return false
+		EventBus.room_saved.emit(resolved_room_id)
+	return success
 
 
 func load_room_state(room_id: String) -> Dictionary:
@@ -285,23 +258,11 @@ func load_room_state(room_id: String) -> Dictionary:
 	if resolved_room_id.is_empty():
 		resolved_room_id = DEFAULT_ROOM_ID
 
-	var file_path: String = get_universe_save_dir() + resolved_room_id + ".json"
-	if not FileAccess.file_exists(file_path):
-		return {}
-
-	var file: FileAccess = FileAccess.open(file_path, FileAccess.READ)
-	if file == null:
-		return {}
-
-	var content: String = file.get_as_text()
-	file.close()
-
-	var parsed: Variant = JSON.parse_string(content)
-	if parsed is Dictionary:
-		var normalized: Dictionary = SaveSchema.normalize_room(parsed as Dictionary, resolved_room_id)
+	var data: Dictionary = RoomRepository.load_room(get_current_universe_id(), resolved_room_id)
+	if not data.is_empty():
 		room_loaded.emit(resolved_room_id)
-		return normalized
-	return {}
+		EventBus.room_loaded.emit(resolved_room_id)
+	return data
 
 
 func save_universe_journal(universe_id: String, journal_data: Dictionary) -> bool:
@@ -310,26 +271,11 @@ func save_universe_journal(universe_id: String, journal_data: Dictionary) -> boo
 	if target_id.is_empty(): target_id = DEFAULT_UNIVERSE_ID
 
 	var file_path: String = get_universe_journal_path(target_id)
-	var temp_path: String = file_path + ".tmp"
-
-	if not DirAccess.dir_exists_absolute(PATH_UNIVERSES_DIR):
-		DirAccess.make_dir_recursive_absolute(PATH_UNIVERSES_DIR)
-
-	var file: FileAccess = FileAccess.open(temp_path, FileAccess.WRITE)
-	if file == null:
-		return false
-	file.store_string(JSON.stringify(journal_data, "\t"))
-	file.flush()
-	file.close()
-
-	if FileAccess.file_exists(file_path):
-		DirAccess.remove_absolute(file_path)
-
-	var rename_error: Error = DirAccess.rename_absolute(temp_path, file_path)
-	if rename_error == OK:
+	var success: bool = JsonFileStore.write_dictionary(file_path, journal_data)
+	if success:
 		journal_saved.emit(target_id)
-		return true
-	return false
+		EventBus.journal_saved.emit(target_id)
+	return success
 
 
 func load_universe_journal(universe_id: String) -> Dictionary:
@@ -338,43 +284,11 @@ func load_universe_journal(universe_id: String) -> Dictionary:
 	if target_id.is_empty(): target_id = DEFAULT_UNIVERSE_ID
 
 	var file_path: String = get_universe_journal_path(target_id)
-	if not FileAccess.file_exists(file_path):
-		return {"timeline": [], "factions": []}
-
-	var file: FileAccess = FileAccess.open(file_path, FileAccess.READ)
-	if file == null:
-		return {"timeline": [], "factions": []}
-
-	var content: String = file.get_as_text()
-	file.close()
-
-	var parsed: Variant = JSON.parse_string(content)
-	if parsed is Dictionary:
-		var data: Dictionary = parsed as Dictionary
-		if not data.has("timeline"): data["timeline"] = []
-		if not data.has("factions"): data["factions"] = []
-		return data
-	return {"timeline": [], "factions": []}
+	var data: Dictionary = JsonFileStore.read_dictionary(file_path)
+	if not data.has("timeline"): data["timeline"] = []
+	if not data.has("factions"): data["factions"] = []
+	return data
 
 
 func _load_session() -> Dictionary:
-	var default_session: Dictionary = {
-		"universe_id": DEFAULT_UNIVERSE_ID,
-		"universe_name": "Default Universe",
-		"room_id": DEFAULT_ROOM_ID,
-		"time_preset": "day",
-		"weather_preset": "none"
-	}
-	if not FileAccess.file_exists(PATH_SESSION_FILE):
-		return default_session
-
-	var file: FileAccess = FileAccess.open(PATH_SESSION_FILE, FileAccess.READ)
-	if file == null:
-		return default_session
-
-	var parsed: Variant = JSON.parse_string(file.get_as_text())
-	file.close()
-	if parsed is Dictionary:
-		return parsed as Dictionary
-		
-	return default_session
+	return JsonFileStore.read_dictionary(PATH_SESSION_FILE)

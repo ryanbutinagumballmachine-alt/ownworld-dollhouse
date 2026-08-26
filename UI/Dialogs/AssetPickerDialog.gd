@@ -1,5 +1,6 @@
 # ==============================================================================
-# Script: res://UI/Dialogs/AssetPickerDialog.gd
+# OWNWORLD — ASSET PICKER DIALOG
+# File: res://UI/Dialogs/AssetPickerDialog.gd
 # Base Class: CanvasLayer (class_name AssetPickerDialog)
 # ==============================================================================
 
@@ -38,6 +39,7 @@ var user_available_tags: Array[String] = []
 signal asset_selected(asset_name: String, texture: Texture2D, file_path: String)
 signal picker_closed()
 
+
 func _ready() -> void:
 	name = "AssetPickerDialog"
 	layer = 130
@@ -49,10 +51,12 @@ func _ready() -> void:
 	_update_responsive_layout()
 	_setup_keyboard_dodging()
 
+
 func _connect_system_signals() -> void:
 	var tree: SceneTree = get_tree()
 	if tree and tree.root and not tree.root.size_changed.is_connected(_update_responsive_layout):
 		tree.root.size_changed.connect(_update_responsive_layout)
+
 
 func _update_responsive_layout() -> void:
 	if not is_instance_valid(root_panel):
@@ -67,10 +71,12 @@ func _update_responsive_layout() -> void:
 		var usable_w: float = target_w - 28.0
 		items_grid.columns = clampi(int(usable_w / 76.0), 3, 10)
 
+
 func _setup_keyboard_dodging() -> void:
 	if search_input:
 		search_input.focus_entered.connect(_on_input_focus_entered)
 		search_input.focus_exited.connect(_on_input_focus_exited)
+
 
 func _on_input_focus_entered() -> void:
 	if OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios"):
@@ -81,10 +87,12 @@ func _on_input_focus_entered() -> void:
 			var tween: Tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 			tween.tween_property(center_container, "position:y", -kb_height * 0.5, 0.25)
 
+
 func _on_input_focus_exited() -> void:
 	if OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios"):
 		var tween: Tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 		tween.tween_property(center_container, "position:y", 0.0, 0.25)
+
 
 func _build_ui() -> void:
 	root_backdrop = Control.new()
@@ -198,6 +206,7 @@ func _build_ui() -> void:
 	items_grid.add_theme_constant_override("v_separation", 6)
 	scroll_container.add_child(items_grid)
 
+
 func open_picker(prompt_title: String = "Select Artwork", default_folder: String = "", on_selected_callback: Callable = Callable()) -> void:
 	header_title_lbl.text = prompt_title
 	current_virtual_folder = default_folder
@@ -215,17 +224,19 @@ func open_picker(prompt_title: String = "Select Artwork", default_folder: String
 	_render_grid_view()
 	visible = true
 
+
 func close_picker() -> void:
 	current_select_callback = Callable()
 	visible = false
 	picker_closed.emit()
 
+
 func _render_breadcrumbs() -> void:
 	for child: Node in breadcrumbs_hbox.get_children():
 		child.queue_free()
 
-	btn_back_up.disabled = (current_virtual_folder == "" or current_virtual_folder == "Root")
-	var btn_root: Button = _create_breadcrumb_pill("Root", "icon_room", current_virtual_folder == "" or current_virtual_folder == "Root")
+	btn_back_up.disabled = (current_virtual_folder.is_empty() or current_virtual_folder == "Root")
+	var btn_root: Button = _create_breadcrumb_pill("Root", "icon_room", current_virtual_folder.is_empty() or current_virtual_folder == "Root")
 	btn_root.pressed.connect(func() -> void:
 		current_virtual_folder = ""
 		_render_breadcrumbs()
@@ -233,7 +244,7 @@ func _render_breadcrumbs() -> void:
 	)
 	breadcrumbs_hbox.add_child(btn_root)
 
-	if current_virtual_folder != "" and current_virtual_folder != "Root":
+	if not current_virtual_folder.is_empty() and current_virtual_folder != "Root":
 		var parts: PackedStringArray = current_virtual_folder.split("/", false)
 		var accum_path: String = ""
 		for i: int in range(parts.size()):
@@ -242,7 +253,7 @@ func _render_breadcrumbs() -> void:
 			separator_lbl.theme_type_variation = "HintLabel"
 			breadcrumbs_hbox.add_child(separator_lbl)
 
-			accum_path = parts[i] if accum_path == "" else accum_path + "/" + parts[i]
+			accum_path = parts[i] if accum_path.is_empty() else accum_path + "/" + parts[i]
 			var is_current: bool = (i == parts.size() - 1)
 			var btn_part: Button = _create_breadcrumb_pill(parts[i], "icon_folder", is_current)
 			var target_p: String = accum_path
@@ -252,6 +263,7 @@ func _render_breadcrumbs() -> void:
 				_render_grid_view()
 			)
 			breadcrumbs_hbox.add_child(btn_part)
+
 
 func _create_breadcrumb_pill(label_text: String, icon_key: String, is_active: bool) -> Button:
 	var btn: Button = Button.new()
@@ -266,8 +278,9 @@ func _create_breadcrumb_pill(label_text: String, icon_key: String, is_active: bo
 	if icon_tex: btn.icon = icon_tex
 	return btn
 
+
 func _navigate_up_one_folder() -> void:
-	if current_virtual_folder == "" or current_virtual_folder == "Root":
+	if current_virtual_folder.is_empty() or current_virtual_folder == "Root":
 		return
 	if "/" in current_virtual_folder:
 		var parts: PackedStringArray = current_virtual_folder.split("/", false)
@@ -278,6 +291,7 @@ func _navigate_up_one_folder() -> void:
 	_render_breadcrumbs()
 	_render_grid_view()
 
+
 func _render_grid_view() -> void:
 	for child: Node in items_grid.get_children():
 		child.queue_free()
@@ -287,7 +301,7 @@ func _render_grid_view() -> void:
 		active_folder_norm = ""
 
 	var direct_subfolders: Array[String] = []
-	if active_search_query == "" and active_tag_filter == "All":
+	if active_search_query.is_empty() and active_tag_filter == "All":
 		direct_subfolders = UGCManager.get_subfolders_in_art_folder(active_folder_norm)
 		for sub_name: String in direct_subfolders:
 			_create_folder_card(sub_name)
@@ -301,7 +315,7 @@ func _render_grid_view() -> void:
 		var tags: Array = asset_tags_registry.get(fname, ["#props"]) as Array
 		var in_current_folder: bool = (f_folder == active_folder_norm)
 
-		if active_search_query != "":
+		if not active_search_query.is_empty():
 			var matches_query: bool = (active_search_query in fname.to_lower()) or (active_search_query in f_folder.to_lower())
 			for t: Variant in tags:
 				if active_search_query in str(t).to_lower():
@@ -322,6 +336,7 @@ func _render_grid_view() -> void:
 		empty_lbl.theme_type_variation = "HintLabel"
 		empty_lbl.add_theme_font_size_override("font_size", 10)
 		items_grid.add_child(empty_lbl)
+
 
 func _create_folder_card(folder_name: String) -> void:
 	var card: Button = Button.new()
@@ -365,7 +380,7 @@ func _create_folder_card(folder_name: String) -> void:
 	vbox.add_child(name_lbl)
 
 	card.pressed.connect(func() -> void:
-		if current_virtual_folder == "" or current_virtual_folder == "Root":
+		if current_virtual_folder.is_empty() or current_virtual_folder == "Root":
 			current_virtual_folder = folder_name
 		else:
 			current_virtual_folder = current_virtual_folder + "/" + folder_name
@@ -373,6 +388,7 @@ func _create_folder_card(folder_name: String) -> void:
 		_render_grid_view()
 	)
 	items_grid.add_child(card)
+
 
 func _create_image_card(art_data: Dictionary) -> void:
 	var fname: String = str(art_data.get("name", "Art"))
@@ -439,12 +455,14 @@ func _create_image_card(art_data: Dictionary) -> void:
 	)
 	items_grid.add_child(card)
 
+
 func _build_tag_filter_pills() -> void:
 	for child: Node in filter_scroll_container.get_children():
 		child.queue_free()
 	_add_filter_pill("All", active_tag_filter == "All")
 	for tag: String in user_available_tags:
 		_add_filter_pill(tag, active_tag_filter == tag)
+
 
 func _add_filter_pill(label_text: String, is_active: bool) -> void:
 	var btn: Button = Button.new()
@@ -482,31 +500,16 @@ func _add_filter_pill(label_text: String, is_active: bool) -> void:
 	)
 	filter_scroll_container.add_child(btn)
 
+
 func _on_search_text_changed(new_text: String) -> void:
 	active_search_query = new_text.strip_edges().to_lower()
 	_render_grid_view()
 
+
 func _load_tag_registry() -> void:
-	if FileAccess.file_exists(PATH_TAGS_LIST_FILE):
-		var f: FileAccess = FileAccess.open(PATH_TAGS_LIST_FILE, FileAccess.READ)
-		if f:
-			var p: Variant = JSON.parse_string(f.get_as_text())
-			f.close()
-			if p is Array:
-				user_available_tags.clear()
-				for item: Variant in (p as Array):
-					user_available_tags.append(str(item))
+	user_available_tags = DrawerMetadataService.load_tags_list()
+	asset_tags_registry = DrawerMetadataService.load_asset_tags()
 
-	if user_available_tags.is_empty():
-		user_available_tags = ["#props", "#food", "#furniture", "#characters", "#decor", "#clothing"]
-
-	if FileAccess.file_exists(PATH_ITEM_TAGS_FILE):
-		var f: FileAccess = FileAccess.open(PATH_ITEM_TAGS_FILE, FileAccess.READ)
-		if f:
-			var p: Variant = JSON.parse_string(f.get_as_text())
-			f.close()
-			if p is Dictionary:
-				asset_tags_registry = (p as Dictionary).duplicate(true)
 
 func _on_backdrop_gui_input(event: InputEvent) -> void:
 	if (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT) or (event is InputEventScreenTouch and event.pressed):

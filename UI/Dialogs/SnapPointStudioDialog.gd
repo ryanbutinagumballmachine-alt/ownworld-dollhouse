@@ -1,7 +1,3 @@
-# ============================================================
-# File: res://UI/Dialogs/SnapPointStudioDialog.gd
-# ============================================================
-
 # ==============================================================================
 # OWNWORLD — MOBILE-FIRST ANCHOR & SNAP POINT STUDIO
 # File: res://UI/Dialogs/SnapPointStudioDialog.gd
@@ -353,7 +349,6 @@ func open_for_entity(entity: OwnEntity) -> void:
 	_on_family_selected(0)
 	_update_responsive_layout()
 
-	# Select first available anchor if present
 	selected_anchor_key = ""
 	if not entity.snap_points.is_empty():
 		selected_anchor_key = entity.snap_points.keys()[0]
@@ -458,10 +453,6 @@ func _count_family_instances(family_prefix: String, is_snap: bool) -> int:
 	return count
 
 
-# ------------------------------------------------------------------------------
-# DRAGGING & TOUCH CANVAS INPUT
-# ------------------------------------------------------------------------------
-
 func _on_canvas_gui_input(event: InputEvent) -> void:
 	if active_entity == null: return
 
@@ -499,7 +490,6 @@ func _handle_pointer_down(ui_pos: Vector2) -> void:
 	var touched_is_snap: bool = true
 	var closest_dist: float = PIN_TOUCH_RADIUS
 
-	# Check existing snap points
 	for s_key: String in active_entity.snap_points.keys():
 		var p_ui: Vector2 = _sprite_offset_to_ui(active_entity.snap_points[s_key])
 		var d: float = ui_pos.distance_to(p_ui)
@@ -508,7 +498,6 @@ func _handle_pointer_down(ui_pos: Vector2) -> void:
 			touched_key = s_key
 			touched_is_snap = true
 
-	# Check existing interaction points (use point_offset to avoid CanvasLayer.offset shadowing)
 	for i_key: String in active_entity.interaction_points.keys():
 		var i_data: Dictionary = active_entity.interaction_points[i_key]
 		var point_offset: Vector2 = i_data.get("offset", Vector2.ZERO)
@@ -570,7 +559,6 @@ func _set_anchor_local_pos(key: String, is_snap: bool, local_pos: Vector2) -> vo
 			"type": type_val
 		}
 
-	# Live-sync particles to the new anchor position
 	if active_entity.is_liquid_source:
 		active_entity.update_faucet_particles()
 
@@ -660,10 +648,6 @@ func _on_delete_selected_pressed() -> void:
 	EventBus.notification_requested.emit("Deleted: " + key_to_del, true)
 
 
-# ------------------------------------------------------------------------------
-# COORDINATE CONVERSIONS & RENDERING
-# ------------------------------------------------------------------------------
-
 func _get_texture_render_rect() -> Rect2:
 	if active_entity == null or active_entity.texture_size == Vector2.ZERO or sprite_canvas.size == Vector2.ZERO:
 		return Rect2(Vector2.ZERO, sprite_canvas.size)
@@ -732,14 +716,12 @@ func _render_anchors_list() -> void:
 		anchors_list_vbox.add_child(empty_lbl)
 		return
 
-	# Render Snap Points
 	for socket_name: String in active_entity.snap_points.keys():
 		var pos: Vector2 = active_entity.snap_points[socket_name]
 		var is_sel: bool = (socket_name == selected_anchor_key and is_selected_snap)
 		var icon_key: String = _get_icon_for_key(socket_name, true)
 		_create_anchor_list_row(socket_name, pos, true, icon_key, is_sel)
 
-	# Render Interaction Points
 	for inter_name: String in active_entity.interaction_points.keys():
 		var data: Dictionary = active_entity.interaction_points[inter_name]
 		var pos: Vector2 = data.get("offset", Vector2.ZERO)
@@ -835,9 +817,7 @@ func _on_backdrop_gui_input(event: InputEvent) -> void:
 		close_dialog()
 
 
-# ------------------------------------------------------------------------------
-# DYNAMIC OVERLAY DRAWING (CROSSHAIRS, SLEEK PILLS & RETICLES)
-# ------------------------------------------------------------------------------
+# --- DYNAMIC OVERLAY DRAWING ---
 
 class AnchorOverlayDraw extends Control:
 	var studio_ref: SnapPointStudioDialog = null
@@ -849,7 +829,6 @@ class AnchorOverlayDraw extends Control:
 		var render_rect: Rect2 = studio_ref._get_texture_render_rect()
 		var center: Vector2 = render_rect.position + (render_rect.size * 0.5)
 
-		# 1. Subtle Sprite Frame Outline & Center Reference Axis
 		draw_rect(render_rect, Color(1.0, 1.0, 1.0, 0.15), false, 1.0)
 		draw_line(Vector2(center.x - 6.0, center.y), Vector2(center.x + 6.0, center.y), Color(1.0, 1.0, 1.0, 0.35), 1.0)
 		draw_line(Vector2(center.x, center.y - 6.0), Vector2(center.x, center.y + 6.0), Color(1.0, 1.0, 1.0, 0.35), 1.0)
@@ -859,7 +838,6 @@ class AnchorOverlayDraw extends Control:
 		var sel_key: String = studio_ref.selected_anchor_key
 		var sel_is_snap: bool = studio_ref.is_selected_snap
 
-		# 2. Draw Interaction Zone Outlines (faint circles)
 		for i_key: String in ent.interaction_points.keys():
 			var data: Dictionary = ent.interaction_points[i_key]
 			var pt_offset: Vector2 = data.get("offset", Vector2.ZERO)
@@ -871,7 +849,6 @@ class AnchorOverlayDraw extends Control:
 			var col: Color = studio_ref._get_color_for_key(i_key, false)
 			draw_arc(p_ui, scaled_rad, 0.0, TAU, 32, Color(col.r, col.g, col.b, 0.35 if not is_sel else 0.7), 1.5)
 
-		# 3. Draw Crosshair Guides for Active Selection
 		if not sel_key.is_empty():
 			var active_local_pos: Vector2 = Vector2.ZERO
 			if sel_is_snap: active_local_pos = ent.snap_points.get(sel_key, Vector2.ZERO)
@@ -880,15 +857,11 @@ class AnchorOverlayDraw extends Control:
 			var active_ui_pos: Vector2 = studio_ref._sprite_offset_to_ui(active_local_pos)
 			var c_accent: Color = ThemeService.get_color("accent_primary", "#ec4899")
 
-			# Screen-spanning alignment crosshairs
 			draw_line(Vector2(0.0, active_ui_pos.y), Vector2(size.x, active_ui_pos.y), Color(c_accent.r, c_accent.g, c_accent.b, 0.45), 1.0)
 			draw_line(Vector2(active_ui_pos.x, 0.0), Vector2(active_ui_pos.x, size.y), Color(c_accent.r, c_accent.g, c_accent.b, 0.45), 1.0)
-
-			# Pulsing selection target ring
 			draw_circle(active_ui_pos, 14.0, Color(c_accent.r, c_accent.g, c_accent.b, 0.2))
 			draw_arc(active_ui_pos, 12.0, 0.0, TAU, 24, c_accent, 2.0)
 
-		# 4. Draw All Placed Anchor Pins
 		var all_anchors: Array[Dictionary] = []
 		for s_key: String in ent.snap_points.keys():
 			all_anchors.append({"key": s_key, "pos": ent.snap_points[s_key], "is_snap": true})
@@ -896,7 +869,7 @@ class AnchorOverlayDraw extends Control:
 			var data: Dictionary = ent.interaction_points[i_key]
 			all_anchors.append({"key": i_key, "pos": data.get("offset", Vector2.ZERO), "is_snap": false})
 
-		for anchor in all_anchors:
+		for anchor: Dictionary in all_anchors:
 			var key: String = str(anchor["key"])
 			var local_pos: Vector2 = anchor["pos"] as Vector2
 			var is_snap: bool = bool(anchor["is_snap"])
@@ -904,14 +877,10 @@ class AnchorOverlayDraw extends Control:
 			var is_sel: bool = (key == sel_key and is_snap == sel_is_snap)
 			var pin_color: Color = studio_ref._get_color_for_key(key, is_snap)
 
-			# Drop shadow
 			draw_circle(ui_pos + Vector2(1.0, 1.0), 6.5, Color(0.0, 0.0, 0.0, 0.6))
-			# Outer colored body
 			draw_circle(ui_pos, 5.5, pin_color)
-			# Inner core
 			draw_circle(ui_pos, 2.0, Color.WHITE)
 
-			# Minimalist Pill Badge
 			var text_str: String = key
 			var font_sz: int = 9
 			var text_w: float = font.get_string_size(text_str, HORIZONTAL_ALIGNMENT_LEFT, -1, font_sz).x
@@ -923,7 +892,6 @@ class AnchorOverlayDraw extends Control:
 			draw_rect(badge_rect, border_color, false, 1.0)
 			draw_string(font, Vector2(badge_rect.position.x + 3.0, badge_rect.position.y + 9.5), text_str, HORIZONTAL_ALIGNMENT_LEFT, -1, font_sz, Color.WHITE)
 
-			# Live Floating Coordinate Tag while Dragging
 			if is_sel and studio_ref.is_dragging_anchor:
 				var coord_str: String = "(X: %d, Y: %d)" % [int(local_pos.x), int(local_pos.y)]
 				var c_text_w: float = font.get_string_size(coord_str, HORIZONTAL_ALIGNMENT_LEFT, -1, font_sz).x

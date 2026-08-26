@@ -1,9 +1,5 @@
-# ============================================================
-# File: res://Pack/OwnPackManager.gd
-# ============================================================
-
 # ==============================================================================
-# OWNWORLD — OWN PACK MANAGER
+# OWNWORLD — OWN PACK MANAGER (ZIP ARCHIVE IMPORT & EXPORT)
 # File: res://Pack/OwnPackManager.gd
 # Base Class: RefCounted (class_name OwnPackManager)
 # ==============================================================================
@@ -21,12 +17,16 @@ const SAFE_EXTENSIONS: Array[String] = [
 const UNIVERSES_DIR: String = "user://universes/"
 const MAPS_DIR: String = "user://maps/"
 
+
 static func get_exports_dir() -> String:
 	return UGCManager.get_exports_dir()
+
 
 static func get_packs_dir() -> String:
 	return UGCManager.get_packs_dir()
 
+
+## Exports an entire story universe into a single .ownpack ZIP archive.
 static func export_universe_pack(pack_name: String, author: String, universe_id: String, output_filename: String) -> bool:
 	var clean_universe_id: String = universe_id.strip_edges()
 	if clean_universe_id.is_empty():
@@ -80,6 +80,7 @@ static func export_universe_pack(pack_name: String, author: String, universe_id:
 	packer.close()
 	return true
 
+
 static func _export_directory_files(packer: ZIPPacker, root_path: String, internal_prefix: String) -> void:
 	var dir: DirAccess = DirAccess.open(root_path)
 	if dir == null:
@@ -93,6 +94,7 @@ static func _export_directory_files(packer: ZIPPacker, root_path: String, intern
 		file_name = dir.get_next()
 	dir.list_dir_end()
 
+
 static func _write_file_to_packer(packer: ZIPPacker, source_path: String, internal_path: String) -> void:
 	if not FileAccess.file_exists(source_path):
 		return
@@ -104,6 +106,8 @@ static func _write_file_to_packer(packer: ZIPPacker, source_path: String, intern
 	packer.close_file()
 	file.close()
 
+
+## Safely imports an .ownpack or ZIP archive into user universes.
 static func import_pack_file(source_file_path: String) -> bool:
 	if not FileAccess.file_exists(source_file_path):
 		return false
@@ -129,11 +133,11 @@ static func import_pack_file(source_file_path: String) -> bool:
 	if universe_id.is_empty(): universe_id = "imported_universe"
 	if universe_name.is_empty(): universe_name = universe_id
 
-	DirAccess.make_dir_recursive_absolute(UNIVERSES_DIR)
-	DirAccess.make_dir_recursive_absolute(MAPS_DIR)
+	JsonFileStore.ensure_directory(UNIVERSES_DIR)
+	JsonFileStore.ensure_directory(MAPS_DIR)
 
 	var universe_save_dir: String = SaveSystem.get_universe_save_dir(universe_id)
-	DirAccess.make_dir_recursive_absolute(universe_save_dir)
+	JsonFileStore.ensure_directory(universe_save_dir)
 
 	for internal_path: String in files:
 		if internal_path.ends_with("/"):
@@ -162,13 +166,10 @@ static func import_pack_file(source_file_path: String) -> bool:
 			"name": universe_name,
 			"created_at": Time.get_unix_time_from_system()
 		}
-		var manifest_file: FileAccess = FileAccess.open(universe_manifest_path, FileAccess.WRITE)
-		if manifest_file != null:
-			manifest_file.store_string(JSON.stringify(fallback_manifest, "\t"))
-			manifest_file.flush()
-			manifest_file.close()
+		JsonFileStore.write_dictionary(universe_manifest_path, fallback_manifest)
 
 	return true
+
 
 static func _resolve_import_destination(internal_path: String, universe_id: String, universe_save_dir: String) -> String:
 	if internal_path == "universe.json": return UNIVERSES_DIR + universe_id + ".json"
@@ -181,6 +182,7 @@ static func _resolve_import_destination(internal_path: String, universe_id: Stri
 	if internal_path.begins_with("font/") or internal_path.begins_with("fonts/"): return UGCManager.get_font_root_directory().path_join(internal_path.get_file())
 	if internal_path.begins_with("theme/") or internal_path.begins_with("themes/"): return UGCManager.get_theme_root_directory().path_join(internal_path.get_file())
 	return ""
+
 
 static func _is_safe_destination(destination: String, _universe_id: String, universe_save_dir: String) -> bool:
 	var normalized: String = destination.replace("\\", "/")
@@ -199,6 +201,7 @@ static func _is_safe_destination(destination: String, _universe_id: String, univ
 		if normalized.begins_with(allowed_root.replace("\\", "/")):
 			return true
 	return false
+
 
 static func _get_universe_map_path(universe_id: String) -> String:
 	return MAPS_DIR + universe_id + "_map.json"

@@ -100,6 +100,6 @@ func close_modal() -> void:
 
 func _on_confirm() -> void:
 	var n: String = input_field.text.strip_edges()
-	if n != "":
+	if not n.is_empty():
 		folder_create_confirmed.emit(n)
 	close_modal()

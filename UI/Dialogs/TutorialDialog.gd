@@ -1,5 +1,5 @@
 # ==============================================================================
-# OWNWORLD — IN-GAME TUTORIAL & CREATOR HANDBOOK (UPDATED GUIDE)
+# OWNWORLD — IN-GAME TUTORIAL & CREATOR HANDBOOK
 # File: res://UI/Dialogs/TutorialDialog.gd
 # Base Class: CanvasLayer (class_name TutorialDialog)
 # ==============================================================================
@@ -398,7 +398,6 @@ func _build_ui() -> void:
 	split_hbox.add_theme_constant_override("separation", 10)
 	main_vbox.add_child(split_hbox)
 
-	# Left Sidebar: Topic List
 	var left_scroll: ScrollContainer = ScrollContainer.new()
 	left_scroll.custom_minimum_size = Vector2(240.0, 0.0)
 	left_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -413,7 +412,6 @@ func _build_ui() -> void:
 
 	split_hbox.add_child(VSeparator.new())
 
-	# Right Reader View
 	var content_panel: PanelContainer = PanelContainer.new()
 	content_panel.theme_type_variation = "SubPanel"
 	content_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -447,8 +445,8 @@ func _render_topics_sidebar() -> void:
 		if not active_filter_query.is_empty():
 			var matches_query: bool = active_filter_query in c_title.to_lower()
 			if not matches_query:
-				for s in chapter.get("sections", []):
-					if active_filter_query in str(s.get("title", "")).to_lower() or active_filter_query in str(s.get("body", "")).to_lower():
+				for s: Variant in chapter.get("sections", []):
+					if s is Dictionary and (active_filter_query in str(s.get("title", "")).to_lower() or active_filter_query in str(s.get("body", "")).to_lower()):
 						matches_query = true
 						break
 			if not matches_query: continue
@@ -504,7 +502,6 @@ func _render_active_topic_content() -> void:
 	var c_badge: String = str(chapter.get("badge", ""))
 	var sections: Array = chapter.get("sections", [])
 
-	# Chapter Header
 	var title_card: PanelContainer = PanelContainer.new()
 	title_card.theme_type_variation = "SubPanel"
 	content_vbox.add_child(title_card)
@@ -534,8 +531,7 @@ func _render_active_topic_content() -> void:
 	badge_lbl.add_theme_font_size_override("font_size", 9)
 	title_hbox.add_child(badge_lbl)
 
-	# Content Cards
-	for sec_var in sections:
+	for sec_var: Variant in sections:
 		if not sec_var is Dictionary: continue
 		var sec: Dictionary = sec_var as Dictionary
 		var s_title: String = str(sec.get("title", ""))
@@ -563,7 +559,6 @@ func _render_active_topic_content() -> void:
 		sb_lbl.add_theme_color_override("font_color", ThemeService.get_color("text_primary", "#6c2e3f"))
 		card_vbox.add_child(sb_lbl)
 
-	# Bottom Navigation Row
 	var nav_row: HBoxContainer = HBoxContainer.new()
 	nav_row.add_theme_constant_override("separation", 10)
 	content_vbox.add_child(nav_row)

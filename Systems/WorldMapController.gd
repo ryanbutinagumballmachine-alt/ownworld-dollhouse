@@ -520,7 +520,7 @@ func open_pin_editor(pin: MapPin) -> void:
 	edit_building_id_input.text = pin.building_id
 	selected_pin_art_path = pin.image_path
 
-	if selected_pin_art_path != "" and FileAccess.file_exists(selected_pin_art_path):
+	if not selected_pin_art_path.is_empty() and FileAccess.file_exists(selected_pin_art_path):
 		edit_preview_rect.texture = UGCManager.get_thumbnail_async(selected_pin_art_path, 128)
 		btn_choose_pin_art.text = " Art: " + selected_pin_art_path.get_file().get_basename()
 	else:
@@ -662,7 +662,7 @@ func _on_save_pin_editor_pressed() -> void:
 		active_editing_pin.building_name = b_name
 		active_editing_pin.building_id = b_id
 
-		if selected_pin_art_path != "" and FileAccess.file_exists(selected_pin_art_path):
+		if not selected_pin_art_path.is_empty() and FileAccess.file_exists(selected_pin_art_path):
 			active_editing_pin.set_pin_image(selected_pin_art_path, UGCManager.get_thumbnail_async(selected_pin_art_path, 128))
 		else:
 			active_editing_pin.image_path = ""
@@ -722,7 +722,6 @@ func close_map() -> void:
 	visible = false
 
 
-# Sourced directly from AssetPickerDialog
 func _on_change_bg_pressed() -> void:
 	if asset_picker == null: return
 	asset_picker.open_picker("Choose Map Background Artwork", "", func(_name: String, texture: Texture2D, file_path: String) -> void:
@@ -750,31 +749,28 @@ func load_map_for_current_universe() -> void:
 
 	var map_file_path: String = _get_current_map_path()
 	if FileAccess.file_exists(map_file_path):
-		var f: FileAccess = FileAccess.open(map_file_path, FileAccess.READ)
-		if f:
-			var parsed: Variant = JSON.parse_string(f.get_as_text())
-			f.close()
-			if parsed is Dictionary:
-				current_bg_image_path = str(parsed.get("bg_image_path", ""))
-				if current_bg_image_path != "" and FileAccess.file_exists(current_bg_image_path):
-					map_background_rect.texture = UGCManager.load_texture_from_file(current_bg_image_path)
-					empty_hint_label.visible = false
-				else:
-					map_background_rect.texture = null
-					empty_hint_label.visible = true
+		var parsed: Dictionary = JsonFileStore.read_dictionary(map_file_path)
+		if not parsed.is_empty():
+			current_bg_image_path = str(parsed.get("bg_image_path", ""))
+			if not current_bg_image_path.is_empty() and FileAccess.file_exists(current_bg_image_path):
+				map_background_rect.texture = UGCManager.load_texture_from_file(current_bg_image_path)
+				empty_hint_label.visible = false
+			else:
+				map_background_rect.texture = null
+				empty_hint_label.visible = true
 
-				var pins_data: Array = parsed.get("pins", [])
-				for p_dict_var: Variant in pins_data:
-					if not (p_dict_var is Dictionary): continue
-					var p_dict: Dictionary = p_dict_var as Dictionary
-					var b_name: String = str(p_dict.get("name", p_dict.get("building_name", "Building")))
-					var b_id: String = str(p_dict.get("building_id", p_dict.get("room_id", "building_main")))
-					var p_img_path: String = str(p_dict.get("image_path", ""))
-					var p_pos: Vector2 = Vector2(float(p_dict.get("x", 400.0)), float(p_dict.get("y", 200.0)))
-					var tex: Texture2D = UGCManager.get_thumbnail_async(p_img_path, 128) if (p_img_path != "" and FileAccess.file_exists(p_img_path)) else UGCManager.create_blank_starter_graphic(Vector2(64.0, 64.0), Color("#0284c7"))
-					create_pin(b_name, b_id, p_pos, p_img_path, tex)
-				_update_pins_edit_mode()
-				return
+			var pins_data: Array = parsed.get("pins", [])
+			for p_dict_var: Variant in pins_data:
+				if not (p_dict_var is Dictionary): continue
+				var p_dict: Dictionary = p_dict_var as Dictionary
+				var b_name: String = str(p_dict.get("name", p_dict.get("building_name", "Building")))
+				var b_id: String = str(p_dict.get("building_id", p_dict.get("room_id", "building_main")))
+				var p_img_path: String = str(p_dict.get("image_path", ""))
+				var p_pos: Vector2 = Vector2(float(p_dict.get("x", 400.0)), float(p_dict.get("y", 200.0)))
+				var tex: Texture2D = UGCManager.get_thumbnail_async(p_img_path, 128) if (not p_img_path.is_empty() and FileAccess.file_exists(p_img_path)) else UGCManager.create_blank_starter_graphic(Vector2(64.0, 64.0), Color("#0284c7"))
+				create_pin(b_name, b_id, p_pos, p_img_path, tex)
+			_update_pins_edit_mode()
+			return
 
 	current_bg_image_path = ""
 	map_background_rect.texture = null
@@ -804,10 +800,7 @@ func save_map_for_current_universe() -> void:
 		"bg_image_path": current_bg_image_path,
 		"pins": pins_data
 	}
-	var f: FileAccess = FileAccess.open(_get_current_map_path(), FileAccess.WRITE)
-	if f:
-		f.store_string(JSON.stringify(map_payload, "\t"))
-		f.close()
+	JsonFileStore.write_dictionary(_get_current_map_path(), map_payload)
 
 
 func create_pin(b_name: String, b_id: String, pos: Vector2, img_path: String = "", tex: Texture2D = null) -> MapPin:
@@ -841,7 +834,6 @@ func _on_reset_rooms_pressed() -> void:
 	reset_all_rooms_requested.emit()
 
 
-# Routes to 1F Ground Floor of the tapped building
 func _on_pin_selected(pin: MapPin) -> void:
 	if is_edit_mode:
 		return
@@ -849,7 +841,6 @@ func _on_pin_selected(pin: MapPin) -> void:
 	var floors: Array[Dictionary] = SaveSystem.get_building_floors(pin.building_id)
 
 	if floors.size() > 1:
-		# Show quick floor entrance popup directly under the tapped building pin
 		var pop: PopupMenu = PopupMenu.new()
 		pop.theme = ThemeService.create_theme()
 		add_child(pop)
@@ -895,9 +886,7 @@ func _on_pin_selected(pin: MapPin) -> void:
 		EventBus.room_change_requested.emit(target_entry_room, traveler_data)
 
 
-# ------------------------------------------------------------------------------
-# CARDLESS MAP BUILDING PIN
-# ------------------------------------------------------------------------------
+# --- CARDLESS MAP BUILDING PIN ---
 
 class MapPin extends Control:
 	var building_name: String = ""

@@ -218,10 +218,10 @@ func serialize() -> Dictionary:
 	var serialized_interactions: Dictionary = {}
 	for key: String in interaction_points.keys():
 		var data: Dictionary = interaction_points[key]
-		var offset: Vector2 = data.get("offset", Vector2.ZERO) as Vector2
+		var offset_pos: Vector2 = data.get("offset", Vector2.ZERO) as Vector2
 		serialized_interactions[key] = {
-			"offset_x": offset.x,
-			"offset_y": offset.y,
+			"offset_x": offset_pos.x,
+			"offset_y": offset_pos.y,
 			"radius": float(data.get("radius", DEFAULT_INTERACTION_RADIUS)),
 			"type": int(data.get("type", 0))
 		}

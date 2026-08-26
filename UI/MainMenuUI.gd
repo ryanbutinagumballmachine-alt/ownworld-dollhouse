@@ -171,7 +171,6 @@ func _build_ui() -> void:
 						self,
 						download_url,
 						func(progress: float, _downloaded: int, _total: int) -> void:
-							# Updates progress every 10%
 							if int(progress * 100.0) % 20 == 0:
 								EventBus.notification_requested.emit("Downloading: %d%%" % int(progress * 100.0), true),
 						func() -> void:
@@ -265,7 +264,7 @@ func _apply_theme() -> void:
 
 	var icon_keys: Array[String] = [
 		"icon_play", "icon_map", "icon_tag", "icon_room",
-		"icon_recipes", "icon_universe", "icon_palette", "icon_settings"
+		"icon_recipes", "icon_universe", "icon_palette", "icon_refresh", "icon_lore", "icon_settings"
 	]
 	var count: int = mini(buttons.size(), icon_keys.size())
 	for index: int in range(count):

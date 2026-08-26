@@ -1,7 +1,7 @@
 # ==============================================================================
-# OWNWORLD — APPLICATION STATE
+# OWNWORLD — RUNTIME APPLICATION STATE
 # File: res://Core/State/AppState.gd
-# Autoload: AppState
+# Autoload Singleton: AppState
 # ==============================================================================
 
 extends Node
@@ -23,7 +23,7 @@ var room_id: String = DEFAULT_ROOM_ID
 var time_preset: String = DEFAULT_TIME_PRESET
 var weather_preset: String = DEFAULT_WEATHER_PRESET
 
-var transitioning: bool = false
+var is_transitioning: bool = false
 
 var _next_entity_uid: int = 1
 var _next_z_index: int = MIN_Z_INDEX
@@ -41,7 +41,7 @@ func apply_session_state(session_data: Dictionary) -> void:
 	room_id = _read_string(session_data, "room_id", DEFAULT_ROOM_ID)
 	time_preset = _read_string(session_data, "time_preset", DEFAULT_TIME_PRESET).to_lower()
 	weather_preset = _read_string(session_data, "weather_preset", DEFAULT_WEATHER_PRESET).to_lower()
-	transitioning = false
+	is_transitioning = false
 
 
 func export_session_state() -> Dictionary:
@@ -56,7 +56,7 @@ func export_session_state() -> Dictionary:
 
 func request_universe_change(new_universe_id: String, new_universe_name: String, starting_room_id: String = DEFAULT_ROOM_ID) -> bool:
 	var normalized_id: String = new_universe_id.strip_edges()
-	if normalized_id.is_empty() or transitioning:
+	if normalized_id.is_empty() or is_transitioning:
 		return false
 
 	var normalized_name: String = new_universe_name.strip_edges()
@@ -81,10 +81,10 @@ func request_universe_change(new_universe_id: String, new_universe_name: String,
 
 func begin_universe_transition(new_universe_id: String, new_universe_name: String) -> bool:
 	var normalized_id: String = new_universe_id.strip_edges()
-	if normalized_id.is_empty() or transitioning:
+	if normalized_id.is_empty() or is_transitioning:
 		return false
 
-	transitioning = true
+	is_transitioning = true
 	universe_id = normalized_id
 	universe_name = new_universe_name.strip_edges() if not new_universe_name.strip_edges().is_empty() else normalized_id
 	room_id = DEFAULT_ROOM_ID
@@ -93,15 +93,15 @@ func begin_universe_transition(new_universe_id: String, new_universe_name: Strin
 
 
 func complete_universe_transition() -> void:
-	if not transitioning:
+	if not is_transitioning:
 		return
-	transitioning = false
+	is_transitioning = false
 	EventBus.application_state_changed.emit()
 
 
 func request_room_change(target_room_id: String, traveler_data: Dictionary = {}) -> bool:
 	var normalized_room_id: String = target_room_id.strip_edges()
-	if normalized_room_id.is_empty() or transitioning:
+	if normalized_room_id.is_empty() or is_transitioning:
 		return false
 	if normalized_room_id == room_id and traveler_data.is_empty():
 		return false
@@ -112,19 +112,19 @@ func request_room_change(target_room_id: String, traveler_data: Dictionary = {})
 
 func begin_room_transition(target_room_id: String) -> bool:
 	var normalized_room_id: String = target_room_id.strip_edges()
-	if normalized_room_id.is_empty() or transitioning:
+	if normalized_room_id.is_empty() or is_transitioning:
 		return false
 
-	transitioning = true
+	is_transitioning = true
 	room_id = normalized_room_id
 	EventBus.application_state_changed.emit()
 	return true
 
 
 func complete_room_transition() -> void:
-	if not transitioning:
+	if not is_transitioning:
 		return
-	transitioning = false
+	is_transitioning = false
 	EventBus.application_state_changed.emit()
 
 
@@ -159,10 +159,10 @@ func _publish_atmosphere_change() -> void:
 
 
 func generate_entity_uuid(base_name: String) -> String:
-	var sanitized_name: String = base_name.strip_edges().validate_node_name()
-	if sanitized_name.is_empty():
-		sanitized_name = "entity"
-	var entity_uid: String = "%s_%d" % [sanitized_name, _next_entity_uid]
+	var sanitized: String = base_name.strip_edges().validate_node_name()
+	if sanitized.is_empty():
+		sanitized = "entity"
+	var entity_uid: String = "%s_%d" % [sanitized, _next_entity_uid]
 	_next_entity_uid += 1
 	return entity_uid
 

@@ -1,5 +1,6 @@
 # ==============================================================================
-# Script: res://Core/ThemeEngine.gd
+# OWNWORLD — PROCEDURAL THEME ENGINE & WCAG CONTRAST SOLVER
+# File: res://Core/ThemeEngine.gd
 # Base Class: RefCounted (class_name ThemeEngine)
 # ==============================================================================
 
@@ -30,12 +31,16 @@ const CONTRAST_RATIO_UI: float = 3.0
 
 static var _cached_procedural_icons: Dictionary = {}
 
+
+## Calculates relative luminance of a color according to WCAG 2.1 standards.
 static func calculate_luminance(c: Color) -> float:
 	var r: float = (c.r / 12.92) if (c.r <= 0.04045) else pow((c.r + 0.055) / 1.055, 2.4)
 	var g: float = (c.g / 12.92) if (c.g <= 0.04045) else pow((c.g + 0.055) / 1.055, 2.4)
 	var b: float = (c.b / 12.92) if (c.b <= 0.04045) else pow((c.b + 0.055) / 1.055, 2.4)
 	return (0.2126 * r) + (0.7152 * g) + (0.0722 * b)
 
+
+## Calculates the contrast ratio between two colors (range: 1.0 to 21.0).
 static func get_contrast_ratio(c1: Color, c2: Color) -> float:
 	var lum1: float = calculate_luminance(c1)
 	var lum2: float = calculate_luminance(c2)
@@ -43,6 +48,8 @@ static func get_contrast_ratio(c1: Color, c2: Color) -> float:
 	var darker: float = minf(lum1, lum2)
 	return (lighter + 0.05) / (darker + 0.05)
 
+
+## Ensures foreground text color meets accessibility contrast requirements against a background.
 static func ensure_contrast(fg: Color, bg: Color, min_ratio: float = CONTRAST_RATIO_TEXT) -> Color:
 	var current_ratio: float = get_contrast_ratio(fg, bg)
 	if current_ratio >= min_ratio:
@@ -52,7 +59,7 @@ static func ensure_contrast(fg: Color, bg: Color, min_ratio: float = CONTRAST_RA
 	var should_lighten: bool = bg_lum < 0.5
 	var resolved: Color = fg
 
-	for _step in range(12):
+	for _step: int in range(12):
 		if should_lighten:
 			resolved = resolved.lightened(0.12)
 		else:
@@ -62,6 +69,8 @@ static func ensure_contrast(fg: Color, bg: Color, min_ratio: float = CONTRAST_RA
 
 	return Color.WHITE if should_lighten else Color(0.08, 0.08, 0.08, 1.0)
 
+
+## Procedurally constructs a complete, cohesive Theme resource from arbitrary color dictionary definitions.
 static func create_theme(theme_data: Dictionary, corner_radius: int = DEFAULT_CORNER_RADIUS) -> Theme:
 	var raw_colors: Dictionary = theme_data.get("colors", {})
 
@@ -90,7 +99,7 @@ static func create_theme(theme_data: Dictionary, corner_radius: int = DEFAULT_CO
 
 	var custom_font: Font = null
 	var fpath: String = str(theme_data.get("font_path", ""))
-	if fpath != "" and FileAccess.file_exists(fpath):
+	if not fpath.is_empty() and FileAccess.file_exists(fpath):
 		if fpath.begins_with("res://") and ResourceLoader.exists(fpath):
 			custom_font = load(fpath) as Font
 		else:
@@ -151,18 +160,18 @@ static func create_theme(theme_data: Dictionary, corner_radius: int = DEFAULT_CO
 	input_focus.border_color = c_accent
 	input_focus.set_border_width_all(2)
 
-	var item_selected: StyleBoxFlat = _create_flat_style(c_accent, Color(0,0,0,0), maxi(corner_radius - 2, 0), 0, 6, 6, 4, 4)
+	var item_selected: StyleBoxFlat = _create_flat_style(c_accent, Color.TRANSPARENT, maxi(corner_radius - 2, 0), 0, 6, 6, 4, 4)
 	var item_hover: StyleBoxFlat = _create_flat_style(c_btn_h, c_accent, maxi(corner_radius - 2, 0), 1, 6, 6, 4, 4)
 
-	# LABELS
+	# --- LABELS ---
 	th.set_color("font_color", "Label", c_text_on_bg)
-	th.set_color("font_shadow_color", "Label", Color(0, 0, 0, 0))
+	th.set_color("font_shadow_color", "Label", Color.TRANSPARENT)
 	th.set_color("font_color", "HeaderLabel", c_accent)
 	th.set_color("font_color", "HintLabel", c_muted_on_bg)
 	th.set_color("default_color", "RichTextLabel", c_text_on_bg)
 	th.set_color("font_color", "TooltipLabel", c_text_on_bg)
 
-	# BUTTONS
+	# --- BUTTONS ---
 	for btn_type: String in ["Button", "OptionButton", "MenuButton"]:
 		th.set_stylebox("normal", btn_type, btn_normal)
 		th.set_stylebox("hover", btn_type, btn_hover)
@@ -225,7 +234,7 @@ static func create_theme(theme_data: Dictionary, corner_radius: int = DEFAULT_CO
 	th.set_color("font_hover_color", "LinkButton", c_accent.lightened(0.2))
 	th.set_color("font_pressed_color", "LinkButton", c_accent.darkened(0.2))
 
-	# TEXT INPUTS
+	# --- TEXT INPUTS ---
 	for txt_type: String in ["LineEdit", "TextEdit", "CodeEdit", "SpinBox"]:
 		th.set_stylebox("normal", txt_type, input_box)
 		th.set_stylebox("focus", txt_type, input_focus)
@@ -241,7 +250,7 @@ static func create_theme(theme_data: Dictionary, corner_radius: int = DEFAULT_CO
 	if icons.has(&"updown"):
 		th.set_icon("updown", "SpinBox", icons[&"updown"])
 
-	# TREES, LISTS & POPUPS
+	# --- TREES, LISTS & POPUPS ---
 	for list_type: String in ["Tree", "ItemList"]:
 		th.set_stylebox("panel", list_type, panel_sub)
 		th.set_stylebox("selected", list_type, item_selected)
@@ -252,7 +261,7 @@ static func create_theme(theme_data: Dictionary, corner_radius: int = DEFAULT_CO
 		th.set_color("font_color", list_type, c_text_on_sub)
 		th.set_color("font_selected_color", list_type, c_text_on_accent)
 		th.set_color("font_hovered_color", list_type, c_text_on_sub)
-		th.set_color("font_outline_color", list_type, Color(0, 0, 0, 0))
+		th.set_color("font_outline_color", list_type, Color.TRANSPARENT)
 
 	if icons.has(&"arrow_down") and icons.has(&"arrow_right"):
 		th.set_icon("arrow", "Tree", icons[&"arrow_down"])
@@ -291,7 +300,7 @@ static func create_theme(theme_data: Dictionary, corner_radius: int = DEFAULT_CO
 	th.set_color("font_hover_color", "MenuBar", c_text_on_btn)
 	th.set_color("font_pressed_color", "MenuBar", c_text_on_accent)
 
-	# TABS & CONTAINERS
+	# --- TABS & CONTAINERS ---
 	var tab_sel: StyleBoxFlat = _create_flat_style(c_accent, c_border_safe, corner_radius, 1, 10, 10, 6, 6)
 	var tab_unsel: StyleBoxFlat = tab_sel.duplicate() as StyleBoxFlat
 	tab_unsel.bg_color = c_btn_n
@@ -328,9 +337,9 @@ static func create_theme(theme_data: Dictionary, corner_radius: int = DEFAULT_CO
 	th.set_color("icon_normal_color", "FloatingCapsule", c_text_on_bg)
 	th.set_color("icon_hover_color", "FloatingCapsule", c_accent)
 
-	# SLIDERS & PROGRESS BARS
+	# --- SLIDERS & PROGRESS BARS ---
 	var s_track: StyleBoxFlat = _create_flat_style(c_sub_bg, c_border_safe, 4, 1, 0, 0, 4, 4)
-	var s_fill: StyleBoxFlat = _create_flat_style(c_accent, Color(0,0,0,0), 4, 0, 0, 0, 4, 4)
+	var s_fill: StyleBoxFlat = _create_flat_style(c_accent, Color.TRANSPARENT, 4, 0, 0, 0, 4, 4)
 
 	for s_type: String in ["HSlider", "VSlider"]:
 		th.set_stylebox("slider", s_type, s_track)
@@ -387,7 +396,7 @@ static func create_theme(theme_data: Dictionary, corner_radius: int = DEFAULT_CO
 	th.set_stylebox("grabber_highlight", "HScrollBar", h_grabber_hov)
 	th.set_stylebox("grabber_pressed", "HScrollBar", h_grabber_press)
 
-	# WINDOWS & DIALOGS
+	# --- WINDOWS & DIALOGS ---
 	for win_type: String in ["Window", "AcceptDialog", "ConfirmationDialog", "FileDialog"]:
 		th.set_stylebox("panel", win_type, panel_main)
 		th.set_stylebox("embedded_border", win_type, panel_main)
@@ -427,6 +436,8 @@ static func create_theme(theme_data: Dictionary, corner_radius: int = DEFAULT_CO
 
 	return th
 
+
+## Recursively applies the procedural theme resource across the entire SceneTree.
 static func apply_theme_globally(tree: SceneTree, theme_data: Dictionary, corner_radius: int = DEFAULT_CORNER_RADIUS) -> Theme:
 	if not tree or not tree.root:
 		return null
@@ -434,6 +445,7 @@ static func apply_theme_globally(tree: SceneTree, theme_data: Dictionary, corner
 	tree.root.theme = global_theme
 	_propagate_theme_to_tree(tree.root, global_theme)
 	return global_theme
+
 
 static func _propagate_theme_to_tree(node: Node, th: Theme) -> void:
 	if node is Window:
@@ -453,12 +465,13 @@ static func _propagate_theme_to_tree(node: Node, th: Theme) -> void:
 		if pop != null:
 			pop.theme = th
 
-	# Use include_internal = true to visit OptionButton popups and embedded dialog windows
 	for child: Node in node.get_children(true):
 		_propagate_theme_to_tree(child, th)
 
+
 static func clear_procedural_icon_cache() -> void:
 	_cached_procedural_icons.clear()
+
 
 static func _build_runtime_procedural_icons(
 	c_border: Color, 
@@ -492,6 +505,7 @@ static func _build_runtime_procedural_icons(
 	_cached_procedural_icons[cache_key] = out
 	return out
 
+
 static func _create_flat_style(
 	bg: Color, border: Color, radius: int, border_w: int,
 	m_left: int, m_right: int, m_top: int, m_bottom: int
@@ -507,6 +521,7 @@ static func _create_flat_style(
 	s.content_margin_bottom = m_bottom
 	return s
 
+
 static func _gen_checkbox(is_checked: bool, bg: Color, border: Color, check: Color) -> ImageTexture:
 	var img: Image = Image.create(18, 18, false, Image.FORMAT_RGBA8)
 	img.fill(Color.TRANSPARENT)
@@ -516,15 +531,16 @@ static func _gen_checkbox(is_checked: bool, bg: Color, border: Color, check: Col
 		img.fill_rect(Rect2i(5, 5, 8, 8), Color.WHITE)
 	return ImageTexture.create_from_image(img)
 
+
 static func _gen_radio(is_checked: bool, bg: Color, border: Color, dot: Color) -> ImageTexture:
 	var size: int = 16
 	var img: Image = Image.create(size, size, false, Image.FORMAT_RGBA8)
 	img.fill(Color.TRANSPARENT)
-	var center := Vector2(8.0, 8.0)
-	
-	for x in range(size):
-		for y in range(size):
-			var dist_sq := Vector2(x + 0.5, y + 0.5).distance_squared_to(center)
+	var center: Vector2 = Vector2(8.0, 8.0)
+
+	for x: int in range(size):
+		for y: int in range(size):
+			var dist_sq: float = Vector2(float(x) + 0.5, float(y) + 0.5).distance_squared_to(center)
 			if dist_sq <= 42.25: # 6.5^2
 				if dist_sq >= 28.09: # 5.3^2
 					img.set_pixel(x, y, border)
@@ -534,17 +550,18 @@ static func _gen_radio(is_checked: bool, bg: Color, border: Color, dot: Color) -
 				img.set_pixel(x, y, dot)
 	return ImageTexture.create_from_image(img)
 
+
 static func _gen_slider_grabber(is_highlight: bool, bg: Color, border: Color, accent: Color) -> ImageTexture:
 	var size: int = 16
 	var img: Image = Image.create(size, size, false, Image.FORMAT_RGBA8)
 	img.fill(Color.TRANSPARENT)
-	var center := Vector2(8.0, 8.0)
-	var outer_rad_sq := 42.25 if is_highlight else 30.25 # 6.5^2 or 5.5^2
-	var inner_rad_sq := 28.09 if is_highlight else 18.49 # 5.3^2 or 4.3^2
-	
-	for x in range(size):
-		for y in range(size):
-			var dist_sq := Vector2(x + 0.5, y + 0.5).distance_squared_to(center)
+	var center: Vector2 = Vector2(8.0, 8.0)
+	var outer_rad_sq: float = 42.25 if is_highlight else 30.25
+	var inner_rad_sq: float = 28.09 if is_highlight else 18.49
+
+	for x: int in range(size):
+		for y: int in range(size):
+			var dist_sq: float = Vector2(float(x) + 0.5, float(y) + 0.5).distance_squared_to(center)
 			if dist_sq <= outer_rad_sq:
 				if dist_sq >= inner_rad_sq:
 					img.set_pixel(x, y, Color.WHITE if is_highlight else border)
@@ -552,40 +569,43 @@ static func _gen_slider_grabber(is_highlight: bool, bg: Color, border: Color, ac
 					img.set_pixel(x, y, accent if is_highlight else bg)
 	return ImageTexture.create_from_image(img)
 
+
 static func _gen_arrow(dir: int, color: Color) -> ImageTexture:
 	var size: int = 14
 	var img: Image = Image.create(size, size, false, Image.FORMAT_RGBA8)
 	img.fill(Color.TRANSPARENT)
 	if dir == 0:
-		for t in range(5):
+		for t: int in range(5):
 			img.set_pixel(3 + t, 4 + t, color)
 			img.set_pixel(3 + t, 5 + t, color)
 			img.set_pixel(11 - t, 4 + t, color)
 			img.set_pixel(11 - t, 5 + t, color)
 	elif dir == 1:
-		for t in range(5):
+		for t: int in range(5):
 			img.set_pixel(4 + t, 3 + t, color)
 			img.set_pixel(5 + t, 3 + t, color)
 			img.set_pixel(4 + t, 11 - t, color)
 			img.set_pixel(5 + t, 11 - t, color)
 	return ImageTexture.create_from_image(img)
 
+
 static func _gen_updown(color: Color) -> ImageTexture:
 	var size: int = 14
 	var img: Image = Image.create(size, size, false, Image.FORMAT_RGBA8)
 	img.fill(Color.TRANSPARENT)
-	for t in range(3):
+	for t: int in range(3):
 		img.set_pixel(7 - t, 2 + t, color)
 		img.set_pixel(7 + t, 2 + t, color)
 		img.set_pixel(7 - t, 11 - t, color)
 		img.set_pixel(7 + t, 11 - t, color)
 	return ImageTexture.create_from_image(img)
 
+
 static func _gen_close(color: Color) -> ImageTexture:
 	var size: int = 14
 	var img: Image = Image.create(size, size, false, Image.FORMAT_RGBA8)
 	img.fill(Color.TRANSPARENT)
-	for i in range(3, 11):
+	for i: int in range(3, 11):
 		img.set_pixel(i, i, color)
 		img.set_pixel(i, 13 - i, color)
 	return ImageTexture.create_from_image(img)

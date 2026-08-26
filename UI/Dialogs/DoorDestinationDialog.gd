@@ -1,5 +1,5 @@
 # ==============================================================================
-# OWNWORLD — DOOR DESTINATION DIALOG (PURE PLAYER-SET ASSETS)
+# OWNWORLD — DOOR DESTINATION DIALOG
 # File: res://UI/Dialogs/DoorDestinationDialog.gd
 # Base Class: CanvasLayer (class_name DoorDestinationDialog)
 # ==============================================================================
@@ -190,14 +190,10 @@ func _populate_map_locations() -> void:
 	var map_path: String = MAP_DIRECTORY + current_universe_id + "_map.json"
 	if not FileAccess.file_exists(map_path): return
 
-	var file: FileAccess = FileAccess.open(map_path, FileAccess.READ)
-	if file == null: return
+	var parsed: Dictionary = JsonFileStore.read_dictionary(map_path)
+	if parsed.is_empty(): return
 
-	var parsed: Variant = JSON.parse_string(file.get_as_text())
-	file.close()
-	if not parsed is Dictionary: return
-
-	var pins: Variant = (parsed as Dictionary).get("pins", [])
+	var pins: Variant = parsed.get("pins", [])
 	if not pins is Array: return
 
 	var selected_index: int = 0
@@ -252,14 +248,7 @@ func save_and_close() -> void:
 
 
 func _load_session() -> Dictionary:
-	if not FileAccess.file_exists(SESSION_FILE):
-		return {"universe_id": "default_universe", "universe_name": "Default Universe", "room_id": "room_main"}
-	var file: FileAccess = FileAccess.open(SESSION_FILE, FileAccess.READ)
-	if file == null:
-		return {"universe_id": "default_universe", "universe_name": "Default Universe", "room_id": "room_main"}
-	var parsed: Variant = JSON.parse_string(file.get_as_text())
-	file.close()
-	return parsed as Dictionary if parsed is Dictionary else {"universe_id": "default_universe", "universe_name": "Default Universe", "room_id": "room_main"}
+	return JsonFileStore.read_dictionary(SESSION_FILE)
 
 
 func _enforce_dropdown_popup_limits(option_button: OptionButton, max_height: int = 200) -> void:

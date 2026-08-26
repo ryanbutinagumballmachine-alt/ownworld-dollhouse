@@ -1,3 +1,9 @@
+# ==============================================================================
+# OWNWORLD — SAVE SCHEMA & DATA NORMALIZER
+# File: res://Core/Persistence/SaveSchema.gd
+# Base Class: RefCounted (class_name SaveSchema)
+# ==============================================================================
+
 class_name SaveSchema
 extends RefCounted
 
@@ -17,6 +23,7 @@ const DEFAULT_CAMERA_POSITION: Vector2 = Vector2(640.0, 360.0)
 const DEFAULT_CAMERA_ZOOM: float = 1.0
 
 
+## Constructs a normalized room dictionary strictly matching schema specifications.
 static func create_room(
 	room_id: String,
 	room_title: String,
@@ -30,22 +37,27 @@ static func create_room(
 	building_name: String = DEFAULT_BUILDING_NAME
 ) -> Dictionary:
 	var normalized_room_id: String = room_id.strip_edges()
-	if normalized_room_id.is_empty(): normalized_room_id = DEFAULT_ROOM_ID
+	if normalized_room_id.is_empty():
+		normalized_room_id = DEFAULT_ROOM_ID
 
 	var normalized_title: String = room_title.strip_edges()
-	if normalized_title.is_empty(): normalized_title = normalized_room_id
+	if normalized_title.is_empty():
+		normalized_title = normalized_room_id
 
 	var normalized_floor_level: String = floor_level.strip_edges()
-	if normalized_floor_level.is_empty(): normalized_floor_level = DEFAULT_FLOOR_LEVEL
+	if normalized_floor_level.is_empty():
+		normalized_floor_level = DEFAULT_FLOOR_LEVEL
 
 	var normalized_building_id: String = building_id.strip_edges()
-	if normalized_building_id.is_empty(): normalized_building_id = DEFAULT_BUILDING_ID
+	if normalized_building_id.is_empty():
+		normalized_building_id = DEFAULT_BUILDING_ID
 
 	var normalized_building_name: String = building_name.strip_edges()
-	if normalized_building_name.is_empty(): normalized_building_name = DEFAULT_BUILDING_NAME
+	if normalized_building_name.is_empty():
+		normalized_building_name = DEFAULT_BUILDING_NAME
 
 	var safe_slices: Array[Dictionary] = []
-	for slice_item in slices:
+	for slice_item: Variant in slices:
 		if slice_item is Dictionary:
 			var s_dict: Dictionary = (slice_item as Dictionary).duplicate(true)
 			if not s_dict.has("wallpaper_path"): s_dict["wallpaper_path"] = ""
@@ -87,16 +99,17 @@ static func create_room(
 	}
 
 
+## Reads any arbitrary dictionary and upgrades/normalizes it to current schema standards.
 static func normalize_room(raw_data: Dictionary, fallback_room_id: String = DEFAULT_ROOM_ID) -> Dictionary:
 	if raw_data.is_empty():
 		return create_empty_room(fallback_room_id)
 
-	var room_id: String = str(raw_data.get("room_id", fallback_room_id))
+	var room_id: String = str(raw_data.get("room_id", fallback_room_id)).strip_edges()
 	if room_id.is_empty(): room_id = fallback_room_id
-	var room_title: String = str(raw_data.get("room_title", room_id))
-	var floor_level: String = str(raw_data.get("floor_level", DEFAULT_FLOOR_LEVEL))
-	var building_id: String = str(raw_data.get("building_id", DEFAULT_BUILDING_ID))
-	var building_name: String = str(raw_data.get("building_name", DEFAULT_BUILDING_NAME))
+	var room_title: String = str(raw_data.get("room_title", room_id)).strip_edges()
+	var floor_level: String = str(raw_data.get("floor_level", DEFAULT_FLOOR_LEVEL)).strip_edges()
+	var building_id: String = str(raw_data.get("building_id", DEFAULT_BUILDING_ID)).strip_edges()
+	var building_name: String = str(raw_data.get("building_name", DEFAULT_BUILDING_NAME)).strip_edges()
 	var floor_y: float = float(raw_data.get("floor_y", DEFAULT_FLOOR_Y))
 
 	var raw_slices: Variant = raw_data.get("slices", null)
@@ -139,7 +152,13 @@ static func normalize_room(raw_data: Dictionary, fallback_room_id: String = DEFA
 	)
 
 
-static func create_empty_room(room_id: String = DEFAULT_ROOM_ID, building_id: String = DEFAULT_BUILDING_ID, building_name: String = DEFAULT_BUILDING_NAME, floor_level: String = DEFAULT_FLOOR_LEVEL) -> Dictionary:
+## Creates a fresh default room payload.
+static func create_empty_room(
+	room_id: String = DEFAULT_ROOM_ID,
+	building_id: String = DEFAULT_BUILDING_ID,
+	building_name: String = DEFAULT_BUILDING_NAME,
+	floor_level: String = DEFAULT_FLOOR_LEVEL
+) -> Dictionary:
 	return create_room(
 		room_id,
 		room_id,
@@ -174,12 +193,18 @@ static func _read_camera_position(data: Dictionary) -> Vector2:
 	var raw_camera: Variant = data.get("camera", null)
 	if raw_camera is Dictionary:
 		var camera_data: Dictionary = raw_camera as Dictionary
-		return Vector2(float(camera_data.get("x", DEFAULT_CAMERA_POSITION.x)), float(camera_data.get("y", DEFAULT_CAMERA_POSITION.y)))
+		return Vector2(
+			float(camera_data.get("x", DEFAULT_CAMERA_POSITION.x)),
+			float(camera_data.get("y", DEFAULT_CAMERA_POSITION.y))
+		)
 
-	var raw_legacy_position: Variant = data.get("camera_pos", null)
-	if raw_legacy_position is Dictionary:
-		var position_data: Dictionary = raw_legacy_position as Dictionary
-		return Vector2(float(position_data.get("x", DEFAULT_CAMERA_POSITION.x)), float(position_data.get("y", DEFAULT_CAMERA_POSITION.y)))
+	var raw_legacy: Variant = data.get("camera_pos", null)
+	if raw_legacy is Dictionary:
+		var pos_data: Dictionary = raw_legacy as Dictionary
+		return Vector2(
+			float(pos_data.get("x", DEFAULT_CAMERA_POSITION.x)),
+			float(pos_data.get("y", DEFAULT_CAMERA_POSITION.y))
+		)
 
 	return DEFAULT_CAMERA_POSITION
 

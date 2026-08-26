@@ -7,13 +7,6 @@
 class_name LogicEngine
 extends RefCounted
 
-enum ActionTarget {
-	SELF = 0,
-	TRIGGER_ITEM = 1,
-	ROOM_ALL_CHARACTERS = 2,
-	ENVIRONMENT = 3
-}
-
 
 static func evaluate_trigger(trigger_event: Types.TriggerEvent, source_entity: OwnEntity, context: Dictionary = {}) -> void:
 	if source_entity == null or not is_instance_valid(source_entity) or source_entity.logic_rules.is_empty():
@@ -60,20 +53,20 @@ static func _evaluate_condition(entity: OwnEntity, field: String, expected_value
 
 
 static func _dispatch_action(rule: Dictionary, source_entity: OwnEntity, context: Dictionary) -> void:
-	var target_mode: int = int(rule.get("target", ActionTarget.SELF))
+	var target_mode: int = int(rule.get("target", Types.ActionTarget.SELF))
 	var action_command: int = int(rule.get("then", -1))
 	var value: String = str(rule.get("val", "")).strip_edges()
 
 	match target_mode:
-		ActionTarget.SELF:
+		int(Types.ActionTarget.SELF):
 			_execute_single_target_action(action_command, value, source_entity, context)
-		ActionTarget.TRIGGER_ITEM:
+		int(Types.ActionTarget.TRIGGER_ITEM):
 			var received_item: OwnEntity = context.get("item", null) as OwnEntity
 			if received_item != null and is_instance_valid(received_item):
 				_execute_single_target_action(action_command, value, received_item, context)
-		ActionTarget.ROOM_ALL_CHARACTERS:
+		int(Types.ActionTarget.ROOM_ALL_CHARACTERS):
 			_execute_room_character_action(action_command, value, context)
-		ActionTarget.ENVIRONMENT:
+		int(Types.ActionTarget.ENVIRONMENT):
 			_execute_environment_action(action_command, value)
 
 	_publish_rule_notification(rule, source_entity)

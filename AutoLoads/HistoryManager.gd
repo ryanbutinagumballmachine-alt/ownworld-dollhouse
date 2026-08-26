@@ -1,7 +1,7 @@
 # ==============================================================================
-# OWNWORLD — HISTORY SERVICE (FULL-SCOPE UNDO / REDO)
+# OWNWORLD — HISTORY SERVICE (UNDO / REDO)
 # File: res://AutoLoads/HistoryManager.gd
-# Autoload: HistoryManager
+# Autoload Singleton: HistoryManager
 # ==============================================================================
 
 extends Node
@@ -33,7 +33,6 @@ func record_snapshot(snapshot: Dictionary) -> void:
 	if is_suppressed or snapshot.is_empty():
 		return
 
-	# Avoid duplicate identical snapshots
 	if not undo_stack.is_empty() and undo_stack.back() == snapshot:
 		return
 

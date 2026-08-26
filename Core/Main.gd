@@ -1,5 +1,5 @@
 # ==============================================================================
-# OWNWORLD — MAIN APPLICATION ORCHESTRATOR (SMOOTH TRANSITIONS & STAIRS ROUTING)
+# OWNWORLD — MAIN APPLICATION ORCHESTRATOR
 # File: res://Core/Main.gd
 # Base Class: Node2D
 # ==============================================================================
@@ -111,9 +111,6 @@ func _ready() -> void:
 
 
 func _ensure_ugc_directories() -> void:
-	var paths: Array[String] = ["user://universes/", "user://maps/", "user://saves/"]
-	for path: String in paths:
-		DirAccess.make_dir_recursive_absolute(path)
 	UGCManager.ensure_all_directories()
 
 
@@ -406,9 +403,7 @@ func _update_room_bg_theme_color() -> void:
 	_apply_room_slices(room_slices)
 
 
-# ------------------------------------------------------------------------------
-# MULTI-SLICE ROOM SPATIAL RENDERING & PROCEDURAL PALETTES
-# ------------------------------------------------------------------------------
+# --- MULTI-SLICE ROOM SPATIAL RENDERING ---
 
 func _apply_room_slices(slices_data: Array[Dictionary]) -> void:
 	room_slices = slices_data.duplicate(true)
@@ -566,6 +561,8 @@ func _is_any_modal_open() -> bool:
 		elif ui is Window and (ui as Window).visible: return true
 	return false
 
+
+# --- INPUT HANDLING ---
 
 func _input(event: InputEvent) -> void:
 	if is_transitioning_room:
@@ -818,7 +815,7 @@ func _handle_press_end(_world_pos: Vector2) -> void:
 							return
 						else:
 							var target_room: String = portal_ent.target_room_id
-							if target_room != "" and target_room != _get_current_room_id():
+							if not target_room.is_empty() and target_room != _get_current_room_id():
 								var bundle: Array[Dictionary] = released.get_full_hierarchy_bundle()
 								_remove_hierarchy(released)
 								released.queue_free()
@@ -909,7 +906,6 @@ func _handle_stairs_travel(_stairs: OwnEntity, traveler: OwnEntity) -> void:
 		EventBus.notification_requested.emit("There are no other floors above in this building.", true)
 		_apply_physical_gravity_settle(traveler)
 		return
-		
 
 	var target_room_id: String = str(next_floor.get("room_id", "")).strip_edges()
 	var target_floor_label: String = str(next_floor.get("label", next_floor.get("floor_level", "Floor Above")))
@@ -974,7 +970,7 @@ func _handle_stairs_tap(stairs: OwnEntity) -> void:
 	})
 
 
-# --- ELEVATOR ROUTING LOGIC WITH EMPTY-FLOORS CHECK ---
+# --- ELEVATOR ROUTING LOGIC ---
 
 func _handle_elevator_tap(elevator: OwnEntity) -> void:
 	var bldg_floors: Array[Dictionary] = SaveSystem.get_building_floors(current_building_id)
@@ -997,7 +993,7 @@ func _handle_elevator_interaction(elevator: OwnEntity, traveler: OwnEntity) -> v
 
 
 func _trigger_haptic(duration_ms: int = 30) -> void:
-	if SettingsManager.are_haptics_enabled() and (OS.has_feature("mobile") or OS.has_feature("web_android") or OS.has_feature("web_ios")):
+	if SettingsManager.are_haptics_enabled() and (OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios")):
 		if Input.has_method("vibrate_handheld"):
 			Input.vibrate_handheld(duration_ms)
 
@@ -1126,16 +1122,7 @@ func _calculate_effective_z(entity: OwnEntity) -> int:
 
 
 func _load_session() -> Dictionary:
-	const DEFAULT_SESSION: Dictionary = {
-		"universe_id": "default_universe", "universe_name": "Default Universe",
-		"room_id": "room_main", "time_preset": "day", "weather_preset": "none"
-	}
-	if not FileAccess.file_exists("user://session.json"):
-		return DEFAULT_SESSION.duplicate(true)
-
-	var content: String = FileAccess.get_file_as_string("user://session.json")
-	var parsed: Variant = JSON.parse_string(content)
-	return (parsed as Dictionary) if parsed is Dictionary else DEFAULT_SESSION.duplicate(true)
+	return JsonFileStore.read_dictionary("user://session.json")
 
 
 func _get_current_universe_id() -> String: return SaveSystem.get_current_universe_id()
@@ -1145,10 +1132,7 @@ func _get_current_room_id() -> String: return SaveSystem.get_current_room_id()
 func _save_session_from_main_state() -> void:
 	var session: Dictionary = _load_session()
 	session["room_id"] = _get_current_room_id()
-	var file: FileAccess = FileAccess.open("user://session.json", FileAccess.WRITE)
-	if file != null:
-		file.store_string(JSON.stringify(session, "\t"))
-		file.close()
+	JsonFileStore.write_dictionary("user://session.json", session)
 
 
 func _on_atmosphere_changed(time_preset: String, weather_preset: String) -> void:
@@ -1157,7 +1141,8 @@ func _on_atmosphere_changed(time_preset: String, weather_preset: String) -> void
 		atmosphere.set_weather(weather_preset)
 
 
-# Smooth Cross-Fade Transition Implementation
+# --- TRANSITIONS ---
+
 func _transition_to_room(target_room_id: String, traveler_data: Dictionary = {}) -> void:
 	var current_room_id_str: String = _get_current_room_id()
 	if target_room_id.is_empty() or is_transitioning_room:
@@ -1178,10 +1163,7 @@ func _transition_to_room(target_room_id: String, traveler_data: Dictionary = {})
 	# 2. Write session & stream target room
 	var session: Dictionary = _load_session()
 	session["room_id"] = target_room_id
-	var file: FileAccess = FileAccess.open("user://session.json", FileAccess.WRITE)
-	if file != null:
-		file.store_string(JSON.stringify(session, "\t"))
-		file.close()
+	JsonFileStore.write_dictionary("user://session.json", session)
 
 	_load_active_room(target_room_id, traveler_data)
 
@@ -1206,36 +1188,18 @@ func _switch_universe(new_u_id: String, new_u_name: String, starting_room: Strin
 	session["universe_id"] = new_u_id
 	session["universe_name"] = new_u_name
 	session["room_id"] = starting_room
-
-	var file: FileAccess = FileAccess.open("user://session.json", FileAccess.WRITE)
-	if file != null:
-		file.store_string(JSON.stringify(session, "\t"))
-		file.close()
+	JsonFileStore.write_dictionary("user://session.json", session)
 
 	if EventBus.has_signal("universe_changed"):
 		EventBus.universe_changed.emit(new_u_id, new_u_name)
 
 
 func _clear_current_universe_rooms() -> void:
-	var save_dir: String = SaveSystem.get_universe_save_dir()
-	if not DirAccess.dir_exists_absolute(save_dir): return
-	var dir: DirAccess = DirAccess.open(save_dir)
-	if dir == null: return
-	dir.list_dir_begin()
-	var file_name: String = dir.get_next()
-	while not file_name.is_empty():
-		if not dir.current_is_dir() and file_name.ends_with(".json"):
-			DirAccess.remove_absolute(save_dir.path_join(file_name))
-		file_name = dir.get_next()
-	dir.list_dir_end()
+	RoomRepository.clear_universe(SaveSystem.get_current_universe_id())
 
 
 func _generate_entity_uuid(base_name: String) -> String:
-	var sanitized: String = base_name.validate_node_name()
-	if sanitized.is_empty(): sanitized = "entity"
-	var uid: String = "%s_%d" % [sanitized, _next_entity_uid]
-	_next_entity_uid += 1
-	return uid
+	return AppState.generate_entity_uuid(base_name)
 
 
 func _on_open_universe_journal() -> void:
@@ -1487,7 +1451,7 @@ func _on_history_state_restored(snapshot: Dictionary) -> void:
 	if snapshot.has("floor_level"): current_room_floor_level = str(snapshot["floor_level"])
 	if snapshot.has("slices") and snapshot["slices"] is Array:
 		var restored_slices: Array[Dictionary] = []
-		for s in (snapshot["slices"] as Array):
+		for s: Variant in (snapshot["slices"] as Array):
 			if s is Dictionary: restored_slices.append((s as Dictionary).duplicate(true))
 		_apply_room_slices(restored_slices)
 	RoomManager.deserialize_room_into_canvas(snapshot, world_canvas, all_entities)
@@ -1621,6 +1585,7 @@ func _on_undo_requested() -> void:
 	if history != null and history.has_method("undo"):
 		history.call("undo")
 		
+
 func _on_top_nav_floor_switcher_requested() -> void:
 	var floors: Array[Dictionary] = SaveSystem.get_building_floors(current_building_id)
 

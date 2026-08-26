@@ -7,7 +7,7 @@ class_name EntityConsumableCapability
 extends EntityCapability
 
 signal bite_taken(remaining_bites: int)
-signal consumed
+signal consumed()
 
 var is_drink: bool = false
 var is_infinite: bool = false
@@ -40,7 +40,8 @@ func consume_one() -> bool:
 
 	remaining_bites -= 1
 	bite_taken.emit(remaining_bites)
-	EventBus.entity_state_changed.emit(entity.entity_id)
+	if entity != null:
+		EventBus.entity_state_changed.emit(entity.entity_id)
 
 	if remaining_bites <= 0:
 		consumed.emit()
@@ -51,7 +52,8 @@ func consume_one() -> bool:
 
 func refill() -> void:
 	remaining_bites = max_bites
-	EventBus.entity_state_changed.emit(entity.entity_id)
+	if entity != null:
+		EventBus.entity_state_changed.emit(entity.entity_id)
 
 
 func serialize() -> Dictionary:

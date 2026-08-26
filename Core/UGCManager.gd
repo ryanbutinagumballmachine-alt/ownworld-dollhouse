@@ -1,5 +1,5 @@
 # ==============================================================================
-# OWNWORLD — UGC MANAGER & DOCUMENTS HUB (ASYNCHRONOUS ZERO-LAG THUMBNAILS)
+# OWNWORLD — UGC MANAGER & DOCUMENTS HUB (ASYNC ZERO-LAG THUMBNAILS)
 # File: res://Core/UGCManager.gd
 # Base Class: RefCounted (class_name UGCManager)
 # ==============================================================================
@@ -30,25 +30,23 @@ static var _library_metadata_cache: Array[Dictionary] = []
 static var _library_dirty: bool = true
 
 
-# --- DOCUMENTS HUB PATHS ---
+# --- DOCUMENTS HUB PATH DIRECTORIES ---
 
 static func get_documents_hub_dir() -> String:
 	var docs_dir: String = OS.get_system_dir(OS.SYSTEM_DIR_DOCUMENTS)
 	if docs_dir.is_empty() or OS.has_feature("mobile") or OS.has_feature("android"):
-		# Test write access
 		var test_path: String = docs_dir.path_join("OwnWorld").replace("\\", "/")
 		if DirAccess.make_dir_recursive_absolute(test_path) != OK:
 			docs_dir = "user://"
 	
 	var hub_dir: String = docs_dir.path_join("OwnWorld").replace("\\", "/")
-	if not DirAccess.dir_exists_absolute(hub_dir):
-		DirAccess.make_dir_recursive_absolute(hub_dir)
+	JsonFileStore.ensure_directory(hub_dir)
 	return hub_dir
+
 
 static func get_dollhouse_dir() -> String:
 	var dollhouse_dir: String = get_documents_hub_dir().path_join("Dollhouse").replace("\\", "/")
-	if not DirAccess.dir_exists_absolute(dollhouse_dir):
-		DirAccess.make_dir_recursive_absolute(dollhouse_dir)
+	JsonFileStore.ensure_directory(dollhouse_dir)
 	return dollhouse_dir
 
 
@@ -74,8 +72,7 @@ static func get_theme_root_directory() -> String:
 
 static func get_theme_icons_directory() -> String:
 	var icons_dir: String = get_theme_root_directory().path_join("Icons").replace("\\", "/")
-	if not DirAccess.dir_exists_absolute(icons_dir):
-		DirAccess.make_dir_recursive_absolute(icons_dir)
+	JsonFileStore.ensure_directory(icons_dir)
 	return icons_dir
 
 
@@ -108,14 +105,12 @@ static func ensure_all_directories() -> void:
 
 
 static func _ensure_thumb_cache_directory() -> void:
-	if not DirAccess.dir_exists_absolute(THUMB_CACHE_DIR):
-		DirAccess.make_dir_recursive_absolute(THUMB_CACHE_DIR)
+	JsonFileStore.ensure_directory(THUMB_CACHE_DIR)
 
 
 static func _get_or_create_dollhouse_subdir(subdir_name: String) -> String:
 	var target_dir: String = get_dollhouse_dir().path_join(subdir_name).replace("\\", "/")
-	if not DirAccess.dir_exists_absolute(target_dir):
-		DirAccess.make_dir_recursive_absolute(target_dir)
+	JsonFileStore.ensure_directory(target_dir)
 	return target_dir
 
 
@@ -139,12 +134,11 @@ static func resolve_art_directory(relative_folder: String = "") -> String:
 	var normalized_folder: String = _normalize_relative_folder(relative_folder)
 	var art_root: String = get_art_root_directory()
 	var target_directory: String = art_root if (normalized_folder.is_empty() or normalized_folder == "Root") else art_root.path_join(normalized_folder)
-	if not DirAccess.dir_exists_absolute(target_directory):
-		DirAccess.make_dir_recursive_absolute(target_directory)
+	JsonFileStore.ensure_directory(target_directory)
 	return target_directory
 
 
-# --- METADATA & DIRECTORY SCANNING (INSTANT ZERO-DECODE SCAN) ---
+# --- METADATA & LIBRARY DIRECTORY SCANNING ---
 
 static func mark_library_dirty() -> void:
 	_library_dirty = true
@@ -357,7 +351,7 @@ static func _wipe_dir_recursive(disk_path: String) -> bool:
 	return DirAccess.remove_absolute(disk_path) == OK
 
 
-# --- HIGH-SPEED ASYNCHRONOUS THUMBNAIL PIPELINE (0ms FOLDER OPENING) ---
+# --- NON-BLOCKING ASYNCHRONOUS THUMBNAIL PIPELINE ---
 
 static func get_thumbnail_async(file_path: String, max_dimension: int = THUMBNAIL_MAX_DIMENSION) -> Texture2D:
 	var clean_path: String = _normalize_file_path(file_path)
@@ -375,16 +369,14 @@ static func get_thumbnail_async(file_path: String, max_dimension: int = THUMBNAI
 		thumb_cache.erase(cache_key)
 	thumb_mutex.unlock()
 
-	# Create an empty 1x1 transparent ImageTexture immediately (0ms delay)
 	var dummy: Image = Image.create(1, 1, false, Image.FORMAT_RGBA8)
-	dummy.set_pixel(0, 0, Color(0, 0, 0, 0))
+	dummy.set_pixel(0, 0, Color.TRANSPARENT)
 	var async_texture: ImageTexture = ImageTexture.create_from_image(dummy)
 
 	thumb_mutex.lock()
 	thumb_cache[cache_key] = async_texture
 	thumb_mutex.unlock()
 
-	# Dispatch background thumbnail generation
 	WorkerThreadPool.add_task(func():
 		var img: Image = _get_or_create_thumbnail_image(clean_path, max_dimension)
 		if img != null and not img.is_empty():
@@ -439,7 +431,7 @@ static func _get_or_create_thumbnail_image(clean_path: String, max_dimension: in
 	return source_image
 
 
-# --- FULL-RESOLUTION RUNTIME TEXTURE LOADER ---
+# --- FULL-RESOLUTION TEXTURE LOADER ---
 
 static func load_texture_from_file(file_path: String, max_dimension: int = DEFAULT_MAX_TEXTURE_DIMENSION) -> Texture2D:
 	var clean_path: String = _normalize_file_path(file_path)

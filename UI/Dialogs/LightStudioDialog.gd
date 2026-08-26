@@ -174,9 +174,9 @@ func _build_ui() -> void:
 	opt_light_mode = OptionButton.new()
 	opt_light_mode.custom_minimum_size = Vector2(0.0, 32.0)
 	opt_light_mode.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	_add_icon_option(opt_light_mode, "icon_glow", "Silhouette Contour (Outline Glow)", OwnEntity.LightShapeMode.SILHOUETTE_CONTOUR)
-	_add_icon_option(opt_light_mode, "icon_sun", "Ambient Room Glow", OwnEntity.LightShapeMode.RADIAL_ROOM)
-	_add_icon_option(opt_light_mode, "icon_pin", "Light Anchors (Pin Emitters)", OwnEntity.LightShapeMode.ANCHOR_POINTS)
+	_add_icon_option(opt_light_mode, "icon_glow", "Silhouette Contour (Outline Glow)", Types.LightShapeMode.SILHOUETTE_CONTOUR)
+	_add_icon_option(opt_light_mode, "icon_sun", "Ambient Room Glow", Types.LightShapeMode.RADIAL_ROOM)
+	_add_icon_option(opt_light_mode, "icon_pin", "Light Anchors (Pin Emitters)", Types.LightShapeMode.ANCHOR_POINTS)
 	opt_light_mode.item_selected.connect(_on_mode_selected)
 	mode_hbox.add_child(opt_light_mode)
 
@@ -360,9 +360,9 @@ func open_for_entity(entity: OwnEntity) -> void:
 	chk_light_enabled.button_pressed = entity.is_light_source
 
 	opt_light_mode.clear()
-	_add_icon_option(opt_light_mode, "icon_glow", "Silhouette Contour (Outline Glow)", OwnEntity.LightShapeMode.SILHOUETTE_CONTOUR)
-	_add_icon_option(opt_light_mode, "icon_sun", "Ambient Room Glow", OwnEntity.LightShapeMode.RADIAL_ROOM)
-	_add_icon_option(opt_light_mode, "icon_pin", "Light Anchors (Pin Emitters)", OwnEntity.LightShapeMode.ANCHOR_POINTS)
+	_add_icon_option(opt_light_mode, "icon_glow", "Silhouette Contour (Outline Glow)", Types.LightShapeMode.SILHOUETTE_CONTOUR)
+	_add_icon_option(opt_light_mode, "icon_sun", "Ambient Room Glow", Types.LightShapeMode.RADIAL_ROOM)
+	_add_icon_option(opt_light_mode, "icon_pin", "Light Anchors (Pin Emitters)", Types.LightShapeMode.ANCHOR_POINTS)
 
 	var mode_index: int = _find_option_index_by_id(opt_light_mode, entity.light_shape_mode)
 	opt_light_mode.selected = mode_index if mode_index >= 0 else 0
@@ -421,11 +421,11 @@ func _on_mode_selected(index: int) -> void:
 func _update_mode_hint_text() -> void:
 	if opt_light_mode == null: return
 	match opt_light_mode.get_selected_id():
-		int(OwnEntity.LightShapeMode.SILHOUETTE_CONTOUR):
+		int(Types.LightShapeMode.SILHOUETTE_CONTOUR):
 			mode_hint_lbl.text = "Silhouette Glow: Illuminates the entire drawing and casts a soft outer aura."
-		int(OwnEntity.LightShapeMode.RADIAL_ROOM):
+		int(Types.LightShapeMode.RADIAL_ROOM):
 			mode_hint_lbl.text = "Ambient Room: Fills the surrounding space with soft ambient light."
-		int(OwnEntity.LightShapeMode.ANCHOR_POINTS):
+		int(Types.LightShapeMode.ANCHOR_POINTS):
 			mode_hint_lbl.text = "Light Anchors: Emits light points directly from your placed light pins."
 		_: mode_hint_lbl.text = ""
 

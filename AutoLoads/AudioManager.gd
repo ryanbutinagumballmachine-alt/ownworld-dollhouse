@@ -1,7 +1,7 @@
 # ==============================================================================
-# OWNWORLD — AUDIO SERVICE
+# OWNWORLD — PROCEDURAL AUDIO SYNTHESIS & SFX POOL
 # File: res://AutoLoads/AudioManager.gd
-# Autoload: AudioManager
+# Autoload Singleton: AudioManager
 # ==============================================================================
 
 extends Node
@@ -93,24 +93,6 @@ func set_music_volume_db(volume_db: float) -> void:
 		music_player.volume_db = volume_db
 
 
-func set_bus_linear_volume(bus_name: StringName, linear_volume: float) -> void:
-	var bus_index: int = AudioServer.get_bus_index(bus_name)
-	if bus_index < 0:
-		return
-	var normalized: float = clampf(linear_volume, 0.0, 1.0)
-	AudioServer.set_bus_volume_db(bus_index, linear_to_db(normalized) if normalized > 0.0 else -80.0)
-
-
-func get_bus_linear_volume(bus_name: StringName, default_value: float = 1.0) -> float:
-	var bus_index: int = AudioServer.get_bus_index(bus_name)
-	if bus_index < 0:
-		return default_value
-	var db_value: float = AudioServer.get_bus_volume_db(bus_index)
-	if db_value <= -79.0:
-		return 0.0
-	return db_to_linear(db_value)
-
-
 func _find_available_player() -> AudioStreamPlayer:
 	for player: AudioStreamPlayer in sfx_players:
 		if not player.playing:
@@ -125,7 +107,6 @@ func _synth_pop(start_frequency: float, duration: float, pitch_up: bool) -> Audi
 	var raw: PackedByteArray = PackedByteArray()
 	raw.resize(sample_count * 2)
 
-	# Optimized: Hoisted constants outside the loop
 	var time_step: float = 1.0 / float(SAMPLE_RATE)
 	var inv_duration: float = 1.0 / duration
 	var tau_freq: float = TAU * start_frequency
@@ -134,10 +115,8 @@ func _synth_pop(start_frequency: float, duration: float, pitch_up: bool) -> Audi
 		var time: float = float(index) * time_step
 		var envelope: float = exp(-time * 40.0)
 		var time_ratio: float = time * inv_duration
-		
 		var frequency_mult: float = (1.0 + time_ratio * 0.8) if pitch_up else (1.0 - time_ratio * 0.45)
 		var value: float = sin(tau_freq * frequency_mult * time) * envelope * 0.35
-		
 		raw.encode_s16(index * 2, int(clampf(value, -1.0, 1.0) * 32767.0))
 
 	return _build_wav(raw)
@@ -148,7 +127,6 @@ func _synth_chime(frequency: float, duration: float) -> AudioStreamWAV:
 	var raw: PackedByteArray = PackedByteArray()
 	raw.resize(sample_count * 2)
 
-	# Optimized: Hoisted constants outside the loop
 	var time_step: float = 1.0 / float(SAMPLE_RATE)
 	var tau_freq: float = TAU * frequency
 	var tau_freq_1_5: float = tau_freq * 1.5
@@ -167,7 +145,6 @@ func _synth_noise_burst(duration: float) -> AudioStreamWAV:
 	var raw: PackedByteArray = PackedByteArray()
 	raw.resize(sample_count * 2)
 
-	# Optimized: Hoisted constants outside the loop
 	var time_step: float = 1.0 / float(SAMPLE_RATE)
 
 	for index: int in range(sample_count):
@@ -184,7 +161,6 @@ func _synth_liquid_stream(duration: float) -> AudioStreamWAV:
 	var raw: PackedByteArray = PackedByteArray()
 	raw.resize(sample_count * 2)
 
-	# Optimized: Hoisted constants outside the loop
 	var time_step: float = 1.0 / float(SAMPLE_RATE)
 	var tau_300: float = TAU * 300.0
 	var tau_80: float = TAU * 80.0
@@ -203,7 +179,6 @@ func _synth_gulp(duration: float) -> AudioStreamWAV:
 	var raw: PackedByteArray = PackedByteArray()
 	raw.resize(sample_count * 2)
 
-	# Optimized: Hoisted constants outside the loop
 	var time_step: float = 1.0 / float(SAMPLE_RATE)
 	var inv_duration: float = 1.0 / duration
 	var tau_240: float = TAU * 240.0

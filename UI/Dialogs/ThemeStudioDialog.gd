@@ -44,6 +44,7 @@ var btn_save_theme: Button = null
 
 signal theme_applied(theme_data: Dictionary)
 
+
 func _ready() -> void:
 	name = "ThemeStudioDialog"
 	layer = 125
@@ -57,6 +58,7 @@ func _ready() -> void:
 	_build_font_file_dialog()
 	_setup_keyboard_dodging()
 
+
 func _connect_system_signals() -> void:
 	var tree: SceneTree = get_tree()
 	if tree and tree.root and not tree.root.size_changed.is_connected(_update_responsive_layout):
@@ -64,12 +66,12 @@ func _connect_system_signals() -> void:
 	if not ThemeService.theme_changed.is_connected(_on_theme_changed):
 		ThemeService.theme_changed.connect(_on_theme_changed)
 
+
 func _setup_keyboard_dodging() -> void:
 	if custom_theme_name_input != null:
-		if not custom_theme_name_input.focus_entered.is_connected(_on_input_focus_entered):
-			custom_theme_name_input.focus_entered.connect(_on_input_focus_entered)
-		if not custom_theme_name_input.focus_exited.is_connected(_on_input_focus_exited):
-			custom_theme_name_input.focus_exited.connect(_on_input_focus_exited)
+		custom_theme_name_input.focus_entered.connect(_on_input_focus_entered)
+		custom_theme_name_input.focus_exited.connect(_on_input_focus_exited)
+
 
 func _on_input_focus_entered() -> void:
 	if OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios"):
@@ -80,13 +82,16 @@ func _on_input_focus_entered() -> void:
 			var tween: Tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 			tween.tween_property(center_container, "position:y", -kb_height * 0.4, 0.25)
 
+
 func _on_input_focus_exited() -> void:
 	if OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios"):
 		var tween: Tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 		tween.tween_property(center_container, "position:y", 0.0, 0.25)
 
+
 func _on_theme_changed(_theme_data: Dictionary) -> void:
 	if visible: _sync_ui_from_theme_service()
+
 
 func _update_responsive_layout() -> void:
 	if not is_instance_valid(root_panel): return
@@ -96,9 +101,11 @@ func _update_responsive_layout() -> void:
 	root_panel.custom_minimum_size = Vector2(target_w, target_h)
 	root_panel.size = Vector2(target_w, target_h)
 
+
 func _ensure_theme_dir() -> void:
 	UGCManager.get_theme_root_directory()
 	UGCManager.get_font_root_directory()
+
 
 func _build_ui() -> void:
 	root_backdrop = Control.new()
@@ -284,6 +291,7 @@ func _build_ui() -> void:
 	btn_save_theme.pressed.connect(func() -> void: _apply_and_persist_theme(true))
 	outer_vbox.add_child(btn_save_theme)
 
+
 func _build_font_file_dialog() -> void:
 	font_file_dialog = FileDialog.new()
 	font_file_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILE
@@ -294,14 +302,17 @@ func _build_font_file_dialog() -> void:
 	font_file_dialog.file_selected.connect(_on_font_file_selected)
 	add_child(font_file_dialog)
 
+
 func open_studio() -> void:
 	_sync_ui_from_theme_service()
 	_render_user_themes_bar()
 	_update_responsive_layout()
 	visible = true
 
+
 func close_studio() -> void:
 	visible = false
+
 
 func _create_color_picker_row(parent: GridContainer, label_text: String, default_color: Color) -> ColorPickerButton:
 	var lbl: Label = Label.new()
@@ -314,6 +325,7 @@ func _create_color_picker_row(parent: GridContainer, label_text: String, default
 	c_btn.custom_minimum_size = Vector2(65.0, 22.0)
 	parent.add_child(c_btn)
 	return c_btn
+
 
 func _add_preset_button(
 	parent: GridContainer, btn_name: String,
@@ -349,6 +361,7 @@ func _add_preset_button(
 		_apply_and_persist_theme(false)
 	)
 	parent.add_child(btn)
+
 
 func _render_user_themes_bar() -> void:
 	for child: Node in saved_themes_container.get_children():
@@ -390,9 +403,10 @@ func _render_user_themes_bar() -> void:
 
 		saved_themes_container.add_child(hbox)
 
+
 func _on_save_custom_theme_pressed() -> void:
 	var t_name: String = custom_theme_name_input.text.strip_edges()
-	if t_name == "": return
+	if t_name.is_empty(): return
 
 	user_saved_themes[t_name] = {
 		"colors": {
@@ -417,6 +431,7 @@ func _on_save_custom_theme_pressed() -> void:
 	_render_user_themes_bar()
 	_apply_and_persist_theme(true)
 
+
 func _load_named_custom_theme(t_name: String) -> void:
 	if user_saved_themes.has(t_name):
 		var t_data: Dictionary = (user_saved_themes[t_name] as Dictionary).duplicate(true)
@@ -433,10 +448,12 @@ func _load_named_custom_theme(t_name: String) -> void:
 		cp_accent_danger.color = Color(colors.get("accent_danger", "#f43f5e"))
 		_apply_and_persist_theme(true)
 
+
 func _delete_named_custom_theme(t_name: String) -> void:
 	user_saved_themes.erase(t_name)
 	_save_custom_themes_library()
 	_render_user_themes_bar()
+
 
 func _sync_ui_from_theme_service() -> void:
 	var cached: Dictionary = ThemeService.get_theme_data()
@@ -454,22 +471,26 @@ func _sync_ui_from_theme_service() -> void:
 	cp_accent_danger.color = Color(colors.get("accent_danger", "#f43f5e"))
 
 	active_custom_font_path = str(cached.get("font_path", ""))
-	lbl_current_font.text = active_custom_font_path.get_file() if (active_custom_font_path != "" and FileAccess.file_exists(active_custom_font_path)) else "Default Font"
+	lbl_current_font.text = active_custom_font_path.get_file() if (not active_custom_font_path.is_empty() and FileAccess.file_exists(active_custom_font_path)) else "Default Font"
+
 
 func _on_browse_font_pressed() -> void:
 	font_file_dialog.theme = ThemeService.create_theme()
 	font_file_dialog.current_dir = UGCManager.get_font_root_directory()
 	font_file_dialog.popup_centered_ratio(0.6)
 
+
 func _on_font_file_selected(fpath: String) -> void:
 	active_custom_font_path = fpath
 	lbl_current_font.text = fpath.get_file()
 	_apply_and_persist_theme(true)
 
+
 func _on_reset_font_pressed() -> void:
 	active_custom_font_path = ""
 	lbl_current_font.text = "Default Font"
 	_apply_and_persist_theme(true)
+
 
 func _apply_and_persist_theme(show_toast: bool) -> void:
 	var theme_payload: Dictionary = {
@@ -494,27 +515,20 @@ func _apply_and_persist_theme(show_toast: bool) -> void:
 	ThemeService.apply_theme(theme_payload)
 	theme_applied.emit(theme_payload)
 
-	var eb: Node = get_node_or_null("/root/EventBus")
-	if eb and show_toast and eb.has_signal("notification_requested"):
-		eb.emit_signal("notification_requested", "Applied Palette Globally!", true)
+	if show_toast:
+		EventBus.notification_requested.emit("Applied Palette Globally!", true)
+
 
 func _load_custom_themes_library() -> void:
 	var custom_path: String = UGCManager.get_custom_themes_file_path()
-	if FileAccess.file_exists(custom_path):
-		var f: FileAccess = FileAccess.open(custom_path, FileAccess.READ)
-		if f:
-			var parsed: Variant = JSON.parse_string(f.get_as_text())
-			f.close()
-			if parsed is Dictionary:
-				user_saved_themes = (parsed as Dictionary).duplicate(true)
+	user_saved_themes = JsonFileStore.read_dictionary(custom_path)
+
 
 func _save_custom_themes_library() -> void:
 	_ensure_theme_dir()
 	var custom_path: String = UGCManager.get_custom_themes_file_path()
-	var f: FileAccess = FileAccess.open(custom_path, FileAccess.WRITE)
-	if f:
-		f.store_string(JSON.stringify(user_saved_themes, "\t"))
-		f.close()
+	JsonFileStore.write_dictionary(custom_path, user_saved_themes)
+
 
 func _on_backdrop_gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:

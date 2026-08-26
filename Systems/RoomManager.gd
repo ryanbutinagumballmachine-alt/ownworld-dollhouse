@@ -1,5 +1,5 @@
 # ==============================================================================
-# OWNWORLD — ROOM MANAGER (DEDUPLICATED HIERARCHY TRANSIT & MULTI-FLOOR)
+# OWNWORLD — ROOM STREAMING & HIERARCHY MANAGER
 # File: res://Systems/RoomManager.gd
 # Base Class: RefCounted (class_name RoomManager)
 # ==============================================================================
@@ -7,12 +7,12 @@
 class_name RoomManager
 extends RefCounted
 
-const DEFAULT_FLOOR_Y: float = 600.0
 const DEFAULT_ENTITY_ID: String = "entity"
 const DEFAULT_ENTITY_NAME: String = "Item"
 const DEFAULT_TEXTURE_SIZE: Vector2 = Vector2(64.0, 64.0)
 
 
+## Streams a saved room onto the canvas, reconciling incoming traveler entities.
 static func stream_room(room_id: String, traveler_data: Dictionary, canvas: Node2D, all_entities: Array[OwnEntity]) -> void:
 	if canvas == null:
 		return
@@ -26,13 +26,12 @@ static func stream_room(room_id: String, traveler_data: Dictionary, canvas: Node
 	if not traveler_data.is_empty():
 		var bundle: Array = traveler_data.get("bundle", [])
 		if not bundle.is_empty():
-			# Purge any stale ghost copies of arriving characters from saved state
-			_deduplicate_bundle_entities(bundle, canvas, all_entities)
+			_deduplicate_bundle_entities(bundle, all_entities)
 			var spawn_position: Vector2 = resolve_traveler_spawn_position(traveler_data, all_entities)
 			reconstruct_traveler_bundle(bundle, spawn_position, canvas, all_entities)
 
 
-static func _deduplicate_bundle_entities(bundle: Array, _canvas: Node2D, all_entities: Array[OwnEntity]) -> void:
+static func _deduplicate_bundle_entities(bundle: Array, all_entities: Array[OwnEntity]) -> void:
 	var incoming_ids: Dictionary = {}
 	var incoming_names: Dictionary = {}
 
@@ -202,36 +201,3 @@ static func _relink_hierarchy(raw_entities: Array, lookup: Dictionary) -> void:
 		var parent_entity: OwnEntity = lookup.get(parent_id, null) as OwnEntity
 		if child_entity != null and parent_entity != null and is_instance_valid(child_entity) and is_instance_valid(parent_entity) and child_entity != parent_entity:
 			child_entity.attach_to_socket(parent_entity, socket_key, true)
-
-
-static func collect_hierarchy(root_entity: OwnEntity) -> Array[OwnEntity]:
-	var result: Array[OwnEntity] = []
-	if root_entity == null or not is_instance_valid(root_entity):
-		return result
-	result.append(root_entity)
-	for child: OwnEntity in root_entity.attached_children:
-		if is_instance_valid(child):
-			result.append_array(collect_hierarchy(child))
-	return result
-
-
-static func collect_root_entities(all_entities: Array[OwnEntity]) -> Array[OwnEntity]:
-	var result: Array[OwnEntity] = []
-	for entity: OwnEntity in all_entities:
-		if is_instance_valid(entity) and entity.parent_socket_entity == null:
-			result.append(entity)
-	return result
-
-
-static func validate_snapshot(snapshot: Dictionary) -> bool:
-	if snapshot.is_empty(): return false
-	var raw_entities: Variant = snapshot.get("entities", null)
-	if not raw_entities is Array: return false
-
-	var ids: Dictionary = {}
-	for value: Variant in (raw_entities as Array):
-		if not value is Dictionary: continue
-		var entity_id: String = str((value as Dictionary).get("id", "")).strip_edges()
-		if entity_id.is_empty() or ids.has(entity_id): return false
-		ids[entity_id] = true
-	return true

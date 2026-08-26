@@ -6,8 +6,8 @@
 class_name EntityContainerCapability
 extends EntityCapability
 
-signal opened
-signal closed
+signal opened()
+signal closed()
 signal item_stored(item_data: Dictionary)
 signal item_unpacked(item_data: Dictionary)
 
@@ -34,7 +34,8 @@ func store_item(item: OwnEntity) -> bool:
 	var serialized_item: Dictionary = item.to_dict().duplicate(true)
 	stored_items.append(serialized_item)
 	item_stored.emit(serialized_item)
-	EventBus.entity_state_changed.emit(entity.entity_id)
+	if entity != null:
+		EventBus.entity_state_changed.emit(entity.entity_id)
 	return true
 
 
@@ -45,7 +46,8 @@ func unpack_item(index: int) -> Dictionary:
 	var item_data: Dictionary = stored_items[index].duplicate(true)
 	stored_items.remove_at(index)
 	item_unpacked.emit(item_data)
-	EventBus.entity_state_changed.emit(entity.entity_id)
+	if entity != null:
+		EventBus.entity_state_changed.emit(entity.entity_id)
 	return item_data
 
 
@@ -53,10 +55,12 @@ func clear() -> void:
 	if stored_items.is_empty():
 		return
 	stored_items.clear()
-	EventBus.entity_state_changed.emit(entity.entity_id)
+	if entity != null:
+		EventBus.entity_state_changed.emit(entity.entity_id)
 
 
 func get_item_count() -> int: return stored_items.size()
+
 
 func get_item(index: int) -> Dictionary:
 	if index < 0 or index >= stored_items.size():
@@ -72,7 +76,8 @@ func set_open(open: bool) -> void:
 		opened.emit()
 	else:
 		closed.emit()
-	EventBus.entity_state_changed.emit(entity.entity_id)
+	if entity != null:
+		EventBus.entity_state_changed.emit(entity.entity_id)
 
 
 func toggle_open() -> void:

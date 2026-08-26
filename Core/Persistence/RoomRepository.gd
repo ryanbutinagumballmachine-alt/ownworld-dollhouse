@@ -57,7 +57,7 @@ static func list_room_ids(universe_id: String) -> Array[String]:
 	directory.list_dir_begin()
 	var file_name: String = directory.get_next()
 	while not file_name.is_empty():
-		if not directory.current_is_dir() and file_name.ends_with(".json"):
+		if not directory.current_is_dir() and file_name.ends_with(".json") and file_name != "recipes.json":
 			result.append(file_name.trim_suffix(".json"))
 		file_name = directory.get_next()
 	directory.list_dir_end()
