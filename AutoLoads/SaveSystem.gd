@@ -121,8 +121,8 @@ func get_next_floor_above(building_id: String, current_room_id: String, universe
 		return {}
 
 	floors.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
-		var rank_a: int = SaveSystem.get_floor_rank(str(a.get("floor_level", "1F")))
-		var rank_b: int = SaveSystem.get_floor_rank(str(b.get("floor_level", "1F")))
+		var rank_a: int = get_floor_rank(str(a.get("floor_level", "1F")))
+		var rank_b: int = get_floor_rank(str(b.get("floor_level", "1F")))
 		return rank_a < rank_b
 	)
 

@@ -79,7 +79,6 @@ var is_room_loaded: bool = false
 var _active_touches: Dictionary = {}
 var _ui_touch_indices: Dictionary = {}
 var active_touch_index: int = -1
-var _next_entity_uid: int = 1
 
 
 func _ready() -> void:
@@ -122,6 +121,10 @@ func _enforce_cross_platform_viewport() -> void:
 	win.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_EXPAND
 	win.content_scale_stretch = Window.CONTENT_SCALE_STRETCH_FRACTIONAL
 	win.content_scale_size = Vector2i(1280, 720)
+
+	# Force Landscape Orientation on Mobile Platforms (Android & iOS)
+	if OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios"):
+		DisplayServer.screen_set_orientation(DisplayServer.SCREEN_SENSOR_LANDSCAPE)
 
 
 func _apply_hardware_safe_margins() -> void:

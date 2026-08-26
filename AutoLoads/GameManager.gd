@@ -87,6 +87,10 @@ func _enforce_engine_viewport_scaling() -> void:
 	window.content_scale_stretch = Window.CONTENT_SCALE_STRETCH_FRACTIONAL
 	window.content_scale_size = BASE_CANVAS_SIZE
 
+	# Force Sensor Landscape orientation on mobile platforms (Android & iOS)
+	if OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios"):
+		DisplayServer.screen_set_orientation(DisplayServer.SCREEN_SENSOR_LANDSCAPE)
+
 
 func _initialize_filesystem() -> void:
 	var paths: Array[String] = [
