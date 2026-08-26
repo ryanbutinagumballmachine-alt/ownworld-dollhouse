@@ -1,5 +1,5 @@
 # ==============================================================================
-# OWNWORLD — ENTITY CONFIGURATION DIALOG (STAIRS & CAPABILITIES)
+# OWNWORLD - ENTITY CONFIGURATION DIALOG (STAIRS & CAPABILITIES)
 # File: res://UI/Dialogs/EntityConfigDialog.gd
 # Base Class: CanvasLayer (class_name EntityConfigDialog)
 # ==============================================================================
@@ -276,7 +276,7 @@ func _populate_type_dropdown() -> void:
 	if type_option == null: return
 	type_option.clear()
 	_add_icon_option(type_option, "icon_props", "Prop / Portable Item", int(Types.EntityType.PROP))
-	_add_icon_option(type_option, "icon_cast", "Character (OC)", int(Types.EntityType.CHARACTER))
+	_add_icon_option(type_option, "icon_cast", "Character", int(Types.EntityType.CHARACTER))
 	_add_icon_option(type_option, "icon_furniture", "Furniture (Seat / Surface / Bed)", int(Types.EntityType.FURNITURE))
 	_add_icon_option(type_option, "icon_backpack", "Bag / Storage Container", int(Types.EntityType.CONTAINER))
 

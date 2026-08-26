@@ -8,6 +8,8 @@ class_name UpdateManager
 extends RefCounted
 
 const GITHUB_REPO: String = "ryanbutinagumballmachine-alt/ownworld-dollhouse"
+const DEFAULT_TIMEOUT_SECONDS: float = 15.0
+const DOWNLOAD_TIMEOUT_SECONDS: float = 60.0
 
 enum CheckResult {
 	UPDATE_AVAILABLE,
@@ -23,32 +25,48 @@ static func get_current_app_version() -> String:
 	return ver if not ver.is_empty() else "1.0.0"
 
 
-## Queries GitHub releases API asynchronously to check for newer build tags.
+## Queries GitHub releases API asynchronously with mobile network resilience.
 static func check_for_updates(caller_node: Node, on_result: Callable) -> void:
 	if caller_node == null:
 		return
 
 	var current_version: String = get_current_app_version()
 	var http_request: HTTPRequest = HTTPRequest.new()
+	http_request.use_threads = true
+	http_request.timeout = DEFAULT_TIMEOUT_SECONDS
+	http_request.max_redirects = 8
+	http_request.accept_gzip = false
 	caller_node.add_child(http_request)
 
 	var url: String = "https://api.github.com/repos/%s/releases/latest" % GITHUB_REPO
 	var headers: PackedStringArray = [
-		"User-Agent: OwnWorld-Dollhouse-App",
-		"Accept: application/vnd.github.v3+json"
+		"User-Agent: OwnWorld-Dollhouse-App/1.0 (Godot Engine; Android/Mobile)",
+		"Accept: application/vnd.github.v3+json",
+		"X-GitHub-Api-Version: 2022-11-28"
 	]
 
 	http_request.request_completed.connect(func(result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
 		http_request.queue_free()
 
-		if result != HTTPRequest.RESULT_SUCCESS or response_code != 200:
-			var err_msg: String = "Network error (HTTP %d)" % response_code if response_code != 0 else "Cannot connect to update server"
-			on_result.call(CheckResult.ERROR, "", "", err_msg)
+		# Granular network error translation for mobile debugging
+		if result != HTTPRequest.RESULT_SUCCESS:
+			var err_desc: String = _translate_http_result_code(result)
+			on_result.call(CheckResult.ERROR, "", "", "Network error: %s" % err_desc)
+			return
+
+		if response_code == 403:
+			on_result.call(CheckResult.ERROR, "", "", "GitHub API rate limit exceeded. Please try again later.")
+			return
+		elif response_code == 404:
+			on_result.call(CheckResult.ERROR, "", "", "No releases published yet on repository.")
+			return
+		elif response_code != 200:
+			on_result.call(CheckResult.ERROR, "", "", "Server returned HTTP %d" % response_code)
 			return
 
 		var parsed: Variant = JSON.parse_string(body.get_string_from_utf8())
 		if not parsed is Dictionary:
-			on_result.call(CheckResult.ERROR, "", "", "Invalid response from server")
+			on_result.call(CheckResult.ERROR, "", "", "Invalid JSON payload received from update server.")
 			return
 
 		var data: Dictionary = parsed as Dictionary
@@ -64,7 +82,7 @@ static func check_for_updates(caller_node: Node, on_result: Callable) -> void:
 					break
 
 		if release_tag.is_empty():
-			on_result.call(CheckResult.ERROR, "", "", "No release tag found on GitHub")
+			on_result.call(CheckResult.ERROR, "", "", "No release tag found on repository.")
 			return
 
 		if not is_remote_version_newer(current_version, release_tag):
@@ -72,7 +90,7 @@ static func check_for_updates(caller_node: Node, on_result: Callable) -> void:
 			return
 
 		if apk_download_url.is_empty():
-			on_result.call(CheckResult.NO_APK_FOUND, release_tag, "", "New release %s found, but no .apk asset attached" % release_tag)
+			on_result.call(CheckResult.NO_APK_FOUND, release_tag, "", "New version %s found, but no APK package attached." % release_tag)
 			return
 
 		on_result.call(CheckResult.UPDATE_AVAILABLE, release_tag, apk_download_url, "New update available: %s" % release_tag)
@@ -81,7 +99,7 @@ static func check_for_updates(caller_node: Node, on_result: Callable) -> void:
 	var err: Error = http_request.request(url, headers)
 	if err != OK:
 		http_request.queue_free()
-		on_result.call(CheckResult.ERROR, "", "", "Failed to send update request")
+		on_result.call(CheckResult.ERROR, "", "", "Failed to initiate update connection (Error %d)." % int(err))
 
 
 static func get_apk_target_path() -> String:
@@ -103,6 +121,9 @@ static func download_and_install_update(caller_node: Node, apk_url: String, on_p
 		DirAccess.remove_absolute(target_file_path)
 
 	var http_downloader: HTTPRequest = HTTPRequest.new()
+	http_downloader.use_threads = true
+	http_downloader.timeout = DOWNLOAD_TIMEOUT_SECONDS
+	http_downloader.max_redirects = 8
 	http_downloader.download_file = target_file_path
 	caller_node.add_child(http_downloader)
 
@@ -127,9 +148,10 @@ static func download_and_install_update(caller_node: Node, apk_url: String, on_p
 		progress_timer.queue_free()
 		http_downloader.queue_free()
 
-		if result != HTTPRequest.RESULT_SUCCESS or response_code != 200:
+		if result != HTTPRequest.RESULT_SUCCESS or (response_code != 200 and response_code != 302):
 			if on_error.is_valid():
-				on_error.call("Download failed (HTTP %d)" % response_code)
+				var reason: String = _translate_http_result_code(result) if result != HTTPRequest.RESULT_SUCCESS else "HTTP %d" % response_code
+				on_error.call("Download failed (%s)" % reason)
 			return
 
 		if on_complete.is_valid():
@@ -138,11 +160,16 @@ static func download_and_install_update(caller_node: Node, apk_url: String, on_p
 		install_apk_file(target_file_path)
 	)
 
-	var err: Error = http_downloader.request(apk_url)
+	var headers: PackedStringArray = [
+		"User-Agent: OwnWorld-Dollhouse-App/1.0 (Godot Engine; Android/Mobile)",
+		"Accept: application/octet-stream"
+	]
+
+	var err: Error = http_downloader.request(apk_url, headers)
 	if err != OK and on_error.is_valid():
 		progress_timer.queue_free()
 		http_downloader.queue_free()
-		on_error.call("Failed to initiate download stream")
+		on_error.call("Failed to initiate download stream (Error %d)." % int(err))
 
 
 ## Invokes native package installer on Android or opens target file in OS shell.
@@ -208,3 +235,23 @@ static func is_remote_version_newer(local_ver_str: String, remote_ver_str: Strin
 			return false
 
 	return false
+
+
+static func _translate_http_result_code(result_code: int) -> String:
+	match result_code:
+		HTTPRequest.RESULT_CANT_CONNECT:
+			return "Cannot connect to server. Ensure Wi-Fi is active and Android INTERNET permission is enabled."
+		HTTPRequest.RESULT_CANT_RESOLVE:
+			return "DNS resolution failed. Check internet access."
+		HTTPRequest.RESULT_CONNECTION_ERROR:
+			return "Connection error / socket reset."
+		HTTPRequest.RESULT_TLS_HANDSHAKE_ERROR:
+			return "TLS/SSL security handshake failed."
+		HTTPRequest.RESULT_NO_RESPONSE:
+			return "No response from server."
+		HTTPRequest.RESULT_TIMEOUT:
+			return "Request timed out."
+		HTTPRequest.RESULT_REQUEST_FAILED:
+			return "Request failed to send."
+		_:
+			return "Code %d" % result_code

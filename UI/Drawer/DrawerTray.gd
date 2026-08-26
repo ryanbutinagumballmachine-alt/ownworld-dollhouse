@@ -12,6 +12,7 @@ const DRAWER_HEIGHT: float = 230.0
 const CARD_WIDTH: float = 76.0
 const CARD_HEIGHT: float = 86.0
 const GRID_SPACING: int = 6
+const DRAG_CANCEL_THRESHOLD: float = 16.0
 
 enum TrayMode { ASSETS, PROPS, FURNITURE, CAST }
 var current_mode: TrayMode = TrayMode.ASSETS
@@ -89,6 +90,12 @@ func _get_next_z_index() -> int:
 	for node: Node in get_tree().get_nodes_in_group("entities"):
 		if node is Node2D: max_z = maxi(max_z, (node as Node2D).z_index)
 	return max_z + 1
+
+
+func _trigger_haptic(duration_ms: int = 35) -> void:
+	if SettingsManager.are_haptics_enabled() and (OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios")):
+		if Input.has_method("vibrate_handheld"):
+			Input.vibrate_handheld(duration_ms)
 
 
 func _ready() -> void:
@@ -1019,15 +1026,139 @@ func _render_cast_tab() -> void:
 
 		_attach_card_visuals(vbox, tex, c_name)
 
-		card.pressed.connect(func() -> void:
-			if is_batch_mode:
-				var payload: Dictionary = cap_data.duplicate(true)
-				payload["__index"] = cap_idx
-				_toggle_item_batch_selection(item_key, payload)
-			else:
-				_spawn_and_relocate_character_from_cast(cap_data)
-		)
+		# Setup Hold-Down (Long-Press) to recall character from room to tray
+		_setup_cast_card_gestures(card, cap_data, item_key, cap_idx)
 		items_grid.add_child(card)
+
+
+## Attaches hold-down detection to Cast character cards cleanly using by-reference state
+func _setup_cast_card_gestures(card: Button, cap_data: Dictionary, item_key: String, cap_idx: int) -> void:
+	var press_state: Dictionary = {
+		"is_holding": false,
+		"fired": false,
+		"start_pos": Vector2.ZERO,
+		"timer": null
+	}
+
+	card.gui_input.connect(func(event: InputEvent) -> void:
+		if is_batch_mode:
+			return
+
+		if event is InputEventMouseButton:
+			var mb: InputEventMouseButton = event as InputEventMouseButton
+			if mb.button_index == MOUSE_BUTTON_LEFT:
+				if mb.pressed:
+					press_state["is_holding"] = true
+					press_state["fired"] = false
+					press_state["start_pos"] = mb.global_position
+					var hold_dur: float = SettingsManager.get_long_press_duration()
+
+					var timer: SceneTreeTimer = get_tree().create_timer(hold_dur)
+					press_state["timer"] = timer
+					timer.timeout.connect(func() -> void:
+						if bool(press_state.get("is_holding", false)) and not bool(press_state.get("fired", false)):
+							press_state["fired"] = true
+							_recall_character_to_tray(cap_data)
+					)
+				else:
+					var was_fired: bool = bool(press_state.get("fired", false))
+					press_state["is_holding"] = false
+					if was_fired:
+						card.release_focus()
+
+		elif event is InputEventMouseMotion:
+			var mm: InputEventMouseMotion = event as InputEventMouseMotion
+			if bool(press_state.get("is_holding", false)):
+				var start_p: Vector2 = press_state.get("start_pos", Vector2.ZERO) as Vector2
+				if start_p.distance_to(mm.global_position) > DRAG_CANCEL_THRESHOLD:
+					press_state["is_holding"] = false
+
+		elif event is InputEventScreenTouch:
+			var st: InputEventScreenTouch = event as InputEventScreenTouch
+			if st.pressed:
+				press_state["is_holding"] = true
+				press_state["fired"] = false
+				press_state["start_pos"] = st.position
+				var hold_dur: float = SettingsManager.get_long_press_duration()
+
+				var timer: SceneTreeTimer = get_tree().create_timer(hold_dur)
+				press_state["timer"] = timer
+				timer.timeout.connect(func() -> void:
+					if bool(press_state.get("is_holding", false)) and not bool(press_state.get("fired", false)):
+						press_state["fired"] = true
+						_recall_character_to_tray(cap_data)
+				)
+			else:
+				var was_fired: bool = bool(press_state.get("fired", false))
+				press_state["is_holding"] = false
+				if was_fired:
+					card.release_focus()
+
+		elif event is InputEventScreenDrag:
+			var sd: InputEventScreenDrag = event as InputEventScreenDrag
+			if bool(press_state.get("is_holding", false)):
+				var start_p: Vector2 = press_state.get("start_pos", Vector2.ZERO) as Vector2
+				if start_p.distance_to(sd.position) > DRAG_CANCEL_THRESHOLD:
+					press_state["is_holding"] = false
+	)
+
+	card.pressed.connect(func() -> void:
+		if bool(press_state.get("fired", false)):
+			press_state["fired"] = false
+			return
+		if is_batch_mode:
+			var payload: Dictionary = cap_data.duplicate(true)
+			payload["__index"] = cap_idx
+			_toggle_item_batch_selection(item_key, payload)
+		else:
+			_spawn_and_relocate_character_from_cast(cap_data)
+	)
+
+
+## Recalls an active character from the room back into the Cast Tray
+func _recall_character_to_tray(char_data: Dictionary) -> void:
+	var c_name: String = str(char_data.get("display_name", "Character"))
+	var c_id: String = str(char_data.get("id", ""))
+	var name_key: String = c_name.strip_edges().to_lower()
+
+	var tree: SceneTree = get_tree()
+	var live_character_node: OwnEntity = null
+
+	if tree != null:
+		for node: Node in tree.get_nodes_in_group("characters"):
+			if node is OwnEntity:
+				var ent: OwnEntity = node as OwnEntity
+				var is_id_match: bool = not c_id.is_empty() and ent.entity_id == c_id
+				var is_name_match: bool = not name_key.is_empty() and ent.display_name.strip_edges().to_lower() == name_key
+				if is_id_match or is_name_match:
+					live_character_node = ent
+					break
+
+	if live_character_node != null and is_instance_valid(live_character_node):
+		# Store the character back into cast data with updated fields
+		store_character_in_tray(live_character_node)
+		SaveSystem.save_current_room_state()
+		_trigger_haptic(45)
+		AudioManager.play_drop_cushion()
+		_notify("Recalled %s to Cast Tray" % c_name, true)
+	else:
+		# If not in active room, scrub from room files and ensure safely saved in Cast
+		DrawerMetadataService.scrub_character_from_universe_rooms(c_id, c_name)
+		var cast_list: Array[Dictionary] = _load_cast_data()
+		var found: bool = false
+		for item in cast_list:
+			if str(item.get("id", "")) == c_id or str(item.get("display_name", "")).strip_edges().to_lower() == name_key:
+				found = true
+				break
+		if not found:
+			cast_list.append(char_data.duplicate(true))
+			_save_cast_data(cast_list)
+
+		_trigger_haptic(30)
+		AudioManager.play_pop_grab()
+		_notify("%s is ready in Cast Tray" % c_name, true)
+
+	refresh_tray()
 
 
 func _apply_card_selection_style(card: Button, is_selected: bool) -> void:
@@ -1459,7 +1590,7 @@ func _spawn_and_relocate_character_from_cast(char_data: Dictionary) -> void:
 		existing_live_char.z_index = _get_next_z_index()
 		if existing_live_char.has_method(&"trigger_spawn_juice"):
 			existing_live_char.call(&"trigger_spawn_juice")
-		_notify(c_name + " is already in this room!", true)
+		_notify(c_name + " is already in this room! (Hold card to recall)", true)
 		return
 
 	DrawerMetadataService.scrub_character_from_universe_rooms(c_id, c_name)

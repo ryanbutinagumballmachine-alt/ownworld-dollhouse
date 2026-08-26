@@ -1,5 +1,5 @@
 # ==============================================================================
-# OWNWORLD — LOGIC RULE EDITOR
+# OWNWORLD - LOGIC RULE EDITOR
 # File: res://UI/Dialogs/LogicRuleEditorDialog.gd
 # Base Class: CanvasLayer (class_name LogicRuleEditorDialog)
 # ==============================================================================
@@ -501,7 +501,7 @@ func _get_target_label(id: int) -> String:
 	match id:
 		int(Types.ActionTarget.SELF): return "Self"
 		int(Types.ActionTarget.TRIGGER_ITEM): return "Dropped Item"
-		int(Types.ActionTarget.ROOM_ALL_CHARACTERS): return "All OCs"
+		int(Types.ActionTarget.ROOM_ALL_CHARACTERS): return "All Characters"
 		int(Types.ActionTarget.ENVIRONMENT): return "Environment"
 	return "Target"
 
