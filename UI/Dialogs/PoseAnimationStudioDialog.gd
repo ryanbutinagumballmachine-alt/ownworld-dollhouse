@@ -3,12 +3,13 @@
 # ============================================================
 
 # ==============================================================================
-# OWNWORLD — UNIFIED POSE & ANIMATION STUDIO (WARNING-FREE SUITE)
+# OWNWORLD — UNIFIED POSE & ANIMATION STUDIO (FULLY SYNCHRONIZED)
 # File: res://UI/Dialogs/PoseAnimationStudioDialog.gd
 # Base Class: CanvasLayer (class_name PoseAnimationStudioDialog)
 #
 # Responsibility: Master 3-tab studio dialog for Actor States, Wardrobe Outfits,
 # Interactive Test Mannequin, GIF & Frame Timelines, and Sprite Sheet Slicing.
+# Features direct natural blink test triggers and boundary-safe slice extractions.
 # ==============================================================================
 
 class_name PoseAnimationStudioDialog
@@ -307,7 +308,7 @@ func _build_states_and_mannequin_tab() -> void:
 	test_btn_grid.add_theme_constant_override("v_separation", 4)
 	m_actions_vbox.add_child(test_btn_grid)
 
-	_add_mannequin_test_btn(test_btn_grid, "Test Reaction / Blink", func() -> void: if active_entity: active_entity.set_expression("speaking", 1.2))
+	_add_mannequin_test_btn(test_btn_grid, "Test Blink", func() -> void: if active_entity: active_entity.force_trigger_blink())
 	_add_mannequin_test_btn(test_btn_grid, "Eat / Speak", func() -> void: if active_entity: active_entity.set_actor_state(Types.STATE_SPEAKING, 1.5))
 	_add_mannequin_test_btn(test_btn_grid, "Sit", func() -> void: if active_entity: active_entity.set_actor_state(Types.STATE_SITTING, 2.5))
 	_add_mannequin_test_btn(test_btn_grid, "Sleep", func() -> void: if active_entity: active_entity.set_actor_state(Types.STATE_SLEEPING, 2.5))
@@ -1054,7 +1055,12 @@ func _swap_timeline_frames(idx_a: int, idx_b: int) -> void:
 
 func _on_save_timeline_to_state_pressed() -> void:
 	if active_entity == null or working_timeline_frames.is_empty(): return
-	var target_state_key: String = str(opt_edit_state_target.get_item_metadata(opt_edit_state_target.selected))
+	var target_state_key: String = ""
+	if opt_edit_state_target.selected >= 0:
+		target_state_key = str(opt_edit_state_target.get_item_metadata(opt_edit_state_target.selected)).strip_edges()
+	if target_state_key.is_empty():
+		target_state_key = Types.STATE_IDLE
+
 	var p_mode: int = opt_playback_mode.get_selected_id()
 	var fps_val: float = clip_fps_slider.value
 
@@ -1092,7 +1098,12 @@ func _on_extract_slices_pressed() -> void:
 		EventBus.notification_requested.emit("Slicing failed: Invalid dimensions", false)
 		return
 
-	var dest_state_key: String = str(opt_slicer_dest_state.get_item_metadata(opt_slicer_dest_state.selected))
+	var dest_state_key: String = ""
+	if opt_slicer_dest_state.selected >= 0:
+		dest_state_key = str(opt_slicer_dest_state.get_item_metadata(opt_slicer_dest_state.selected)).strip_edges()
+	if dest_state_key.is_empty():
+		dest_state_key = Types.STATE_IDLE
+
 	var paths_arr: Array[String] = []
 	var tex_arr: Array[Texture2D] = []
 
