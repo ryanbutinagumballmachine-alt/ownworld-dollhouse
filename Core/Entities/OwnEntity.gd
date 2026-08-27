@@ -1,11 +1,15 @@
+# ============================================================
+# File: res://Core/Entities/OwnEntity.gd
+# ============================================================
+
 # ==============================================================================
-# OWNWORLD — ENTITY RUNTIME INSTANCE
+# OWNWORLD — UNIFIED ACTOR ENTITY RUNTIME INSTANCE
 # File: res://Core/Entities/OwnEntity.gd
 # Base Class: Area2D (class_name OwnEntity)
 #
-# Responsibility: Interactive world entity runtime instance. Manages whole-sprite
-# 6-pose matrix, custom animation clips, socket hierarchies, physical interactions,
-# alpha collision detection, and procedural silhouette contour lighting.
+# Responsibility: Interactive world entity runtime instance. Manages unified
+# Actor States (static cutouts, multi-frame loops, GIFs, Natural Blinks), physical
+# interaction states, modular components, procedural idle motion, and toggleable juice.
 # ==============================================================================
 
 class_name OwnEntity
@@ -40,30 +44,34 @@ var collision_polygons: Array[PackedVector2Array] = []
 var alpha_bitmap: BitMap = null
 static var silhouette_glow_shader: Shader = null
 
-# --- 6-Pose Whole-Sprite Matrix ---
+# --- Unified Actor States & Wardrobe Forms ---
 var wardrobe_forms: Dictionary = {}
 var active_form_key: String = "Default"
+var active_state_name: String = Types.STATE_IDLE
 var current_pose_state: String = "default"
-var active_expression_name: String = "eyes_open"
+
+# Active State Playback Engine
+var current_state_data: Dictionary = {}
+var active_frames: Array[Texture2D] = []
+var active_frame_delays: Array[float] = []
+var active_playback_mode: int = Types.PlaybackMode.LOOP
+var active_fps: float = 6.0
+var state_frame_idx: int = 0
+var state_playback_timer: float = 0.0
+var ping_pong_forward: bool = true
+
+# Natural Blink State Parameters
+var blink_cycle_timer: float = 3.5
+var is_in_blink_phase: bool = false
 var expression_timer: float = 0.0
 
-# --- Animation Clips ---
-var active_clip_name: String = ""
-var active_clip_frames: Array[Texture2D] = []
-var active_clip_paths: Array[String] = []
-var active_clip_fps: float = 6.0
-var active_clip_mode: String = "loop"
-var clip_frame_idx: int = 0
-var clip_playback_timer: float = 0.0
+# Procedural Idle Juice (Breathing / Levitation Hover)
+var idle_motion_timer: float = 0.0
 
-# --- Blinking ---
-var blink_timer: float = 3.5
-var is_blinking_active: bool = false
-
-# --- Dynamic Z-Sandwich Slicing ---
+# Dynamic Z-Sandwich Slicing
 var slice_y_ratio: float = 0.0
 
-# --- Consumables & Beverages ---
+# Consumables & Beverages
 var is_consumable: bool = false
 var is_drink: bool = false
 var is_infinite: bool = false
@@ -72,7 +80,7 @@ var current_state_idx: int = 0
 var custom_stage_textures: Array[Texture2D] = []
 var custom_stage_paths: Array[String] = []
 
-# --- Liquids & Lighting ---
+# Liquids & Lighting
 var is_liquid_container: bool = false
 var fill_level: int = 0
 var is_liquid_source: bool = false
@@ -86,7 +94,7 @@ var light_pulse_speed: float = 2.0
 var linked_light: PointLight2D = null
 var anchor_light_nodes: Array[PointLight2D] = []
 
-# --- Portals, Stairs & Elevators ---
+# Portals, Stairs & Elevators
 var is_portal: bool = false
 var is_stairs: bool = false
 var target_room_id: String = ""
@@ -94,18 +102,18 @@ var is_door_open: bool = false
 var is_elevator: bool = false
 var elevator_floors: Array[Dictionary] = []
 
-# --- Containers ---
+# Containers
 var is_container: bool = false
 var is_open: bool = false
 var container_open_texture: Texture2D = null
 var container_open_path: String = ""
 var stored_item_data: Array[Dictionary] = []
 
-# --- Emitters & Particles ---
+# Emitters & Particles
 var is_active: bool = false
 var linked_particles: CPUParticles2D = null
 
-# --- Sockets & Anchors ---
+# Sockets & Anchors
 var snap_points: Dictionary = {}
 var interaction_points: Dictionary = {}
 var parent_socket_entity: OwnEntity = null
@@ -117,7 +125,7 @@ var logic_rules: Array[Dictionary] = []
 var custom_fields: Dictionary = {}
 var components: Dictionary = {}
 
-# --- UI Tweens & Speech ---
+# UI Tweens & Speech
 var speech_bubble_node: PanelContainer = null
 var speech_label: Label = null
 var speech_tween: Tween = null
@@ -126,6 +134,7 @@ var active_tween: Tween = null
 signal entity_tapped(entity: OwnEntity)
 signal entity_long_pressed(entity: OwnEntity)
 signal state_changed(entity: OwnEntity, new_state: Types.EntityState)
+signal actor_state_changed(entity: OwnEntity, state_name: String)
 
 
 func _ready() -> void:
@@ -134,20 +143,62 @@ func _ready() -> void:
 	if entity_type == Types.EntityType.CHARACTER:
 		add_to_group("characters")
 	_setup_collision_layers()
-	blink_timer = randf_range(2.5, 4.5)
+	blink_cycle_timer = randf_range(2.5, 5.0)
 	_update_process_state()
 
 
 func _update_process_state() -> void:
-	var needs_process: bool = (entity_type == Types.EntityType.CHARACTER) or (not active_clip_frames.is_empty())
+	var is_animated_state: bool = (not active_frames.is_empty() and active_frames.size() > 1)
+	var has_idle_juice: bool = (entity_type == Types.EntityType.CHARACTER or can_float) and SettingsManager.is_juice_idle_motion_enabled()
+	var has_active_expression: bool = (expression_timer > 0.0)
+	var needs_process: bool = is_animated_state or has_idle_juice or has_active_expression
 	set_process(needs_process)
 
 
 func _process(delta: float) -> void:
-	if not active_clip_frames.is_empty():
-		_process_animation_clip(delta)
-	elif entity_type == Types.EntityType.CHARACTER:
-		_process_expression_and_blinking(delta)
+	# 1. Multi-Frame State Animation / GIF / Natural Blink Playback
+	if not active_frames.is_empty() and active_frames.size() > 1:
+		_process_state_animation(delta)
+
+	# 2. Transient Expression Decay
+	if expression_timer > 0.0:
+		expression_timer -= delta
+		if expression_timer <= 0.0:
+			reset_to_default_pose()
+
+	# 3. Procedural Idle Motion (Breathing & Levitation Hover)
+	if SettingsManager.is_juice_idle_motion_enabled() and parent_socket_entity == null and state != Types.EntityState.DRAGGING:
+		_process_idle_motion(delta)
+
+
+func _process_idle_motion(delta: float) -> void:
+	idle_motion_timer += delta * 2.4
+	var intensity: float = SettingsManager.get_juice_idle_intensity()
+	if intensity <= 0.01:
+		return
+
+	if can_float:
+		var hover_offset: float = sin(idle_motion_timer * 1.2) * (4.0 * intensity)
+		if base_sprite != null:
+			base_sprite.position.y = hover_offset
+	elif entity_type == Types.EntityType.CHARACTER and active_state_name == Types.STATE_IDLE:
+		var breath: float = 1.0 + sin(idle_motion_timer) * (0.018 * intensity)
+		var p_scale_x: float = 1.0
+		var p_scale_y: float = 1.0
+		if parent_socket_entity != null and is_instance_valid(parent_socket_entity):
+			p_scale_x = parent_socket_entity.scale.x if not is_zero_approx(parent_socket_entity.scale.x) else 1.0
+			p_scale_y = parent_socket_entity.scale.y if not is_zero_approx(parent_socket_entity.scale.y) else 1.0
+
+		var target_scale_x: float = (-entity_scale if is_flipped_h else entity_scale) / p_scale_x
+		var target_scale_y: float = (entity_scale * breath) / p_scale_y
+		scale = Vector2(target_scale_x, target_scale_y)
+
+
+# --- PHYSICAL ENTITY STATE & COMPONENT LIFECYCLE ---
+
+func set_entity_state(new_state: Types.EntityState) -> void:
+	state = new_state
+	state_changed.emit(self, new_state)
 
 
 func add_component(component: EntityComponent) -> void:
@@ -176,10 +227,194 @@ func notify_tapped() -> void: entity_tapped.emit(self)
 func notify_long_pressed() -> void: entity_long_pressed.emit(self)
 
 
-func set_entity_state(new_state: Types.EntityState) -> void:
-	state = new_state
-	state_changed.emit(self, new_state)
+# --- UNIFIED ACTOR STATE MACHINE & NATURAL BLINK ENGINE ---
 
+## Sets the active visual actor state (e.g. "idle", "sitting", "sleeping", "speaking", "eating", "dancing").
+func set_actor_state(state_name: String, duration: float = 0.0) -> void:
+	var clean_state: String = state_name.strip_edges().to_lower()
+	if clean_state.is_empty():
+		clean_state = Types.STATE_IDLE
+
+	active_state_name = clean_state
+	current_pose_state = clean_state
+	expression_timer = duration
+
+	_load_and_apply_state_data(active_state_name)
+	_update_process_state()
+	actor_state_changed.emit(self, active_state_name)
+	EventBus.entity_state_changed.emit(entity_id)
+
+
+## Legacy pose compatibility helper.
+func set_pose_state(pose_name: String) -> void:
+	set_actor_state(pose_name)
+
+
+## Resets entity to base idle state.
+func reset_to_default_pose() -> void:
+	expression_timer = 0.0
+	set_actor_state(Types.STATE_IDLE)
+
+
+## Forces an immediate natural blink cycle for live studio mannequin testing.
+func force_trigger_blink() -> void:
+	if active_playback_mode == Types.PlaybackMode.NATURAL_BLINK and active_frames.size() > 1:
+		is_in_blink_phase = true
+		state_frame_idx = 1
+		state_playback_timer = 0.0
+		_apply_active_texture(active_frames[state_frame_idx], false)
+	else:
+		set_actor_state("blink", 0.5)
+
+
+## Registers or updates a state within a wardrobe form.
+func register_state(
+	form_name: String,
+	state_name: String,
+	frames: Array[Texture2D],
+	paths: Array[String],
+	fps: float = 6.0,
+	playback_mode: int = Types.PlaybackMode.LOOP,
+	alt_texture: Texture2D = null,
+	alt_path: String = ""
+) -> void:
+	var form_key: String = form_name.strip_edges()
+	if form_key.is_empty(): form_key = "Default"
+	var clean_state: String = state_name.strip_edges().to_lower()
+	if clean_state.is_empty(): clean_state = Types.STATE_IDLE
+
+	if not wardrobe_forms.has(form_key):
+		wardrobe_forms[form_key] = {"path": "", "states": {}}
+
+	var form_dict: Dictionary = wardrobe_forms[form_key]
+	if not form_dict.has("states"):
+		form_dict["states"] = {}
+
+	form_dict["states"][clean_state] = {
+		"frames": frames.duplicate(),
+		"paths": paths.duplicate(),
+		"fps": maxf(fps, 1.0),
+		"mode": playback_mode,
+		"alt_texture": alt_texture,
+		"alt_path": alt_path
+	}
+
+	if form_key == active_form_key and clean_state == active_state_name:
+		_load_and_apply_state_data(active_state_name)
+
+
+## Loads state data from active wardrobe form and binds textures/timings.
+func _load_and_apply_state_data(state_key: String) -> void:
+	var form_dict: Dictionary = wardrobe_forms.get(active_form_key, {})
+	var states_dict: Dictionary = form_dict.get("states", {})
+
+	active_frames.clear()
+	state_frame_idx = 0
+	state_playback_timer = 0.0
+	ping_pong_forward = true
+	is_in_blink_phase = false
+	blink_cycle_timer = randf_range(2.5, 5.0)
+
+	if states_dict.has(state_key):
+		current_state_data = states_dict[state_key]
+		for f: Variant in current_state_data.get("frames", []):
+			if f is Texture2D: active_frames.append(f as Texture2D)
+
+		active_fps = float(current_state_data.get("fps", 6.0))
+		active_playback_mode = int(current_state_data.get("mode", Types.PlaybackMode.LOOP))
+	else:
+		current_state_data = {}
+		active_fps = 6.0
+		active_playback_mode = Types.PlaybackMode.LOOP
+		var base_t: Texture2D = _get_active_form_base_texture()
+		if base_t != null:
+			active_frames.append(base_t)
+
+	if not active_frames.is_empty():
+		_apply_active_texture(active_frames[0], false)
+
+
+func _process_state_animation(delta: float) -> void:
+	if active_frames.size() <= 1:
+		return
+
+	# NATURAL BLINK ENGINE (Rests on Frame 0, blinks Frames 1+ every 2.5-5.0s)
+	if active_playback_mode == Types.PlaybackMode.NATURAL_BLINK:
+		if not is_in_blink_phase:
+			blink_cycle_timer -= delta
+			if blink_cycle_timer <= 0.0:
+				is_in_blink_phase = true
+				state_frame_idx = 1
+				state_playback_timer = 0.0
+				_apply_active_texture(active_frames[state_frame_idx], false)
+		else:
+			state_playback_timer += delta
+			var blink_frame_dur: float = 1.0 / maxf(active_fps, 8.0)
+			if state_playback_timer >= blink_frame_dur:
+				state_playback_timer -= blink_frame_dur
+				state_frame_idx += 1
+				if state_frame_idx >= active_frames.size():
+					state_frame_idx = 0
+					is_in_blink_phase = false
+					blink_cycle_timer = randf_range(2.5, 5.0)
+				_apply_active_texture(active_frames[state_frame_idx], false)
+		return
+
+	# STANDARD PLAYBACK MODES (Loop, Ping-Pong, One-Shot, One-Shot & Hold)
+	state_playback_timer += delta
+	var frame_dur: float = 1.0 / maxf(active_fps, 1.0)
+
+	if state_playback_timer >= frame_dur:
+		state_playback_timer -= frame_dur
+
+		match active_playback_mode:
+			int(Types.PlaybackMode.LOOP):
+				state_frame_idx = (state_frame_idx + 1) % active_frames.size()
+				_apply_active_texture(active_frames[state_frame_idx], false)
+
+			int(Types.PlaybackMode.PING_PONG):
+				if ping_pong_forward:
+					state_frame_idx += 1
+					if state_frame_idx >= active_frames.size() - 1:
+						state_frame_idx = active_frames.size() - 1
+						ping_pong_forward = false
+				else:
+					state_frame_idx -= 1
+					if state_frame_idx <= 0:
+						state_frame_idx = 0
+						ping_pong_forward = true
+				_apply_active_texture(active_frames[state_frame_idx], false)
+
+			int(Types.PlaybackMode.ONE_SHOT):
+				state_frame_idx += 1
+				if state_frame_idx >= active_frames.size():
+					reset_to_default_pose()
+					return
+				_apply_active_texture(active_frames[state_frame_idx], false)
+
+			int(Types.PlaybackMode.ONE_SHOT_HOLD):
+				if state_frame_idx < active_frames.size() - 1:
+					state_frame_idx += 1
+					_apply_active_texture(active_frames[state_frame_idx], false)
+
+
+func set_expression(expr_name: String, duration: float = 2.0) -> void:
+	var clean: String = expr_name.strip_edges().to_lower()
+	if clean == "mouth_open" or clean == Types.STATE_SPEAKING or clean == Types.STATE_EATING:
+		set_actor_state(Types.STATE_SPEAKING, duration)
+	else:
+		set_actor_state(clean, duration)
+
+
+func play_named_animation(anim_name: String) -> void:
+	set_actor_state(anim_name)
+
+
+func stop_animation_clip() -> void:
+	reset_to_default_pose()
+
+
+# --- SETUP & INITIALIZATION ---
 
 func setup(p_id: String, p_display_name: String, p_tex: Texture2D, p_pos: Vector2, p_type: Types.EntityType = Types.EntityType.PROP, p_tex_path: String = "") -> void:
 	entity_id = p_id.strip_edges()
@@ -203,22 +438,24 @@ func setup(p_id: String, p_display_name: String, p_tex: Texture2D, p_pos: Vector
 	if p_type == Types.EntityType.CHARACTER:
 		_initialize_character_profile_defaults()
 
+	# Register Initial Default Form & Idle State
 	wardrobe_forms["Default"] = {
-		"tex": p_tex,
 		"path": p_tex_path,
-		"sprites": {
-			"eyes_open": p_tex, "eyes_closed": null, "mouth_open": null,
-			"sitting": null, "sitting_eyes_closed": null, "sitting_eyes_mouth_open": null
-		},
-		"sprite_paths": {
-			"eyes_open": p_tex_path, "eyes_closed": "", "mouth_open": "",
-			"sitting": "", "sitting_eyes_closed": "", "sitting_eyes_mouth_open": ""
-		},
-		"animations": {}
+		"states": {
+			Types.STATE_IDLE: {
+				"frames": [p_tex] if p_tex != null else [],
+				"paths": [p_tex_path],
+				"fps": 6.0,
+				"mode": Types.PlaybackMode.LOOP,
+				"alt_texture": null,
+				"alt_path": ""
+			}
+		}
 	}
 	active_form_key = "Default"
+	active_state_name = Types.STATE_IDLE
 
-	if p_tex:
+	if p_tex != null:
 		texture_size = p_tex.get_size()
 		_recalculate_collision_geometry(p_tex)
 		_generate_default_starter_anchors_if_empty()
@@ -243,10 +480,8 @@ func update_character_profile(char_data: Dictionary) -> void:
 	var new_name: String = str(char_data.get("display_name", "")).strip_edges()
 	if not new_name.is_empty():
 		display_name = new_name
-
 	if char_data.has("custom_fields") and char_data["custom_fields"] is Dictionary:
 		custom_fields = (char_data["custom_fields"] as Dictionary).duplicate(true)
-	
 	_initialize_character_profile_defaults()
 	EventBus.entity_state_changed.emit(entity_id)
 
@@ -311,12 +546,10 @@ func set_entity_type(p_type: Types.EntityType) -> void:
 	_setup_collision_layers()
 	is_container = (entity_type == Types.EntityType.CONTAINER)
 	if p_type == Types.EntityType.CHARACTER:
-		if not is_in_group("characters"):
-			add_to_group("characters")
+		if not is_in_group("characters"): add_to_group("characters")
 		_initialize_character_profile_defaults()
 	else:
-		if is_in_group("characters"):
-			remove_from_group("characters")
+		if is_in_group("characters"): remove_from_group("characters")
 	_update_process_state()
 
 
@@ -346,115 +579,22 @@ func _generate_default_starter_anchors_if_empty() -> void:
 			snap_points["slot_1"] = Vector2(0.0, 0.0)
 
 
-# --- POSES & EXPRESSIONS ---
-
-func set_pose_state(pose_name: String) -> void:
-	current_pose_state = pose_name.to_lower()
-	_update_active_render_texture(false)
-
-
-func reset_to_default_pose() -> void:
-	current_pose_state = "default"
-	active_expression_name = "eyes_open"
-	is_blinking_active = false
-	stop_animation_clip()
-	_update_active_render_texture(false)
-
-
-func set_expression(expr_name: String, duration: float = 0.0) -> void:
-	active_expression_name = expr_name
-	expression_timer = duration
-	_update_active_render_texture(false)
-
-
-func _process_expression_and_blinking(delta: float) -> void:
-	if not active_clip_frames.is_empty():
-		return
-
-	if expression_timer > 0.0:
-		expression_timer -= delta
-		if expression_timer <= 0.0:
-			active_expression_name = "eyes_open"
-			_update_active_render_texture(false)
-
-	if current_pose_state != "sleeping" and expression_timer <= 0.0:
-		blink_timer -= delta
-		if blink_timer <= 0.0:
-			if not is_blinking_active:
-				is_blinking_active = true
-				blink_timer = 0.16
-				_update_active_render_texture(false)
-			else:
-				is_blinking_active = false
-				blink_timer = randf_range(3.0, 5.0)
-				_update_active_render_texture(false)
-
-
-func _update_active_render_texture(recalculate_collision: bool = false) -> void:
-	if not active_clip_frames.is_empty():
-		return
-
-	var chosen_tex: Texture2D = null
-	if current_pose_state == "sitting":
-		if is_blinking_active:
-			chosen_tex = _get_slot_texture("sitting_eyes_closed")
-			if not chosen_tex: chosen_tex = _get_slot_texture("eyes_closed")
-			if not chosen_tex: chosen_tex = _get_slot_texture("sitting")
-		elif active_expression_name == "mouth_open":
-			chosen_tex = _get_slot_texture("sitting_eyes_mouth_open")
-			if not chosen_tex: chosen_tex = _get_slot_texture("mouth_open")
-			if not chosen_tex: chosen_tex = _get_slot_texture("sitting")
-		else:
-			chosen_tex = _get_slot_texture("sitting")
-	elif current_pose_state == "sleeping":
-		chosen_tex = _get_slot_texture("eyes_closed")
-	else:
-		if is_blinking_active:
-			chosen_tex = _get_slot_texture("eyes_closed")
-		elif active_expression_name == "mouth_open":
-			chosen_tex = _get_slot_texture("mouth_open")
-		else:
-			chosen_tex = _get_slot_texture("eyes_open")
-
-	_apply_active_texture(chosen_tex if chosen_tex != null else _get_active_form_base_texture(), recalculate_collision)
-
-
-func _get_slot_texture(slot_name: String) -> Texture2D:
-	if wardrobe_forms.has(active_form_key):
-		var form_d: Dictionary = wardrobe_forms[active_form_key]
-		var sprites: Dictionary = form_d.get("sprites", {})
-		if sprites.has(slot_name) and sprites[slot_name] != null:
-			return sprites[slot_name] as Texture2D
-	return null
-
-
-func assign_pose_slot_texture(form_key: String, slot_name: String, tex: Texture2D, path: String = "") -> void:
-	if not wardrobe_forms.has(form_key):
-		return
-	var form_d: Dictionary = wardrobe_forms[form_key]
-	if not form_d.has("sprites"): form_d["sprites"] = {}
-	form_d["sprites"][slot_name] = tex
-	if not form_d.has("sprite_paths"): form_d["sprite_paths"] = {}
-	form_d["sprite_paths"][slot_name] = path
-
-	if form_key == active_form_key:
-		_update_active_render_texture(false)
-
+# --- TEXTURE & WARDROBE SWITCHING ---
 
 func _apply_active_texture(tex: Texture2D, recalculate_collision: bool = false) -> void:
-	if not tex:
+	if tex == null:
 		return
 	main_texture = tex
 	texture_size = tex.get_size()
 	alpha_bitmap = UGCManager.generate_alpha_bitmap(main_texture)
 
-	if glow_sprite:
+	if glow_sprite != null:
 		glow_sprite.texture = main_texture
 		glow_sprite.position = Vector2.ZERO
 
 	if slice_y_ratio > 0.01:
 		set_slice_ratio(slice_y_ratio)
-	elif base_sprite:
+	elif base_sprite != null:
 		base_sprite.texture = main_texture
 		base_sprite.region_enabled = false
 		base_sprite.centered = true
@@ -465,110 +605,48 @@ func _apply_active_texture(tex: Texture2D, recalculate_collision: bool = false) 
 
 
 func _get_active_form_base_texture() -> Texture2D:
-	if wardrobe_forms.has(active_form_key):
-		var t: Variant = wardrobe_forms[active_form_key].get("tex", null)
-		if t is Texture2D:
-			return t as Texture2D
+	var form_dict: Dictionary = wardrobe_forms.get(active_form_key, {})
+	var states: Dictionary = form_dict.get("states", {})
+	if states.has(Types.STATE_IDLE):
+		var idle_frames: Array = states[Types.STATE_IDLE].get("frames", [])
+		if not idle_frames.is_empty() and idle_frames[0] is Texture2D:
+			return idle_frames[0] as Texture2D
 	return main_texture
 
 
-func register_animation_clip(form_key: String, clip_name: String, frames: Array[Texture2D], fps: float, paths: Array[String], mode: String = "loop") -> void:
-	if not wardrobe_forms.has(form_key):
-		return
-	var form_d: Dictionary = wardrobe_forms[form_key]
-	if not form_d.has("animations"): form_d["animations"] = {}
+func add_wardrobe_form(form_name: String, tex: Texture2D, path: String) -> void:
+	var form_key: String = form_name.strip_edges()
+	if form_key.is_empty(): form_key = "Form"
 
-	form_d["animations"][clip_name] = {
-		"fps": fps,
-		"mode": mode,
-		"frames": frames.duplicate(),
-		"paths": paths.duplicate()
+	wardrobe_forms[form_key] = {
+		"path": path,
+		"states": {
+			Types.STATE_IDLE: {
+				"frames": [tex] if tex != null else [],
+				"paths": [path],
+				"fps": 6.0,
+				"mode": Types.PlaybackMode.LOOP,
+				"alt_texture": null,
+				"alt_path": ""
+			}
+		}
 	}
-	_update_process_state()
+	switch_wardrobe_form(form_key)
 
 
-func delete_animation_clip(form_key: String, clip_name: String) -> void:
-	if not wardrobe_forms.has(form_key):
+func switch_wardrobe_form(form_name: String) -> void:
+	if not wardrobe_forms.has(form_name):
 		return
-	var form_d: Dictionary = wardrobe_forms[form_key]
-	if form_d.has("animations"):
-		form_d["animations"].erase(clip_name)
-		if active_clip_name == clip_name:
-			stop_animation_clip()
+	active_form_key = form_name
+	_load_and_apply_state_data(active_state_name)
+	rebuild_gizmos()
 
-
-func play_named_animation(anim_name: String) -> void:
-	var clean_name: String = anim_name.strip_edges().to_lower()
-	if clean_name.is_empty():
-		return
-
-	if wardrobe_forms.has(active_form_key):
-		var anims: Dictionary = wardrobe_forms[active_form_key].get("animations", {})
-		if anims.has(clean_name):
-			play_animation_clip(clean_name)
-			return
-
-	if clean_name in ["mouth_open", "eyes_closed", "eyes_open"]:
-		set_expression(clean_name, 2.0)
-	elif clean_name in ["sitting", "sleeping", "default"]:
-		set_pose_state(clean_name)
-
-
-func play_animation_clip(clip_name: String) -> void:
-	if not wardrobe_forms.has(active_form_key):
-		return
-	var form_d: Dictionary = wardrobe_forms[active_form_key]
-	var anims: Dictionary = form_d.get("animations", {})
-	if not anims.has(clip_name):
-		return
-
-	var clip_data: Dictionary = anims[clip_name]
-	active_clip_name = clip_name
-	active_clip_fps = float(clip_data.get("fps", 6.0))
-	active_clip_mode = str(clip_data.get("mode", "loop"))
-
-	active_clip_frames.clear()
-	for f: Variant in clip_data.get("frames", []):
-		if f is Texture2D: active_clip_frames.append(f as Texture2D)
-
-	active_clip_paths.clear()
-	for p: Variant in clip_data.get("paths", []):
-		active_clip_paths.append(str(p))
-
-	clip_frame_idx = 0
-	clip_playback_timer = 0.0
-	_update_process_state()
-	if not active_clip_frames.is_empty():
-		_apply_active_texture(active_clip_frames[0], false)
-
-
-func stop_animation_clip() -> void:
-	active_clip_name = ""
-	active_clip_frames.clear()
-	active_clip_paths.clear()
-	_update_process_state()
-	_update_active_render_texture(false)
-
-
-func _process_animation_clip(delta: float) -> void:
-	if active_clip_frames.is_empty():
-		return
-
-	clip_playback_timer += delta
-	var frame_dur: float = 1.0 / maxf(active_clip_fps, 1.0)
-	
-	if clip_playback_timer >= frame_dur:
-		clip_playback_timer -= frame_dur
-		clip_frame_idx += 1
-
-		if clip_frame_idx >= active_clip_frames.size():
-			if active_clip_mode == "one_shot":
-				stop_animation_clip()
-				return
-			clip_frame_idx = 0
-
-		if clip_frame_idx < active_clip_frames.size():
-			_apply_active_texture(active_clip_frames[clip_frame_idx], false)
+	if SettingsManager.is_juice_squash_stretch_enabled():
+		_kill_active_tween()
+		var rest_s: Vector2 = Vector2(-entity_scale if is_flipped_h else entity_scale, entity_scale)
+		scale = rest_s * Vector2(1.1, 0.9)
+		active_tween = create_tween().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		active_tween.tween_property(self, "scale", rest_s, 0.2)
 
 
 # --- SOCKET ATTACHMENT & HIERARCHY ---
@@ -603,7 +681,7 @@ func attach_to_socket(target_parent: OwnEntity, socket_key: String, is_instant: 
 	if target_parent.entity_type == Types.EntityType.FURNITURE:
 		if socket_key.begins_with("seat"):
 			set_entity_state(Types.EntityState.SITTING)
-			set_pose_state("sitting")
+			set_actor_state(Types.STATE_SITTING)
 			target_rot = 0.0
 			if snap_points.has("sit_point"):
 				var my_sit_pt: Vector2 = snap_points["sit_point"]
@@ -611,7 +689,7 @@ func attach_to_socket(target_parent: OwnEntity, socket_key: String, is_instant: 
 				anchor_pos.x -= (my_sit_pt.x if not is_flipped_h else -my_sit_pt.x) * (entity_scale / absf(parent_s_x))
 		elif socket_key.begins_with("bed"):
 			set_entity_state(Types.EntityState.SLEEPING)
-			set_pose_state("sleeping")
+			set_actor_state(Types.STATE_SLEEPING)
 			target_rot = -PI * 0.5
 	elif target_parent.entity_type == Types.EntityType.CHARACTER:
 		set_entity_state(Types.EntityState.HELD)
@@ -621,7 +699,7 @@ func attach_to_socket(target_parent: OwnEntity, socket_key: String, is_instant: 
 	scale = target_scale
 
 	_kill_active_tween()
-	if is_instant:
+	if is_instant or not SettingsManager.is_juice_squash_stretch_enabled():
 		position = anchor_pos
 	else:
 		active_tween = create_tween().set_trans(Tween.TRANS_CUBIC).set_ease(Tween.EASE_OUT)
@@ -648,7 +726,7 @@ func detach_from_socket(new_canvas_parent: Node2D) -> void:
 	parent_socket_entity = null
 	attached_socket_key = ""
 	set_entity_state(Types.EntityState.IDLE)
-	set_pose_state("default")
+	reset_to_default_pose()
 
 
 func _would_cause_parenting_cycle(potential_parent: Node) -> bool:
@@ -661,8 +739,7 @@ func _would_cause_parenting_cycle(potential_parent: Node) -> bool:
 
 func _is_socket_attachment_valid(target_parent: OwnEntity, socket_key: String) -> bool:
 	var sk_low: String = socket_key.to_lower()
-	if sk_low == "sit_point":
-		return false
+	if sk_low == "sit_point": return false
 
 	if target_parent.entity_type == Types.EntityType.CHARACTER:
 		if sk_low.begins_with("hand") or sk_low.begins_with("head") or sk_low.begins_with("face") or sk_low.begins_with("back") or sk_low.begins_with("neck") or sk_low.begins_with("hold"):
@@ -683,11 +760,10 @@ func _is_socket_attachment_valid(target_parent: OwnEntity, socket_key: String) -
 # --- CONTAINERS & CONSUMABLES ---
 
 func toggle_container() -> void:
-	if not is_container:
-		return
+	if not is_container: return
 	is_open = not is_open
 
-	if is_open and container_open_texture:
+	if is_open and container_open_texture != null:
 		_apply_active_texture(container_open_texture, false)
 	else:
 		_apply_active_texture(_get_active_form_base_texture(), false)
@@ -701,8 +777,7 @@ func toggle_container() -> void:
 
 
 func pack_item_inside(item: OwnEntity) -> void:
-	if not is_container or not is_instance_valid(item):
-		return
+	if not is_container or not is_instance_valid(item): return
 	stored_item_data.append(item.to_dict())
 	item.queue_free()
 
@@ -736,8 +811,7 @@ func unconfigure_consumable() -> void:
 
 
 func take_bite() -> bool:
-	if not is_consumable or is_drink:
-		return false
+	if not is_consumable or is_drink: return false
 
 	AudioManager.play_chew()
 	_spawn_crumb_burst()
@@ -746,86 +820,82 @@ func take_bite() -> bool:
 		current_state_idx += 1
 		if not custom_stage_textures.is_empty():
 			if current_state_idx > custom_stage_textures.size():
-				var tw: Tween = create_tween().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
-				tw.tween_property(self, "scale", Vector2.ZERO, 0.15)
-				tw.chain().tween_callback(queue_free)
+				if SettingsManager.is_juice_squash_stretch_enabled():
+					var tw: Tween = create_tween().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+					tw.tween_property(self, "scale", Vector2.ZERO, 0.15)
+					tw.chain().tween_callback(queue_free)
+				else:
+					queue_free()
 				return true
 			else:
 				var stage_idx: int = current_state_idx - 1
 				if stage_idx < custom_stage_textures.size() and custom_stage_textures[stage_idx] != null:
 					main_texture = custom_stage_textures[stage_idx]
-					if stage_idx < custom_stage_paths.size():
-						texture_path = custom_stage_paths[stage_idx]
+					if stage_idx < custom_stage_paths.size(): texture_path = custom_stage_paths[stage_idx]
 					_apply_active_texture(main_texture, false)
 		else:
 			if current_state_idx >= max_bites:
-				var tw: Tween = create_tween().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
-				tw.tween_property(self, "scale", Vector2.ZERO, 0.15)
-				tw.chain().tween_callback(queue_free)
+				if SettingsManager.is_juice_squash_stretch_enabled():
+					var tw: Tween = create_tween().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_IN)
+					tw.tween_property(self, "scale", Vector2.ZERO, 0.15)
+					tw.chain().tween_callback(queue_free)
+				else:
+					queue_free()
 				return true
 			else:
 				var shrink_ratio: float = 1.0 - (float(current_state_idx) / float(max_bites)) * 0.7
 				set_entity_scale(base_entity_scale * shrink_ratio)
 
-	_kill_active_tween()
-	var p_scale_x: float = 1.0
-	var p_scale_y: float = 1.0
-	if parent_socket_entity and is_instance_valid(parent_socket_entity):
-		p_scale_x = parent_socket_entity.scale.x if not is_zero_approx(parent_socket_entity.scale.x) else 1.0
-		p_scale_y = parent_socket_entity.scale.y if not is_zero_approx(parent_socket_entity.scale.y) else 1.0
+	if SettingsManager.is_juice_squash_stretch_enabled():
+		_kill_active_tween()
+		var p_scale_x: float = 1.0
+		var p_scale_y: float = 1.0
+		if parent_socket_entity and is_instance_valid(parent_socket_entity):
+			p_scale_x = parent_socket_entity.scale.x if not is_zero_approx(parent_socket_entity.scale.x) else 1.0
+			p_scale_y = parent_socket_entity.scale.y if not is_zero_approx(parent_socket_entity.scale.y) else 1.0
 
-	var target_s: Vector2 = Vector2(
-		(-entity_scale if is_flipped_h else entity_scale) / p_scale_x,
-		entity_scale / p_scale_y
-	)
-
-	scale = target_s * Vector2(1.15, 0.85)
-	active_tween = create_tween().set_trans(Tween.TRANS_SPRING).set_ease(Tween.EASE_OUT)
-	active_tween.tween_property(self, "scale", target_s, 0.2)
+		var target_s: Vector2 = Vector2((-entity_scale if is_flipped_h else entity_scale) / p_scale_x, entity_scale / p_scale_y)
+		scale = target_s * Vector2(1.15, 0.85)
+		active_tween = create_tween().set_trans(Tween.TRANS_SPRING).set_ease(Tween.EASE_OUT)
+		active_tween.tween_property(self, "scale", target_s, 0.2)
 	return false
 
 
 func take_sip() -> void:
-	if not is_drink or (not is_infinite and fill_level <= 0):
-		return
-	if not is_infinite:
-		fill_level = maxi(fill_level - 1, 0)
+	if not is_drink or (not is_infinite and fill_level <= 0): return
+	if not is_infinite: fill_level = maxi(fill_level - 1, 0)
 
 	AudioManager.play_sip()
-	_kill_active_tween()
-	var p_scale_x: float = 1.0
-	var p_scale_y: float = 1.0
-	if parent_socket_entity and is_instance_valid(parent_socket_entity):
-		p_scale_x = parent_socket_entity.scale.x if not is_zero_approx(parent_socket_entity.scale.x) else 1.0
-		p_scale_y = parent_socket_entity.scale.y if not is_zero_approx(parent_socket_entity.scale.y) else 1.0
+	if SettingsManager.is_juice_squash_stretch_enabled():
+		_kill_active_tween()
+		var p_scale_x: float = 1.0
+		var p_scale_y: float = 1.0
+		if parent_socket_entity and is_instance_valid(parent_socket_entity):
+			p_scale_x = parent_socket_entity.scale.x if not is_zero_approx(parent_socket_entity.scale.x) else 1.0
+			p_scale_y = parent_socket_entity.scale.y if not is_zero_approx(parent_socket_entity.scale.y) else 1.0
 
-	var rest_s: Vector2 = Vector2(
-		(-entity_scale if is_flipped_h else entity_scale) / p_scale_x,
-		entity_scale / p_scale_y
-	)
-	scale = rest_s * Vector2(1.12, 0.9)
-	active_tween = create_tween().set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
-	active_tween.tween_property(self, "scale", rest_s, 0.2)
+		var rest_s: Vector2 = Vector2((-entity_scale if is_flipped_h else entity_scale) / p_scale_x, entity_scale / p_scale_y)
+		scale = rest_s * Vector2(1.12, 0.9)
+		active_tween = create_tween().set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
+		active_tween.tween_property(self, "scale", rest_s, 0.2)
 
 
 func fill_with_liquid() -> void:
 	fill_level = mini(fill_level + 1, 2)
 	AudioManager.play_pour()
 
-	_kill_active_tween()
-	var p_scale_x: float = 1.0
-	var p_scale_y: float = 1.0
-	if parent_socket_entity and is_instance_valid(parent_socket_entity):
-		p_scale_x = parent_socket_entity.scale.x if not is_zero_approx(parent_socket_entity.scale.x) else 1.0
-		p_scale_y = parent_socket_entity.scale.y if not is_zero_approx(parent_socket_entity.scale.y) else 1.0
+	if SettingsManager.is_juice_squash_stretch_enabled():
+		_kill_active_tween()
+		var p_scale_x: float = 1.0
+		var p_scale_y: float = 1.0
+		if parent_socket_entity and is_instance_valid(parent_socket_entity):
+			p_scale_x = parent_socket_entity.scale.x if not is_zero_approx(parent_socket_entity.scale.x) else 1.0
+			p_scale_y = parent_socket_entity.scale.y if not is_zero_approx(parent_socket_entity.scale.y) else 1.0
 
-	var rest_s: Vector2 = Vector2(
-		(-entity_scale if is_flipped_h else entity_scale) / p_scale_x,
-		entity_scale / p_scale_y
-	)
-	scale = rest_s * Vector2(1.15, 0.88)
-	active_tween = create_tween().set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
-	active_tween.tween_property(self, "scale", rest_s, 0.25)
+		var rest_s: Vector2 = Vector2((-entity_scale if is_flipped_h else entity_scale) / p_scale_x, entity_scale / p_scale_y)
+		scale = rest_s * Vector2(1.15, 0.88)
+		active_tween = create_tween().set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
+		active_tween.tween_property(self, "scale", rest_s, 0.25)
 
 
 func _spawn_crumb_burst() -> void:
@@ -850,12 +920,10 @@ func _spawn_crumb_burst() -> void:
 		timer.timeout.connect(crumbs.queue_free)
 
 
-# --- 2D LIGHTING & CONTOUR SHADERS ---
+# --- 2D LIGHTING ---
 
 static func _ensure_glow_shader() -> void:
-	if silhouette_glow_shader != null:
-		return
-
+	if silhouette_glow_shader != null: return
 	silhouette_glow_shader = Shader.new()
 	var is_mobile: bool = OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios")
 
@@ -863,17 +931,14 @@ static func _ensure_glow_shader() -> void:
 		silhouette_glow_shader.code = """
 shader_type canvas_item;
 render_mode blend_add;
-
 uniform vec4 glow_color : source_color = vec4(1.0, 0.88, 0.50, 0.85);
 uniform float glow_spread : hint_range(0.0, 30.0) = 10.0;
 uniform float glow_intensity : hint_range(0.0, 5.0) = 2.2;
 uniform float pulse_speed : hint_range(0.0, 10.0) = 2.2;
-
 void fragment() {
 	vec4 base_tex = texture(TEXTURE, UV);
 	vec2 pixel_size = TEXTURE_PIXEL_SIZE * glow_spread;
 	float alpha_sum = 0.0;
-	
 	for (float x = -1.0; x <= 1.0; x += 1.0) {
 		for (float y = -1.0; y <= 1.0; y += 1.0) {
 			vec2 offset = vec2(x, y) * pixel_size * 0.8;
@@ -881,7 +946,6 @@ void fragment() {
 		}
 	}
 	alpha_sum /= 9.0;
-	
 	float combined_alpha = max(base_tex.a, alpha_sum);
 	float pulse = (pulse_speed > 0.01) ? (0.88 + 0.12 * sin(TIME * pulse_speed)) : 1.0;
 	COLOR = vec4(glow_color.rgb * glow_intensity, combined_alpha * glow_color.a * pulse);
@@ -891,17 +955,14 @@ void fragment() {
 		silhouette_glow_shader.code = """
 shader_type canvas_item;
 render_mode blend_add;
-
 uniform vec4 glow_color : source_color = vec4(1.0, 0.88, 0.50, 0.85);
 uniform float glow_spread : hint_range(0.0, 30.0) = 10.0;
 uniform float glow_intensity : hint_range(0.0, 5.0) = 2.2;
 uniform float pulse_speed : hint_range(0.0, 10.0) = 2.2;
-
 void fragment() {
 	vec4 base_tex = texture(TEXTURE, UV);
 	vec2 pixel_size = TEXTURE_PIXEL_SIZE * glow_spread;
 	float alpha_sum = 0.0;
-	
 	for (float x = -2.0; x <= 2.0; x += 1.0) {
 		for (float y = -2.0; y <= 2.0; y += 1.0) {
 			vec2 offset = vec2(x, y) * pixel_size * 0.5;
@@ -909,7 +970,6 @@ void fragment() {
 		}
 	}
 	alpha_sum /= 25.0;
-	
 	float combined_alpha = max(base_tex.a * 1.0, alpha_sum);
 	float pulse = (pulse_speed > 0.01) ? (0.88 + 0.12 * sin(TIME * pulse_speed)) : 1.0;
 	COLOR = vec4(glow_color.rgb * glow_intensity, combined_alpha * glow_color.a * pulse);
@@ -940,7 +1000,7 @@ func _apply_current_lighting_state() -> void:
 	anchor_light_nodes.clear()
 
 	if light_shape_mode == Types.LightShapeMode.SILHOUETTE_CONTOUR:
-		if not glow_sprite:
+		if glow_sprite == null:
 			glow_sprite = Sprite2D.new()
 			glow_sprite.name = "SilhouetteGlow"
 			glow_sprite.centered = true
@@ -999,61 +1059,14 @@ func unconfigure_light_source() -> void:
 	anchor_light_nodes.clear()
 
 
-# --- GEOMETRY & WARDROBE ---
-
-func add_wardrobe_form(form_name: String, tex: Texture2D, path: String) -> void:
-	wardrobe_forms[form_name] = {
-		"tex": tex,
-		"path": path,
-		"sprites": {
-			"eyes_open": tex, "eyes_closed": null, "mouth_open": null,
-			"sitting": null, "sitting_eyes_closed": null, "sitting_eyes_mouth_open": null
-		},
-		"sprite_paths": {
-			"eyes_open": path, "eyes_closed": "", "mouth_open": "",
-			"sitting": "", "sitting_eyes_closed": "", "sitting_eyes_mouth_open": ""
-		},
-		"animations": {}
-	}
-	switch_wardrobe_form(form_name)
-
-
-func switch_wardrobe_form(form_name: String) -> void:
-	if not wardrobe_forms.has(form_name):
-		return
-	active_form_key = form_name
-	var data: Dictionary = wardrobe_forms[form_name]
-	main_texture = data.get("tex", null)
-	texture_path = data.get("path", "")
-
-	if main_texture:
-		texture_size = main_texture.get_size()
-		_update_active_render_texture(true)
-		rebuild_gizmos()
-		_kill_active_tween()
-		rotation = 0.0
-		var p_scale_x: float = 1.0
-		var p_scale_y: float = 1.0
-		if parent_socket_entity and is_instance_valid(parent_socket_entity):
-			p_scale_x = parent_socket_entity.scale.x if not is_zero_approx(parent_socket_entity.scale.x) else 1.0
-			p_scale_y = parent_socket_entity.scale.y if not is_zero_approx(parent_socket_entity.scale.y) else 1.0
-
-		var rest_s: Vector2 = Vector2(
-			(-entity_scale if is_flipped_h else entity_scale) / p_scale_x,
-			entity_scale / p_scale_y
-		)
-		scale = rest_s * Vector2(1.1, 0.9)
-		active_tween = create_tween().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-		active_tween.tween_property(self, "scale", rest_s, 0.2)
-
+# --- GEOMETRY, COLLISION & SCALE ---
 
 func _recalculate_collision_geometry(tex: Texture2D) -> void:
 	if not tex:
 		collision_poly = PackedVector2Array()
 		collision_polygons.clear()
 		alpha_bitmap = null
-		if collision_polygon_node:
-			collision_polygon_node.polygon = collision_poly
+		if collision_polygon_node: collision_polygon_node.polygon = collision_poly
 		return
 
 	alpha_bitmap = UGCManager.generate_alpha_bitmap(tex, 0.05)
@@ -1069,8 +1082,7 @@ func get_visual_bottom_offset_local() -> float:
 		for poly: PackedVector2Array in collision_polygons:
 			for pt: Vector2 in poly:
 				if pt.y > max_y: max_y = pt.y
-		if max_y > -900000.0:
-			return max_y
+		if max_y > -900000.0: return max_y
 	elif collision_poly.size() >= 3:
 		var max_y: float = -999999.0
 		for pt: Vector2 in collision_poly:
@@ -1090,8 +1102,7 @@ func get_visual_half_width() -> float:
 			for pt: Vector2 in poly:
 				var ax: float = absf(pt.x)
 				if ax > max_x: max_x = ax
-		if max_x > 0.0:
-			return max_x * entity_scale
+		if max_x > 0.0: return max_x * entity_scale
 	elif collision_poly.size() >= 3:
 		var max_x: float = 0.0
 		for pt: Vector2 in collision_poly:
@@ -1108,10 +1119,7 @@ func set_entity_scale(new_scale: float) -> void:
 	if parent_socket_entity and is_instance_valid(parent_socket_entity):
 		p_scale_x = parent_socket_entity.scale.x if not is_zero_approx(parent_socket_entity.scale.x) else 1.0
 		p_scale_y = parent_socket_entity.scale.y if not is_zero_approx(parent_socket_entity.scale.y) else 1.0
-	scale = Vector2(
-		(-entity_scale if is_flipped_h else entity_scale) / p_scale_x,
-		entity_scale / p_scale_y
-	)
+	scale = Vector2((-entity_scale if is_flipped_h else entity_scale) / p_scale_x, entity_scale / p_scale_y)
 
 
 func flip_horizontal() -> void:
@@ -1121,8 +1129,12 @@ func flip_horizontal() -> void:
 	if parent_socket_entity and is_instance_valid(parent_socket_entity):
 		p_scale_x = parent_socket_entity.scale.x if not is_zero_approx(parent_socket_entity.scale.x) else 1.0
 	var target_scale_x: float = (-entity_scale if is_flipped_h else entity_scale) / p_scale_x
-	active_tween = create_tween().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	active_tween.tween_property(self, "scale:x", target_scale_x, 0.18)
+
+	if SettingsManager.is_juice_squash_stretch_enabled():
+		active_tween = create_tween().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		active_tween.tween_property(self, "scale:x", target_scale_x, 0.18)
+	else:
+		scale.x = target_scale_x
 	AudioManager.play_pop_grab()
 
 
@@ -1178,14 +1190,18 @@ func toggle_door() -> void:
 	is_door_open = not is_door_open
 	AudioManager.play_pop_grab()
 	_kill_active_tween()
-	active_tween = create_tween().set_trans(Tween.TRANS_SPRING).set_ease(Tween.EASE_OUT)
 	var rest_s: Vector2 = Vector2(-entity_scale if is_flipped_h else entity_scale, entity_scale)
-	if is_door_open:
-		active_tween.tween_property(self, "modulate", Color(1.3, 1.3, 1.3, 0.85), 0.15)
-		active_tween.parallel().tween_property(self, "scale", rest_s * Vector2(0.9, 1.05), 0.15)
+
+	if SettingsManager.is_juice_squash_stretch_enabled():
+		active_tween = create_tween().set_trans(Tween.TRANS_SPRING).set_ease(Tween.EASE_OUT)
+		if is_door_open:
+			active_tween.tween_property(self, "modulate", Color(1.3, 1.3, 1.3, 0.85), 0.15)
+			active_tween.parallel().tween_property(self, "scale", rest_s * Vector2(0.9, 1.05), 0.15)
+		else:
+			active_tween.tween_property(self, "modulate", Color.WHITE, 0.15)
+			active_tween.parallel().tween_property(self, "scale", rest_s, 0.15)
 	else:
-		active_tween.tween_property(self, "modulate", Color.WHITE, 0.15)
-		active_tween.parallel().tween_property(self, "scale", rest_s, 0.15)
+		modulate = Color(1.3, 1.3, 1.3, 0.85) if is_door_open else Color.WHITE
 
 
 func open_door_instant() -> void:
@@ -1196,12 +1212,17 @@ func open_door_instant() -> void:
 func close_door_animated(callback: Callable = Callable()) -> void:
 	is_door_open = false
 	_kill_active_tween()
-	active_tween = create_tween().set_trans(Tween.TRANS_SPRING).set_ease(Tween.EASE_OUT)
 	var rest_s: Vector2 = Vector2(-entity_scale if is_flipped_h else entity_scale, entity_scale)
-	active_tween.tween_property(self, "modulate", Color.WHITE, 0.2)
-	active_tween.parallel().tween_property(self, "scale", rest_s, 0.2)
-	if callback.is_valid():
-		active_tween.chain().tween_callback(callback)
+
+	if SettingsManager.is_juice_squash_stretch_enabled():
+		active_tween = create_tween().set_trans(Tween.TRANS_SPRING).set_ease(Tween.EASE_OUT)
+		active_tween.tween_property(self, "modulate", Color.WHITE, 0.2)
+		active_tween.parallel().tween_property(self, "scale", rest_s, 0.2)
+		if callback.is_valid(): active_tween.chain().tween_callback(callback)
+	else:
+		modulate = Color.WHITE
+		scale = rest_s
+		if callback.is_valid(): callback.call()
 
 
 func get_passengers_in_cab(all_entities_list: Array[OwnEntity]) -> Array[OwnEntity]:
@@ -1212,8 +1233,7 @@ func get_passengers_in_cab(all_entities_list: Array[OwnEntity]) -> Array[OwnEnti
 
 	for ent: OwnEntity in all_entities_list:
 		if is_instance_valid(ent) and ent != self and ent.parent_socket_entity == null:
-			if cab_rect.has_point(ent.global_position):
-				passengers.append(ent)
+			if cab_rect.has_point(ent.global_position): passengers.append(ent)
 	return passengers
 
 
@@ -1322,31 +1342,33 @@ func toggle_active_state() -> void:
 		_apply_current_lighting_state()
 		AudioManager.play_snap_chime()
 
-	_kill_active_tween()
-	var p_scale_x: float = 1.0
-	var p_scale_y: float = 1.0
-	if parent_socket_entity and is_instance_valid(parent_socket_entity):
-		p_scale_x = parent_socket_entity.scale.x if not is_zero_approx(parent_socket_entity.scale.x) else 1.0
-		p_scale_y = parent_socket_entity.scale.y if not is_zero_approx(parent_socket_entity.scale.y) else 1.0
+	if SettingsManager.is_juice_squash_stretch_enabled():
+		_kill_active_tween()
+		var p_scale_x: float = 1.0
+		var p_scale_y: float = 1.0
+		if parent_socket_entity and is_instance_valid(parent_socket_entity):
+			p_scale_x = parent_socket_entity.scale.x if not is_zero_approx(parent_socket_entity.scale.x) else 1.0
+			p_scale_y = parent_socket_entity.scale.y if not is_zero_approx(parent_socket_entity.scale.y) else 1.0
 
-	var rest_s: Vector2 = Vector2(
-		(-entity_scale if is_flipped_h else entity_scale) / p_scale_x,
-		entity_scale / p_scale_y
-	)
-	scale = rest_s * Vector2(1.08, 0.92)
-	active_tween = create_tween().set_trans(Tween.TRANS_SPRING).set_ease(Tween.EASE_OUT)
-	active_tween.tween_property(self, "scale", rest_s, 0.15)
+		var rest_s: Vector2 = Vector2((-entity_scale if is_flipped_h else entity_scale) / p_scale_x, entity_scale / p_scale_y)
+		scale = rest_s * Vector2(1.08, 0.92)
+		active_tween = create_tween().set_trans(Tween.TRANS_SPRING).set_ease(Tween.EASE_OUT)
+		active_tween.tween_property(self, "scale", rest_s, 0.15)
 
+
+# --- DRAGGING & JUICE GESTURES ---
 
 func on_grab() -> void:
 	set_entity_state(Types.EntityState.DRAGGING)
 	z_as_relative = false
 	z_index = Types.LayerBands.DRAGGING
 	rotation = 0.0
-	_kill_active_tween()
-	active_tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	var rest_s: Vector2 = Vector2(-entity_scale if is_flipped_h else entity_scale, entity_scale)
-	active_tween.tween_property(self, "scale", rest_s * 1.05, 0.08)
+
+	if SettingsManager.is_juice_squash_stretch_enabled():
+		_kill_active_tween()
+		active_tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		var rest_s: Vector2 = Vector2(-entity_scale if is_flipped_h else entity_scale, entity_scale)
+		active_tween.tween_property(self, "scale", rest_s * 1.05, 0.08)
 
 
 func on_drop() -> void:
@@ -1355,19 +1377,21 @@ func on_drop() -> void:
 	z_index = base_layer_band
 	rotation = 0.0
 
-	if parent_socket_entity == null and active_clip_name.is_empty() and entity_type == Types.EntityType.CHARACTER:
-		if current_pose_state in ["sitting", "sleeping"]:
-			current_pose_state = "default"
-			_update_active_render_texture(false)
+	if parent_socket_entity == null and entity_type == Types.EntityType.CHARACTER:
+		if active_state_name in [Types.STATE_SITTING, Types.STATE_SLEEPING]:
+			reset_to_default_pose()
 
-	_kill_active_tween()
-	active_tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	var rest_s: Vector2 = Vector2(-entity_scale if is_flipped_h else entity_scale, entity_scale)
-	active_tween.tween_property(self, "scale", rest_s * Vector2(1.06, 0.94), 0.07)
-	active_tween.tween_property(self, "scale", rest_s, 0.12)
+	if SettingsManager.is_juice_squash_stretch_enabled():
+		_kill_active_tween()
+		active_tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		var rest_s: Vector2 = Vector2(-entity_scale if is_flipped_h else entity_scale, entity_scale)
+		active_tween.tween_property(self, "scale", rest_s * Vector2(1.06, 0.94), 0.07)
+		active_tween.tween_property(self, "scale", rest_s, 0.12)
 
 
 func trigger_spawn_juice() -> void:
+	if not SettingsManager.is_juice_spawn_springs_enabled():
+		return
 	_kill_active_tween()
 	var rest_s: Vector2 = Vector2(-entity_scale if is_flipped_h else entity_scale, entity_scale)
 	scale = rest_s * Vector2(0.85, 1.15)
@@ -1383,12 +1407,10 @@ func set_slice_ratio(ratio: float) -> void:
 			base_sprite.region_enabled = false
 			base_sprite.centered = true
 			base_sprite.position = Vector2.ZERO
-		if overlay_sprite:
-			overlay_sprite.visible = false
+		if overlay_sprite: overlay_sprite.visible = false
 		return
 
-	if not main_texture:
-		return
+	if not main_texture: return
 	var w: float = texture_size.x
 	var h: float = texture_size.y
 	var split_y: float = h * ratio
@@ -1421,10 +1443,8 @@ func has_point_exact(world_p: Vector2) -> bool:
 		if bm_size.x > 0 and bm_size.y > 0:
 			var norm_x: float = (local_p.x + (texture_size.x * 0.5)) / texture_size.x
 			var norm_y: float = (local_p.y + (texture_size.y * 0.5)) / texture_size.y
-
 			var px: int = int(norm_x * float(bm_size.x))
 			var py: int = int(norm_y * float(bm_size.y))
-
 			if px >= 0 and px < bm_size.x and py >= 0 and py < bm_size.y:
 				return alpha_bitmap.get_bit(px, py)
 
@@ -1463,8 +1483,7 @@ func _kill_active_tween() -> void:
 
 
 func rebuild_gizmos() -> void:
-	if not gizmo_root:
-		return
+	if not gizmo_root: return
 	for child: Node in gizmo_root.get_children():
 		child.queue_free()
 
@@ -1494,8 +1513,7 @@ func rebuild_gizmos() -> void:
 
 
 func update_gizmo_visibility(show_gizmos: bool) -> void:
-	if gizmo_root:
-		gizmo_root.visible = show_gizmos
+	if gizmo_root: gizmo_root.visible = show_gizmos
 
 
 func _build_speech_bubble_ui() -> void:
@@ -1528,42 +1546,49 @@ func _build_speech_bubble_ui() -> void:
 
 
 func show_speech_bubble(text_to_say: String) -> void:
-	if not speech_bubble_node or not speech_label:
-		return
+	if not speech_bubble_node or not speech_label: return
 	speech_label.text = text_to_say
 	speech_bubble_node.visible = true
 	speech_bubble_node.position = Vector2(-speech_bubble_node.size.x * 0.5, -texture_size.y * 0.65 - 40.0)
 
 	if speech_tween and speech_tween.is_valid():
 		speech_tween.kill()
-	speech_tween = create_tween().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
-	speech_bubble_node.scale = Vector2(0.2, 0.2)
-	speech_tween.tween_property(speech_bubble_node, "scale", Vector2.ONE, 0.2)
-	speech_tween.chain().tween_interval(3.5)
-	speech_tween.chain().tween_property(speech_bubble_node, "scale", Vector2.ZERO, 0.15)
-	speech_tween.chain().tween_callback(func() -> void: speech_bubble_node.visible = false)
+
+	if SettingsManager.is_juice_squash_stretch_enabled():
+		speech_tween = create_tween().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		speech_bubble_node.scale = Vector2(0.2, 0.2)
+		speech_tween.tween_property(speech_bubble_node, "scale", Vector2.ONE, 0.2)
+		speech_tween.chain().tween_interval(3.5)
+		speech_tween.chain().tween_property(speech_bubble_node, "scale", Vector2.ZERO, 0.15)
+		speech_tween.chain().tween_callback(func() -> void: speech_bubble_node.visible = false)
+	else:
+		speech_bubble_node.scale = Vector2.ONE
+		var timer: SceneTreeTimer = get_tree().create_timer(3.5)
+		timer.timeout.connect(func() -> void: if speech_bubble_node: speech_bubble_node.visible = false)
 
 
 func spray_emotion(symbol_char: String) -> void:
-	if symbol_char.is_empty():
-		return
+	if symbol_char.is_empty(): return
 	var lbl: Label = Label.new()
 	lbl.text = symbol_char
 	lbl.position = Vector2(0.0, -texture_size.y * 0.5)
 	lbl.z_index = 680
 	add_child(lbl)
 
-	var tw: Tween = create_tween().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
-	tw.tween_property(lbl, "position:y", -texture_size.y * 0.5 - 60.0, 0.8)
-	tw.parallel().tween_property(lbl, "modulate:a", 0.0, 0.8)
-	tw.chain().tween_callback(lbl.queue_free)
+	if SettingsManager.is_juice_squash_stretch_enabled():
+		var tw: Tween = create_tween().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+		tw.tween_property(lbl, "position:y", -texture_size.y * 0.5 - 60.0, 0.8)
+		tw.parallel().tween_property(lbl, "modulate:a", 0.0, 0.8)
+		tw.chain().tween_callback(lbl.queue_free)
+	else:
+		var timer: SceneTreeTimer = get_tree().create_timer(0.8)
+		timer.timeout.connect(lbl.queue_free)
 
 
 func get_full_hierarchy_bundle() -> Array[Dictionary]:
 	var bundle: Array[Dictionary] = [to_dict()]
 	for child: OwnEntity in attached_children:
-		if is_instance_valid(child):
-			bundle.append_array(child.get_full_hierarchy_bundle())
+		if is_instance_valid(child): bundle.append_array(child.get_full_hierarchy_bundle())
 	return bundle
 
 
@@ -1585,28 +1610,25 @@ func to_dict() -> Dictionary:
 			"type": int(idata.get("type", 0))
 		}
 
+	# Serialize Unified Wardrobe States
 	var forms_dict: Dictionary = {}
 	for fk: String in wardrobe_forms.keys():
 		var form_d: Dictionary = wardrobe_forms[fk]
-		var raw_paths: Dictionary = form_d.get("sprite_paths", {})
-		var sprites_save: Dictionary = {}
-		for s_key: String in ["eyes_open", "eyes_closed", "mouth_open", "sitting", "sitting_eyes_closed", "sitting_eyes_mouth_open"]:
-			sprites_save[s_key] = raw_paths.get(s_key, "")
+		var raw_states: Dictionary = form_d.get("states", {})
+		var states_save: Dictionary = {}
 
-		var anims_save: Dictionary = {}
-		var raw_anims: Dictionary = form_d.get("animations", {})
-		for c_name: String in raw_anims.keys():
-			var clip_data: Dictionary = raw_anims[c_name]
-			anims_save[c_name] = {
-				"fps": float(clip_data.get("fps", 6.0)),
-				"mode": str(clip_data.get("mode", "loop")),
-				"paths": (clip_data.get("paths", []) as Array).duplicate()
+		for s_key: String in raw_states.keys():
+			var s_info: Dictionary = raw_states[s_key]
+			states_save[s_key] = {
+				"paths": (s_info.get("paths", []) as Array).duplicate(),
+				"fps": float(s_info.get("fps", 6.0)),
+				"mode": int(s_info.get("mode", Types.PlaybackMode.LOOP)),
+				"alt_path": str(s_info.get("alt_path", ""))
 			}
 
 		forms_dict[fk] = {
 			"path": form_d.get("path", ""),
-			"sprite_paths": sprites_save,
-			"animations": anims_save
+			"states": states_save
 		}
 
 	var components_dict: Dictionary = {}
@@ -1628,8 +1650,8 @@ func to_dict() -> Dictionary:
 		"layer_band": base_layer_band,
 		"slice_y_ratio": slice_y_ratio,
 		"active_form_key": active_form_key,
-		"current_pose_state": current_pose_state,
-		"active_expression_name": active_expression_name,
+		"active_state_name": active_state_name,
+		"current_pose_state": active_state_name,
 		"is_locked": is_locked,
 		"is_flipped_h": is_flipped_h,
 		"entity_scale": entity_scale,
@@ -1675,8 +1697,7 @@ func to_dict() -> Dictionary:
 
 
 func from_dict(d: Dictionary) -> void:
-	if d.has("id"):
-		entity_id = str(d["id"]).strip_edges()
+	if d.has("id"): entity_id = str(d["id"]).strip_edges()
 	display_name = str(d.get("display_name", entity_id)).strip_edges()
 	entity_type = int(d.get("entity_type", Types.EntityType.PROP)) as Types.EntityType
 	_setup_collision_layers()
@@ -1687,10 +1708,8 @@ func from_dict(d: Dictionary) -> void:
 	z_index = int(d.get("z_index", base_layer_band))
 	z_as_relative = bool(d.get("z_as_relative", false))
 
-	if d.has("rotation"):
-		rotation = float(d["rotation"])
-	if d.has("modulate"):
-		modulate = Color(str(d["modulate"]))
+	if d.has("rotation"): rotation = float(d["rotation"])
+	if d.has("modulate"): modulate = Color(str(d["modulate"]))
 
 	slice_y_ratio = float(d.get("slice_y_ratio", 0.0))
 	is_flipped_h = bool(d.get("is_flipped_h", false))
@@ -1734,8 +1753,7 @@ func from_dict(d: Dictionary) -> void:
 	elevator_floors.clear()
 	var raw_floors: Array = d.get("elevator_floors", [])
 	for f_obj: Variant in raw_floors:
-		if f_obj is Dictionary:
-			elevator_floors.append((f_obj as Dictionary).duplicate(true))
+		if f_obj is Dictionary: elevator_floors.append((f_obj as Dictionary).duplicate(true))
 
 	is_active = bool(d.get("is_active", false))
 	is_container = bool(d.get("is_container", false))
@@ -1745,76 +1763,101 @@ func from_dict(d: Dictionary) -> void:
 		container_open_texture = UGCManager.load_texture_from_file(container_open_path)
 
 	custom_fields = d.get("custom_fields", {}).duplicate(true)
-	if entity_type == Types.EntityType.CHARACTER:
-		_initialize_character_profile_defaults()
+	if entity_type == Types.EntityType.CHARACTER: _initialize_character_profile_defaults()
 
+	# Deserialize Unified States with Full Legacy Upgrade Support
 	wardrobe_forms.clear()
 	var raw_forms: Dictionary = d.get("wardrobe_forms", {})
+
 	for f_key: String in raw_forms.keys():
 		var f_val: Variant = raw_forms[f_key]
 		var f_path: String = ""
-		var f_sprite_paths: Dictionary = {}
-		var f_sprites: Dictionary = {}
-		var f_anims: Dictionary = {}
+		var parsed_states: Dictionary = {}
 
 		if f_val is Dictionary:
 			var f_dict: Dictionary = f_val as Dictionary
 			f_path = str(f_dict.get("path", ""))
-			f_sprite_paths = f_dict.get("sprite_paths", {})
-			var raw_saved_anims: Dictionary = f_dict.get("animations", {})
-			for c_name: String in raw_saved_anims.keys():
-				var c_info: Dictionary = raw_saved_anims[c_name]
-				var loaded_frames: Array[Texture2D] = []
-				var p_arr: Array = c_info.get("paths", [])
-				var valid_paths: Array[String] = []
-				for p_val: Variant in p_arr:
-					var p_str: String = str(p_val)
-					valid_paths.append(p_str)
-					if FileAccess.file_exists(p_str):
-						loaded_frames.append(UGCManager.load_texture_from_file(p_str))
-				f_anims[c_name] = {
-					"fps": float(c_info.get("fps", 6.0)),
-					"mode": str(c_info.get("mode", "loop")),
-					"paths": valid_paths,
-					"frames": loaded_frames
-				}
-		else:
-			f_path = str(f_val)
 
-		var form_base_tex: Texture2D = null
-		if not f_path.is_empty() and FileAccess.file_exists(f_path):
-			form_base_tex = UGCManager.load_texture_from_file(f_path)
-		else:
-			form_base_tex = main_texture
+			if f_dict.has("states"):
+				var raw_st: Dictionary = f_dict["states"]
+				for s_name: String in raw_st.keys():
+					var s_info: Dictionary = raw_st[s_name]
+					var frames: Array[Texture2D] = []
+					var paths: Array[String] = []
+					for p: Variant in s_info.get("paths", []):
+						var p_str: String = str(p)
+						paths.append(p_str)
+						if FileAccess.file_exists(p_str):
+							if p_str.get_extension().to_lower() == "gif":
+								var g_data: Dictionary = UGCManager.load_gif(p_str)
+								for gf: Variant in g_data.get("frames", []):
+									if gf is Texture2D: frames.append(gf as Texture2D)
+							else:
+								frames.append(UGCManager.load_texture_from_file(p_str))
 
-		for s_key: String in ["eyes_open", "eyes_closed", "mouth_open", "sitting", "sitting_eyes_closed", "sitting_eyes_mouth_open"]:
-			var p: String = str(f_sprite_paths.get(s_key, ""))
-			if not p.is_empty() and FileAccess.file_exists(p):
-				f_sprites[s_key] = UGCManager.load_texture_from_file(p)
-			elif s_key == "eyes_open":
-				f_sprites[s_key] = form_base_tex
+					var alt_p: String = str(s_info.get("alt_path", ""))
+					var alt_t: Texture2D = UGCManager.load_texture_from_file(alt_p) if FileAccess.file_exists(alt_p) else null
+
+					parsed_states[s_name] = {
+						"frames": frames,
+						"paths": paths,
+						"fps": float(s_info.get("fps", 6.0)),
+						"mode": int(s_info.get("mode", Types.PlaybackMode.LOOP)),
+						"alt_texture": alt_t,
+						"alt_path": alt_p
+					}
 			else:
-				f_sprites[s_key] = null
+				# Upgrade legacy sprite_paths
+				var sprite_paths: Dictionary = f_dict.get("sprite_paths", {})
+				for s_key: String in ["eyes_open", "eyes_closed", "mouth_open", "sitting", "sitting_eyes_closed", "sitting_eyes_mouth_open"]:
+					var p_str: String = str(sprite_paths.get(s_key, ""))
+					var t_tex: Texture2D = UGCManager.load_texture_from_file(p_str) if FileAccess.file_exists(p_str) else null
+					if t_tex != null:
+						parsed_states[s_key] = {
+							"frames": [t_tex],
+							"paths": [p_str],
+							"fps": 6.0,
+							"mode": Types.PlaybackMode.LOOP,
+							"alt_texture": null,
+							"alt_path": ""
+						}
+
+				# Upgrade legacy animations dictionary
+				var raw_saved_anims: Dictionary = f_dict.get("animations", {})
+				for c_name: String in raw_saved_anims.keys():
+					var c_info: Dictionary = raw_saved_anims[c_name]
+					var loaded_frames: Array[Texture2D] = []
+					var p_arr: Array = c_info.get("paths", [])
+					var valid_paths: Array[String] = []
+					for p_val: Variant in p_arr:
+						var p_str: String = str(p_val)
+						valid_paths.append(p_str)
+						if FileAccess.file_exists(p_str):
+							loaded_frames.append(UGCManager.load_texture_from_file(p_str))
+					parsed_states[c_name.to_lower()] = {
+						"frames": loaded_frames,
+						"paths": valid_paths,
+						"fps": float(c_info.get("fps", 6.0)),
+						"mode": Types.PlaybackMode.LOOP,
+						"alt_texture": null,
+						"alt_path": ""
+					}
 
 		wardrobe_forms[f_key] = {
-			"tex": form_base_tex, "path": f_path,
-			"sprites": f_sprites, "sprite_paths": f_sprite_paths,
-			"animations": f_anims
+			"path": f_path,
+			"states": parsed_states
 		}
 
 	active_form_key = str(d.get("active_form_key", "Default"))
-	current_pose_state = str(d.get("current_pose_state", "default"))
-	active_expression_name = str(d.get("active_expression_name", "eyes_open"))
-	_update_active_render_texture(true)
+	active_state_name = str(d.get("active_state_name", d.get("current_pose_state", Types.STATE_IDLE)))
+	set_actor_state(active_state_name)
 
 	if is_open and container_open_texture != null:
 		_apply_active_texture(container_open_texture, false)
 
 	stored_item_data.clear()
-	var raw_stored: Array = d.get("stored_item_data", [])
-	for s_item: Variant in raw_stored:
-		if s_item is Dictionary:
-			stored_item_data.append((s_item as Dictionary).duplicate(true))
+	for s_item: Variant in d.get("stored_item_data", []):
+		if s_item is Dictionary: stored_item_data.append((s_item as Dictionary).duplicate(true))
 
 	configure_as_floor_decor(is_floor_decor)
 	set_slice_ratio(slice_y_ratio)
@@ -1824,12 +1867,10 @@ func from_dict(d: Dictionary) -> void:
 	elif is_stairs: configure_as_stairs(display_name)
 	elif is_portal: configure_as_portal(target_room_id, display_name)
 
-	if is_door_open:
-		open_door_instant()
+	if is_door_open: open_door_instant()
 
 	logic_rules.clear()
-	var raw_rules: Array = d.get("logic_rules", [])
-	for r: Variant in raw_rules:
+	for r: Variant in d.get("logic_rules", []):
 		if r is Dictionary: logic_rules.append((r as Dictionary).duplicate(true))
 
 	snap_points.clear()

@@ -1,5 +1,9 @@
+# ============================================================
+# File: res://Systems/LogicEngine.gd
+# ============================================================
+
 # ==============================================================================
-# OWNWORLD — LOGIC ENGINE
+# OWNWORLD — LOGIC ENGINE (UNIFIED STATE & EMOTE SCRIPTING)
 # File: res://Systems/LogicEngine.gd
 # Base Class: RefCounted (class_name LogicEngine)
 #
@@ -49,7 +53,7 @@ static func _evaluate_condition(entity: OwnEntity, field: String, expected_value
 	var expected: String = expected_value.strip_edges().to_lower()
 	match field.strip_edges().to_lower():
 		"active_form": return entity.active_form_key.strip_edges().to_lower() == expected
-		"current_pose": return entity.current_pose_state.strip_edges().to_lower() == expected
+		"current_pose", "active_state": return entity.active_state_name.strip_edges().to_lower() == expected
 		"is_active": return str(entity.is_active).to_lower() == expected
 		"is_locked": return str(entity.is_locked).to_lower() == expected
 		_: return true
@@ -80,7 +84,7 @@ static func _execute_single_target_action(action_command: int, value: String, ta
 		return
 
 	match action_command:
-		int(Types.ActionCommand.PLAY_ANIM): target.play_named_animation(value)
+		int(Types.ActionCommand.PLAY_ANIM): target.set_actor_state(value)
 		101: target.reset_to_default_pose()
 		int(Types.ActionCommand.SWAP_FORM): target.switch_wardrobe_form(value)
 		102: target.set_expression(value.to_lower(), 2.0)

@@ -1,5 +1,9 @@
+# ============================================================
+# File: res://Core/Main.gd
+# ============================================================
+
 # ==============================================================================
-# OWNWORLD — MAIN APPLICATION ORCHESTRATOR (CROSS-PLATFORM & VIEWPORT RESILIENT)
+# OWNWORLD — MAIN APPLICATION ORCHESTRATOR (UNIVERSAL GESTURE SYNCHRONIZATION)
 # File: res://Core/Main.gd
 # Base Class: Node2D
 #
@@ -126,7 +130,6 @@ func _enforce_cross_platform_viewport() -> void:
 	win.content_scale_stretch = Window.CONTENT_SCALE_STRETCH_FRACTIONAL
 	win.content_scale_size = Vector2i(1280, 720)
 
-	# Force Landscape Orientation on Mobile Platforms (Android & iOS)
 	if OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios"):
 		DisplayServer.screen_set_orientation(DisplayServer.SCREEN_SENSOR_LANDSCAPE)
 
@@ -569,7 +572,7 @@ func _is_any_modal_open() -> bool:
 	return false
 
 
-# --- INPUT HANDLING WITH TOUCH/MOUSE SEPARATION ---
+# --- INPUT HANDLING WITH DYNAMIC HOLD TIMERS ---
 
 func _input(event: InputEvent) -> void:
 	if is_transitioning_room:
@@ -638,7 +641,6 @@ func _input(event: InputEvent) -> void:
 			main_camera.handle_external_drag(screen_drag)
 
 	elif event is InputEventMouseButton:
-		# Strictly ignore emulated mouse events if multi-touch is active
 		if not _active_touches.is_empty():
 			return
 
@@ -791,7 +793,8 @@ func _handle_press_end(_world_pos: Vector2) -> void:
 
 	var elapsed_time: float = (Time.get_ticks_msec() / 1000.0) - press_start_time
 	var drag_dist: float = press_start_screen_pos.distance_to(current_pointer_screen_pos)
-	var is_quick_tap: bool = drag_dist <= TAP_PIXEL_THRESHOLD and elapsed_time <= 0.35
+	var hold_duration: float = SettingsManager.get_long_press_duration()
+	var is_quick_tap: bool = (drag_dist <= TAP_PIXEL_THRESHOLD) and (elapsed_time < hold_duration)
 
 	if active_dragged_entity == null:
 		if released_target != null and is_instance_valid(released_target) and is_quick_tap:
@@ -1052,8 +1055,12 @@ func _apply_physical_gravity_settle(entity: OwnEntity) -> void:
 	if entity.global_position.y < floor_baseline - 15.0:
 		var drop_dist: float = floor_baseline - entity.global_position.y
 		var fall_duration: float = clampf(drop_dist * 0.0008, 0.2, 0.4)
-		var tween: Tween = create_tween().set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
-		tween.tween_property(entity, "global_position:y", floor_baseline, fall_duration)
+
+		if SettingsManager.is_juice_squash_stretch_enabled():
+			var tween: Tween = create_tween().set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
+			tween.tween_property(entity, "global_position:y", floor_baseline, fall_duration)
+		else:
+			entity.global_position.y = floor_baseline
 
 
 func _remove_hierarchy(root_ent: OwnEntity) -> void:
@@ -1083,12 +1090,9 @@ func _get_topmost_at(world_pos: Vector2, touch_padding: float = 0.0) -> OwnEntit
 
 
 func _is_entity_in_front_of(a: OwnEntity, b: OwnEntity) -> bool:
-	if a == b:
-		return false
-	if not is_instance_valid(a):
-		return false
-	if not is_instance_valid(b):
-		return true
+	if a == b: return false
+	if not is_instance_valid(a): return false
+	if not is_instance_valid(b): return true
 
 	if a.parent_socket_entity == b:
 		return a.z_index >= 0
@@ -1121,8 +1125,7 @@ func _get_ysort_root_entity(entity: OwnEntity) -> OwnEntity:
 
 
 func _calculate_effective_z(entity: OwnEntity) -> int:
-	if not is_instance_valid(entity):
-		return 0
+	if not is_instance_valid(entity): return 0
 	if entity.z_as_relative and entity.get_parent() is Node2D:
 		var parent_node: Node2D = entity.get_parent() as Node2D
 		if parent_node is OwnEntity:
@@ -1263,12 +1266,10 @@ func _update_floor_guide_visuals(floor_y: float, preview_visible: bool) -> void:
 
 static func parse_floor_info(raw_label: String) -> Dictionary:
 	var text: String = raw_label.strip_edges()
-	if text.is_empty():
-		return {"floor_level": "1F", "title": "Main Room"}
+	if text.is_empty(): return {"floor_level": "1F", "title": "Main Room"}
 
 	var words: PackedStringArray = text.split(" ", false)
-	if words.is_empty():
-		return {"floor_level": "1F", "title": text}
+	if words.is_empty(): return {"floor_level": "1F", "title": text}
 
 	var first_word: String = words[0].strip_edges()
 	var upper_first: String = first_word.to_upper()
@@ -1304,7 +1305,6 @@ func _load_active_room(room_id: String, traveler_data: Dictionary = {}) -> void:
 	var saved_state: Dictionary = SaveSystem.load_room_state(room_id)
 	current_room_floor_y = float(saved_state.get("floor_y", 580.0))
 
-	# 1. Resolve Building ID & Name
 	var target_bldg_id: String = str(saved_state.get("building_id", "")).strip_edges()
 	var target_bldg_name: String = str(saved_state.get("building_name", "")).strip_edges()
 
@@ -1319,7 +1319,6 @@ func _load_active_room(room_id: String, traveler_data: Dictionary = {}) -> void:
 	current_building_id = target_bldg_id
 	current_building_name = target_bldg_name
 
-	# 2. Resolve Floor Level & Title
 	var target_floor_level: String = str(saved_state.get("floor_level", "")).strip_edges()
 	var target_title: String = str(saved_state.get("room_title", "")).strip_edges()
 
@@ -1343,7 +1342,6 @@ func _load_active_room(room_id: String, traveler_data: Dictionary = {}) -> void:
 	if top_nav_bar != null:
 		top_nav_bar.update_current_floor_display(current_room_floor_level, current_room_title)
 
-	# 3. Apply Multi-Slice Wallpapers
 	var raw_slices: Variant = saved_state.get("slices", null)
 	var loaded_slices: Array[Dictionary] = []
 	if raw_slices is Array and not (raw_slices as Array).is_empty():
@@ -1370,7 +1368,6 @@ func _load_active_room(room_id: String, traveler_data: Dictionary = {}) -> void:
 
 	_update_floor_guide_visuals(current_room_floor_y, false)
 
-	# Auto-heal and normalize camera view strictly in side-scrolling mode
 	if main_camera != null:
 		main_camera.update_room_bounds(room_bounds)
 		var spawn_pos: Vector2 = RoomManager.resolve_traveler_spawn_position(traveler_data, all_entities)

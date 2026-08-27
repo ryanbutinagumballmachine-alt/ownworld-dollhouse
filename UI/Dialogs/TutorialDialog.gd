@@ -1,11 +1,15 @@
+# ============================================================
+# File: res://UI/Dialogs/TutorialDialog.gd
+# ============================================================
+
 # ==============================================================================
-# OWNWORLD — IN-GAME TUTORIAL & CREATOR HANDBOOK
+# OWNWORLD — IN-GAME TUTORIAL & CREATOR HANDBOOK (UPDATED & EXPANDED)
 # File: res://UI/Dialogs/TutorialDialog.gd
 # Base Class: CanvasLayer (class_name TutorialDialog)
 #
 # Responsibility: In-game creator handbook modal. Comprehensive 11-chapter guide
-# covering quickstart, custom drawing cutouts, 6-pose expressive sprites, sockets,
-# food & liquids, visual logic scripting, rooms, elevators, lore journals, and theming.
+# covering quickstart, custom drawing cutouts, unified actor states, GIF imports,
+# spritesheet slicing, sockets, logic scripting, juice toggles, and worldbuilding.
 # ==============================================================================
 
 class_name TutorialDialog
@@ -31,7 +35,7 @@ var content_vbox: VBoxContainer = null
 var active_topic_index: int = 0
 var active_filter_query: String = ""
 
-# Handbook Chapters Data (Tailored for Character Creators & Worldbuilders)
+# Handbook Chapters Data
 var tutorial_chapters: Array[Dictionary] = [
 	{
 		"id": "quickstart",
@@ -52,64 +56,64 @@ var tutorial_chapters: Array[Dictionary] = [
 				"body": "• Focus Toggle: Tap the 'Zoom' button in the Top Nav Bar to unlock free 2D camera control, mouse wheel zooming, and multi-touch pinch-to-zoom.\n• Inspecting Details: Zoom in close to focus on character faces, fine drawings, or intricate prop setups.\n• Return to Normal: Tap 'Focus' in the Top Nav Bar again to smoothly reset back to default side-scrolling mode."
 			},
 			{
-				"title": "Interacting with Objects",
-				"body": "• Tap / Click: Tap on lights, doors, elevators, stairs, containers, or appliances to trigger their default action (turn on/off, climb upstairs, open/close, travel floors, toggle).\n• Drag and Drop: Press and drag any unlocked item or character. Drop them onto chairs, tables, beds, or stairs to snap or travel.\n• Magic Wheel: Long-press any item or character (or right-click) to open the Magic Wheel context menu for rapid customization, wardrobe changes, and logic scripting."
+				"title": "Interacting with Objects & Universal Hold",
+				"body": "• Tap / Click: Tap on lights, doors, elevators, stairs, containers, or appliances to trigger their default action (turn on/off, climb upstairs, open/close, travel floors, toggle).\n• Drag and Drop: Press and drag any unlocked item or character. Drop them onto chairs, tables, beds, or stairs to snap or travel.\n• Magic Wheel: Long-press any item or character (or right-click) to open the Magic Wheel context menu. The required hold time dynamically matches the slider in your Settings menu!"
 			},
 			{
-				"title": "The Bottom Drawer Tray",
-				"body": "Tap the floating '▲' button at the bottom of the screen to open your Drawer Tray. This gives you instant access to your imported Art drawings, saved Props, Furniture prefabs, and your Cast Roster with dynamic cards that neatly fit long names."
+				"title": "Dynamic Smart Notifications",
+				"body": "Notification toasts automatically detect active UI elements and display smoothly below the Top Navigation Bar without overlapping buttons."
 			}
 		]
 	},
 	{
 		"id": "ugc_art",
-		"title": "2. Bringing Your Drawings to Life",
+		"title": "2. Bringing Your Drawings & GIFs to Life",
 		"icon": "icon_assets",
 		"badge": "Custom Art",
 		"sections": [
 			{
 				"title": "Where Your Drawings Live",
-				"body": "OwnWorld automatically manages your drawings inside your device's Documents directory:\n\nDocuments / OwnWorld / Dollhouse / Art\n\nAny transparent PNG, WebP, JPG, or JPEG placed in this folder (or any subfolder inside it) will appear instantly in your Assets Drawer with zero loading lag."
+				"body": "OwnWorld automatically manages your drawings inside your device's Documents directory:\n\nDocuments / OwnWorld / Dollhouse / Art\n\nAny transparent PNG, WebP, JPG, or animated GIF placed in this folder (or any subfolder inside it) will appear instantly in your Assets Drawer with zero loading lag."
 			},
 			{
-				"title": "Centralized Image Importing",
-				"body": "To keep file management simple and clean, all image imports are handled in the Drawer Tray. Tap 'Import' inside the Assets Drawer to bring in drawings from your device's camera roll or storage."
-			},
-			{
-				"title": "Visual Asset Picker Across All Studios",
-				"body": "All in-game studios (World Map, Character Profiles, Outfits, Room Slices, and Logic) use the in-app Asset Picker dialog to select from your drawings with instant zero-lag thumbnails and tag filtering."
+				"title": "Centralized Image & GIF Importing",
+				"body": "To keep file management simple and clean, all image and animated GIF imports are handled in the Drawer Tray. Tap 'Import' inside the Assets Drawer to bring in drawings from your device's camera roll or storage."
 			},
 			{
 				"title": "Creating Clean Transparent Cutouts",
-				"body": "• Use PNG or WebP files with transparent backgrounds.\n• The engine automatically generates pixel-perfect collision silhouettes around non-transparent pixels (no manual collision tracing required)!\n• Crop transparent borders closely around your art for the best dragging and snapping experience."
+				"body": "• Use PNG, WebP, or GIF files with transparent backgrounds.\n• The engine automatically generates pixel-perfect collision silhouettes around non-transparent pixels (no manual collision tracing required)!\n• Crop transparent borders closely around your art for the best dragging and snapping experience."
 			}
 		]
 	},
 	{
 		"id": "characters_poses",
-		"title": "3. Characters and 6-Pose Expressions",
+		"title": "3. Unified Actor States, GIFs & Natural Blinking",
 		"icon": "icon_cast",
 		"badge": "Characters",
 		"sections": [
 			{
-				"title": "The Cast Tray (Persistent Characters)",
-				"body": "Characters saved in your Cast Tray are persistent story characters. When you summon a character from the Cast Tray into a room, they will remember their custom outfits, profile notes, family ties, and relationship feelings across every room and floor in your Universe."
+				"title": "The Unified Actor State Paradigm",
+				"body": "In OwnWorld, Poses, Animations, and GIFs are harmonized into a single system: **Actor States**! Every pose, expression, or walk cycle is simply a State that holds either a single static drawing OR a multi-frame animation sequence / GIF."
+			},
+			{
+				"title": "Core Automated Engine Hooks",
+				"body": "Your characters automatically react to dollhouse actions using standardized states:\n\n1. Idle: Base standing stance (with optional natural blinking).\n2. Speaking: Talking / Dialogue state.\n3. Eating: Food and beverage chewing reactions.\n4. Sitting: Activated when snapped onto chairs, stools, or benches.\n5. Sleeping: Activated when resting horizontally in beds.\n\nNote: Any slot left unassigned will automatically fall back to your main base drawing!"
+			},
+			{
+				"title": "Setting up Natural Blinks on States",
+				"body": "Want a character to blink naturally while idle or sitting? In the Timeline tab, add your open-eyes frame (Frame 1) and your closed-eyes frame (Frame 2). Set the Playback Mode to **Natural Blink**! The character will rest on Frame 1 and swiftly blink every 2.5–5 seconds automatically."
+			},
+			{
+				"title": "Native GIF Importing in One Tap",
+				"body": "In the States Studio (Tab 2), tap **'Import Animated GIF'** to convert any `.gif` file into a living animation state at its native frame rate with zero manual frame slicing!"
+			},
+			{
+				"title": "Procedural Sprite Sheet & Strip Slicing",
+				"body": "Imported a 4x1 walk cycle strip or a 4x2 action grid? Open Tab 3 (Sprite Sheet Slicer), choose your Columns and Rows with real-time cutting lines, and tap **'Extract All Slices into State'** to generate memory-cached frames instantly!"
 			},
 			{
 				"title": "Summoning and Hold-to-Recall",
-				"body": "• Tap to Summon: Tap any character card in the Cast drawer to bring them into the current room.\n• Hold to Recall: Press and hold down on a character's card in the Cast drawer to instantly despawn them from the room and return them to the Cast tray! You will feel a gentle haptic vibration and hear a drop sound confirming they are packed away safely.\n• Duplicate Protection: If a character is already hanging out in the current room, tapping their card will highlight them and remind you that you can hold down the card to recall them."
-			},
-			{
-				"title": "The 6-Pose Expressive Sprites",
-				"body": "Long-press your character and choose 'States and Anims' to open the Pose Studio. You can assign dedicated drawings for expressive reactions:\n\n1. Eyes Open: Default standing sprite.\n2. Eyes Closed: Automatically used when blinking or sleeping in beds.\n3. Mouth Open: Automatically triggered when eating, drinking, or talking.\n4. Sitting: Used when snapped onto chairs, couches, and stools.\n5. Sitting (Eyes Closed): Used when blinking while seated.\n6. Sitting (Mouth Open): Used when eating/drinking while seated.\n\nNote: Any slot left unassigned will automatically fall back to your main base drawing!"
-			},
-			{
-				"title": "Multiple Outfits and Forms",
-				"body": "In the Pose Studio, tap '+ Add' in the top bar to create alternate wardrobe forms (such as Pajamas, Winter Coat, School Uniform, or Armor). Characters can seamlessly switch outfits via the Magic Wheel or automated Logic Rules!"
-			},
-			{
-				"title": "Frame-by-Frame Animation Clips",
-				"body": "Switch to the 'Clips and Loops' tab in the Pose Studio to create custom multi-frame animations (such as walking, dancing, spinning, or waving). You can set custom frame rates (FPS) and loop modes (Loop, Natural Blink, or One-Shot)."
+				"body": "• Tap to Summon: Tap any character card in the Cast drawer to bring them into the current room.\n• Hold to Recall: Press and hold down on a character's card in the Cast drawer to instantly despawn them from the room and return them to the Cast tray! The hold duration matches your custom Settings duration."
 			}
 		]
 	},
@@ -174,10 +178,6 @@ var tutorial_chapters: Array[Dictionary] = [
 			{
 				"title": "Rule Architecture (When -> Target -> Then)",
 				"body": "Every logic rule follows a clean 3-step format:\n\n1. When This Happens: (Tapped, Item Dropped Onto It, Picked Up, Released).\n   • Optional Item Filter: Only trigger if the dropped item is named (for example, 'Gold Key').\n2. Apply Action To: (Self, Dropped Item, All Characters in Room, Environment).\n3. Then Execute Action:\n   • Say Dialogue: Shows a comic speech bubble over the character.\n   • Spray Symbol: Floating hearts, stars, music notes, or questions.\n   • Play Animation / Swap Outfit: Automatically trigger an outfit change or animation loop.\n   • Change Mood and Weather: Switch to Sunset/Night or start rain/snow.\n   • Spawn Item: Conjure an item from your art library into the room.\n   • Teleport: Transition the scene to a target room."
-			},
-			{
-				"title": "Example Logic Ideas",
-				"body": "• Magic Wand: When Tapped -> All Characters in Room -> Spray '✨'.\n• Treasure Chest: When 'Brass Key' Dropped -> Self -> Spawn 'Diamond'.\n• Bedside Lamp: When Tapped -> Environment -> Change Mood to 'Night'.\n• Door Bell: When Tapped -> Self -> Play Sound 'Chime'."
 			}
 		]
 	},
@@ -189,19 +189,11 @@ var tutorial_chapters: Array[Dictionary] = [
 		"sections": [
 			{
 				"title": "Building Settings on the World Map",
-				"body": "In the World Map (Edit Mode), tap the settings icon on any building pin to open Building Settings. Here, you can:\n• Add and Delete building floors (1F, 2F, 3F, Basement, Attic) in one place.\n• Assign custom floor levels, room titles, and room ID keys.\n• Pick custom cardless building artwork directly from your library."
+				"body": "In the World Map (Edit Mode), tap the settings icon on any building pin to open Building Settings. Here, you can add and delete building floors, assign custom floor levels (1F, 2F, B1), room titles, and cardless artwork in one place."
 			},
 			{
-				"title": "Stairs (Direct Climb Upstairs)",
-				"body": "Items configured as Stairs allow characters to climb directly into the floor above without opening a keypad! Simply tap the stairs or drop a character onto them to climb. If you are already at the top floor, a helpful notification lets you know."
-			},
-			{
-				"title": "Elevators (Keypad Transit)",
-				"body": "Elevators automatically recognize all registered floors in the building. Tapping an elevator opens a keypad to travel to any floor. If a building has no other floors, a notification alerts you to add floors in the World Map."
-			},
-			{
-				"title": "Smooth Cross-Fade Transitions",
-				"body": "All transitions (climbing stairs, riding elevators, walking through doors, or entering buildings from the World Map) feature smooth, cinematic cross-fades."
+				"title": "Stairs and Elevators",
+				"body": "• Stairs: Automatically climb directly to the floor above when tapped or when a character is dropped onto them.\n• Elevators: Open an interactive floor selection keypad to travel between any registered floors in the building."
 			},
 			{
 				"title": "Multi-Slice Expansion (Up to 10 Screens Wide)",
@@ -237,7 +229,7 @@ var tutorial_chapters: Array[Dictionary] = [
 			},
 			{
 				"title": "Exporting Custom Story Packs",
-				"body": "Tap 'Export Active (.ownpack)' in the Universe Hub to bundle your entire story universe (including all room slices, custom drawings, Cast characters, recipes, maps, and lore) into a single .ownpack zip package saved to:\n\nDocuments / OwnWorld / Dollhouse / Exports"
+				"body": "Tap 'Export Active (.ownpack)' in the Universe Hub to bundle your entire story universe into a single .ownpack zip package saved to:\n\nDocuments / OwnWorld / Dollhouse / Exports"
 			},
 			{
 				"title": "Importing Story Packs",
@@ -247,21 +239,21 @@ var tutorial_chapters: Array[Dictionary] = [
 	},
 	{
 		"id": "theming_settings",
-		"title": "10. Aesthetics, Themes and Mobile Polish",
+		"title": "10. Aesthetics, Themes and Toggleable Juice",
 		"icon": "icon_palette",
 		"badge": "Customization",
 		"sections": [
+			{
+				"title": "Master & Granular Juice Controls",
+				"body": "Prefer a classic crisp, static paper-doll aesthetic without spring bounces or scaling? Open Settings -> Motion FX & Dynamic Juice:\n• Master Juice Toggle: Instantly turn on or off all procedural squashes, bounces, and spawn springs across the game.\n• Idle Breathing & Levitation: Toggle or adjust the intensity of idle breathing and floating hovers.\n• Physical Tilting: Toggle cup pouring and sipping rotations.\n• Squash & Stretch: Toggle chewing, drop, and landing cushions."
+			},
 			{
 				"title": "Palette and Font Studio",
 				"body": "Customize the visual appearance of the entire engine! Choose from curated themes (Strawberry Milk, Matcha Latte, Lavender Mist, Midnight Velvet) or pick custom colors for panels, buttons, accents, and text. Place custom .ttf or .otf font files in Documents/OwnWorld/Dollhouse/Font to restyle all typography."
 			},
 			{
 				"title": "Touch and Display Settings",
-				"body": "• UI Scale: Scale up UI menus for phones or tablets.\n• Touch / Grab Padding: Expands invisible hitboxes around tiny drawings so they are effortless to pick up on mobile touchscreens.\n• Hold Duration: Adjust the long-press duration required to summon the Magic Wheel and recall characters to the Cast tray."
-			},
-			{
-				"title": "Audited State Persistence and Diagnostics",
-				"body": "• Complete Save Integrity: Character locking, rotations, custom modulate tints, layer stacking, and open container states remain completely intact across floor and universe transitions.\n• Developer Diagnostics (F1): Enable Developer Mode in Settings (or press F1 on keyboards) to display live FPS counters, coordinate data, visual collision outlines, and socket attachment lines."
+				"body": "• UI Scale: Scale up UI menus for phones or tablets.\n• Touch / Grab Padding: Expands invisible hitboxes around tiny drawings so they are effortless to pick up on mobile touchscreens.\n• Hold Duration: Adjust the hold duration required to summon the Magic Wheel and recall characters to the Cast tray."
 			}
 		]
 	},
@@ -282,10 +274,6 @@ var tutorial_chapters: Array[Dictionary] = [
 			{
 				"title": "Android 11+ Scoped Storage and Documents Access",
 				"body": "• Storage Notice: On modern Android devices (API 30+), Google's Scoped Storage restricts direct file writes to external public Documents folders without special permissions.\n• Built-in Fallback: If external Documents access is restricted by your device, the game automatically falls back to its internal app storage sandbox (user://) so your custom universes, art, and themes always save safely."
-			},
-			{
-				"title": "Multi-Slice Outdoor Weather on Budget Mobile Hardware",
-				"body": "• Performance Tip: Outdoor slices feature dynamic particle weather systems (rain, snow, drifting leaves). If you expand a room to 8 to 10 continuous outdoor slices on entry-level mobile hardware, consider alternating indoor and outdoor slices or choosing 'Clear' weather in the World Map if you notice frame dips."
 			}
 		]
 	}
@@ -376,14 +364,14 @@ func _build_ui() -> void:
 	main_vbox.add_child(header_hbox)
 
 	header_title_lbl = Label.new()
-	header_title_lbl.text = "OwnWorld Creator Handbook and Guide"
+	header_title_lbl.text = "OwnWorld Creator Handbook & Guide"
 	header_title_lbl.theme_type_variation = "HeaderLabel"
 	header_title_lbl.add_theme_font_size_override("font_size", 14)
 	header_title_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header_hbox.add_child(header_title_lbl)
 
 	search_input = LineEdit.new()
-	search_input.placeholder_text = "Search topics (floors, stairs, elevators, art)..."
+	search_input.placeholder_text = "Search topics (states, GIF, slicer, juice)..."
 	search_input.custom_minimum_size = Vector2(260.0, 30.0)
 	search_input.text_changed.connect(_on_search_query_changed)
 	header_hbox.add_child(search_input)
@@ -440,8 +428,7 @@ func _build_ui() -> void:
 
 func _render_topics_sidebar() -> void:
 	if not topics_list_vbox: return
-	for child: Node in topics_list_vbox.get_children():
-		child.queue_free()
+	for child: Node in topics_list_vbox.get_children(): child.queue_free()
 
 	var c_accent: Color = ThemeService.get_color("accent_primary", "#ec4899")
 	var rad: int = ThemeService.get_corner_radius()
@@ -486,7 +473,6 @@ func _render_topics_sidebar() -> void:
 			btn.add_theme_stylebox_override("hover", s_act)
 			btn.add_theme_stylebox_override("pressed", s_act)
 			btn.add_theme_color_override("font_color", Color.WHITE)
-			btn.add_theme_color_override("icon_normal_color", Color.WHITE)
 
 		var target_idx: int = i
 		btn.pressed.connect(func() -> void:
@@ -499,8 +485,7 @@ func _render_topics_sidebar() -> void:
 
 func _render_active_topic_content() -> void:
 	if not content_vbox: return
-	for child: Node in content_vbox.get_children():
-		child.queue_free()
+	for child: Node in content_vbox.get_children(): child.queue_free()
 
 	if active_topic_index < 0 or active_topic_index >= tutorial_chapters.size():
 		return
@@ -623,12 +608,9 @@ func _apply_theme_styling() -> void:
 		p_style.content_margin_bottom = 10
 		root_panel.add_theme_stylebox_override("panel", p_style)
 
-	if header_title_lbl:
-		header_title_lbl.add_theme_color_override("font_color", c_accent)
-
+	if header_title_lbl: header_title_lbl.add_theme_color_override("font_color", c_accent)
 	var close_icon: Texture2D = ThemeService.get_icon("icon_close")
-	if close_icon and btn_close:
-		btn_close.icon = close_icon
+	if close_icon and btn_close: btn_close.icon = close_icon
 
 
 func _on_backdrop_gui_input(event: InputEvent) -> void:

@@ -1,16 +1,21 @@
+# ============================================================
+# File: res://AutoLoads/NotificationService.gd
+# ============================================================
+
 # ==============================================================================
-# OWNWORLD — NOTIFICATION TOAST SERVICE (NOTCH-SAFE & DYNAMIC SCALING)
+# OWNWORLD — NOTIFICATION TOAST SERVICE (LAYER 150 TOP-STACKING)
 # File: res://AutoLoads/NotificationService.gd
 # Autoload Singleton: NotificationService
 # Base Class: Node
 #
-# Responsibility: Display non-intrusive floating toast notifications with
-# automatic display notch safe-area calculations and responsive text metrics.
+# Responsibility: Non-intrusive floating toasts with dynamic UI-aware positioning
+# that automatically adjusts below the Top Navigation Bar, display notches, and headers.
+# Layer 150 ensures toasts float on top of all modal dialogs.
 # ==============================================================================
 
 extends Node
 
-const NOTIFICATION_LAYER: int = 128
+const NOTIFICATION_LAYER: int = 150
 const MIN_WIDTH: float = 220.0
 const MAX_WIDTH: float = 560.0
 const DEFAULT_HEIGHT: float = 38.0
@@ -77,8 +82,8 @@ func _build_notification_ui() -> void:
 	toast_container = CenterContainer.new()
 	toast_container.name = "NotificationContainer"
 	toast_container.set_anchors_preset(Control.PRESET_TOP_WIDE)
-	toast_container.offset_top = 16.0
-	toast_container.offset_bottom = 16.0 + DEFAULT_HEIGHT
+	toast_container.offset_top = 64.0
+	toast_container.offset_bottom = 64.0 + DEFAULT_HEIGHT
 	toast_container.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	toast_layer.add_child(toast_container)
 
@@ -102,16 +107,32 @@ func _build_notification_ui() -> void:
 	_apply_style(true)
 
 
+## Dynamically queries the exact bottom coordinate of the Top Navigation Bar to position toasts cleanly below it.
 func _recalculate_toast_margins() -> void:
 	if toast_container == null or toast_panel == null:
 		return
 
-	# Query hardware display safe area to avoid notches on Android / iOS
+	# 1. Base Hardware Safe Area Offset (Notch Protection)
 	var safe_area: Rect2i = DisplayServer.get_display_safe_area()
-	var top_safe_offset: float = maxf(16.0, float(safe_area.position.y) + 6.0)
-	toast_container.offset_top = top_safe_offset
-	toast_container.offset_bottom = top_safe_offset + DEFAULT_HEIGHT
+	var calculated_top_offset: float = maxf(16.0, float(safe_area.position.y) + 6.0)
 
+	# 2. Inspect Top Navigation Bar via the group registry
+	var tree: SceneTree = get_tree()
+	if tree != null:
+		var nav_nodes: Array[Node] = tree.get_nodes_in_group("top_nav_bar")
+		for nav_node: Node in nav_nodes:
+			if is_instance_valid(nav_node) and nav_node is CanvasLayer and (nav_node as CanvasLayer).visible:
+				if nav_node.has_method("get_nav_bottom_y"):
+					var nav_bottom: float = float(nav_node.call("get_nav_bottom_y"))
+					calculated_top_offset = maxf(calculated_top_offset, nav_bottom + 10.0)
+				else:
+					calculated_top_offset = maxf(calculated_top_offset, 64.0)
+
+	# 3. Apply Dynamic Offset to Toast Container
+	toast_container.offset_top = calculated_top_offset
+	toast_container.offset_bottom = calculated_top_offset + DEFAULT_HEIGHT
+
+	# 4. Responsive Font Text Width Fitting
 	var font: Font = toast_label.get_theme_font("font")
 	if font == null: font = ThemeDB.fallback_font
 	var font_sz: int = toast_label.get_theme_font_size("font_size")
@@ -125,11 +146,11 @@ func _apply_style(is_success: bool) -> void:
 	if toast_panel == null:
 		return
 
-	var background: Color = ThemeService.get_color("panel_background", "#fff5f7") if (Engine.has_singleton("ThemeService") or has_node("/root/ThemeService")) else Color("#fff5f7")
-	var accent: Color = ThemeService.get_color("accent_primary", "#ec4899") if (Engine.has_singleton("ThemeService") or has_node("/root/ThemeService")) else Color("#ec4899")
-	var danger: Color = ThemeService.get_color("accent_danger", "#f43f5e") if (Engine.has_singleton("ThemeService") or has_node("/root/ThemeService")) else Color("#f43f5e")
-	var text: Color = ThemeService.get_color("text_primary", "#6c2e3f") if (Engine.has_singleton("ThemeService") or has_node("/root/ThemeService")) else Color("#6c2e3f")
-	var corner_radius: int = ThemeService.get_corner_radius() if (Engine.has_singleton("ThemeService") or has_node("/root/ThemeService")) else 6
+	var background: Color = ThemeService.get_color("panel_background", "#fff5f7")
+	var accent: Color = ThemeService.get_color("accent_primary", "#ec4899")
+	var danger: Color = ThemeService.get_color("accent_danger", "#f43f5e")
+	var text: Color = ThemeService.get_color("text_primary", "#6c2e3f")
+	var corner_radius: int = ThemeService.get_corner_radius()
 
 	var style: StyleBoxFlat = StyleBoxFlat.new()
 	style.bg_color = Color(background.r, background.g, background.b, 0.96)

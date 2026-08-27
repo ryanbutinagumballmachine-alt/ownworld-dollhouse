@@ -1,13 +1,25 @@
+# ============================================================
+# File: res://Core/Types.gd
+# ============================================================
+
 # ==============================================================================
 # OWNWORLD — CORE TYPES & ENUMS
 # File: res://Core/Types.gd
 # Base Class: RefCounted (class_name Types)
 #
-# Responsibility: Enumerations and constant definitions across all domain models.
+# Responsibility: Central type definitions, classifications, layer bands,
+# lighting modes, and animation playback behaviors across all game systems.
 # ==============================================================================
 
 class_name Types
 extends RefCounted
+
+## Standard Unified Actor State Constants (Automated Engine Hooks)
+const STATE_IDLE: String = "idle"
+const STATE_SITTING: String = "sitting"
+const STATE_SLEEPING: String = "sleeping"
+const STATE_SPEAKING: String = "speaking"
+const STATE_EATING: String = "eating"
 
 ## Classification of interactive runtime entities.
 enum EntityType {
@@ -86,9 +98,11 @@ enum LightShapeMode {
 	ANCHOR_POINTS = 2
 }
 
-## Playback behaviors for custom animation clips.
+## Playback behaviors for custom animation clips and state loops.
 enum PlaybackMode {
 	LOOP = 0,
 	NATURAL_BLINK = 1,
-	ONE_SHOT = 2
+	ONE_SHOT = 2,
+	PING_PONG = 3,
+	ONE_SHOT_HOLD = 4
 }

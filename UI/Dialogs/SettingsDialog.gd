@@ -1,17 +1,21 @@
+# ============================================================
+# File: res://UI/Dialogs/SettingsDialog.gd
+# ============================================================
+
 # ==============================================================================
-# OWNWORLD — SETTINGS DIALOG
+# OWNWORLD — SETTINGS DIALOG (WITH JUICE & MOTION FX SUITE)
 # File: res://UI/Dialogs/SettingsDialog.gd
 # Base Class: CanvasLayer (class_name SettingsDialog)
 #
-# Responsibility: Game preferences modal. Configures master/music/SFX volume,
-# responsive UI scale, mobile touch padding, hold duration, grid snapping, and factory reset.
+# Responsibility: User configuration dialog with audio sliders, UI scaling,
+# touch margins, hold duration, and master/granular juice controls.
 # ==============================================================================
 
 class_name SettingsDialog
 extends CanvasLayer
 
-const MAX_PANEL_WIDTH: float = 500.0
-const MAX_PANEL_HEIGHT: float = 600.0
+const MAX_PANEL_WIDTH: float = 520.0
+const MAX_PANEL_HEIGHT: float = 640.0
 const FACTORY_RESET_MARKER: String = "user://.ownworld_factory_reset"
 
 var root_backdrop: Control = null
@@ -19,6 +23,7 @@ var center_container: CenterContainer = null
 var root_panel: PanelContainer = null
 var header_lbl: Label = null
 
+# Audio Controls
 var m_lbl: Label = null
 var sfx_lbl: Label = null
 var music_lbl: Label = null
@@ -26,6 +31,7 @@ var master_slider: HSlider = null
 var sfx_slider: HSlider = null
 var music_slider: HSlider = null
 
+# Interface & Touch Controls
 var ui_scale_hdr: HBoxContainer = null
 var lbl_ui_scale: Label = null
 var ui_scale_val_lbl: Label = null
@@ -45,6 +51,20 @@ var grid_check: CheckBox = null
 var toasts_check: CheckBox = null
 var dev_mode_check: CheckBox = null
 
+# Master & Granular Juice Controls
+var juice_card: PanelContainer = null
+var check_juice_master: CheckBox = null
+var juice_sub_container: VBoxContainer = null
+var check_juice_idle: CheckBox = null
+var juice_idle_intensity_hdr: HBoxContainer = null
+var lbl_juice_intensity: Label = null
+var val_juice_intensity_lbl: Label = null
+var sld_juice_idle_intensity: HSlider = null
+var check_juice_tilts: CheckBox = null
+var check_juice_squash: CheckBox = null
+var check_juice_springs: CheckBox = null
+
+# Action & Danger Buttons
 var btn_factory: Button = null
 var btn_save: Button = null
 
@@ -150,6 +170,9 @@ func _build_ui() -> void:
 	vbox.add_theme_constant_override("separation", 10)
 	scroll.add_child(vbox)
 
+	# --- Juice & Dynamic Motion FX Section ---
+	_build_juice_section(vbox)
+
 	# --- Audio Section ---
 	var audio_card: PanelContainer = PanelContainer.new()
 	audio_card.theme_type_variation = "SubPanel"
@@ -206,7 +229,7 @@ func _build_ui() -> void:
 	music_slider.value_changed.connect(_on_music_volume_changed)
 	audio_inner.add_child(music_slider)
 
-	# --- Display / Interface Section ---
+	# --- Display & Touch Section ---
 	var display_card: PanelContainer = PanelContainer.new()
 	display_card.theme_type_variation = "SubPanel"
 	vbox.add_child(display_card)
@@ -307,6 +330,7 @@ func _build_ui() -> void:
 	dev_mode_check.toggled.connect(_on_dev_mode_toggled)
 	display_inner.add_child(dev_mode_check)
 
+	# --- Danger Zone / Factory Reset ---
 	var danger_card: PanelContainer = PanelContainer.new()
 	danger_card.theme_type_variation = "SubPanel"
 	vbox.add_child(danger_card)
@@ -335,6 +359,89 @@ func _build_ui() -> void:
 	_apply_button_icon(btn_save, "icon_save")
 	btn_save.pressed.connect(close_settings)
 	outer_vbox.add_child(btn_save)
+
+
+func _build_juice_section(parent: VBoxContainer) -> void:
+	juice_card = PanelContainer.new()
+	juice_card.theme_type_variation = "SubPanel"
+	parent.add_child(juice_card)
+
+	var juice_vbox: VBoxContainer = VBoxContainer.new()
+	juice_vbox.add_theme_constant_override("separation", 6)
+	juice_card.add_child(juice_vbox)
+
+	var juice_title: Label = Label.new()
+	juice_title.text = "Motion FX & Dynamic Juice:"
+	juice_title.theme_type_variation = "HeaderLabel"
+	juice_vbox.add_child(juice_title)
+
+	check_juice_master = _create_icon_check("icon_states", "Enable Dynamic Juice & Motion FX")
+	check_juice_master.button_pressed = SettingsManager.is_juice_enabled()
+	check_juice_master.toggled.connect(_on_juice_master_toggled)
+	juice_vbox.add_child(check_juice_master)
+
+	juice_sub_container = VBoxContainer.new()
+	juice_sub_container.add_theme_constant_override("separation", 6)
+	juice_sub_container.visible = check_juice_master.button_pressed
+	juice_vbox.add_child(juice_sub_container)
+
+	check_juice_idle = _create_icon_check("icon_sun", "Gentle Idle Breathing & Levitation")
+	check_juice_idle.button_pressed = SettingsManager.is_juice_idle_motion_enabled()
+	check_juice_idle.toggled.connect(func(v: bool) -> void: SettingsManager.set_juice_idle_motion_enabled(v))
+	juice_sub_container.add_child(check_juice_idle)
+
+	juice_idle_intensity_hdr = HBoxContainer.new()
+	juice_sub_container.add_child(juice_idle_intensity_hdr)
+
+	lbl_juice_intensity = Label.new()
+	lbl_juice_intensity.text = "Idle Breathing Intensity:"
+	lbl_juice_intensity.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	lbl_juice_intensity.theme_type_variation = "HintLabel"
+	lbl_juice_intensity.add_theme_font_size_override("font_size", 10)
+	juice_idle_intensity_hdr.add_child(lbl_juice_intensity)
+
+	var current_intensity: float = SettingsManager.get_juice_idle_intensity()
+	val_juice_intensity_lbl = Label.new()
+	val_juice_intensity_lbl.text = "%.1fx" % current_intensity
+	val_juice_intensity_lbl.theme_type_variation = "HeaderLabel"
+	val_juice_intensity_lbl.add_theme_font_size_override("font_size", 10)
+	juice_idle_intensity_hdr.add_child(val_juice_intensity_lbl)
+
+	sld_juice_idle_intensity = HSlider.new()
+	sld_juice_idle_intensity.min_value = 0.0
+	sld_juice_idle_intensity.max_value = 2.0
+	sld_juice_idle_intensity.step = 0.1
+	sld_juice_idle_intensity.custom_minimum_size = Vector2(0.0, 20.0)
+	sld_juice_idle_intensity.value = current_intensity
+	sld_juice_idle_intensity.value_changed.connect(_on_juice_intensity_changed)
+	juice_sub_container.add_child(sld_juice_idle_intensity)
+
+	check_juice_tilts = _create_icon_check("icon_drink", "Physical Tilting (Liquid Pouring & Sipping)")
+	check_juice_tilts.button_pressed = SettingsManager.is_juice_physical_tilts_enabled()
+	check_juice_tilts.toggled.connect(func(v: bool) -> void: SettingsManager.set_juice_physical_tilts_enabled(v))
+	juice_sub_container.add_child(check_juice_tilts)
+
+	check_juice_squash = _create_icon_check("icon_food", "Squash & Stretch (Chewing, Drops & Landings)")
+	check_juice_squash.button_pressed = SettingsManager.is_juice_squash_stretch_enabled()
+	check_juice_squash.toggled.connect(func(v: bool) -> void: SettingsManager.set_juice_squash_stretch_enabled(v))
+	juice_sub_container.add_child(check_juice_squash)
+
+	check_juice_springs = _create_icon_check("icon_plus", "Elastic Spring Juice on Spawns")
+	check_juice_springs.button_pressed = SettingsManager.is_juice_spawn_springs_enabled()
+	check_juice_springs.toggled.connect(func(v: bool) -> void: SettingsManager.set_juice_spawn_springs_enabled(v))
+	juice_sub_container.add_child(check_juice_springs)
+
+
+func _on_juice_master_toggled(enabled: bool) -> void:
+	SettingsManager.set_juice_enabled(enabled)
+	if juice_sub_container != null:
+		juice_sub_container.visible = enabled
+
+
+func _on_juice_intensity_changed(value: float) -> void:
+	if val_juice_intensity_lbl != null:
+		val_juice_intensity_lbl.text = "%.1fx" % value
+	SettingsManager.set_juice_idle_intensity(value)
 
 
 func _create_icon_check(icon_key: String, title: String) -> CheckBox:
@@ -418,6 +525,16 @@ func open_settings() -> void:
 	toasts_check.button_pressed = SettingsManager.are_toasts_enabled()
 	dev_mode_check.button_pressed = SettingsManager.is_developer_mode_enabled()
 
+	var is_juice: bool = SettingsManager.is_juice_enabled()
+	check_juice_master.button_pressed = is_juice
+	if juice_sub_container != null: juice_sub_container.visible = is_juice
+	check_juice_idle.button_pressed = SettingsManager.is_juice_idle_motion_enabled()
+	sld_juice_idle_intensity.value = SettingsManager.get_juice_idle_intensity()
+	val_juice_intensity_lbl.text = "%.1fx" % sld_juice_idle_intensity.value
+	check_juice_tilts.button_pressed = SettingsManager.is_juice_physical_tilts_enabled()
+	check_juice_squash.button_pressed = SettingsManager.is_juice_squash_stretch_enabled()
+	check_juice_springs.button_pressed = SettingsManager.is_juice_spawn_springs_enabled()
+
 	var current_scale: float = SettingsManager.get_ui_scale()
 	ui_scale_slider.value = current_scale
 	ui_scale_val_lbl.text = "%d%%" % int(current_scale * 100.0)
@@ -440,43 +557,21 @@ func close_settings() -> void:
 	visible = false
 
 
-func _on_master_volume_changed(value: float) -> void:
-	SettingsManager.set_master_volume(value)
-
-
-func _on_sfx_volume_changed(value: float) -> void:
-	SettingsManager.set_sfx_volume(value)
-
-
-func _on_music_volume_changed(value: float) -> void:
-	SettingsManager.set_music_volume(value)
-
-
+func _on_master_volume_changed(value: float) -> void: SettingsManager.set_master_volume(value)
+func _on_sfx_volume_changed(value: float) -> void: SettingsManager.set_sfx_volume(value)
+func _on_music_volume_changed(value: float) -> void: SettingsManager.set_music_volume(value)
 func _on_ui_scale_changed(value: float) -> void:
 	ui_scale_val_lbl.text = "%d%%" % int(value * 100.0)
 	SettingsManager.set_ui_scale(value)
-
-
 func _on_touch_padding_changed(value: float) -> void:
 	touch_padding_val_lbl.text = "0 px (Exact)" if int(value) == 0 else "%d px" % int(value)
 	SettingsManager.set_mobile_touch_padding(value)
-
-
 func _on_long_press_duration_changed(value: float) -> void:
 	long_press_val_lbl.text = "%.2fs" % value
 	SettingsManager.set_long_press_duration(value)
-
-
-func _on_grid_snap_toggled(toggled_on: bool) -> void:
-	SettingsManager.set_grid_snap_enabled(toggled_on)
-
-
-func _on_toasts_toggled(toggled_on: bool) -> void:
-	SettingsManager.set_toasts_enabled(toggled_on)
-
-
-func _on_dev_mode_toggled(toggled_on: bool) -> void:
-	SettingsManager.set_developer_mode(toggled_on)
+func _on_grid_snap_toggled(toggled_on: bool) -> void: SettingsManager.set_grid_snap_enabled(toggled_on)
+func _on_toasts_toggled(toggled_on: bool) -> void: SettingsManager.set_toasts_enabled(toggled_on)
+func _on_dev_mode_toggled(toggled_on: bool) -> void: SettingsManager.set_developer_mode(toggled_on)
 
 
 func _execute_factory_reset() -> void:
@@ -500,8 +595,7 @@ func _perform_factory_reset() -> void:
 
 
 func _wipe_directory_contents(directory_path: String) -> void:
-	if not DirAccess.dir_exists_absolute(directory_path):
-		return
+	if not DirAccess.dir_exists_absolute(directory_path): return
 	var files: PackedStringArray = DirAccess.get_files_at(directory_path)
 	for file_name: String in files:
 		DirAccess.remove_absolute(directory_path.path_join(file_name))
@@ -519,6 +613,11 @@ func _refresh_theme_icons() -> void:
 	_apply_checkbox_icon(grid_check, "icon_grid")
 	_apply_checkbox_icon(toasts_check, "icon_toast")
 	_apply_checkbox_icon(dev_mode_check, "icon_dev")
+	if check_juice_master: _apply_checkbox_icon(check_juice_master, "icon_states")
+	if check_juice_idle: _apply_checkbox_icon(check_juice_idle, "icon_sun")
+	if check_juice_tilts: _apply_checkbox_icon(check_juice_tilts, "icon_drink")
+	if check_juice_squash: _apply_checkbox_icon(check_juice_squash, "icon_food")
+	if check_juice_springs: _apply_checkbox_icon(check_juice_springs, "icon_plus")
 
 	if root_panel != null:
 		for node: Node in root_panel.find_children("*", "Button", true, false):

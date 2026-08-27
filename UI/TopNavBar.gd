@@ -1,3 +1,7 @@
+# ============================================================
+# File: res://UI/TopNavBar.gd
+# ============================================================
+
 # ==============================================================================
 # OWNWORLD — TOP NAVIGATION BAR (WITH DIRECT FLOOR SWITCHER & SAFE MARGINS)
 # File: res://UI/TopNavBar.gd
@@ -5,6 +9,7 @@
 #
 # Responsibility: Floating top navigation pill containing main menu, creator handbook,
 # building floor switcher, camera focus toggle, world map, room studio, and undo shortcuts.
+# Exposes clean global bounding queries for dynamic notification toast positioning.
 # ==============================================================================
 
 class_name TopNavBar
@@ -33,6 +38,7 @@ signal open_tutorial_requested()
 func _ready() -> void:
 	name = "TopNavBar"
 	layer = 100
+	add_to_group("top_nav_bar")
 	_build_nav_ui()
 	_connect_system_signals()
 	_apply_theme()
@@ -56,17 +62,20 @@ func _apply_hardware_safe_margins() -> void:
 
 func _build_nav_ui() -> void:
 	root_container = CenterContainer.new()
+	root_container.name = "RootContainer"
 	root_container.set_anchors_preset(Control.PRESET_TOP_WIDE)
 	root_container.offset_top = 12.0
 	root_container.mouse_filter = Control.MOUSE_FILTER_PASS
 	add_child(root_container)
 
 	capsule_panel = PanelContainer.new()
+	capsule_panel.name = "CapsulePanel"
 	capsule_panel.theme_type_variation = "FloatingCapsule"
 	capsule_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	root_container.add_child(capsule_panel)
 
 	hbox = HBoxContainer.new()
+	hbox.name = "NavHBox"
 	hbox.add_theme_constant_override("separation", 6)
 	capsule_panel.add_child(hbox)
 
@@ -92,6 +101,19 @@ func _build_nav_ui() -> void:
 
 	btn_undo = _create_nav_btn("Undo", "icon_undo", func() -> void: undo_requested.emit())
 	hbox.add_child(btn_undo)
+
+
+## Returns the exact bottom Y screen coordinate of the navigation capsule for dynamic toast positioning.
+func get_nav_bottom_y() -> float:
+	if capsule_panel != null and capsule_panel.is_inside_tree():
+		var capsule_rect: Rect2 = capsule_panel.get_global_rect()
+		if capsule_rect.size.y > 0.0:
+			return capsule_rect.end.y
+
+	if root_container != null and root_container.is_inside_tree():
+		return root_container.offset_top + 42.0
+
+	return 54.0
 
 
 func is_point_inside_nav(screen_pos: Vector2) -> bool:

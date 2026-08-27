@@ -1,17 +1,21 @@
+# ============================================================
+# File: res://UI/Dialogs/PoseAnimationStudioDialog.gd
+# ============================================================
+
 # ==============================================================================
-# OWNWORLD — POSE & ANIMATION STUDIO
+# OWNWORLD — UNIFIED POSE & ANIMATION STUDIO (WARNING-FREE SUITE)
 # File: res://UI/Dialogs/PoseAnimationStudioDialog.gd
 # Base Class: CanvasLayer (class_name PoseAnimationStudioDialog)
 #
-# Responsibility: 6-pose whole-sprite matrix studio and frame-by-frame animation
-# loop editor. Configures outfit variations, expressive slots, and custom frame rates.
+# Responsibility: Master 3-tab studio dialog for Actor States, Wardrobe Outfits,
+# Interactive Test Mannequin, GIF & Frame Timelines, and Sprite Sheet Slicing.
 # ==============================================================================
 
 class_name PoseAnimationStudioDialog
 extends CanvasLayer
 
-const MAX_PANEL_WIDTH: float = 580.0
-const MAX_PANEL_HEIGHT: float = 580.0
+const MAX_PANEL_WIDTH: float = 640.0
+const MAX_PANEL_HEIGHT: float = 660.0
 
 var root_backdrop: Control = null
 var center_container: CenterContainer = null
@@ -20,7 +24,9 @@ var active_entity: OwnEntity = null
 var asset_picker: AssetPickerDialog = null
 
 var header_lbl: Label = null
-var outfit_strip_lbl: Label = null
+var tab_container: TabContainer = null
+
+# Wardrobe Outfit Strip
 var forms_hbox_container: HBoxContainer = null
 var form_name_input: LineEdit = null
 var selected_form_tex: Texture2D = null
@@ -28,36 +34,54 @@ var selected_form_path: String = ""
 var btn_choose_form_art: Button = null
 var btn_add_form: Button = null
 
-var tab_container: TabContainer = null
-var pose_slots_vbox: VBoxContainer = null
-var pose_hint_lbl: Label = null
+# --- TAB 1: UNIFIED STATES & MANNEQUIN ---
+var mannequin_card: PanelContainer = null
+var mannequin_preview_rect: TextureRect = null
+var mannequin_status_lbl: Label = null
+var states_list_vbox: VBoxContainer = null
+var new_state_name_input: LineEdit = null
+var btn_add_custom_state: Button = null
 
-var p_box: PanelContainer = null
-var anim_preview_rect: TextureRect = null
-var fps_slider: HSlider = null
-var lbl_fps: Label = null
-var fps_val_lbl: Label = null
-var clip_name_edit: LineEdit = null
+# --- TAB 2: FRAME TIMELINE & GIF IMPORTER ---
+var opt_edit_state_target: OptionButton = null
+var clip_fps_slider: HSlider = null
+var clip_fps_val_lbl: Label = null
 var opt_playback_mode: OptionButton = null
-var saved_clips_container: HBoxContainer = null
-var frames_list_vbox: VBoxContainer = null
-var btn_browse_frame: Button = null
-var btn_save_clip: Button = null
+var check_onion_skin: CheckBox = null
 
-var selected_clip_frames: Array[Texture2D] = []
-var selected_clip_paths: Array[String] = []
-var preview_frame_idx: int = 0
-var preview_timer: float = 0.0
-var target_fps: float = 6.0
-var current_loaded_clip_name: String = ""
+var timeline_preview_box: PanelContainer = null
+var timeline_onion_rect: TextureRect = null
+var timeline_preview_rect: TextureRect = null
 
-const POSE_SLOTS: Array[Dictionary] = [
-	{"key": "eyes_open", "label": "Eyes Open (Base Standing)"},
-	{"key": "eyes_closed", "label": "Eyes Closed (Blink / Sleep)"},
-	{"key": "mouth_open", "label": "Mouth Open (Talk / Eat)"},
-	{"key": "sitting", "label": "Sitting (Eyes Open)"},
-	{"key": "sitting_eyes_closed", "label": "Sitting (Eyes Closed)"},
-	{"key": "sitting_eyes_mouth_open", "label": "Sitting (Eyes & Mouth Open)"}
+var btn_import_gif: Button = null
+var btn_add_timeline_frame: Button = null
+var timeline_frames_vbox: VBoxContainer = null
+var btn_save_timeline: Button = null
+
+var working_timeline_frames: Array[Texture2D] = []
+var working_timeline_paths: Array[String] = []
+var timeline_preview_idx: int = 0
+var timeline_preview_timer: float = 0.0
+var timeline_ping_pong_forward: bool = true
+
+# --- TAB 3: SPRITE SHEET & STRIP SLICER ---
+var slicer_source_tex: Texture2D = null
+var slicer_source_path: String = ""
+var btn_choose_sheet_art: Button = null
+var spin_cols: SpinBox = null
+var spin_rows: SpinBox = null
+var opt_slicer_dest_state: OptionButton = null
+var slicer_preview_box: PanelContainer = null
+var slicer_preview_rect: TextureRect = null
+var slicer_grid_overlay: SlicerGridDraw = null
+var btn_extract_slices: Button = null
+
+const CORE_HOOK_DEFINITIONS: Array[Dictionary] = [
+	{"key": Types.STATE_IDLE, "label": "Idle (Base Standing)", "icon": "icon_room", "hint": "Default resting stance"},
+	{"key": Types.STATE_SPEAKING, "label": "Speaking (Mouth Open)", "icon": "icon_tag", "hint": "Talking / Dialogue state"},
+	{"key": Types.STATE_EATING, "label": "Eating (Chewing / Sips)", "icon": "icon_food", "hint": "Food & drink consumption"},
+	{"key": Types.STATE_SITTING, "label": "Sitting (Furniture Seated)", "icon": "icon_seat", "hint": "Snapped onto chairs & couches"},
+	{"key": Types.STATE_SLEEPING, "label": "Sleeping (Bed Resting)", "icon": "icon_bed", "hint": "Horizontal sleeping on beds"}
 ]
 
 
@@ -82,33 +106,55 @@ func _connect_system_signals() -> void:
 		EventBus.theme_changed.connect(_on_theme_changed)
 
 
-func _on_theme_changed(_theme_data: Dictionary) -> void:
-	_render_forms_bar()
-	_render_pose_slots()
-	_load_active_outfit_clips()
-	_render_frames_list()
-
-
 func _update_responsive_layout() -> void:
 	if not is_instance_valid(root_panel): return
-	var viewport_size: Vector2 = get_viewport().get_visible_rect().size if get_viewport() else Vector2(1280.0, 720.0)
-	var target_width: float = clampf(viewport_size.x * 0.92, 290.0, MAX_PANEL_WIDTH)
-	var target_height: float = clampf(viewport_size.y * 0.90, 330.0, MAX_PANEL_HEIGHT)
-	root_panel.custom_minimum_size = Vector2(target_width, target_height)
-	root_panel.size = Vector2(target_width, target_height)
+	var vp_size: Vector2 = get_viewport().get_visible_rect().size if get_viewport() else Vector2(1280.0, 720.0)
+	var target_w: float = clampf(vp_size.x * 0.94, 300.0, MAX_PANEL_WIDTH)
+	var target_h: float = clampf(vp_size.y * 0.92, 340.0, MAX_PANEL_HEIGHT)
+	root_panel.custom_minimum_size = Vector2(target_w, target_h)
+	root_panel.size = Vector2(target_w, target_h)
+
+
+func _on_theme_changed(_theme_data: Dictionary) -> void:
+	_update_responsive_layout()
+	if visible:
+		_render_forms_bar()
+		_render_states_list()
+		_render_timeline_frames()
 
 
 func _process(delta: float) -> void:
-	if not visible or selected_clip_frames.is_empty():
-		return
+	if not visible: return
 
-	preview_timer += delta
-	var frame_duration: float = 1.0 / maxf(target_fps, 1.0)
-	if preview_timer >= frame_duration:
-		preview_timer = 0.0
-		preview_frame_idx = (preview_frame_idx + 1) % selected_clip_frames.size()
-		if anim_preview_rect != null and preview_frame_idx < selected_clip_frames.size():
-			anim_preview_rect.texture = selected_clip_frames[preview_frame_idx]
+	# Process Timeline Tab Animation Preview
+	if tab_container != null and tab_container.current_tab == 1 and not working_timeline_frames.is_empty():
+		timeline_preview_timer += delta
+		var fps_val: float = clip_fps_slider.value if clip_fps_slider != null else 6.0
+		var frame_dur: float = 1.0 / maxf(fps_val, 1.0)
+
+		if timeline_preview_timer >= frame_dur:
+			timeline_preview_timer -= frame_dur
+			var p_mode: int = opt_playback_mode.get_selected_id()
+
+			match p_mode:
+				int(Types.PlaybackMode.LOOP), int(Types.PlaybackMode.NATURAL_BLINK):
+					timeline_preview_idx = (timeline_preview_idx + 1) % working_timeline_frames.size()
+				int(Types.PlaybackMode.PING_PONG):
+					if timeline_ping_pong_forward:
+						timeline_preview_idx += 1
+						if timeline_preview_idx >= working_timeline_frames.size() - 1:
+							timeline_preview_idx = working_timeline_frames.size() - 1
+							timeline_ping_pong_forward = false
+					else:
+						timeline_preview_idx -= 1
+						if timeline_preview_idx <= 0:
+							timeline_preview_idx = 0
+							timeline_ping_pong_forward = true
+				int(Types.PlaybackMode.ONE_SHOT), int(Types.PlaybackMode.ONE_SHOT_HOLD):
+					if timeline_preview_idx < working_timeline_frames.size() - 1:
+						timeline_preview_idx += 1
+
+			_update_timeline_preview_display()
 
 
 func _build_ui() -> void:
@@ -118,11 +164,11 @@ func _build_ui() -> void:
 	root_backdrop.gui_input.connect(_on_backdrop_gui_input)
 	add_child(root_backdrop)
 
-	var background_dim: ColorRect = ColorRect.new()
-	background_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	background_dim.color = Color(0.0, 0.0, 0.0, 0.65)
-	background_dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root_backdrop.add_child(background_dim)
+	var bg_dim: ColorRect = ColorRect.new()
+	bg_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	bg_dim.color = Color(0.0, 0.0, 0.0, 0.65)
+	bg_dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	root_backdrop.add_child(bg_dim)
 
 	center_container = CenterContainer.new()
 	center_container.set_anchors_preset(Control.PRESET_FULL_RECT)
@@ -133,19 +179,21 @@ func _build_ui() -> void:
 	root_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	center_container.add_child(root_panel)
 
-	var vbox: VBoxContainer = VBoxContainer.new()
-	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	vbox.add_theme_constant_override("separation", 8)
-	root_panel.add_child(vbox)
+	var main_vbox: VBoxContainer = VBoxContainer.new()
+	main_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	main_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	main_vbox.add_theme_constant_override("separation", 6)
+	root_panel.add_child(main_vbox)
 
+	# --- Header ---
 	var header_hbox: HBoxContainer = HBoxContainer.new()
-	vbox.add_child(header_hbox)
+	main_vbox.add_child(header_hbox)
 
 	header_lbl = Label.new()
 	header_lbl.text = "States & Animation Studio"
 	header_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header_lbl.theme_type_variation = "HeaderLabel"
+	header_lbl.add_theme_font_size_override("font_size", 13)
 	header_hbox.add_child(header_lbl)
 
 	var close_button: Button = Button.new()
@@ -156,19 +204,15 @@ func _build_ui() -> void:
 	close_button.pressed.connect(close_studio)
 	header_hbox.add_child(close_button)
 
-	vbox.add_child(HSeparator.new())
+	main_vbox.add_child(HSeparator.new())
 
-	outfit_strip_lbl = Label.new()
-	outfit_strip_lbl.text = "State Variations & Outfits (Tap to Switch):"
-	outfit_strip_lbl.theme_type_variation = "HintLabel"
-	vbox.add_child(outfit_strip_lbl)
-
+	# --- Wardrobe Forms & Outfits Bar ---
 	var forms_scroll: ScrollContainer = ScrollContainer.new()
-	forms_scroll.custom_minimum_size = Vector2(0.0, 36.0)
+	forms_scroll.custom_minimum_size = Vector2(0.0, 32.0)
 	forms_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	forms_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 	forms_scroll.follow_focus = false
-	vbox.add_child(forms_scroll)
+	main_vbox.add_child(forms_scroll)
 
 	forms_hbox_container = HBoxContainer.new()
 	forms_hbox_container.add_theme_constant_override("separation", 6)
@@ -176,16 +220,17 @@ func _build_ui() -> void:
 
 	var add_form_row: HBoxContainer = HBoxContainer.new()
 	add_form_row.add_theme_constant_override("separation", 6)
-	vbox.add_child(add_form_row)
+	main_vbox.add_child(add_form_row)
 
 	form_name_input = LineEdit.new()
-	form_name_input.placeholder_text = "New State Name (e.g. Armor)..."
+	form_name_input.placeholder_text = "New Outfit / Form Name (e.g. Armor, Pajamas)..."
 	form_name_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	form_name_input.custom_minimum_size = Vector2(0.0, 30.0)
 	add_form_row.add_child(form_name_input)
 
 	btn_choose_form_art = Button.new()
 	btn_choose_form_art.text = " Pick Art..."
-	btn_choose_form_art.custom_minimum_size = Vector2(95.0, 32.0)
+	btn_choose_form_art.custom_minimum_size = Vector2(90.0, 30.0)
 	btn_choose_form_art.focus_mode = Control.FOCUS_NONE
 	btn_choose_form_art.add_theme_constant_override("icon_max_width", 14)
 	_apply_button_icon(btn_choose_form_art, "icon_folder")
@@ -193,167 +238,366 @@ func _build_ui() -> void:
 	add_form_row.add_child(btn_choose_form_art)
 
 	btn_add_form = Button.new()
-	btn_add_form.text = " Add"
-	btn_add_form.custom_minimum_size = Vector2(75.0, 32.0)
+	btn_add_form.text = " + Form"
+	btn_add_form.custom_minimum_size = Vector2(80.0, 30.0)
 	btn_add_form.focus_mode = Control.FOCUS_NONE
 	btn_add_form.add_theme_constant_override("icon_max_width", 14)
-	var state_icon: Texture2D = ThemeService.get_icon("icon_plus")
-	if state_icon == null: state_icon = ThemeService.get_icon("icon_states")
-	if state_icon != null: btn_add_form.icon = state_icon
-	btn_add_form.pressed.connect(_on_add_outfit_form_pressed)
+	_apply_button_icon(btn_add_form, "icon_plus")
+	btn_add_form.pressed.connect(_on_add_form_pressed)
 	add_form_row.add_child(btn_add_form)
 
-	vbox.add_child(HSeparator.new())
+	main_vbox.add_child(HSeparator.new())
 
+	# --- 3-Tab Main Studio Container ---
 	tab_container = TabContainer.new()
 	tab_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	tab_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	vbox.add_child(tab_container)
+	main_vbox.add_child(tab_container)
 
-	_build_poses_tab()
-	_build_animations_tab()
+	_build_states_and_mannequin_tab()
+	_build_timeline_tab()
+	_build_slicer_tab()
 
 
-func _build_poses_tab() -> void:
-	var poses_tab_vbox: VBoxContainer = VBoxContainer.new()
-	poses_tab_vbox.name = "Poses & Expressions"
-	poses_tab_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	poses_tab_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	poses_tab_vbox.add_theme_constant_override("separation", 6)
-	tab_container.add_child(poses_tab_vbox)
+# --- TAB 1: UNIFIED STATES & MANNEQUIN ---
 
-	pose_hint_lbl = Label.new()
-	pose_hint_lbl.text = "Assign drawings for expressive poses. Skipped slots automatically use the base drawing:"
-	pose_hint_lbl.theme_type_variation = "HintLabel"
-	pose_hint_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	poses_tab_vbox.add_child(pose_hint_lbl)
+func _build_states_and_mannequin_tab() -> void:
+	var tab_vbox: VBoxContainer = VBoxContainer.new()
+	tab_vbox.name = "States & Mannequin"
+	tab_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tab_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	tab_vbox.add_theme_constant_override("separation", 6)
+	tab_container.add_child(tab_vbox)
+
+	# Mannequin Test Station Bar
+	mannequin_card = PanelContainer.new()
+	mannequin_card.theme_type_variation = "SubPanel"
+	tab_vbox.add_child(mannequin_card)
+
+	var m_hbox: HBoxContainer = HBoxContainer.new()
+	m_hbox.add_theme_constant_override("separation", 10)
+	mannequin_card.add_child(m_hbox)
+
+	var prev_frame: PanelContainer = PanelContainer.new()
+	prev_frame.theme_type_variation = "SubPanel"
+	prev_frame.custom_minimum_size = Vector2(60.0, 60.0)
+	prev_frame.clip_contents = true
+	m_hbox.add_child(prev_frame)
+
+	mannequin_preview_rect = TextureRect.new()
+	mannequin_preview_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	mannequin_preview_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	mannequin_preview_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	prev_frame.add_child(mannequin_preview_rect)
+
+	var m_actions_vbox: VBoxContainer = VBoxContainer.new()
+	m_actions_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	m_actions_vbox.add_theme_constant_override("separation", 4)
+	m_hbox.add_child(m_actions_vbox)
+
+	mannequin_status_lbl = Label.new()
+	mannequin_status_lbl.text = "Interactive Test Mannequin — Active: Idle"
+	mannequin_status_lbl.theme_type_variation = "HeaderLabel"
+	mannequin_status_lbl.add_theme_font_size_override("font_size", 10)
+	m_actions_vbox.add_child(mannequin_status_lbl)
+
+	var test_btn_grid: GridContainer = GridContainer.new()
+	test_btn_grid.columns = 4
+	test_btn_grid.add_theme_constant_override("h_separation", 6)
+	test_btn_grid.add_theme_constant_override("v_separation", 4)
+	m_actions_vbox.add_child(test_btn_grid)
+
+	_add_mannequin_test_btn(test_btn_grid, "Test Reaction / Blink", func() -> void: if active_entity: active_entity.set_expression("speaking", 1.2))
+	_add_mannequin_test_btn(test_btn_grid, "Eat / Speak", func() -> void: if active_entity: active_entity.set_actor_state(Types.STATE_SPEAKING, 1.5))
+	_add_mannequin_test_btn(test_btn_grid, "Sit", func() -> void: if active_entity: active_entity.set_actor_state(Types.STATE_SITTING, 2.5))
+	_add_mannequin_test_btn(test_btn_grid, "Sleep", func() -> void: if active_entity: active_entity.set_actor_state(Types.STATE_SLEEPING, 2.5))
+
+	# Custom State Adder
+	var add_custom_row: HBoxContainer = HBoxContainer.new()
+	add_custom_row.add_theme_constant_override("separation", 6)
+	tab_vbox.add_child(add_custom_row)
+
+	new_state_name_input = LineEdit.new()
+	new_state_name_input.placeholder_text = "Create Custom State (e.g. dancing, happy, battle)..."
+	new_state_name_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	new_state_name_input.custom_minimum_size = Vector2(0.0, 30.0)
+	add_custom_row.add_child(new_state_name_input)
+
+	btn_add_custom_state = Button.new()
+	btn_add_custom_state.text = " + Add State"
+	btn_add_custom_state.custom_minimum_size = Vector2(100.0, 30.0)
+	btn_add_custom_state.focus_mode = Control.FOCUS_NONE
+	btn_add_custom_state.add_theme_constant_override("icon_max_width", 14)
+	_apply_button_icon(btn_add_custom_state, "icon_plus")
+	btn_add_custom_state.pressed.connect(_on_add_custom_state_pressed)
+	add_custom_row.add_child(btn_add_custom_state)
 
 	var scroll: ScrollContainer = ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	scroll.follow_focus = false
-	poses_tab_vbox.add_child(scroll)
+	tab_vbox.add_child(scroll)
 
-	pose_slots_vbox = VBoxContainer.new()
-	pose_slots_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	pose_slots_vbox.add_theme_constant_override("separation", 6)
-	scroll.add_child(pose_slots_vbox)
+	states_list_vbox = VBoxContainer.new()
+	states_list_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	states_list_vbox.add_theme_constant_override("separation", 4)
+	scroll.add_child(states_list_vbox)
 
 
-func _build_animations_tab() -> void:
-	var anim_tab_vbox: VBoxContainer = VBoxContainer.new()
-	anim_tab_vbox.name = "Clips & Loops"
-	anim_tab_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	anim_tab_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	anim_tab_vbox.add_theme_constant_override("separation", 6)
-	tab_container.add_child(anim_tab_vbox)
+func _add_mannequin_test_btn(parent: GridContainer, label_text: String, callback: Callable) -> void:
+	var btn: Button = Button.new()
+	btn.text = label_text
+	btn.custom_minimum_size = Vector2(0.0, 24.0)
+	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	btn.focus_mode = Control.FOCUS_NONE
+	btn.add_theme_font_size_override("font_size", 9)
+	btn.pressed.connect(callback)
+	parent.add_child(btn)
 
-	var clips_scroll: ScrollContainer = ScrollContainer.new()
-	clips_scroll.custom_minimum_size = Vector2(0.0, 36.0)
-	clips_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
-	clips_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
-	clips_scroll.follow_focus = false
-	anim_tab_vbox.add_child(clips_scroll)
 
-	saved_clips_container = HBoxContainer.new()
-	saved_clips_container.add_theme_constant_override("separation", 6)
-	clips_scroll.add_child(saved_clips_container)
+# --- TAB 2: FRAME TIMELINE & GIF IMPORTER ---
 
-	var clip_row: HBoxContainer = HBoxContainer.new()
-	clip_row.add_theme_constant_override("separation", 6)
-	anim_tab_vbox.add_child(clip_row)
+func _build_timeline_tab() -> void:
+	var tab_vbox: VBoxContainer = VBoxContainer.new()
+	tab_vbox.name = "Frames & GIF Timeline"
+	tab_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tab_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	tab_vbox.add_theme_constant_override("separation", 6)
+	tab_container.add_child(tab_vbox)
 
-	clip_name_edit = LineEdit.new()
-	clip_name_edit.text = "idle"
-	clip_name_edit.placeholder_text = "Clip Name (e.g. spin)..."
-	clip_name_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	clip_row.add_child(clip_name_edit)
+	var top_controls_grid: GridContainer = GridContainer.new()
+	top_controls_grid.columns = 3
+	top_controls_grid.add_theme_constant_override("h_separation", 8)
+	top_controls_grid.add_theme_constant_override("v_separation", 4)
+	tab_vbox.add_child(top_controls_grid)
 
+	var st_box: VBoxContainer = VBoxContainer.new()
+	var lbl_st: Label = Label.new()
+	lbl_st.text = "Target State to Animate:"
+	lbl_st.theme_type_variation = "HintLabel"
+	st_box.add_child(lbl_st)
+	opt_edit_state_target = OptionButton.new()
+	opt_edit_state_target.custom_minimum_size = Vector2(0.0, 30.0)
+	opt_edit_state_target.item_selected.connect(_on_timeline_target_state_selected)
+	st_box.add_child(opt_edit_state_target)
+	top_controls_grid.add_child(st_box)
+
+	var mode_box: VBoxContainer = VBoxContainer.new()
+	var lbl_m: Label = Label.new()
+	lbl_m.text = "Playback Mode:"
+	lbl_m.theme_type_variation = "HintLabel"
+	mode_box.add_child(lbl_m)
 	opt_playback_mode = OptionButton.new()
-	opt_playback_mode.custom_minimum_size = Vector2(110.0, 32.0)
-	opt_playback_mode.add_item("Loop", 0)
-	opt_playback_mode.add_item("Blink (3-5s)", 1)
-	opt_playback_mode.add_item("One-Shot", 2)
-	clip_row.add_child(opt_playback_mode)
+	opt_playback_mode.custom_minimum_size = Vector2(0.0, 30.0)
+	opt_playback_mode.add_item("Forward Loop", int(Types.PlaybackMode.LOOP))
+	opt_playback_mode.add_item("Natural Blink (Frame 0 Idle, 1+ Blink)", int(Types.PlaybackMode.NATURAL_BLINK))
+	opt_playback_mode.add_item("Ping-Pong (Bounce)", int(Types.PlaybackMode.PING_PONG))
+	opt_playback_mode.add_item("One-Shot", int(Types.PlaybackMode.ONE_SHOT))
+	opt_playback_mode.add_item("One-Shot & Hold", int(Types.PlaybackMode.ONE_SHOT_HOLD))
+	mode_box.add_child(opt_playback_mode)
+	top_controls_grid.add_child(mode_box)
 
-	var preview_row: HBoxContainer = HBoxContainer.new()
-	preview_row.add_theme_constant_override("separation", 8)
-	anim_tab_vbox.add_child(preview_row)
-
-	p_box = PanelContainer.new()
-	p_box.theme_type_variation = "SubPanel"
-	p_box.custom_minimum_size = Vector2(56.0, 56.0)
-	p_box.clip_contents = true
-	preview_row.add_child(p_box)
-
-	anim_preview_rect = TextureRect.new()
-	anim_preview_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
-	anim_preview_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	anim_preview_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	p_box.add_child(anim_preview_rect)
-
-	var fps_vbox: VBoxContainer = VBoxContainer.new()
-	fps_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	fps_vbox.add_theme_constant_override("separation", 2)
-	preview_row.add_child(fps_vbox)
-
-	var fps_header: HBoxContainer = HBoxContainer.new()
-	fps_vbox.add_child(fps_header)
-
-	lbl_fps = Label.new()
+	var fps_box: VBoxContainer = VBoxContainer.new()
+	var fps_hdr: HBoxContainer = HBoxContainer.new()
+	var lbl_fps: Label = Label.new()
 	lbl_fps.text = "Speed:"
 	lbl_fps.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	lbl_fps.theme_type_variation = "HintLabel"
-	fps_header.add_child(lbl_fps)
+	fps_hdr.add_child(lbl_fps)
+	clip_fps_val_lbl = Label.new()
+	clip_fps_val_lbl.text = "6 FPS"
+	clip_fps_val_lbl.theme_type_variation = "HeaderLabel"
+	fps_hdr.add_child(clip_fps_val_lbl)
+	fps_box.add_child(fps_hdr)
 
-	fps_val_lbl = Label.new()
-	fps_val_lbl.text = "6 FPS"
-	fps_val_lbl.theme_type_variation = "HeaderLabel"
-	fps_header.add_child(fps_val_lbl)
+	clip_fps_slider = HSlider.new()
+	clip_fps_slider.min_value = 1.0
+	clip_fps_slider.max_value = 30.0
+	clip_fps_slider.step = 1.0
+	clip_fps_slider.value = 6.0
+	clip_fps_slider.value_changed.connect(func(v: float) -> void: clip_fps_val_lbl.text = "%d FPS" % int(v))
+	fps_box.add_child(clip_fps_slider)
+	top_controls_grid.add_child(fps_box)
 
-	fps_slider = HSlider.new()
-	fps_slider.min_value = 1.0
-	fps_slider.max_value = 24.0
-	fps_slider.step = 1.0
-	fps_slider.value = 6.0
-	fps_slider.custom_minimum_size = Vector2(0.0, 22.0)
-	fps_slider.value_changed.connect(func(value: float) -> void:
-		target_fps = value
-		fps_val_lbl.text = "%d FPS" % int(value)
-	)
-	fps_vbox.add_child(fps_slider)
+	# Live Timeline Preview Box with Onion Skinning
+	var preview_row: HBoxContainer = HBoxContainer.new()
+	preview_row.add_theme_constant_override("separation", 10)
+	tab_vbox.add_child(preview_row)
 
-	btn_browse_frame = Button.new()
-	btn_browse_frame.text = " Add Animation Frame..."
-	btn_browse_frame.custom_minimum_size = Vector2(0.0, 30.0)
-	btn_browse_frame.focus_mode = Control.FOCUS_NONE
-	btn_browse_frame.add_theme_constant_override("icon_max_width", 14)
-	_apply_button_icon(btn_browse_frame, "icon_plus")
-	btn_browse_frame.pressed.connect(_on_browse_clip_frame_pressed)
-	anim_tab_vbox.add_child(btn_browse_frame)
+	timeline_preview_box = PanelContainer.new()
+	timeline_preview_box.theme_type_variation = "SubPanel"
+	timeline_preview_box.custom_minimum_size = Vector2(64.0, 64.0)
+	timeline_preview_box.clip_contents = true
+	preview_row.add_child(timeline_preview_box)
+
+	timeline_onion_rect = TextureRect.new()
+	timeline_onion_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	timeline_onion_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	timeline_onion_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	timeline_onion_rect.modulate = Color(1.0, 1.0, 1.0, 0.25)
+	timeline_onion_rect.visible = false
+	timeline_preview_box.add_child(timeline_onion_rect)
+
+	timeline_preview_rect = TextureRect.new()
+	timeline_preview_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	timeline_preview_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	timeline_preview_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	timeline_preview_box.add_child(timeline_preview_rect)
+
+	var action_btns_vbox: VBoxContainer = VBoxContainer.new()
+	action_btns_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	action_btns_vbox.add_theme_constant_override("separation", 4)
+	preview_row.add_child(action_btns_vbox)
+
+	var tool_row: HBoxContainer = HBoxContainer.new()
+	tool_row.add_theme_constant_override("separation", 6)
+	action_btns_vbox.add_child(tool_row)
+
+	btn_import_gif = Button.new()
+	btn_import_gif.text = " Import Animated GIF..."
+	btn_import_gif.custom_minimum_size = Vector2(0.0, 28.0)
+	btn_import_gif.focus_mode = Control.FOCUS_NONE
+	btn_import_gif.add_theme_constant_override("icon_max_width", 14)
+	_apply_button_icon(btn_import_gif, "icon_play")
+	btn_import_gif.pressed.connect(_on_import_gif_pressed)
+	tool_row.add_child(btn_import_gif)
+
+	btn_add_timeline_frame = Button.new()
+	btn_add_timeline_frame.text = " + Add Frame"
+	btn_add_timeline_frame.custom_minimum_size = Vector2(0.0, 28.0)
+	btn_add_timeline_frame.focus_mode = Control.FOCUS_NONE
+	btn_add_timeline_frame.add_theme_constant_override("icon_max_width", 14)
+	_apply_button_icon(btn_add_timeline_frame, "icon_plus")
+	btn_add_timeline_frame.pressed.connect(_on_add_timeline_frame_pressed)
+	tool_row.add_child(btn_add_timeline_frame)
+
+	check_onion_skin = CheckBox.new()
+	check_onion_skin.text = " Onion Skin Ghost Overlay"
+	check_onion_skin.toggled.connect(func(v: bool) -> void: timeline_onion_rect.visible = v)
+	action_btns_vbox.add_child(check_onion_skin)
 
 	var frames_scroll: ScrollContainer = ScrollContainer.new()
 	frames_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	frames_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	frames_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	frames_scroll.follow_focus = false
-	anim_tab_vbox.add_child(frames_scroll)
+	tab_vbox.add_child(frames_scroll)
 
-	frames_list_vbox = VBoxContainer.new()
-	frames_list_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	frames_list_vbox.add_theme_constant_override("separation", 4)
-	frames_scroll.add_child(frames_list_vbox)
+	timeline_frames_vbox = VBoxContainer.new()
+	timeline_frames_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	timeline_frames_vbox.add_theme_constant_override("separation", 3)
+	frames_scroll.add_child(timeline_frames_vbox)
 
-	btn_save_clip = Button.new()
-	btn_save_clip.text = " Save Clip to State"
-	btn_save_clip.custom_minimum_size = Vector2(0.0, 34.0)
-	btn_save_clip.focus_mode = Control.FOCUS_NONE
-	btn_save_clip.add_theme_constant_override("icon_max_width", 16)
-	_apply_button_icon(btn_save_clip, "icon_save")
-	btn_save_clip.pressed.connect(_on_save_clip_pressed)
-	anim_tab_vbox.add_child(btn_save_clip)
+	btn_save_timeline = Button.new()
+	btn_save_timeline.text = " Save Frames to State"
+	btn_save_timeline.custom_minimum_size = Vector2(0.0, 34.0)
+	btn_save_timeline.focus_mode = Control.FOCUS_NONE
+	btn_save_timeline.add_theme_constant_override("icon_max_width", 16)
+	_apply_button_icon(btn_save_timeline, "icon_save")
+	btn_save_timeline.pressed.connect(_on_save_timeline_to_state_pressed)
+	tab_vbox.add_child(btn_save_timeline)
 
+
+# --- TAB 3: SPRITE SHEET & STRIP SLICER ---
+
+func _build_slicer_tab() -> void:
+	var tab_vbox: VBoxContainer = VBoxContainer.new()
+	tab_vbox.name = "Sprite Sheet Slicer"
+	tab_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	tab_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	tab_vbox.add_theme_constant_override("separation", 6)
+	tab_container.add_child(tab_vbox)
+
+	var pick_row: HBoxContainer = HBoxContainer.new()
+	pick_row.add_theme_constant_override("separation", 8)
+	tab_vbox.add_child(pick_row)
+
+	btn_choose_sheet_art = Button.new()
+	btn_choose_sheet_art.text = " Choose Sprite Sheet / Strip Drawing..."
+	btn_choose_sheet_art.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	btn_choose_sheet_art.custom_minimum_size = Vector2(0.0, 32.0)
+	btn_choose_sheet_art.focus_mode = Control.FOCUS_NONE
+	btn_choose_sheet_art.add_theme_constant_override("icon_max_width", 14)
+	_apply_button_icon(btn_choose_sheet_art, "icon_folder")
+	btn_choose_sheet_art.pressed.connect(_on_pick_sheet_art_pressed)
+	pick_row.add_child(btn_choose_sheet_art)
+
+	var grid_params_row: HBoxContainer = HBoxContainer.new()
+	grid_params_row.add_theme_constant_override("separation", 10)
+	tab_vbox.add_child(grid_params_row)
+
+	var lbl_c: Label = Label.new()
+	lbl_c.text = "Columns:"
+	lbl_c.theme_type_variation = "HintLabel"
+	grid_params_row.add_child(lbl_c)
+
+	spin_cols = SpinBox.new()
+	spin_cols.min_value = 1
+	spin_cols.max_value = 16
+	spin_cols.value = 4
+	spin_cols.custom_minimum_size = Vector2(70.0, 28.0)
+	spin_cols.value_changed.connect(func(_v: float) -> void: if slicer_grid_overlay: slicer_grid_overlay.queue_redraw())
+	grid_params_row.add_child(spin_cols)
+
+	var lbl_r: Label = Label.new()
+	lbl_r.text = "Rows:"
+	lbl_r.theme_type_variation = "HintLabel"
+	grid_params_row.add_child(lbl_r)
+
+	spin_rows = SpinBox.new()
+	spin_rows.min_value = 1
+	spin_rows.max_value = 16
+	spin_rows.value = 1
+	spin_rows.custom_minimum_size = Vector2(70.0, 28.0)
+	spin_rows.value_changed.connect(func(_v: float) -> void: if slicer_grid_overlay: slicer_grid_overlay.queue_redraw())
+	grid_params_row.add_child(spin_rows)
+
+	var lbl_dest: Label = Label.new()
+	lbl_dest.text = "Destination State:"
+	lbl_dest.theme_type_variation = "HintLabel"
+	grid_params_row.add_child(lbl_dest)
+
+	opt_slicer_dest_state = OptionButton.new()
+	opt_slicer_dest_state.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	opt_slicer_dest_state.custom_minimum_size = Vector2(0.0, 28.0)
+	grid_params_row.add_child(opt_slicer_dest_state)
+
+	# Slicer Grid Canvas
+	slicer_preview_box = PanelContainer.new()
+	slicer_preview_box.theme_type_variation = "SubPanel"
+	slicer_preview_box.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	slicer_preview_box.custom_minimum_size = Vector2(0.0, 180.0)
+	slicer_preview_box.clip_contents = true
+	tab_vbox.add_child(slicer_preview_box)
+
+	var canvas_holder: Control = Control.new()
+	canvas_holder.set_anchors_preset(Control.PRESET_FULL_RECT)
+	slicer_preview_box.add_child(canvas_holder)
+
+	slicer_preview_rect = TextureRect.new()
+	slicer_preview_rect.set_anchors_preset(Control.PRESET_FULL_RECT)
+	slicer_preview_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	slicer_preview_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	canvas_holder.add_child(slicer_preview_rect)
+
+	slicer_grid_overlay = SlicerGridDraw.new()
+	slicer_grid_overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+	slicer_grid_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	slicer_grid_overlay.studio_ref = self
+	canvas_holder.add_child(slicer_grid_overlay)
+
+	btn_extract_slices = Button.new()
+	btn_extract_slices.text = " Extract All Slices into State"
+	btn_extract_slices.custom_minimum_size = Vector2(0.0, 36.0)
+	btn_extract_slices.focus_mode = Control.FOCUS_NONE
+	btn_extract_slices.add_theme_constant_override("icon_max_width", 16)
+	_apply_button_icon(btn_extract_slices, "icon_plus")
+	btn_extract_slices.pressed.connect(_on_extract_slices_pressed)
+	tab_vbox.add_child(btn_extract_slices)
+
+
+# --- STUDIO OPEN / CLOSE & POPULATION ---
 
 func open_for_entity(entity: OwnEntity) -> void:
 	if not is_instance_valid(entity): return
@@ -361,12 +605,14 @@ func open_for_entity(entity: OwnEntity) -> void:
 	selected_form_tex = null
 	selected_form_path = ""
 	btn_choose_form_art.text = " Pick Art..."
-
-	tab_container.current_tab = 1 if entity.entity_type != Types.EntityType.CHARACTER else 0
 	_update_responsive_layout()
+
 	_render_forms_bar()
-	_render_pose_slots()
-	_load_active_outfit_clips()
+	_populate_state_dropdowns()
+	_render_states_list()
+	_load_state_into_timeline(active_entity.active_state_name)
+
+	tab_container.current_tab = 0
 	visible = true
 
 
@@ -379,446 +625,540 @@ func close_studio() -> void:
 
 
 func _render_forms_bar() -> void:
-	if forms_hbox_container == null: return
-	for child: Node in forms_hbox_container.get_children():
-		child.queue_free()
-	if active_entity == null: return
+	if forms_hbox_container == null or active_entity == null: return
+	for child: Node in forms_hbox_container.get_children(): child.queue_free()
 
-	var accent_color: Color = ThemeService.get_color("accent_primary", "#db2777")
-	var button_normal: Color = ThemeService.get_color("button_normal", "#fce7f3")
-	var panel_border: Color = ThemeService.get_color("panel_border", "#f472b6")
-	var text_primary: Color = ThemeService.get_color("text_primary", "#4a1525")
-	var corner_radius: int = ThemeService.get_corner_radius()
+	var c_accent: Color = ThemeService.get_color("accent_primary", "#ec4899")
+	var rad: int = ThemeService.get_corner_radius()
 
 	for form_name: String in active_entity.wardrobe_forms.keys():
 		var is_active: bool = (form_name == active_entity.active_form_key)
-		var button: Button = Button.new()
-		button.text = " " + form_name
-		button.focus_mode = Control.FOCUS_NONE
-		button.custom_minimum_size = Vector2(0.0, 30.0)
-		button.add_theme_constant_override("icon_max_width", 14)
+		var btn: Button = Button.new()
+		btn.text = " " + form_name
+		btn.focus_mode = Control.FOCUS_NONE
+		btn.custom_minimum_size = Vector2(0.0, 30.0)
+		btn.add_theme_constant_override("icon_max_width", 14)
+		_apply_button_icon(btn, "icon_star" if is_active else "icon_states")
 
-		var state_icon: Texture2D = ThemeService.get_icon("icon_star" if is_active else "icon_states")
-		if state_icon != null: button.icon = state_icon
+		if is_active:
+			var s_act: StyleBoxFlat = StyleBoxFlat.new()
+			s_act.bg_color = c_accent
+			s_act.border_color = c_accent
+			s_act.set_border_width_all(1)
+			s_act.set_corner_radius_all(rad)
+			s_act.content_margin_left = 10
+			s_act.content_margin_right = 10
+			btn.add_theme_stylebox_override("normal", s_act)
+			btn.add_theme_stylebox_override("hover", s_act)
+			btn.add_theme_stylebox_override("pressed", s_act)
+			btn.add_theme_color_override("font_color", Color.WHITE)
 
-		var style: StyleBoxFlat = StyleBoxFlat.new()
-		style.bg_color = accent_color if is_active else button_normal
-		style.border_color = accent_color if is_active else panel_border
-		style.set_border_width_all(1)
-		style.set_corner_radius_all(corner_radius)
-		style.content_margin_left = 10
-		style.content_margin_right = 10
-		style.content_margin_top = 4
-		style.content_margin_bottom = 4
-
-		button.add_theme_stylebox_override("normal", style)
-		button.add_theme_stylebox_override("hover", style)
-		button.add_theme_stylebox_override("pressed", style)
-		button.add_theme_color_override("font_color", Color.WHITE if is_active else text_primary)
-		button.add_theme_color_override("icon_normal_color", Color.WHITE if is_active else text_primary)
-		button.pressed.connect(_on_switch_outfit_pressed.bind(form_name))
-		forms_hbox_container.add_child(button)
+		btn.pressed.connect(func() -> void:
+			active_entity.switch_wardrobe_form(form_name)
+			_render_forms_bar()
+			_populate_state_dropdowns()
+			_render_states_list()
+			_load_state_into_timeline(active_entity.active_state_name)
+		)
+		forms_hbox_container.add_child(btn)
 
 		if form_name != "Default":
-			var delete_button: Button = Button.new()
-			delete_button.custom_minimum_size = Vector2(22.0, 22.0)
-			delete_button.theme_type_variation = "DangerButton"
-			delete_button.focus_mode = Control.FOCUS_NONE
-			delete_button.add_theme_constant_override("icon_max_width", 10)
-			_apply_close_icon(delete_button)
-			delete_button.pressed.connect(_on_delete_outfit_pressed.bind(form_name))
-			forms_hbox_container.add_child(delete_button)
+			var del_btn: Button = Button.new()
+			del_btn.custom_minimum_size = Vector2(22.0, 22.0)
+			del_btn.theme_type_variation = "DangerButton"
+			del_btn.focus_mode = Control.FOCUS_NONE
+			_apply_close_icon(del_btn)
+			del_btn.pressed.connect(func() -> void:
+				active_entity.wardrobe_forms.erase(form_name)
+				if active_entity.active_form_key == form_name:
+					active_entity.switch_wardrobe_form("Default")
+				_render_forms_bar()
+				_populate_state_dropdowns()
+				_render_states_list()
+			)
+			forms_hbox_container.add_child(del_btn)
 
 
-func _on_switch_outfit_pressed(form_name: String) -> void:
+func _populate_state_dropdowns() -> void:
 	if active_entity == null: return
-	active_entity.switch_wardrobe_form(form_name)
-	_render_forms_bar()
-	_render_pose_slots()
-	_load_active_outfit_clips()
+	var states: Dictionary = active_entity.wardrobe_forms.get(active_entity.active_form_key, {}).get("states", {})
+
+	for opt: OptionButton in [opt_edit_state_target, opt_slicer_dest_state]:
+		if opt == null: continue
+		opt.clear()
+		for definition: Dictionary in CORE_HOOK_DEFINITIONS:
+			var k: String = str(definition["key"])
+			opt.add_item(str(definition["label"]), opt.item_count)
+			opt.set_item_metadata(opt.item_count - 1, k)
+
+		for s_name: String in states.keys():
+			var is_core: bool = false
+			for def: Dictionary in CORE_HOOK_DEFINITIONS:
+				if str(def["key"]) == s_name: is_core = true; break
+			if not is_core:
+				opt.add_item(s_name.capitalize(), opt.item_count)
+				opt.set_item_metadata(opt.item_count - 1, s_name)
 
 
-func _on_delete_outfit_pressed(form_name: String) -> void:
-	if active_entity == null: return
-	active_entity.wardrobe_forms.erase(form_name)
-	if active_entity.active_form_key == form_name:
-		active_entity.switch_wardrobe_form("Default")
-	_render_forms_bar()
-	_render_pose_slots()
-	_load_active_outfit_clips()
+func _render_states_list() -> void:
+	if states_list_vbox == null or active_entity == null: return
+	for child: Node in states_list_vbox.get_children(): child.queue_free()
+
+	var form_dict: Dictionary = active_entity.wardrobe_forms.get(active_entity.active_form_key, {})
+	var states_dict: Dictionary = form_dict.get("states", {})
+
+	mannequin_preview_rect.texture = active_entity.main_texture
+	mannequin_status_lbl.text = "Interactive Test Mannequin — Active: %s" % active_entity.active_state_name.capitalize()
+
+	# 1. Render Core Automated Engine Hooks
+	for definition: Dictionary in CORE_HOOK_DEFINITIONS:
+		var state_key: String = str(definition["key"])
+		var state_label: String = str(definition["label"])
+		var state_icon: String = str(definition["icon"])
+		var is_assigned: bool = states_dict.has(state_key)
+		var state_data: Dictionary = states_dict.get(state_key, {})
+		_create_state_row(state_key, state_label, state_icon, is_assigned, state_data, false)
+
+	# 2. Render Custom Action / Emote States
+	for custom_state_name: String in states_dict.keys():
+		var is_core: bool = false
+		for def: Dictionary in CORE_HOOK_DEFINITIONS:
+			if str(def["key"]) == custom_state_name: is_core = true; break
+		if not is_core:
+			_create_state_row(custom_state_name, custom_state_name.capitalize(), "icon_states", true, states_dict[custom_state_name], true)
+
+
+func _create_state_row(state_key: String, label_text: String, icon_key: String, is_customized: bool, data: Dictionary, can_delete: bool) -> void:
+	var card: PanelContainer = PanelContainer.new()
+	card.theme_type_variation = "SubPanel"
+	card.custom_minimum_size = Vector2(0.0, 38.0)
+
+	var hbox: HBoxContainer = HBoxContainer.new()
+	hbox.add_theme_constant_override("separation", 6)
+	card.add_child(hbox)
+
+	var thumb_frame: PanelContainer = PanelContainer.new()
+	thumb_frame.theme_type_variation = "SubPanel"
+	thumb_frame.custom_minimum_size = Vector2(28.0, 28.0)
+	thumb_frame.clip_contents = true
+	hbox.add_child(thumb_frame)
+
+	var thumb: TextureRect = TextureRect.new()
+	thumb.set_anchors_preset(Control.PRESET_FULL_RECT)
+	thumb.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	thumb.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+
+	var frames: Array = data.get("frames", [])
+	if not frames.is_empty() and frames[0] is Texture2D:
+		thumb.texture = frames[0] as Texture2D
+	else:
+		thumb.texture = active_entity.main_texture
+		thumb.modulate = Color(1, 1, 1, 0.4)
+	thumb_frame.add_child(thumb)
+
+	var title_lbl: Label = Label.new()
+	var frame_count: int = frames.size()
+	var type_str: String = " (Animated: %d frames)" % frame_count if frame_count > 1 else (" (1 Frame)" if is_customized else " (Fallback)")
+	title_lbl.text = label_text + type_str
+	title_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	title_lbl.add_theme_font_size_override("font_size", 10)
+	hbox.add_child(title_lbl)
+
+	var btn_pick: Button = Button.new()
+	btn_pick.text = " Pick Art..."
+	btn_pick.custom_minimum_size = Vector2(75.0, 26.0)
+	btn_pick.focus_mode = Control.FOCUS_NONE
+	btn_pick.add_theme_font_size_override("font_size", 9)
+	btn_pick.add_theme_constant_override("icon_max_width", 12)
+	_apply_button_icon(btn_pick, "icon_folder")
+	btn_pick.pressed.connect(func() -> void:
+		asset_picker.open_picker("Assign Art for " + label_text, "", func(_a_name: String, tex: Texture2D, path: String) -> void:
+			if path.get_extension().to_lower() == "gif":
+				var g_data: Dictionary = UGCManager.load_gif(path)
+				if bool(g_data.get("valid", false)):
+					active_entity.register_state(active_entity.active_form_key, state_key, g_data.get("frames", []), [path], float(g_data.get("fps", 6.0)), Types.PlaybackMode.LOOP)
+			else:
+				active_entity.register_state(active_entity.active_form_key, state_key, [tex], [path], 6.0, Types.PlaybackMode.LOOP)
+			_render_states_list()
+		)
+	)
+	hbox.add_child(btn_pick)
+
+	var btn_edit: Button = Button.new()
+	btn_edit.text = " Timeline"
+	btn_edit.custom_minimum_size = Vector2(70.0, 26.0)
+	btn_edit.focus_mode = Control.FOCUS_NONE
+	btn_edit.add_theme_font_size_override("font_size", 9)
+	btn_edit.add_theme_constant_override("icon_max_width", 12)
+	_apply_button_icon(btn_edit, icon_key)
+	btn_edit.pressed.connect(func() -> void:
+		_load_state_into_timeline(state_key)
+		tab_container.current_tab = 1
+	)
+	hbox.add_child(btn_edit)
+
+	if can_delete:
+		var btn_del: Button = Button.new()
+		btn_del.custom_minimum_size = Vector2(24.0, 26.0)
+		btn_del.theme_type_variation = "DangerButton"
+		btn_del.focus_mode = Control.FOCUS_NONE
+		_apply_close_icon(btn_del)
+		btn_del.pressed.connect(func() -> void:
+			var form_dict_ref: Dictionary = active_entity.wardrobe_forms.get(active_entity.active_form_key, {})
+			var states_ref: Dictionary = form_dict_ref.get("states", {})
+			states_ref.erase(state_key)
+			_populate_state_dropdowns()
+			_render_states_list()
+		)
+		hbox.add_child(btn_del)
+
+	states_list_vbox.add_child(card)
+
+
+func _on_add_custom_state_pressed() -> void:
+	var state_name: String = new_state_name_input.text.strip_edges().to_lower().replace(" ", "_")
+	if state_name.is_empty() or active_entity == null: return
+	active_entity.register_state(active_entity.active_form_key, state_name, [active_entity.main_texture], [active_entity.texture_path])
+	new_state_name_input.text = ""
+	_populate_state_dropdowns()
+	_render_states_list()
 
 
 func _on_pick_form_art_pressed() -> void:
-	if asset_picker == null: return
-	asset_picker.open_picker("Choose State Drawing", "", func(art_name: String, texture: Texture2D, file_path: String) -> void:
-		selected_form_tex = texture
-		selected_form_path = file_path
+	asset_picker.open_picker("Choose Outfit Base Drawing", "", func(art_name: String, tex: Texture2D, path: String) -> void:
+		selected_form_tex = tex
+		selected_form_path = path
 		btn_choose_form_art.text = " " + art_name
 	)
 
 
-func _on_add_outfit_form_pressed() -> void:
-	if active_entity == null or selected_form_tex == null: return
+func _on_add_form_pressed() -> void:
 	var form_name: String = form_name_input.text.strip_edges()
-	if form_name.is_empty(): return
-
+	if form_name.is_empty() or selected_form_tex == null or active_entity == null: return
 	active_entity.add_wardrobe_form(form_name, selected_form_tex, selected_form_path)
 	form_name_input.text = ""
 	selected_form_tex = null
 	selected_form_path = ""
 	btn_choose_form_art.text = " Pick Art..."
 	_render_forms_bar()
-	_render_pose_slots()
+	_populate_state_dropdowns()
+	_render_states_list()
 
 
-func _render_pose_slots() -> void:
-	if pose_slots_vbox == null: return
-	for child: Node in pose_slots_vbox.get_children():
-		child.queue_free()
+# --- TIMELINE & GIF ACTIONS ---
 
-	if active_entity == null or not active_entity.wardrobe_forms.has(active_entity.active_form_key):
+func _load_state_into_timeline(state_key: String) -> void:
+	if active_entity == null: return
+	var form_dict: Dictionary = active_entity.wardrobe_forms.get(active_entity.active_form_key, {})
+	var states: Dictionary = form_dict.get("states", {})
+	var data: Dictionary = states.get(state_key, {})
+
+	working_timeline_frames.clear()
+	working_timeline_paths.clear()
+
+	for f: Variant in data.get("frames", []):
+		if f is Texture2D: working_timeline_frames.append(f as Texture2D)
+	for p: Variant in data.get("paths", []):
+		working_timeline_paths.append(str(p))
+
+	if working_timeline_frames.is_empty() and active_entity.main_texture != null:
+		working_timeline_frames.append(active_entity.main_texture)
+		working_timeline_paths.append(active_entity.texture_path)
+
+	clip_fps_slider.value = float(data.get("fps", 6.0))
+	clip_fps_val_lbl.text = "%d FPS" % int(clip_fps_slider.value)
+
+	var p_mode: int = int(data.get("mode", Types.PlaybackMode.LOOP))
+	for idx: int in range(opt_playback_mode.item_count):
+		if opt_playback_mode.get_item_id(idx) == p_mode:
+			opt_playback_mode.selected = idx
+			break
+
+	# Select state in dropdown
+	for idx: int in range(opt_edit_state_target.item_count):
+		if str(opt_edit_state_target.get_item_metadata(idx)) == state_key:
+			opt_edit_state_target.selected = idx
+			break
+
+	timeline_preview_idx = 0
+	timeline_preview_timer = 0.0
+	_update_timeline_preview_display()
+	_render_timeline_frames()
+
+
+func _on_timeline_target_state_selected(index: int) -> void:
+	var state_key: String = str(opt_edit_state_target.get_item_metadata(index))
+	_load_state_into_timeline(state_key)
+
+
+func _on_import_gif_pressed() -> void:
+	asset_picker.open_picker("Choose Animated GIF to Import", "", func(_a_name: String, _tex: Texture2D, file_path: String) -> void:
+		if file_path.get_extension().to_lower() != "gif":
+			EventBus.notification_requested.emit("Please select a .gif file", false)
+			return
+		var gif_data: Dictionary = UGCManager.load_gif(file_path)
+		if not bool(gif_data.get("valid", false)):
+			EventBus.notification_requested.emit("GIF Decoding Failed", false)
+			return
+
+		working_timeline_frames.clear()
+		working_timeline_paths.clear()
+
+		for f: Variant in gif_data.get("frames", []):
+			if f is Texture2D:
+				working_timeline_frames.append(f as Texture2D)
+				working_timeline_paths.append(file_path)
+
+		var detected_fps: float = float(gif_data.get("fps", 10.0))
+		clip_fps_slider.value = clampf(detected_fps, 1.0, 30.0)
+		clip_fps_val_lbl.text = "%d FPS" % int(clip_fps_slider.value)
+		opt_playback_mode.selected = 0
+
+		timeline_preview_idx = 0
+		timeline_preview_timer = 0.0
+		_update_timeline_preview_display()
+		_render_timeline_frames()
+		EventBus.notification_requested.emit("Imported GIF (%d frames @ %d FPS)" % [working_timeline_frames.size(), int(detected_fps)], true)
+	)
+
+
+func _on_add_timeline_frame_pressed() -> void:
+	asset_picker.open_picker("Choose Frame Drawing", "", func(_a_name: String, tex: Texture2D, path: String) -> void:
+		working_timeline_frames.append(tex)
+		working_timeline_paths.append(path)
+		_update_timeline_preview_display()
+		_render_timeline_frames()
+	)
+
+
+func _update_timeline_preview_display() -> void:
+	if working_timeline_frames.is_empty():
+		timeline_preview_rect.texture = null
+		timeline_onion_rect.texture = null
 		return
 
-	var form_data: Dictionary = active_entity.wardrobe_forms[active_entity.active_form_key]
-	var sprites: Dictionary = form_data.get("sprites", {})
+	timeline_preview_idx = clampi(timeline_preview_idx, 0, working_timeline_frames.size() - 1)
+	timeline_preview_rect.texture = working_timeline_frames[timeline_preview_idx]
 
-	var sub_background: Color = ThemeService.get_color("container_sub_bg", "#fdf2f4")
-	var panel_border: Color = ThemeService.get_color("panel_border", "#f472b6")
-	var accent_color: Color = ThemeService.get_color("accent_primary", "#db2777")
-	var text_primary: Color = ThemeService.get_color("text_primary", "#4a1525")
-	var input_background: Color = ThemeService.get_color("input_background", "#ffffff")
-	var corner_radius: int = ThemeService.get_corner_radius()
+	if check_onion_skin.button_pressed and working_timeline_frames.size() > 1:
+		var prev_idx: int = (timeline_preview_idx - 1 + working_timeline_frames.size()) % working_timeline_frames.size()
+		timeline_onion_rect.texture = working_timeline_frames[prev_idx]
+	else:
+		timeline_onion_rect.texture = null
 
-	for slot_data: Dictionary in POSE_SLOTS:
-		var slot_key: String = str(slot_data["key"])
-		var slot_label: String = str(slot_data["label"])
-		var current_texture: Texture2D = sprites.get(slot_key, null) as Texture2D
 
+func _render_timeline_frames() -> void:
+	if timeline_frames_vbox == null: return
+	for child: Node in timeline_frames_vbox.get_children(): child.queue_free()
+
+	for i: int in range(working_timeline_frames.size()):
 		var row: PanelContainer = PanelContainer.new()
 		row.theme_type_variation = "SubPanel"
-		row.custom_minimum_size = Vector2(0.0, 42.0)
-
-		var row_style: StyleBoxFlat = StyleBoxFlat.new()
-		row_style.bg_color = sub_background
-		row_style.border_color = accent_color if current_texture != null else panel_border
-		row_style.set_border_width_all(2 if current_texture != null else 1)
-		row_style.set_corner_radius_all(corner_radius)
-		row_style.content_margin_left = 8
-		row_style.content_margin_right = 8
-		row_style.content_margin_top = 4
-		row_style.content_margin_bottom = 4
-		row.add_theme_stylebox_override("panel", row_style)
+		row.custom_minimum_size = Vector2(0.0, 32.0)
 
 		var hbox: HBoxContainer = HBoxContainer.new()
-		hbox.add_theme_constant_override("separation", 8)
+		hbox.add_theme_constant_override("separation", 6)
 		row.add_child(hbox)
 
-		var thumbnail_frame: PanelContainer = PanelContainer.new()
-		thumbnail_frame.custom_minimum_size = Vector2(32.0, 32.0)
-		thumbnail_frame.clip_contents = true
+		var lbl_idx: Label = Label.new()
+		lbl_idx.text = "#%d" % (i + 1)
+		lbl_idx.custom_minimum_size = Vector2(26.0, 0.0)
+		lbl_idx.theme_type_variation = "HintLabel"
+		hbox.add_child(lbl_idx)
 
-		var thumbnail_style: StyleBoxFlat = StyleBoxFlat.new()
-		thumbnail_style.bg_color = input_background
-		thumbnail_style.border_color = panel_border
-		thumbnail_style.set_border_width_all(1)
-		thumbnail_style.set_corner_radius_all(4)
-		thumbnail_frame.add_theme_stylebox_override("panel", thumbnail_style)
+		var thumb_frame: PanelContainer = PanelContainer.new()
+		thumb_frame.custom_minimum_size = Vector2(24.0, 24.0)
+		thumb_frame.clip_contents = true
+		hbox.add_child(thumb_frame)
 
-		var thumbnail: TextureRect = TextureRect.new()
-		thumbnail.set_anchors_preset(Control.PRESET_FULL_RECT)
-		thumbnail.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		thumbnail.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		thumbnail.texture = current_texture if current_texture != null else active_entity.main_texture
-		thumbnail.modulate = Color.WHITE if current_texture != null else Color(1.0, 1.0, 1.0, 0.4)
-		thumbnail.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		thumbnail_frame.add_child(thumbnail)
-		hbox.add_child(thumbnail_frame)
+		var thumb: TextureRect = TextureRect.new()
+		thumb.set_anchors_preset(Control.PRESET_FULL_RECT)
+		thumb.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		thumb.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		thumb.texture = working_timeline_frames[i]
+		thumb_frame.add_child(thumb)
 
-		var label: Label = Label.new()
-		label.text = slot_label + (" (Custom)" if current_texture != null else " (Fallback)")
-		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		label.add_theme_color_override("font_color", accent_color if current_texture != null else text_primary)
-		hbox.add_child(label)
+		var fname_lbl: Label = Label.new()
+		var p_str: String = working_timeline_paths[i] if i < working_timeline_paths.size() else "Frame"
+		fname_lbl.text = p_str.get_file()
+		fname_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		fname_lbl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		fname_lbl.add_theme_font_size_override("font_size", 9)
+		hbox.add_child(fname_lbl)
 
-		var pick_button: Button = Button.new()
-		pick_button.text = " Pick..."
-		pick_button.custom_minimum_size = Vector2(80.0, 26.0)
-		pick_button.focus_mode = Control.FOCUS_NONE
-		pick_button.add_theme_constant_override("icon_max_width", 14)
-		_apply_button_icon(pick_button, "icon_folder")
-		pick_button.pressed.connect(_on_slot_browse_pressed.bind(slot_key, slot_label))
-		hbox.add_child(pick_button)
+		var target_idx: int = i
 
-		if current_texture != null and slot_key != "eyes_open":
-			var clear_button: Button = Button.new()
-			clear_button.custom_minimum_size = Vector2(24.0, 24.0)
-			clear_button.theme_type_variation = "DangerButton"
-			clear_button.focus_mode = Control.FOCUS_NONE
-			clear_button.add_theme_constant_override("icon_max_width", 10)
-			_apply_close_icon(clear_button)
-			clear_button.pressed.connect(_on_slot_clear_pressed.bind(slot_key))
-			hbox.add_child(clear_button)
+		# Move Up
+		var btn_up: Button = Button.new()
+		btn_up.text = "▲"
+		btn_up.custom_minimum_size = Vector2(22.0, 22.0)
+		btn_up.focus_mode = Control.FOCUS_NONE
+		btn_up.disabled = (i == 0)
+		btn_up.pressed.connect(func() -> void: _swap_timeline_frames(target_idx, target_idx - 1))
+		hbox.add_child(btn_up)
 
-		pose_slots_vbox.add_child(row)
+		# Move Down
+		var btn_down: Button = Button.new()
+		btn_down.text = "▼"
+		btn_down.custom_minimum_size = Vector2(22.0, 22.0)
+		btn_down.focus_mode = Control.FOCUS_NONE
+		btn_down.disabled = (i == working_timeline_frames.size() - 1)
+		btn_down.pressed.connect(func() -> void: _swap_timeline_frames(target_idx, target_idx + 1))
+		hbox.add_child(btn_down)
+
+		# Duplicate Frame
+		var btn_dup: Button = Button.new()
+		btn_dup.custom_minimum_size = Vector2(22.0, 22.0)
+		btn_dup.focus_mode = Control.FOCUS_NONE
+		btn_dup.add_theme_constant_override("icon_max_width", 10)
+		_apply_button_icon(btn_dup, "icon_clone")
+		btn_dup.pressed.connect(func() -> void:
+			working_timeline_frames.insert(target_idx + 1, working_timeline_frames[target_idx])
+			working_timeline_paths.insert(target_idx + 1, working_timeline_paths[target_idx])
+			_render_timeline_frames()
+		)
+		hbox.add_child(btn_dup)
+
+		# Delete Frame
+		var btn_del: Button = Button.new()
+		btn_del.custom_minimum_size = Vector2(22.0, 22.0)
+		btn_del.theme_type_variation = "DangerButton"
+		btn_del.focus_mode = Control.FOCUS_NONE
+		_apply_close_icon(btn_del)
+		btn_del.pressed.connect(func() -> void:
+			if working_timeline_frames.size() > 1:
+				working_timeline_frames.remove_at(target_idx)
+				working_timeline_paths.remove_at(target_idx)
+				_update_timeline_preview_display()
+				_render_timeline_frames()
+		)
+		hbox.add_child(btn_del)
+
+		timeline_frames_vbox.add_child(row)
 
 
-func _on_slot_browse_pressed(slot_key: String, slot_label: String) -> void:
-	if asset_picker == null or active_entity == null: return
-	asset_picker.open_picker("Choose Pose: " + slot_label, "", func(_a_name: String, texture: Texture2D, file_path: String) -> void:
-		active_entity.assign_pose_slot_texture(active_entity.active_form_key, slot_key, texture, file_path)
-		_render_pose_slots()
+func _swap_timeline_frames(idx_a: int, idx_b: int) -> void:
+	if idx_a < 0 or idx_b < 0 or idx_a >= working_timeline_frames.size() or idx_b >= working_timeline_frames.size():
+		return
+	var temp_f: Texture2D = working_timeline_frames[idx_a]
+	working_timeline_frames[idx_a] = working_timeline_frames[idx_b]
+	working_timeline_frames[idx_b] = temp_f
+
+	var temp_p: String = working_timeline_paths[idx_a]
+	working_timeline_paths[idx_a] = working_timeline_paths[idx_b]
+	working_timeline_paths[idx_b] = temp_p
+
+	_update_timeline_preview_display()
+	_render_timeline_frames()
+
+
+func _on_save_timeline_to_state_pressed() -> void:
+	if active_entity == null or working_timeline_frames.is_empty(): return
+	var target_state_key: String = str(opt_edit_state_target.get_item_metadata(opt_edit_state_target.selected))
+	var p_mode: int = opt_playback_mode.get_selected_id()
+	var fps_val: float = clip_fps_slider.value
+
+	active_entity.register_state(active_entity.active_form_key, target_state_key, working_timeline_frames, working_timeline_paths, fps_val, p_mode)
+	_render_states_list()
+	EventBus.notification_requested.emit("Saved %d frames to State: %s" % [working_timeline_frames.size(), target_state_key], true)
+
+
+# --- SPRITE SHEET SLICER ---
+
+func _on_pick_sheet_art_pressed() -> void:
+	asset_picker.open_picker("Choose Sprite Sheet / Strip", "", func(art_name: String, tex: Texture2D, path: String) -> void:
+		slicer_source_tex = tex
+		slicer_source_path = path
+		btn_choose_sheet_art.text = " Sheet: " + art_name
+		slicer_preview_rect.texture = tex
+
+		var suggested: Vector2i = SpriteSheetSlicer.suggest_grid_layout(tex.get_width(), tex.get_height())
+		spin_cols.value = suggested.x
+		spin_rows.value = suggested.y
+		if slicer_grid_overlay != null: slicer_grid_overlay.queue_redraw()
 	)
 
 
-func _on_slot_clear_pressed(slot_key: String) -> void:
-	if active_entity == null: return
-	active_entity.assign_pose_slot_texture(active_entity.active_form_key, slot_key, null, "")
-	_render_pose_slots()
-
-
-func _load_active_outfit_clips() -> void:
-	if saved_clips_container == null: return
-	for child: Node in saved_clips_container.get_children():
-		child.queue_free()
-	if active_entity == null: return
-
-	var form_data: Dictionary = active_entity.wardrobe_forms.get(active_entity.active_form_key, {})
-	var animations: Dictionary = form_data.get("animations", {})
-	var accent_color: Color = ThemeService.get_color("accent_primary", "#db2777")
-
-	var new_button: Button = Button.new()
-	new_button.text = " New Clip"
-	new_button.focus_mode = Control.FOCUS_NONE
-	new_button.custom_minimum_size = Vector2(0.0, 30.0)
-	new_button.add_theme_constant_override("icon_max_width", 14)
-	_apply_button_icon(new_button, "icon_plus")
-	new_button.pressed.connect(func() -> void: _start_fresh_clip("custom"))
-	saved_clips_container.add_child(new_button)
-
-	for clip_name: String in animations.keys():
-		var is_loaded: bool = (clip_name == current_loaded_clip_name)
-		var clip_row: HBoxContainer = HBoxContainer.new()
-		clip_row.add_theme_constant_override("separation", 2)
-
-		var clip_button: Button = Button.new()
-		clip_button.text = " " + clip_name
-		clip_button.custom_minimum_size = Vector2(0.0, 30.0)
-		clip_button.focus_mode = Control.FOCUS_NONE
-		clip_button.add_theme_constant_override("icon_max_width", 14)
-		_apply_button_icon(clip_button, "icon_states")
-
-		if is_loaded:
-			var active_style: StyleBoxFlat = StyleBoxFlat.new()
-			active_style.bg_color = accent_color
-			active_style.border_color = accent_color
-			active_style.set_border_width_all(1)
-			active_style.set_corner_radius_all(ThemeService.get_corner_radius())
-			active_style.content_margin_left = 8
-			active_style.content_margin_right = 8
-			clip_button.add_theme_stylebox_override("normal", active_style)
-			clip_button.add_theme_stylebox_override("hover", active_style)
-			clip_button.add_theme_color_override("font_color", Color.WHITE)
-			clip_button.add_theme_color_override("icon_normal_color", Color.WHITE)
-
-		clip_button.pressed.connect(_load_existing_clip.bind(clip_name))
-		clip_row.add_child(clip_button)
-
-		var delete_button: Button = Button.new()
-		delete_button.custom_minimum_size = Vector2(22.0, 22.0)
-		delete_button.theme_type_variation = "DangerButton"
-		delete_button.focus_mode = Control.FOCUS_NONE
-		delete_button.add_theme_constant_override("icon_max_width", 10)
-		_apply_close_icon(delete_button)
-		delete_button.pressed.connect(_on_delete_clip_pressed.bind(clip_name))
-		clip_row.add_child(delete_button)
-
-		saved_clips_container.add_child(clip_row)
-
-
-func _on_delete_clip_pressed(clip_name: String) -> void:
-	if active_entity == null: return
-	active_entity.delete_animation_clip(active_entity.active_form_key, clip_name)
-	if current_loaded_clip_name == clip_name: current_loaded_clip_name = ""
-	_load_active_outfit_clips()
-	_start_fresh_clip("idle")
-
-
-func _load_existing_clip(clip_name: String) -> void:
-	if active_entity == null: return
-	var form_data: Dictionary = active_entity.wardrobe_forms.get(active_entity.active_form_key, {})
-	var animations: Dictionary = form_data.get("animations", {})
-	if not animations.has(clip_name): return
-
-	current_loaded_clip_name = clip_name
-	var clip_data: Dictionary = animations[clip_name]
-
-	clip_name_edit.text = clip_name
-	target_fps = float(clip_data.get("fps", 6.0))
-	fps_slider.value = target_fps
-	fps_val_lbl.text = "%d FPS" % int(target_fps)
-
-	match str(clip_data.get("mode", "loop")):
-		"loop": opt_playback_mode.selected = 0
-		"blink": opt_playback_mode.selected = 1
-		"one_shot": opt_playback_mode.selected = 2
-
-	selected_clip_frames.clear()
-	for value: Variant in clip_data.get("frames", []):
-		if value is Texture2D: selected_clip_frames.append(value as Texture2D)
-
-	selected_clip_paths.clear()
-	for value: Variant in clip_data.get("paths", []):
-		selected_clip_paths.append(str(value))
-
-	preview_frame_idx = 0
-	preview_timer = 0.0
-	if not selected_clip_frames.is_empty():
-		anim_preview_rect.texture = selected_clip_frames[0]
-
-	_render_frames_list()
-	_load_active_outfit_clips()
-
-
-func _start_fresh_clip(default_name: String) -> void:
-	current_loaded_clip_name = ""
-	clip_name_edit.text = default_name
-	selected_clip_frames.clear()
-	selected_clip_paths.clear()
-
-	if active_entity != null and active_entity.main_texture != null:
-		selected_clip_frames.append(active_entity.main_texture)
-		selected_clip_paths.append(active_entity.texture_path)
-
-	target_fps = 6.0
-	fps_slider.value = 6.0
-	fps_val_lbl.text = "6 FPS"
-	opt_playback_mode.selected = 0
-
-	preview_frame_idx = 0
-	preview_timer = 0.0
-	if not selected_clip_frames.is_empty():
-		anim_preview_rect.texture = selected_clip_frames[0]
-
-	_render_frames_list()
-	_load_active_outfit_clips()
-
-
-func _on_browse_clip_frame_pressed() -> void:
-	if asset_picker == null: return
-	asset_picker.open_picker("Choose Animation Frame", "", func(_a_name: String, texture: Texture2D, file_path: String) -> void:
-		selected_clip_frames.append(texture)
-		selected_clip_paths.append(file_path)
-		preview_frame_idx = 0
-		preview_timer = 0.0
-		_render_frames_list()
-	)
-
-
-func _render_frames_list() -> void:
-	if frames_list_vbox == null: return
-	for child: Node in frames_list_vbox.get_children():
-		child.queue_free()
-
-	var panel_border: Color = ThemeService.get_color("panel_border", "#f472b6")
-	var input_background: Color = ThemeService.get_color("input_background", "#ffffff")
-
-	for index: int in range(selected_clip_frames.size()):
-		var card: PanelContainer = PanelContainer.new()
-		card.theme_type_variation = "SubPanel"
-		card.custom_minimum_size = Vector2(0.0, 36.0)
-
-		var hbox: HBoxContainer = HBoxContainer.new()
-		hbox.add_theme_constant_override("separation", 8)
-		card.add_child(hbox)
-
-		var label: Label = Label.new()
-		label.text = "Frame %d:" % (index + 1)
-		label.theme_type_variation = "HintLabel"
-		hbox.add_child(label)
-
-		var thumbnail_frame: PanelContainer = PanelContainer.new()
-		thumbnail_frame.custom_minimum_size = Vector2(26.0, 26.0)
-		thumbnail_frame.clip_contents = true
-
-		var thumbnail_style: StyleBoxFlat = StyleBoxFlat.new()
-		thumbnail_style.bg_color = input_background
-		thumbnail_style.border_color = panel_border
-		thumbnail_style.set_border_width_all(1)
-		thumbnail_style.set_corner_radius_all(3)
-		thumbnail_frame.add_theme_stylebox_override("panel", thumbnail_style)
-
-		var thumbnail: TextureRect = TextureRect.new()
-		thumbnail.set_anchors_preset(Control.PRESET_FULL_RECT)
-		thumbnail.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		thumbnail.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		thumbnail.texture = selected_clip_frames[index]
-		thumbnail.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		thumbnail_frame.add_child(thumbnail)
-		hbox.add_child(thumbnail_frame)
-
-		var path_label: Label = Label.new()
-		path_label.text = selected_clip_paths[index].get_file() if index < selected_clip_paths.size() else "Frame"
-		path_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		hbox.add_child(path_label)
-
-		if selected_clip_frames.size() > 1:
-			var delete_button: Button = Button.new()
-			delete_button.custom_minimum_size = Vector2(22.0, 22.0)
-			delete_button.theme_type_variation = "DangerButton"
-			delete_button.focus_mode = Control.FOCUS_NONE
-			delete_button.add_theme_constant_override("icon_max_width", 10)
-			_apply_close_icon(delete_button)
-			delete_button.pressed.connect(_on_delete_clip_frame_pressed.bind(index))
-			hbox.add_child(delete_button)
-
-		frames_list_vbox.add_child(card)
-
-
-func _on_delete_clip_frame_pressed(index: int) -> void:
-	if selected_clip_frames.size() > 1 and index >= 0 and index < selected_clip_frames.size():
-		selected_clip_frames.remove_at(index)
-		if index < selected_clip_paths.size(): selected_clip_paths.remove_at(index)
-		preview_frame_idx = 0
-		preview_timer = 0.0
-		_render_frames_list()
-
-
-func _on_save_clip_pressed() -> void:
-	if active_entity == null or selected_clip_frames.is_empty():
+func _on_extract_slices_pressed() -> void:
+	if slicer_source_tex == null or active_entity == null:
+		EventBus.notification_requested.emit("Please select a sprite sheet graphic first.", false)
 		return
 
-	var clip_name: String = clip_name_edit.text.strip_edges().to_lower()
-	if clip_name.is_empty(): clip_name = "idle"
+	var cols: int = int(spin_cols.value)
+	var rows: int = int(spin_rows.value)
+	var sliced_textures: Array[ImageTexture] = SpriteSheetSlicer.slice_by_grid(slicer_source_tex, cols, rows)
 
-	var mode_string: String = "loop"
-	match opt_playback_mode.selected:
-		0: mode_string = "loop"
-		1: mode_string = "blink"
-		2: mode_string = "one_shot"
+	if sliced_textures.is_empty():
+		EventBus.notification_requested.emit("Slicing failed: Invalid dimensions", false)
+		return
 
-	active_entity.register_animation_clip(
-		active_entity.active_form_key, clip_name, selected_clip_frames.duplicate(),
-		target_fps, selected_clip_paths.duplicate(), mode_string
-	)
+	var dest_state_key: String = str(opt_slicer_dest_state.get_item_metadata(opt_slicer_dest_state.selected))
+	var paths_arr: Array[String] = []
+	var tex_arr: Array[Texture2D] = []
 
-	current_loaded_clip_name = clip_name
-	_load_active_outfit_clips()
-	EventBus.notification_requested.emit("Saved: %s" % clip_name, true)
+	for tex: ImageTexture in sliced_textures:
+		tex_arr.append(tex)
+		paths_arr.append(slicer_source_path)
 
+	active_entity.register_state(active_entity.active_form_key, dest_state_key, tex_arr, paths_arr, 6.0, Types.PlaybackMode.LOOP)
 
-func _apply_button_icon(button: Button, icon_key: String) -> void:
-	if button == null: return
-	var icon_texture: Texture2D = ThemeService.get_icon(icon_key)
-	if icon_texture != null: button.icon = icon_texture
+	_load_state_into_timeline(dest_state_key)
+	_render_states_list()
+	tab_container.current_tab = 1
+	EventBus.notification_requested.emit("Extracted %d frames into State: %s" % [tex_arr.size(), dest_state_key], true)
 
 
-func _apply_close_icon(button: Button) -> void:
-	if button == null: return
-	var icon_texture: Texture2D = ThemeService.get_icon("icon_close")
-	if icon_texture != null: button.icon = icon_texture
-	else: button.text = "✕"
+# --- HELPERS & THEME ---
+
+func _apply_button_icon(btn: Button, key: String) -> void:
+	if btn == null: return
+	var tex: Texture2D = ThemeService.get_icon(key)
+	if tex != null: btn.icon = tex
+
+
+func _apply_close_icon(btn: Button) -> void:
+	if btn == null: return
+	var tex: Texture2D = ThemeService.get_icon("icon_close")
+	if tex != null: btn.icon = tex
+	else: btn.text = "✕"
 
 
 func _on_backdrop_gui_input(event: InputEvent) -> void:
 	if (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT) or (event is InputEventScreenTouch and event.pressed):
 		close_studio()
+
+
+# --- SLICER GRID OVERLAY DRAW ---
+
+class SlicerGridDraw extends Control:
+	var studio_ref: PoseAnimationStudioDialog = null
+
+	func _draw() -> void:
+		if studio_ref == null or studio_ref.slicer_source_tex == null: return
+
+		var canvas_size: Vector2 = size
+		var tex_size: Vector2 = studio_ref.slicer_source_tex.get_size()
+		if tex_size.x <= 0.0 or tex_size.y <= 0.0: return
+
+		var scale_f: float = minf(canvas_size.x / tex_size.x, canvas_size.y / tex_size.y)
+		var drawn_size: Vector2 = tex_size * scale_f
+		var start_pos: Vector2 = (canvas_size - drawn_size) * 0.5
+		var rect: Rect2 = Rect2(start_pos, drawn_size)
+
+		draw_rect(rect, Color("#ec4899", 0.35), false, 2.0)
+
+		var cols: int = int(studio_ref.spin_cols.value)
+		var rows: int = int(studio_ref.spin_rows.value)
+
+		var cell_w: float = drawn_size.x / float(maxi(cols, 1))
+		var cell_h: float = drawn_size.y / float(maxi(rows, 1))
+
+		# Vertical Column Cutting Lines
+		for c: int in range(1, cols):
+			var x_pos: float = start_pos.x + float(c) * cell_w
+			draw_line(Vector2(x_pos, start_pos.y), Vector2(x_pos, start_pos.y + drawn_size.y), Color("#00f2fe", 0.85), 1.5)
+
+		# Horizontal Row Cutting Lines
+		for r: int in range(1, rows):
+			var y_pos: float = start_pos.y + float(r) * cell_h
+			draw_line(Vector2(start_pos.x, y_pos), Vector2(start_pos.x + drawn_size.x, y_pos), Color("#00f2fe", 0.85), 1.5)

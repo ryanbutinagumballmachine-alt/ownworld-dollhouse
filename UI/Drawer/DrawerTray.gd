@@ -1,5 +1,9 @@
+# ============================================================
+# File: res://UI/Drawer/DrawerTray.gd
+# ============================================================
+
 # ==============================================================================
-# OWNWORLD — DRAWER TRAY ORCHESTRATOR (ZERO-LAG IN-MEMORY INDEXING)
+# OWNWORLD — DRAWER TRAY ORCHESTRATOR (UNIVERSAL HOLD GESTURES)
 # File: res://UI/Drawer/DrawerTray.gd
 # Base Class: CanvasLayer (class_name DrawerTray)
 #
@@ -1030,12 +1034,12 @@ func _render_cast_tab() -> void:
 
 		_attach_card_visuals(vbox, tex, c_name)
 
-		# Setup Hold-Down (Long-Press) to recall character from room to tray
+		# Setup Universal Hold-to-Recall gesture
 		_setup_cast_card_gestures(card, cap_data, item_key, cap_idx)
 		items_grid.add_child(card)
 
 
-## Attaches hold-down detection to Cast character cards cleanly using by-reference state
+## Universal hold gesture handler synchronized with SettingsManager hold duration.
 func _setup_cast_card_gestures(card: Button, cap_data: Dictionary, item_key: String, cap_idx: int) -> void:
 	var press_state: Dictionary = {
 		"is_holding": false,
@@ -1119,7 +1123,6 @@ func _setup_cast_card_gestures(card: Button, cap_data: Dictionary, item_key: Str
 	)
 
 
-## Recalls an active character from the room back into the Cast Tray
 func _recall_character_to_tray(char_data: Dictionary) -> void:
 	var c_name: String = str(char_data.get("display_name", "Character"))
 	var c_id: String = str(char_data.get("id", ""))
@@ -1139,18 +1142,16 @@ func _recall_character_to_tray(char_data: Dictionary) -> void:
 					break
 
 	if live_character_node != null and is_instance_valid(live_character_node):
-		# Store the character back into cast data with updated fields
 		store_character_in_tray(live_character_node)
 		SaveSystem.save_current_room_state()
 		_trigger_haptic(45)
 		AudioManager.play_drop_cushion()
 		_notify("Recalled %s to Cast Tray" % c_name, true)
 	else:
-		# If not in active room, scrub from room files and ensure safely saved in Cast
 		DrawerMetadataService.scrub_character_from_universe_rooms(c_id, c_name)
 		var cast_list: Array[Dictionary] = _load_cast_data()
 		var found: bool = false
-		for item in cast_list:
+		for item: Dictionary in cast_list:
 			if str(item.get("id", "")) == c_id or str(item.get("display_name", "")).strip_edges().to_lower() == name_key:
 				found = true
 				break
@@ -1441,7 +1442,7 @@ func _build_import_dialogs() -> void:
 	art_import_dialog.file_mode = FileDialog.FILE_MODE_OPEN_FILES
 	art_import_dialog.access = FileDialog.ACCESS_FILESYSTEM
 	art_import_dialog.use_native_dialog = true
-	art_import_dialog.filters = ["*.png, *.jpg, *.jpeg, *.webp ; Image Files"]
+	art_import_dialog.filters = ["*.png, *.jpg, *.jpeg, *.webp, *.gif ; Image & Animation Files"]
 	art_import_dialog.min_size = Vector2i(760, 480)
 	art_import_dialog.current_dir = UGCManager.get_default_import_directory()
 	art_import_dialog.file_selected.connect(func(path: String) -> void: _on_art_files_imported([path]))
