@@ -1,5 +1,5 @@
 # ==============================================================================
-# OWNWORLD — UGC MANAGER & DOCUMENTS HUB (ASYNC ZERO-LAG THUMBNAILS)
+# OWNWORLD — UGC MANAGER & DOCUMENTS HUB (ZERO-LAG IN-MEMORY CACHE)
 # File: res://Core/UGCManager.gd
 # Base Class: RefCounted (class_name UGCManager)
 # ==============================================================================
@@ -27,6 +27,7 @@ static var thumb_cache: Dictionary = {}
 static var thumb_mutex: Mutex = Mutex.new()
 
 static var _library_metadata_cache: Array[Dictionary] = []
+static var _cached_folders: Array[String] = []
 static var _library_dirty: bool = true
 
 
@@ -138,11 +139,12 @@ static func resolve_art_directory(relative_folder: String = "") -> String:
 	return target_directory
 
 
-# --- METADATA & LIBRARY DIRECTORY SCANNING ---
+# --- METADATA & ZERO-LAG IN-MEMORY LIBRARY INDEXING ---
 
 static func mark_library_dirty() -> void:
 	_library_dirty = true
 	_library_metadata_cache.clear()
+	_cached_folders.clear()
 
 
 static func scan_user_art_library(force_refresh: bool = false) -> Array[Dictionary]:
@@ -150,13 +152,19 @@ static func scan_user_art_library(force_refresh: bool = false) -> Array[Dictiona
 		return _library_metadata_cache
 
 	var results: Array[Dictionary] = []
-	_scan_dir_metadata_recursive(get_art_root_directory(), "", results)
+	var folders_set: Dictionary = {"Root": true}
+	_scan_dir_metadata_recursive(get_art_root_directory(), "", results, folders_set)
+
 	_library_metadata_cache = results
+	_cached_folders = []
+	for folder_key: String in folders_set.keys():
+		_cached_folders.append(folder_key)
+
 	_library_dirty = false
-	return results
+	return _library_metadata_cache
 
 
-static func _scan_dir_metadata_recursive(disk_path: String, relative_folder: String, results: Array[Dictionary]) -> void:
+static func _scan_dir_metadata_recursive(disk_path: String, relative_folder: String, results: Array[Dictionary], folders_set: Dictionary) -> void:
 	if not DirAccess.dir_exists_absolute(disk_path):
 		return
 
@@ -178,67 +186,60 @@ static func _scan_dir_metadata_recursive(disk_path: String, relative_folder: Str
 			continue
 		var sub_directory: String = disk_path.path_join(directory_name)
 		var sub_relative_path: String = directory_name if relative_folder.is_empty() else relative_folder + "/" + directory_name
-		_scan_dir_metadata_recursive(sub_directory, sub_relative_path, results)
+		folders_set[sub_relative_path] = true
+		_scan_dir_metadata_recursive(sub_directory, sub_relative_path, results, folders_set)
 
 
+## Returns all files inside a relative folder from fast memory cache
 static func get_files_in_art_folder(relative_folder_path: String) -> Array[Dictionary]:
-	var normalized_relative: String = _normalize_relative_folder(relative_folder_path)
-	var art_root: String = get_art_root_directory()
-	var target_directory: String = art_root if (normalized_relative.is_empty() or normalized_relative == "Root") else art_root.path_join(normalized_relative)
+	var all_files: Array[Dictionary] = scan_user_art_library()
+	var target_norm: String = _normalize_relative_folder(relative_folder_path)
+	if target_norm == "Root":
+		target_norm = ""
 
-	var results: Array[Dictionary] = []
-	if not DirAccess.dir_exists_absolute(target_directory):
-		return results
+	var filtered_results: Array[Dictionary] = []
+	for art_data: Dictionary in all_files:
+		var file_folder: String = str(art_data.get("folder", "")).replace("\\", "/").strip_edges().trim_prefix("/").trim_suffix("/")
+		if file_folder == target_norm:
+			filtered_results.append(art_data)
 
-	var files: PackedStringArray = DirAccess.get_files_at(target_directory)
-	for file_name: String in files:
-		var extension: String = file_name.get_extension().to_lower()
-		if not SUPPORTED_ART_EXTENSIONS.has(extension):
-			continue
-		var full_path: String = target_directory.path_join(file_name).replace("\\", "/")
-		results.append({
-			"name": file_name.get_basename(),
-			"file_path": full_path,
-			"folder": normalized_relative if normalized_relative != "Root" else ""
-		})
-
-	return results
+	return filtered_results
 
 
+## Returns immediate subfolders from fast memory index
 static func get_subfolders_in_art_folder(relative_folder_path: String) -> Array[String]:
-	var subfolders: Array[String] = []
-	var normalized_relative: String = _normalize_relative_folder(relative_folder_path)
-	var art_root: String = get_art_root_directory()
-	var target_directory: String = art_root if (normalized_relative.is_empty() or normalized_relative == "Root") else art_root.path_join(normalized_relative)
+	scan_user_art_library()
+	var target_norm: String = _normalize_relative_folder(relative_folder_path)
+	if target_norm == "Root":
+		target_norm = ""
 
-	if not DirAccess.dir_exists_absolute(target_directory):
-		return subfolders
+	var direct_subfolders: Array[String] = []
+	var seen_names: Dictionary = {}
 
-	var directories: PackedStringArray = DirAccess.get_directories_at(target_directory)
-	for directory_name: String in directories:
-		if not directory_name.begins_with("."):
-			subfolders.append(directory_name)
+	for folder_entry: String in _cached_folders:
+		if folder_entry == "Root" or folder_entry.is_empty():
+			continue
 
-	return subfolders
+		var norm_entry: String = folder_entry.replace("\\", "/").strip_edges().trim_prefix("/").trim_suffix("/")
+		if target_norm.is_empty():
+			var first_segment: String = norm_entry.split("/")[0]
+			if not seen_names.has(first_segment):
+				seen_names[first_segment] = true
+				direct_subfolders.append(first_segment)
+		elif norm_entry.begins_with(target_norm + "/"):
+			var remainder: String = norm_entry.trim_prefix(target_norm + "/")
+			var first_segment: String = remainder.split("/")[0]
+			if not seen_names.has(first_segment):
+				seen_names[first_segment] = true
+				direct_subfolders.append(first_segment)
+
+	direct_subfolders.sort()
+	return direct_subfolders
 
 
 static func get_all_art_folders() -> Array[String]:
-	var folders: Array[String] = ["Root"]
-	_gather_all_folders_recursive(get_art_root_directory(), "", folders)
-	return folders
-
-
-static func _gather_all_folders_recursive(disk_path: String, relative_path: String, folders: Array[String]) -> void:
-	if not DirAccess.dir_exists_absolute(disk_path):
-		return
-
-	var directories: PackedStringArray = DirAccess.get_directories_at(disk_path)
-	for directory_name: String in directories:
-		if directory_name.begins_with("."):
-			continue
-		var sub_relative_path: String = directory_name if relative_path.is_empty() else relative_path + "/" + directory_name
-		folders.append(sub_relative_path)
-		_gather_all_folders_recursive(disk_path.path_join(directory_name), sub_relative_path, folders)
+	scan_user_art_library()
+	return _cached_folders.duplicate()
 
 
 static func create_art_folder(nested_folder_path: String) -> bool:

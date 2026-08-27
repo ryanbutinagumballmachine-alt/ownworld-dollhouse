@@ -1,5 +1,5 @@
 # ==============================================================================
-# OWNWORLD — SAVE SCHEMA & DATA NORMALIZER
+# OWNWORLD — SAVE SCHEMA & DATA NORMALIZER (AUTO-HEALING PERSISTENCE)
 # File: res://Core/Persistence/SaveSchema.gd
 # Base Class: RefCounted (class_name SaveSchema)
 # ==============================================================================
@@ -7,7 +7,7 @@
 class_name SaveSchema
 extends RefCounted
 
-const CURRENT_VERSION: int = 9
+const CURRENT_VERSION: int = 10
 const ROOM_SCHEMA_NAME: String = "ownworld.room"
 
 const DEFAULT_UNIVERSE_ID: String = "default_universe"
@@ -76,6 +76,10 @@ static func create_room(
 	elif safe_slices.size() > MAX_SLICES:
 		safe_slices.resize(MAX_SLICES)
 
+	# Auto-heal and sanitize camera values so invalid saves never brick the viewport
+	var safe_zoom: float = clampf(camera_zoom, 0.75, 2.5) if (camera_zoom > 0.1 and camera_zoom < 5.0) else DEFAULT_CAMERA_ZOOM
+	var safe_cam_pos: Vector2 = camera_position if (camera_position.x >= 0.0 and camera_position.y >= 0.0) else DEFAULT_CAMERA_POSITION
+
 	return {
 		"schema": ROOM_SCHEMA_NAME,
 		"version": CURRENT_VERSION,
@@ -91,9 +95,9 @@ static func create_room(
 		"wallpaper_fill_mode": safe_slices[0].get("fill_mode", "cover"),
 		"is_outdoor": safe_slices[0].get("is_outdoor", false),
 		"camera": {
-			"x": camera_position.x,
-			"y": camera_position.y,
-			"zoom": maxf(camera_zoom, 0.01)
+			"x": safe_cam_pos.x,
+			"y": safe_cam_pos.y,
+			"zoom": safe_zoom
 		},
 		"entities": entities.duplicate(true)
 	}
@@ -193,18 +197,10 @@ static func _read_camera_position(data: Dictionary) -> Vector2:
 	var raw_camera: Variant = data.get("camera", null)
 	if raw_camera is Dictionary:
 		var camera_data: Dictionary = raw_camera as Dictionary
-		return Vector2(
-			float(camera_data.get("x", DEFAULT_CAMERA_POSITION.x)),
-			float(camera_data.get("y", DEFAULT_CAMERA_POSITION.y))
-		)
-
-	var raw_legacy: Variant = data.get("camera_pos", null)
-	if raw_legacy is Dictionary:
-		var pos_data: Dictionary = raw_legacy as Dictionary
-		return Vector2(
-			float(pos_data.get("x", DEFAULT_CAMERA_POSITION.x)),
-			float(pos_data.get("y", DEFAULT_CAMERA_POSITION.y))
-		)
+		var cx: float = float(camera_data.get("x", DEFAULT_CAMERA_POSITION.x))
+		var cy: float = float(camera_data.get("y", DEFAULT_CAMERA_POSITION.y))
+		if cx > 0.0 and cy > 0.0 and cx < 50000.0 and cy < 10000.0:
+			return Vector2(cx, cy)
 
 	return DEFAULT_CAMERA_POSITION
 
@@ -212,5 +208,7 @@ static func _read_camera_position(data: Dictionary) -> Vector2:
 static func _read_camera_zoom(data: Dictionary) -> float:
 	var raw_camera: Variant = data.get("camera", null)
 	if raw_camera is Dictionary:
-		return maxf(float((raw_camera as Dictionary).get("zoom", DEFAULT_CAMERA_ZOOM)), 0.01)
-	return maxf(float(data.get("camera_zoom", DEFAULT_CAMERA_ZOOM)), 0.01)
+		var z: float = float((raw_camera as Dictionary).get("zoom", DEFAULT_CAMERA_ZOOM))
+		if z >= 0.75 and z <= 2.8:
+			return z
+	return DEFAULT_CAMERA_ZOOM

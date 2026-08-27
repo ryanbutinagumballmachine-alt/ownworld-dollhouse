@@ -22,6 +22,8 @@ var universe_info_lbl: Label = null
 var menu_buttons_vbox: VBoxContainer = null
 var btn_quit: Button = null
 
+var _last_progress_pct: int = -1
+
 signal enter_sandbox_requested()
 signal open_universe_hub_requested()
 signal open_world_map_requested()
@@ -161,6 +163,7 @@ func _build_ui() -> void:
 	)
 	_add_menu_btn(menu_buttons_vbox, "Check for Updates", "icon_refresh", func() -> void:
 		EventBus.notification_requested.emit("Checking for updates...", true)
+		_last_progress_pct = -1
 
 		UpdateManager.check_for_updates(self, func(status: int, tag: String, download_url: String, message: String) -> void:
 			match status:
@@ -170,9 +173,15 @@ func _build_ui() -> void:
 					UpdateManager.download_and_install_update(
 						self,
 						download_url,
-						func(progress: float, _downloaded: int, _total: int) -> void:
-							if int(progress * 100.0) % 20 == 0:
-								EventBus.notification_requested.emit("Downloading: %d%%" % int(progress * 100.0), true),
+						func(progress: float, downloaded: int, total: int) -> void:
+							if total > 0:
+								var pct: int = int(progress * 100.0)
+								if pct % 20 == 0 and pct != _last_progress_pct:
+									_last_progress_pct = pct
+									EventBus.notification_requested.emit("Downloading: %d%%" % pct, true)
+							else:
+								var mb: float = float(downloaded) / 1048576.0
+								EventBus.notification_requested.emit("Downloaded: %.1f MB" % mb, true),
 						func() -> void:
 							EventBus.notification_requested.emit("Download complete! Launching installer...", true),
 						func(err: String) -> void:

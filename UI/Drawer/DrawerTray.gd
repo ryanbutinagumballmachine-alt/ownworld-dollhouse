@@ -1,5 +1,5 @@
 # ==============================================================================
-# OWNWORLD — DRAWER TRAY ORCHESTRATOR
+# OWNWORLD — DRAWER TRAY ORCHESTRATOR (ZERO-LAG IN-MEMORY INDEXING)
 # File: res://UI/Drawer/DrawerTray.gd
 # Base Class: CanvasLayer (class_name DrawerTray)
 # ==============================================================================

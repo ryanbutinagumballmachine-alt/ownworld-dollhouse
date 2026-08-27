@@ -1,5 +1,5 @@
 # ==============================================================================
-# OWNWORLD — IN-APP UPDATE MANAGER & APK INSTALLER
+# OWNWORLD — IN-APP UPDATE MANAGER & APK INSTALLER (SCOPED STORAGE RESILIENT)
 # File: res://Systems/UpdateManager.gd
 # Base Class: RefCounted (class_name UpdateManager)
 # ==============================================================================
@@ -9,7 +9,7 @@ extends RefCounted
 
 const GITHUB_REPO: String = "ryanbutinagumballmachine-alt/ownworld-dollhouse"
 const DEFAULT_TIMEOUT_SECONDS: float = 15.0
-const DOWNLOAD_TIMEOUT_SECONDS: float = 60.0
+const DOWNLOAD_TIMEOUT_SECONDS: float = 90.0
 
 enum CheckResult {
 	UPDATE_AVAILABLE,
@@ -48,7 +48,6 @@ static func check_for_updates(caller_node: Node, on_result: Callable) -> void:
 	http_request.request_completed.connect(func(result: int, response_code: int, _headers: PackedStringArray, body: PackedByteArray) -> void:
 		http_request.queue_free()
 
-		# Granular network error translation for mobile debugging
 		if result != HTTPRequest.RESULT_SUCCESS:
 			var err_desc: String = _translate_http_result_code(result)
 			on_result.call(CheckResult.ERROR, "", "", "Network error: %s" % err_desc)
@@ -102,11 +101,8 @@ static func check_for_updates(caller_node: Node, on_result: Callable) -> void:
 		on_result.call(CheckResult.ERROR, "", "", "Failed to initiate update connection (Error %d)." % int(err))
 
 
+## Returns the 100% permission-safe app sandbox path for package updates
 static func get_apk_target_path() -> String:
-	if OS.has_feature("android"):
-		var downloads_dir: String = OS.get_system_dir(OS.SYSTEM_DIR_DOWNLOADS)
-		if not downloads_dir.is_empty() and DirAccess.dir_exists_absolute(downloads_dir):
-			return downloads_dir.path_join("OwnWorld_Update.apk").replace("\\", "/")
 	return "user://update.apk"
 
 
@@ -128,7 +124,7 @@ static func download_and_install_update(caller_node: Node, apk_url: String, on_p
 	caller_node.add_child(http_downloader)
 
 	var progress_timer: Timer = Timer.new()
-	progress_timer.wait_time = 0.1
+	progress_timer.wait_time = 0.15
 	progress_timer.autostart = true
 	caller_node.add_child(progress_timer)
 
@@ -138,9 +134,9 @@ static func download_and_install_update(caller_node: Node, apk_url: String, on_p
 			return
 		var body_size: int = http_downloader.get_body_size()
 		var downloaded: int = http_downloader.get_downloaded_bytes()
-		if body_size > 0 and on_progress.is_valid():
-			var percent: float = clampf(float(downloaded) / float(body_size), 0.0, 1.0)
-			on_progress.call(percent, downloaded, body_size)
+		if on_progress.is_valid():
+			var percent: float = clampf(float(downloaded) / float(body_size), 0.0, 1.0) if body_size > 0 else 0.0
+			on_progress.call(percent, downloaded, maxi(body_size, 0))
 	)
 
 	http_downloader.request_completed.connect(func(result: int, response_code: int, _headers: PackedStringArray, _body: PackedByteArray) -> void:
@@ -172,13 +168,13 @@ static func download_and_install_update(caller_node: Node, apk_url: String, on_p
 		on_error.call("Failed to initiate download stream (Error %d)." % int(err))
 
 
-## Invokes native package installer on Android or opens target file in OS shell.
+## Invokes native package installer on Android via FileProvider or opens target file in OS shell.
 static func install_apk_file(apk_file_path: String) -> void:
 	var global_path: String = ProjectSettings.globalize_path(apk_file_path)
 
 	if OS.has_feature("android"):
 		var android_runtime: Object = Engine.get_singleton("AndroidRuntime") if Engine.has_singleton("AndroidRuntime") else null
-		if android_runtime:
+		if android_runtime != null:
 			var activity: Object = android_runtime.getActivity()
 			var context: Object = android_runtime.getApplicationContext()
 
@@ -191,7 +187,10 @@ static func install_apk_file(apk_file_path: String) -> void:
 			var intent: Variant = IntentClass.new(IntentClass.ACTION_VIEW)
 
 			if BuildClass.SDK_INT >= 24:
-				var FileProviderClass: JavaClass = JavaClassWrapper.wrap("androidx.core.content.FileProvider")
+				var FileProviderClass: JavaClass = null
+				if ClassDB.class_exists("JavaClassWrapper"):
+					FileProviderClass = JavaClassWrapper.wrap("androidx.core.content.FileProvider")
+
 				var authority: String = str(context.getPackageName()) + ".fileprovider"
 				var content_uri: Variant = null
 
@@ -240,7 +239,7 @@ static func is_remote_version_newer(local_ver_str: String, remote_ver_str: Strin
 static func _translate_http_result_code(result_code: int) -> String:
 	match result_code:
 		HTTPRequest.RESULT_CANT_CONNECT:
-			return "Cannot connect to server. Ensure Wi-Fi is active and Android INTERNET permission is enabled."
+			return "Cannot connect to server. Check your network connection."
 		HTTPRequest.RESULT_CANT_RESOLVE:
 			return "DNS resolution failed. Check internet access."
 		HTTPRequest.RESULT_CONNECTION_ERROR:

@@ -1,5 +1,5 @@
 # ==============================================================================
-# OWNWORLD — TOP NAVIGATION BAR (WITH DIRECT FLOOR SWITCHER)
+# OWNWORLD — TOP NAVIGATION BAR (WITH DIRECT FLOOR SWITCHER & SAFE MARGINS)
 # File: res://UI/TopNavBar.gd
 # Base Class: CanvasLayer (class_name TopNavBar)
 # ==============================================================================
@@ -33,17 +33,29 @@ func _ready() -> void:
 	_build_nav_ui()
 	_connect_system_signals()
 	_apply_theme()
+	_apply_hardware_safe_margins()
 
 
 func _connect_system_signals() -> void:
 	if not ThemeService.theme_changed.is_connected(_on_theme_changed):
 		ThemeService.theme_changed.connect(_on_theme_changed)
+	var win: Window = DisplayServer.get_window_list()[0] if DisplayServer.get_window_list().size() > 0 else null
+	var tree: SceneTree = get_tree()
+	if tree != null and tree.root != null and not tree.root.size_changed.is_connected(_apply_hardware_safe_margins):
+		tree.root.size_changed.connect(_apply_hardware_safe_margins)
+
+
+func _apply_hardware_safe_margins() -> void:
+	var safe_area: Rect2i = DisplayServer.get_display_safe_area()
+	var top_margin: float = float(safe_area.position.y)
+	if root_container != null:
+		root_container.offset_top = maxf(12.0, top_margin + 6.0)
 
 
 func _build_nav_ui() -> void:
 	root_container = CenterContainer.new()
 	root_container.set_anchors_preset(Control.PRESET_TOP_WIDE)
-	root_container.offset_top = 14.0
+	root_container.offset_top = 12.0
 	root_container.mouse_filter = Control.MOUSE_FILTER_PASS
 	add_child(root_container)
 

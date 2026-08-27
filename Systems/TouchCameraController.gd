@@ -1,5 +1,5 @@
 # ==============================================================================
-# OWNWORLD — TOUCH CAMERA CONTROLLER (HORIZONTAL SIDE-SCROLLING & FOCUS ZOOM)
+# OWNWORLD — TOUCH CAMERA CONTROLLER (SIDE-SCROLLING & FOCUS ZOOM)
 # File: res://Systems/TouchCameraController.gd
 # Base Class: Camera2D (class_name TouchCameraController)
 # ==============================================================================
@@ -10,6 +10,7 @@ extends Camera2D
 const MAX_ZOOM_INSPECT: float = 2.8
 const MIN_ZOOM_INSPECT: float = 1.0
 const ZOOM_STEP_SPEED: float = 0.15
+const DEFAULT_VIEWPORT_SIZE: Vector2 = Vector2(1280.0, 720.0)
 
 var room_bounds: Rect2 = Rect2(0.0, 0.0, 1280.0, 720.0)
 var is_zoom_mode: bool = false
@@ -29,6 +30,7 @@ signal zoom_mode_changed(p_is_active: bool)
 
 func _ready() -> void:
 	anchor_mode = Camera2D.ANCHOR_MODE_DRAG_CENTER
+	zoom = Vector2.ONE
 	position = room_bounds.get_center()
 
 	var viewport: Viewport = get_viewport()
@@ -40,12 +42,27 @@ func _ready() -> void:
 
 func _deferred_initial_update() -> void:
 	update_room_bounds(room_bounds)
+	_recalculate_camera_mode()
 
 
 func reset_touch_state() -> void:
 	touch_points.clear()
 	initial_pinch_distance = 0.0
 	is_panning = false
+
+
+## Resets camera view to standard side-scrolling mode with optional focus target
+func reset_to_default_view(target_center_x: float = -1.0) -> void:
+	is_zoom_mode = false
+	reset_touch_state()
+	zoom = Vector2.ONE
+
+	var target_y: float = room_bounds.get_center().y
+	var target_x: float = target_center_x if target_center_x >= 0.0 else room_bounds.get_center().x
+	position = Vector2(target_x, target_y)
+
+	_clamp_camera_position()
+	zoom_mode_changed.emit(false)
 
 
 func update_room_bounds(new_bounds: Rect2) -> void:
@@ -71,9 +88,10 @@ func set_zoom_mode(p_zoom_enabled: bool) -> void:
 	reset_touch_state()
 
 	if not is_zoom_mode:
+		var target_y: float = room_bounds.get_center().y
 		var tw: Tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 		tw.tween_property(self, "zoom", Vector2.ONE, 0.2)
-		tw.parallel().tween_property(self, "position:y", room_bounds.get_center().y, 0.2)
+		tw.parallel().tween_property(self, "position:y", target_y, 0.2)
 		tw.chain().tween_callback(_clamp_camera_position)
 	else:
 		_clamp_camera_position()
@@ -93,9 +111,10 @@ func _recalculate_camera_mode() -> void:
 
 
 func _clamp_camera_position() -> void:
-	var viewport_size: Vector2 = get_viewport_rect().size
+	var viewport: Viewport = get_viewport()
+	var viewport_size: Vector2 = viewport.get_visible_rect().size if viewport != null else DEFAULT_VIEWPORT_SIZE
 	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
-		return
+		viewport_size = DEFAULT_VIEWPORT_SIZE
 
 	var current_zoom: float = maxf(zoom.x, 1.0)
 	var half_view: Vector2 = (viewport_size * 0.5) / current_zoom
@@ -113,7 +132,7 @@ func _clamp_camera_position() -> void:
 	else:
 		clamped_pos.x = clampf(clamped_pos.x, min_x, max_x)
 
-	# Vertical Clamping (Locked in normal mode, 2D in zoom mode)
+	# Vertical Clamping: Strictly locked to room center in side-scrolling mode
 	if not is_zoom_mode or min_y >= max_y:
 		clamped_pos.y = room_bounds.get_center().y
 	else:
@@ -215,7 +234,8 @@ func _apply_zoom_step(factor: float, mouse_screen_pos: Vector2) -> void:
 	if is_equal_approx(old_zoom, target_zoom_val):
 		return
 
-	var viewport_size: Vector2 = get_viewport_rect().size
+	var viewport: Viewport = get_viewport()
+	var viewport_size: Vector2 = viewport.get_visible_rect().size if viewport != null else DEFAULT_VIEWPORT_SIZE
 	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
 		return
 

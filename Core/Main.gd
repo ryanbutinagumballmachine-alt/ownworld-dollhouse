@@ -1,5 +1,5 @@
 # ==============================================================================
-# OWNWORLD — MAIN APPLICATION ORCHESTRATOR
+# OWNWORLD — MAIN APPLICATION ORCHESTRATOR (CROSS-PLATFORM & VIEWPORT RESILIENT)
 # File: res://Core/Main.gd
 # Base Class: Node2D
 # ==============================================================================
@@ -8,7 +8,7 @@ extends Node2D
 
 const BASE_ROOM_SIZE: Vector2 = Vector2(1280.0, 720.0)
 
-var TAP_PIXEL_THRESHOLD: float = 24.0 if OS.has_feature("mobile") else 14.0
+var TAP_PIXEL_THRESHOLD: float = 24.0 if (OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios")) else 14.0
 
 var room_slices: Array[Dictionary] = [{
 	"wallpaper_path": "", "fill_mode": "cover", "is_outdoor": false,
@@ -137,10 +137,10 @@ func _apply_hardware_safe_margins() -> void:
 	var bottom_margin: float = float(screen_size.y - (safe_area.position.y + safe_area.size.y))
 
 	if top_nav_bar != null and top_nav_bar.root_container != null:
-		top_nav_bar.root_container.offset_top = maxf(14.0, top_margin + 6.0)
+		top_nav_bar.root_container.offset_top = maxf(12.0, top_margin + 6.0)
 
 	if drawer_tray_ui != null and drawer_tray_ui.root_panel != null:
-		var bottom_offset: float = -maxf(8.0, bottom_margin + 4.0)
+		var bottom_offset: float = -maxf(6.0, bottom_margin + 4.0)
 		drawer_tray_ui.root_panel.offset_bottom = bottom_offset
 		drawer_tray_ui.root_panel.offset_top = bottom_offset - drawer_tray_ui.DRAWER_HEIGHT
 
@@ -565,7 +565,7 @@ func _is_any_modal_open() -> bool:
 	return false
 
 
-# --- INPUT HANDLING ---
+# --- INPUT HANDLING WITH TOUCH/MOUSE SEPARATION ---
 
 func _input(event: InputEvent) -> void:
 	if is_transitioning_room:
@@ -634,6 +634,7 @@ func _input(event: InputEvent) -> void:
 			main_camera.handle_external_drag(screen_drag)
 
 	elif event is InputEventMouseButton:
+		# Strictly ignore emulated mouse events if multi-touch is active
 		if not _active_touches.is_empty():
 			return
 
@@ -1308,9 +1309,6 @@ func _load_active_room(room_id: String, traveler_data: Dictionary = {}) -> void:
 
 	if target_bldg_id.is_empty(): target_bldg_id = "building_main"
 	if target_bldg_name.is_empty(): target_bldg_name = "Main Building"
-	
-	if top_nav_bar != null:
-		top_nav_bar.update_current_floor_display(current_room_floor_level, current_room_title)
 
 	current_building_id = target_bldg_id
 	current_building_name = target_bldg_name
@@ -1335,6 +1333,9 @@ func _load_active_room(room_id: String, traveler_data: Dictionary = {}) -> void:
 
 	current_room_floor_level = target_floor_level
 	current_room_title = target_title
+
+	if top_nav_bar != null:
+		top_nav_bar.update_current_floor_display(current_room_floor_level, current_room_title)
 
 	# 3. Apply Multi-Slice Wallpapers
 	var raw_slices: Variant = saved_state.get("slices", null)
@@ -1363,10 +1364,13 @@ func _load_active_room(room_id: String, traveler_data: Dictionary = {}) -> void:
 
 	_update_floor_guide_visuals(current_room_floor_y, false)
 
+	# Auto-heal and normalize camera view strictly in side-scrolling mode
 	if main_camera != null:
 		main_camera.update_room_bounds(room_bounds)
+		var spawn_pos: Vector2 = RoomManager.resolve_traveler_spawn_position(traveler_data, all_entities)
+		main_camera.reset_to_default_view(spawn_pos.x if not traveler_data.is_empty() else -1.0)
 		if top_nav_bar != null:
-			top_nav_bar.set_zoom_button_state(main_camera.is_zoom_mode_enabled())
+			top_nav_bar.set_zoom_button_state(false)
 
 	if drawer_tray_ui != null: drawer_tray_ui.refresh_tray()
 	is_room_loaded = true
@@ -1587,7 +1591,7 @@ func _on_undo_requested() -> void:
 	var history: Node = get_node_or_null("/root/HistoryManager")
 	if history != null and history.has_method("undo"):
 		history.call("undo")
-		
+
 
 func _on_top_nav_floor_switcher_requested() -> void:
 	var floors: Array[Dictionary] = SaveSystem.get_building_floors(current_building_id)

@@ -1,5 +1,5 @@
 # ==============================================================================
-# OWNWORLD — WORLD MAP CONTROLLER (BUILDING SETTINGS & FLOOR MANAGEMENT)
+# OWNWORLD — WORLD MAP CONTROLLER (CARDLESS PINS & FLOOR MANAGEMENT)
 # File: res://Systems/WorldMapController.gd
 # Base Class: CanvasLayer (class_name WorldMapController)
 # ==============================================================================
@@ -670,14 +670,12 @@ func _on_save_pin_editor_pressed() -> void:
 
 		active_editing_pin.update_visuals()
 
-		# 1. Delete removed room files
 		var save_dir: String = SaveSystem.get_universe_save_dir()
 		for del_id: String in deleted_room_ids:
 			var del_path: String = save_dir.path_join(del_id + ".json")
 			if FileAccess.file_exists(del_path):
 				DirAccess.remove_absolute(del_path)
 
-		# 2. Persist / Update all floor rooms for this building
 		for fl_data: Dictionary in working_floors_list:
 			var r_id: String = str(fl_data.get("room_id", "")).strip_edges()
 			if r_id.is_empty(): continue
@@ -886,7 +884,7 @@ func _on_pin_selected(pin: MapPin) -> void:
 		EventBus.room_change_requested.emit(target_entry_room, traveler_data)
 
 
-# --- CARDLESS MAP BUILDING PIN ---
+# --- CARDLESS MAP BUILDING PIN (AUTO-CENTERED & RESPONSIVE) ---
 
 class MapPin extends Control:
 	var building_name: String = ""
@@ -899,6 +897,7 @@ class MapPin extends Control:
 	var pin_start_pos: Vector2 = Vector2.ZERO
 
 	var map_controller: WorldMapController = null
+	var center_vbox: VBoxContainer = null
 	var texture_rect: TextureRect = null
 	var label_node: Label = null
 	var delete_btn: Button = null
@@ -917,8 +916,8 @@ class MapPin extends Control:
 		pin_texture = p_tex
 		map_controller = controller_ref
 
-		custom_minimum_size = Vector2(80.0, 90.0)
-		size = Vector2(80.0, 90.0)
+		custom_minimum_size = Vector2(90.0, 96.0)
+		size = Vector2(90.0, 96.0)
 		mouse_filter = Control.MOUSE_FILTER_PASS
 		_build_visuals()
 
@@ -930,33 +929,45 @@ class MapPin extends Control:
 
 
 	func _build_visuals() -> void:
+		center_vbox = VBoxContainer.new()
+		center_vbox.set_anchors_preset(Control.PRESET_FULL_RECT)
+		center_vbox.alignment = BoxContainer.ALIGNMENT_CENTER
+		center_vbox.add_theme_constant_override("separation", 4)
+		center_vbox.mouse_filter = Control.MOUSE_FILTER_PASS
+		add_child(center_vbox)
+
+		var icon_container: CenterContainer = CenterContainer.new()
+		icon_container.custom_minimum_size = Vector2(64.0, 64.0)
+		icon_container.mouse_filter = Control.MOUSE_FILTER_PASS
+		center_vbox.add_child(icon_container)
+
 		texture_rect = TextureRect.new()
 		texture_rect.texture = pin_texture
-		texture_rect.position = Vector2(10.0, 0.0)
 		texture_rect.custom_minimum_size = Vector2(60.0, 60.0)
 		texture_rect.size = Vector2(60.0, 60.0)
 		texture_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		texture_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		texture_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		add_child(texture_rect)
+		icon_container.add_child(texture_rect)
 
 		label_node = Label.new()
 		label_node.text = building_name
 		label_node.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		label_node.position = Vector2(-20.0, 62.0)
-		label_node.custom_minimum_size = Vector2(120.0, 18.0)
+		label_node.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+		label_node.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		label_node.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 		label_node.add_theme_font_size_override("font_size", 10)
 		label_node.add_theme_color_override("font_color", Color.WHITE)
-		label_node.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.9))
+		label_node.add_theme_color_override("font_shadow_color", Color(0, 0, 0, 0.95))
 		label_node.add_theme_constant_override("shadow_offset_x", 1)
 		label_node.add_theme_constant_override("shadow_offset_y", 1)
 		label_node.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		add_child(label_node)
+		center_vbox.add_child(label_node)
 
 		delete_btn = Button.new()
-		delete_btn.custom_minimum_size = Vector2(20.0, 20.0)
-		delete_btn.size = Vector2(20.0, 20.0)
-		delete_btn.position = Vector2(58.0, -8.0)
+		delete_btn.custom_minimum_size = Vector2(22.0, 22.0)
+		delete_btn.size = Vector2(22.0, 22.0)
+		delete_btn.position = Vector2(68.0, -4.0)
 		delete_btn.theme_type_variation = "DangerButton"
 		delete_btn.focus_mode = Control.FOCUS_NONE
 		delete_btn.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -969,9 +980,9 @@ class MapPin extends Control:
 		add_child(delete_btn)
 
 		config_btn = Button.new()
-		config_btn.custom_minimum_size = Vector2(20.0, 20.0)
-		config_btn.size = Vector2(20.0, 20.0)
-		config_btn.position = Vector2(2.0, -8.0)
+		config_btn.custom_minimum_size = Vector2(22.0, 22.0)
+		config_btn.size = Vector2(22.0, 22.0)
+		config_btn.position = Vector2(0.0, -4.0)
 		config_btn.focus_mode = Control.FOCUS_NONE
 		config_btn.mouse_filter = Control.MOUSE_FILTER_STOP
 		config_btn.visible = false
