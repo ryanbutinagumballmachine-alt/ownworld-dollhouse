@@ -2,6 +2,9 @@
 # OWNWORLD — DRAWER ORGANIZER & TAGGING MODAL
 # File: res://UI/Drawer/DrawerOrganizeModal.gd
 # Base Class: Control (class_name DrawerOrganizeModal)
+#
+# Responsibility: Single & batch item organization dialog. Handles folder routing,
+# tag checkbox application, and custom hashtag creation/deletion.
 # ==============================================================================
 
 class_name DrawerOrganizeModal

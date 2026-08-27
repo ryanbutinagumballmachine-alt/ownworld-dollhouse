@@ -2,6 +2,10 @@
 # OWNWORLD — PROCEDURAL THEME ENGINE & WCAG CONTRAST SOLVER
 # File: res://Core/ThemeEngine.gd
 # Base Class: RefCounted (class_name ThemeEngine)
+#
+# Responsibility: Complete procedural construction of Godot Theme resources from
+# arbitrary color definitions, mathematical WCAG 2.1 contrast ratio enforcement,
+# procedural vector-like UI raster icon generation, and SceneTree propagation.
 # ==============================================================================
 
 class_name ThemeEngine

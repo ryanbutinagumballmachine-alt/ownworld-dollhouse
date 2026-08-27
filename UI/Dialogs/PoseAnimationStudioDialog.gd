@@ -2,6 +2,9 @@
 # OWNWORLD — POSE & ANIMATION STUDIO
 # File: res://UI/Dialogs/PoseAnimationStudioDialog.gd
 # Base Class: CanvasLayer (class_name PoseAnimationStudioDialog)
+#
+# Responsibility: 6-pose whole-sprite matrix studio and frame-by-frame animation
+# loop editor. Configures outfit variations, expressive slots, and custom frame rates.
 # ==============================================================================
 
 class_name PoseAnimationStudioDialog

@@ -2,6 +2,9 @@
 # OWNWORLD — SETTINGS DIALOG
 # File: res://UI/Dialogs/SettingsDialog.gd
 # Base Class: CanvasLayer (class_name SettingsDialog)
+#
+# Responsibility: Game preferences modal. Configures master/music/SFX volume,
+# responsive UI scale, mobile touch padding, hold duration, grid snapping, and factory reset.
 # ==============================================================================
 
 class_name SettingsDialog

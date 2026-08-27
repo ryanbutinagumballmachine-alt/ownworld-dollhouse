@@ -2,6 +2,10 @@
 # OWNWORLD — MOBILE-FIRST ANCHOR & SNAP POINT STUDIO
 # File: res://UI/Dialogs/SnapPointStudioDialog.gd
 # Base Class: CanvasLayer (class_name SnapPointStudioDialog)
+#
+# Responsibility: Interactive visual anchor socket editor. Allows placing and
+# dragging connection points (hands, seats, hats, glasses, surfaces, food mouths,
+# liquid emitters) directly on illustrations with coordinate precision spinners.
 # ==============================================================================
 
 class_name SnapPointStudioDialog

@@ -2,6 +2,9 @@
 # OWNWORLD — ENTITY COMPONENT BASE
 # File: res://Core/Entities/Components/EntityComponent.gd
 # Base Class: RefCounted (class_name EntityComponent)
+#
+# Responsibility: Base class for modular entity capabilities and sub-behaviors.
+# Provides standardized lifecycle and serialization interfaces.
 # ==============================================================================
 
 class_name EntityComponent

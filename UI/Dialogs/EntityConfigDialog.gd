@@ -1,7 +1,11 @@
 # ==============================================================================
-# OWNWORLD - ENTITY CONFIGURATION DIALOG (STAIRS & CAPABILITIES)
+# OWNWORLD — ENTITY CONFIGURATION DIALOG (STAIRS & CAPABILITIES)
 # File: res://UI/Dialogs/EntityConfigDialog.gd
 # Base Class: CanvasLayer (class_name EntityConfigDialog)
+#
+# Responsibility: Master capability toggles modal for selected items. Configures
+# classification (Prop/Character/Furniture/Container), scale, physical placement
+# rules, and interactive feature flags (food, drink, cup, faucet, light, stairs, elevator).
 # ==============================================================================
 
 class_name EntityConfigDialog

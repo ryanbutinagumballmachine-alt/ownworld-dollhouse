@@ -2,6 +2,9 @@
 # OWNWORLD — MAGIC WHEEL / CONTEXT ACTION CARD
 # File: res://UI/MagicWheel.gd
 # Base Class: CanvasLayer (class_name MagicWheel)
+#
+# Responsibility: Long-press / right-click context menu. Displays contextual tools
+# tailored to target entity capabilities, with viewport-safe bounds positioning.
 # ==============================================================================
 
 class_name MagicWheel

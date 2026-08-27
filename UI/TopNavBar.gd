@@ -2,6 +2,9 @@
 # OWNWORLD — TOP NAVIGATION BAR (WITH DIRECT FLOOR SWITCHER & SAFE MARGINS)
 # File: res://UI/TopNavBar.gd
 # Base Class: CanvasLayer (class_name TopNavBar)
+#
+# Responsibility: Floating top navigation pill containing main menu, creator handbook,
+# building floor switcher, camera focus toggle, world map, room studio, and undo shortcuts.
 # ==============================================================================
 
 class_name TopNavBar
@@ -39,7 +42,6 @@ func _ready() -> void:
 func _connect_system_signals() -> void:
 	if not ThemeService.theme_changed.is_connected(_on_theme_changed):
 		ThemeService.theme_changed.connect(_on_theme_changed)
-	var win: Window = DisplayServer.get_window_list()[0] if DisplayServer.get_window_list().size() > 0 else null
 	var tree: SceneTree = get_tree()
 	if tree != null and tree.root != null and not tree.root.size_changed.is_connected(_apply_hardware_safe_margins):
 		tree.root.size_changed.connect(_apply_hardware_safe_margins)

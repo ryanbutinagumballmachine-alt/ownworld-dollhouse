@@ -2,6 +2,9 @@
 # OWNWORLD — RECIPE CRAFTING
 # File: res://Systems/RecipeCrafting.gd
 # Base Class: RefCounted (class_name RecipeCrafting)
+#
+# Responsibility: Recipe registry, commutative ingredient matching,
+# and particle merge burst effects.
 # ==============================================================================
 
 class_name RecipeCrafting
@@ -41,9 +44,9 @@ static func register_recipe(item_a_name: String, item_b_name: String, result_nam
 		return
 
 	var recipe_entry: Dictionary = {
-		"name": result_name,
+		"name": result_name.strip_edges(),
 		"type": int(result_type),
-		"tex_path": result_texture_path
+		"tex_path": result_texture_path.strip_edges()
 	}
 
 	active_recipes["%s+%s" % [normalized_a, normalized_b]] = recipe_entry

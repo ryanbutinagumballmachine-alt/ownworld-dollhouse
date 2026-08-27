@@ -1,6 +1,9 @@
 # ==============================================================================
 # OWNWORLD — ELEVATOR CAPABILITY
 # File: res://Core/Entities/Capabilities/EntityElevatorCapability.gd
+# Base Class: EntityPortalCapability (class_name EntityElevatorCapability)
+#
+# Responsibility: Multi-floor transit keypad selection and cab passenger bundling.
 # ==============================================================================
 
 class_name EntityElevatorCapability
@@ -24,7 +27,7 @@ func configure_floors(new_floors: Array[Dictionary]) -> void:
 
 
 func request_floor_selection() -> void:
-	if entity != null and not floors.is_empty():
+	if entity != null and is_instance_valid(entity) and not floors.is_empty():
 		floor_selection_requested.emit(entity, floors.duplicate(true))
 
 
@@ -36,7 +39,7 @@ func get_floor(index: int) -> Dictionary:
 
 func travel_to_floor(index: int) -> bool:
 	var floor_item: Dictionary = get_floor(index)
-	if floor_item.is_empty():
+	if floor_item.is_empty() or entity == null or not is_instance_valid(entity):
 		return false
 
 	var target_dest_room_id: String = str(floor_item.get("room_id", "")).strip_edges()

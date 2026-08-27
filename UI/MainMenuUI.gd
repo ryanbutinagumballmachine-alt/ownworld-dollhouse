@@ -2,6 +2,9 @@
 # OWNWORLD — MAIN MENU UI
 # File: res://UI/MainMenuUI.gd
 # Base Class: CanvasLayer (class_name MainMenuUI)
+#
+# Responsibility: Master launcher and navigation modal. Provides access to World
+# Maps, Chronicles, Room Studios, Recipe Crafting, Universe Hub, Updates, and Settings.
 # ==============================================================================
 
 class_name MainMenuUI

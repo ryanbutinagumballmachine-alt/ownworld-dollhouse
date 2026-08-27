@@ -2,6 +2,9 @@
 # OWNWORLD — DIAGNOSTIC OVERLAY
 # File: res://UI/DiagnosticOverlay.gd
 # Base Class: CanvasLayer (class_name DiagnosticOverlay)
+#
+# Responsibility: Developer diagnostics heads-up display. Renders real-time FPS,
+# coordinate metrics, collision polylines, socket links, and system state JSON dumps.
 # ==============================================================================
 
 class_name DiagnosticOverlay

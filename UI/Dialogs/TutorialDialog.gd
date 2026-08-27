@@ -2,6 +2,10 @@
 # OWNWORLD — IN-GAME TUTORIAL & CREATOR HANDBOOK
 # File: res://UI/Dialogs/TutorialDialog.gd
 # Base Class: CanvasLayer (class_name TutorialDialog)
+#
+# Responsibility: In-game creator handbook modal. Comprehensive 11-chapter guide
+# covering quickstart, custom drawing cutouts, 6-pose expressive sprites, sockets,
+# food & liquids, visual logic scripting, rooms, elevators, lore journals, and theming.
 # ==============================================================================
 
 class_name TutorialDialog

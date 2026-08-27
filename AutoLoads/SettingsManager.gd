@@ -2,6 +2,10 @@
 # OWNWORLD — SETTINGS SERVICE
 # File: res://AutoLoads/SettingsManager.gd
 # Autoload Singleton: SettingsManager
+# Base Class: Node
+#
+# Responsibility: User configuration persistence, dynamic DPI-aware UI scaling,
+# audio server decibel mapping, and mobile touch tolerance parameters.
 # ==============================================================================
 
 extends Node

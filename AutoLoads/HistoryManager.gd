@@ -2,6 +2,10 @@
 # OWNWORLD — HISTORY SERVICE (UNDO / REDO)
 # File: res://AutoLoads/HistoryManager.gd
 # Autoload Singleton: HistoryManager
+# Base Class: Node
+#
+# Responsibility: Snapshot-based Undo / Redo history ring buffer.
+# Manages state suppression to prevent recursive snapshot loops during restoration.
 # ==============================================================================
 
 extends Node

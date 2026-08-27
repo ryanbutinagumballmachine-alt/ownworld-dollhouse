@@ -2,6 +2,9 @@
 # OWNWORLD — OWN PACK MANAGER (ZIP ARCHIVE IMPORT & EXPORT)
 # File: res://Pack/OwnPackManager.gd
 # Base Class: RefCounted (class_name OwnPackManager)
+#
+# Responsibility: ZIP archive packing and unpacking for .ownpack universe bundles.
+# Includes path traversal sanitization (Zip-Slip protection) and manifest validation.
 # ==============================================================================
 
 class_name OwnPackManager

@@ -1,7 +1,16 @@
+# ==============================================================================
+# OWNWORLD — VERSION BUMPER TOOL
+# File: res://tools/bump_version.gd
+# Base Class: EditorScript
+#
+# Responsibility: Increments semver patch numbers across project.godot and
+# synchronizes Android version_code and version_name in export_presets.cfg.
+# ==============================================================================
+
 @tool
 extends EditorScript
 
-# Increments patch version (e.g. 1.0.22 -> 1.0.23) and bumps Android version_code
+
 func _run() -> void:
 	# 1. Read and calculate new version string
 	var current_version: String = str(ProjectSettings.get_setting("application/config/version", "1.0.0")).strip_edges()
@@ -25,7 +34,7 @@ func _run() -> void:
 
 	var new_code: int = patch
 	if err == OK:
-		for section in config.get_sections():
+		for section: String in config.get_sections():
 			if section.ends_with(".options"):
 				# Android Preset options
 				if config.has_section_key(section, "version/code"):

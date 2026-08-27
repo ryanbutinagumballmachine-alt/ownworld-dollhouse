@@ -2,6 +2,9 @@
 # OWNWORLD — THEME STUDIO DIALOG
 # File: res://UI/Dialogs/ThemeStudioDialog.gd
 # Base Class: CanvasLayer (class_name ThemeStudioDialog)
+#
+# Responsibility: Color palette and custom font designer modal. Features curated
+# palette presets, user palette libraries, live previewing, and custom TTF/OTF loaders.
 # ==============================================================================
 
 class_name ThemeStudioDialog
@@ -481,7 +484,7 @@ func _on_browse_font_pressed() -> void:
 
 
 func _on_font_file_selected(fpath: String) -> void:
-	active_custom_font_path = fpath
+	active_custom_font_path = fpath.strip_edges()
 	lbl_current_font.text = fpath.get_file()
 	_apply_and_persist_theme(true)
 

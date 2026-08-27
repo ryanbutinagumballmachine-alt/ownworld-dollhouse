@@ -1,6 +1,10 @@
 # ==============================================================================
 # OWNWORLD — ENTITY SOCKET COMPONENT
 # File: res://Core/Entities/Components/EntitySocketComponent.gd
+# Base Class: EntityComponent (class_name EntitySocketComponent)
+#
+# Responsibility: Spatial snap anchor registration, interaction zone bounds,
+# parent-child hierarchy cycle detection, and socket attachment transitions.
 # ==============================================================================
 
 class_name EntitySocketComponent
@@ -97,6 +101,9 @@ func _is_attachment_valid(target_parent: OwnEntity, socket_key: String) -> bool:
 
 
 func get_incoming_anchor_world_position(socket_key: String) -> Vector2:
+	if entity == null:
+		return Vector2.ZERO
+
 	var key: String = socket_key.to_lower()
 
 	if key.begins_with("seat") or key.begins_with("bed"):
@@ -120,7 +127,7 @@ func get_incoming_anchor_world_position(socket_key: String) -> Vector2:
 
 
 func attach_to_socket(target_parent: OwnEntity, socket_key: String, is_instant: bool = false) -> bool:
-	if not can_attach_to(target_parent, socket_key):
+	if not can_attach_to(target_parent, socket_key) or entity == null:
 		return false
 
 	var previous_parent: OwnEntity = parent_socket_entity
@@ -187,7 +194,7 @@ func attach_to_socket(target_parent: OwnEntity, socket_key: String, is_instant: 
 
 
 func detach_from_socket(new_canvas_parent: Node2D) -> void:
-	if new_canvas_parent == null:
+	if new_canvas_parent == null or entity == null:
 		return
 
 	var previous_parent: OwnEntity = parent_socket_entity

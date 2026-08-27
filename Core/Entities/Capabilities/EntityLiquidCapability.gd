@@ -1,6 +1,10 @@
 # ==============================================================================
 # OWNWORLD — LIQUID CAPABILITY
 # File: res://Core/Entities/Capabilities/EntityLiquidCapability.gd
+# Base Class: EntityCapability (class_name EntityLiquidCapability)
+#
+# Responsibility: Discrete liquid volume tracking, fill levels, source emitters,
+# and liquid transfer validation between containers and sinks.
 # ==============================================================================
 
 class_name EntityLiquidCapability
@@ -36,7 +40,7 @@ func fill_one() -> bool:
 		return false
 	fill_level += 1
 	fill_changed.emit(fill_level)
-	if entity != null:
+	if entity != null and is_instance_valid(entity):
 		EventBus.entity_state_changed.emit(entity.entity_id)
 	return true
 
@@ -48,7 +52,7 @@ func consume_one() -> bool:
 		return false
 	fill_level -= 1
 	fill_changed.emit(fill_level)
-	if entity != null:
+	if entity != null and is_instance_valid(entity):
 		EventBus.entity_state_changed.emit(entity.entity_id)
 	return true
 
@@ -58,7 +62,7 @@ func empty() -> void:
 		return
 	fill_level = 0
 	fill_changed.emit(fill_level)
-	if entity != null:
+	if entity != null and is_instance_valid(entity):
 		EventBus.entity_state_changed.emit(entity.entity_id)
 
 

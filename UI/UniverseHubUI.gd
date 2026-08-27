@@ -2,6 +2,9 @@
 # OWNWORLD — UNIVERSE HUB / STORY LIBRARY
 # File: res://UI/UniverseHubUI.gd
 # Base Class: CanvasLayer (class_name UniverseHubUI)
+#
+# Responsibility: Story universe management modal. Handles universe creation,
+# active world switching, .ownpack archive imports, exports, and safe universe deletion.
 # ==============================================================================
 
 class_name UniverseHubUI

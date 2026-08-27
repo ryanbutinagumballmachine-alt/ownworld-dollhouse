@@ -2,6 +2,9 @@
 # OWNWORLD — ENTITY CAPABILITY BASE
 # File: res://Core/Entities/EntityCapability.gd
 # Base Class: EntityComponent (class_name EntityCapability)
+#
+# Responsibility: Semantic capability base class providing interaction querying
+# and action dispatching interfaces for runtime entities.
 # ==============================================================================
 
 class_name EntityCapability

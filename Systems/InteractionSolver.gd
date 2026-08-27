@@ -2,6 +2,9 @@
 # OWNWORLD — INTERACTION SOLVER & DYNAMIC HOVER PHYSICS
 # File: res://Systems/InteractionSolver.gd
 # Base Class: RefCounted (class_name InteractionSolver)
+#
+# Responsibility: Real-time proximity solver for solid food consumption,
+# cup-to-cup liquid pouring tilts, faucet filling, and drag-and-drop recipe merging.
 # ==============================================================================
 
 class_name InteractionSolver

@@ -2,6 +2,9 @@
 # OWNWORLD — ROOM LIFECYCLE CONTROLLER (MULTI-FLOOR DESIGNATION SUPPORT)
 # File: res://Systems/World/RoomLifecycleController.gd
 # Base Class: Node (class_name RoomLifecycleController)
+#
+# Responsibility: Manages active room entity hierarchies, room streaming,
+# multi-slice expansion bounds, and room unloading notifications.
 # ==============================================================================
 
 class_name RoomLifecycleController
@@ -36,23 +39,24 @@ func configure(p_entity_root: Node2D, p_world_camera: Camera2D, p_atmosphere: No
 
 func set_room_bounds(new_bounds: Rect2) -> void:
 	room_bounds = new_bounds
-	if world_camera and world_camera.has_method("update_room_bounds"):
+	if world_camera != null and is_instance_valid(world_camera) and world_camera.has_method("update_room_bounds"):
 		world_camera.update_room_bounds(new_bounds)
 
 
 func load_room(room_id: String, traveler_data: Dictionary = {}) -> void:
 	if entity_root == null:
 		return
-	room_loading_started.emit(room_id)
+	var clean_room_id: String = room_id.strip_edges()
+	room_loading_started.emit(clean_room_id)
 	_clear_entities()
 
-	var state: Dictionary = SaveSystem.load_room_state(room_id)
+	var state: Dictionary = SaveSystem.load_room_state(clean_room_id)
 	if state.is_empty():
-		state = SaveSchema.create_empty_room(room_id)
+		state = SaveSchema.create_empty_room(clean_room_id)
 
-	_active_room_id = room_id
+	_active_room_id = clean_room_id
 	current_room_floor_y = float(state.get("floor_y", 600.0))
-	current_room_title = str(state.get("room_title", room_id))
+	current_room_title = str(state.get("room_title", clean_room_id))
 	current_room_floor_level = str(state.get("floor_level", "1F"))
 
 	var raw_sections: Variant = state.get("sections", null)
@@ -76,11 +80,13 @@ func load_room(room_id: String, traveler_data: Dictionary = {}) -> void:
 		if bundle_value is Array and not (bundle_value as Array).is_empty():
 			RoomManager.reconstruct_traveler_bundle(bundle_value as Array, Vector2(300.0, current_room_floor_y - 80.0), entity_root, _entities)
 
-	if atmosphere and atmosphere.has_method("set_preset"): atmosphere.set_preset(AppState.time_preset)
-	if atmosphere and atmosphere.has_method("set_weather"): atmosphere.set_weather(AppState.weather_preset)
-	if world_camera and world_camera.has_method("update_room_bounds"): world_camera.update_room_bounds(room_bounds)
+	if atmosphere != null and is_instance_valid(atmosphere):
+		if atmosphere.has_method("set_preset"): atmosphere.set_preset(AppState.time_preset)
+		if atmosphere.has_method("set_weather"): atmosphere.set_weather(AppState.weather_preset)
+	if world_camera != null and is_instance_valid(world_camera) and world_camera.has_method("update_room_bounds"):
+		world_camera.update_room_bounds(room_bounds)
 
-	room_loaded.emit(room_id, state.duplicate(true))
+	room_loaded.emit(clean_room_id, state.duplicate(true))
 
 
 func save_active_room() -> bool:
@@ -93,8 +99,8 @@ func get_active_room_id() -> String: return _active_room_id
 
 
 func get_current_room_state() -> Dictionary:
-	var cam_pos: Vector2 = world_camera.position if world_camera != null else Vector2(960.0, 540.0)
-	var cam_zoom: float = world_camera.zoom.x if world_camera != null else 1.0
+	var cam_pos: Vector2 = world_camera.position if (world_camera != null and is_instance_valid(world_camera)) else Vector2(960.0, 540.0)
+	var cam_zoom: float = world_camera.zoom.x if (world_camera != null and is_instance_valid(world_camera)) else 1.0
 	var serialized_entities: Array[Dictionary] = EntitySerializer.serialize_roots(_entities)
 
 	return SaveSchema.create_room(

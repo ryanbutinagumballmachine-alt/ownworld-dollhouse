@@ -2,6 +2,10 @@
 # OWNWORLD — PROCEDURAL AUDIO SYNTHESIS & SFX POOL
 # File: res://AutoLoads/AudioManager.gd
 # Autoload Singleton: AudioManager
+# Base Class: Node
+#
+# Responsibility: Real-time procedural byte synthesis of high-quality, zero-asset
+# sound effects and a pooled AudioStreamPlayer playback engine.
 # ==============================================================================
 
 extends Node
@@ -61,16 +65,32 @@ func play_sfx(stream: AudioStream, pitch: float = 1.0) -> void:
 		return
 	var player: AudioStreamPlayer = _find_available_player()
 	player.stream = stream
-	player.pitch_scale = pitch
+	player.pitch_scale = clampf(pitch, 0.5, 2.0)
 	player.play()
 
 
-func play_pop_grab() -> void: play_sfx(snd_pop_grab, randf_range(0.95, 1.05))
-func play_drop_cushion() -> void: play_sfx(snd_drop_cushion, randf_range(0.95, 1.05))
-func play_snap_chime() -> void: play_sfx(snd_snap_chime, 1.0)
-func play_chew() -> void: play_sfx(snd_chew, randf_range(0.90, 1.10))
-func play_pour() -> void: play_sfx(snd_pour, randf_range(0.98, 1.02))
-func play_sip() -> void: play_sfx(snd_sip, randf_range(0.95, 1.08))
+func play_pop_grab() -> void:
+	play_sfx(snd_pop_grab, randf_range(0.95, 1.05))
+
+
+func play_drop_cushion() -> void:
+	play_sfx(snd_drop_cushion, randf_range(0.95, 1.05))
+
+
+func play_snap_chime() -> void:
+	play_sfx(snd_snap_chime, 1.0)
+
+
+func play_chew() -> void:
+	play_sfx(snd_chew, randf_range(0.90, 1.10))
+
+
+func play_pour() -> void:
+	play_sfx(snd_pour, randf_range(0.98, 1.02))
+
+
+func play_sip() -> void:
+	play_sfx(snd_sip, randf_range(0.95, 1.08))
 
 
 func play_music(stream: AudioStream, from_position: float = 0.0) -> void:

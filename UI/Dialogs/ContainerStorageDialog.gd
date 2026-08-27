@@ -2,6 +2,9 @@
 # OWNWORLD — CONTAINER STORAGE DIALOG
 # File: res://UI/Dialogs/ContainerStorageDialog.gd
 # Base Class: CanvasLayer (class_name ContainerStorageDialog)
+#
+# Responsibility: Inventory storage popup. Displays stored props inside bags,
+# chests, and drawers, allowing single-tap unpacking into the active room.
 # ==============================================================================
 
 class_name ContainerStorageDialog

@@ -1,6 +1,10 @@
 # ==============================================================================
 # OWNWORLD — PORTAL CAPABILITY
 # File: res://Core/Entities/Capabilities/EntityPortalCapability.gd
+# Base Class: EntityCapability (class_name EntityPortalCapability)
+#
+# Responsibility: Manages door transit destinations, traveler eligibility checks,
+# and room change request dispatches with passenger hierarchy bundles.
 # ==============================================================================
 
 class_name EntityPortalCapability
@@ -51,7 +55,7 @@ func set_door_open(open: bool) -> void:
 	if door_open == open:
 		return
 	door_open = open
-	if entity != null:
+	if entity != null and is_instance_valid(entity):
 		EventBus.entity_state_changed.emit(entity.entity_id)
 
 
@@ -64,6 +68,6 @@ func serialize() -> Dictionary:
 
 
 func deserialize(data: Dictionary) -> void:
-	target_room_id = str(data.get("target_room_id", ""))
-	portal_name = str(data.get("portal_name", ""))
+	target_room_id = str(data.get("target_room_id", "")).strip_edges()
+	portal_name = str(data.get("portal_name", "")).strip_edges()
 	door_open = bool(data.get("is_door_open", false))

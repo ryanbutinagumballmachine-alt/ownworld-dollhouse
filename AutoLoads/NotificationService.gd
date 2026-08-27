@@ -2,6 +2,10 @@
 # OWNWORLD — NOTIFICATION TOAST SERVICE (NOTCH-SAFE & DYNAMIC SCALING)
 # File: res://AutoLoads/NotificationService.gd
 # Autoload Singleton: NotificationService
+# Base Class: Node
+#
+# Responsibility: Display non-intrusive floating toast notifications with
+# automatic display notch safe-area calculations and responsive text metrics.
 # ==============================================================================
 
 extends Node
@@ -25,8 +29,10 @@ var _toast_tween: Tween = null
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	_build_notification_ui()
-	EventBus.notification_requested.connect(_on_notification_requested)
-	EventBus.theme_changed.connect(_on_theme_changed)
+	if not EventBus.notification_requested.is_connected(_on_notification_requested):
+		EventBus.notification_requested.connect(_on_notification_requested)
+	if not EventBus.theme_changed.is_connected(_on_theme_changed):
+		EventBus.theme_changed.connect(_on_theme_changed)
 
 
 func show_notification(message: String, is_success: bool = true) -> void:
@@ -100,7 +106,7 @@ func _recalculate_toast_margins() -> void:
 	if toast_container == null or toast_panel == null:
 		return
 
-	# Query hardware display safe area to avoid notches in landscape mode
+	# Query hardware display safe area to avoid notches on Android / iOS
 	var safe_area: Rect2i = DisplayServer.get_display_safe_area()
 	var top_safe_offset: float = maxf(16.0, float(safe_area.position.y) + 6.0)
 	toast_container.offset_top = top_safe_offset

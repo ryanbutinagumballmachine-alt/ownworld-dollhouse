@@ -2,6 +2,9 @@
 # OWNWORLD — SAVE SCHEMA & DATA NORMALIZER (AUTO-HEALING PERSISTENCE)
 # File: res://Core/Persistence/SaveSchema.gd
 # Base Class: RefCounted (class_name SaveSchema)
+#
+# Responsibility: Schema versioning, legacy migration, camera bounds validation,
+# and structured room payload construction.
 # ==============================================================================
 
 class_name SaveSchema
@@ -76,7 +79,7 @@ static func create_room(
 	elif safe_slices.size() > MAX_SLICES:
 		safe_slices.resize(MAX_SLICES)
 
-	# Auto-heal and sanitize camera values so invalid saves never brick the viewport
+	# Auto-heal and sanitize camera values so invalid saves never corrupt the viewport
 	var safe_zoom: float = clampf(camera_zoom, 0.75, 2.5) if (camera_zoom > 0.1 and camera_zoom < 5.0) else DEFAULT_CAMERA_ZOOM
 	var safe_cam_pos: Vector2 = camera_position if (camera_position.x >= 0.0 and camera_position.y >= 0.0) else DEFAULT_CAMERA_POSITION
 

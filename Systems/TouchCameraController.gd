@@ -2,6 +2,10 @@
 # OWNWORLD — TOUCH CAMERA CONTROLLER (SIDE-SCROLLING & FOCUS ZOOM)
 # File: res://Systems/TouchCameraController.gd
 # Base Class: Camera2D (class_name TouchCameraController)
+#
+# Responsibility: Multi-touch and mouse panning controller. Enforces strict
+# horizontal side-scrolling room boundary clamping in default mode, and smooth
+# pinch-to-zoom inspect capabilities in Focus Mode.
 # ==============================================================================
 
 class_name TouchCameraController
@@ -51,7 +55,7 @@ func reset_touch_state() -> void:
 	is_panning = false
 
 
-## Resets camera view to standard side-scrolling mode with optional focus target
+## Resets camera view to standard side-scrolling mode with optional focus target.
 func reset_to_default_view(target_center_x: float = -1.0) -> void:
 	is_zoom_mode = false
 	reset_touch_state()

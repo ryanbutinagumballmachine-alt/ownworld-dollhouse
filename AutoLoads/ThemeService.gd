@@ -2,6 +2,10 @@
 # OWNWORLD — THEME SERVICE AUTOLOAD
 # File: res://AutoLoads/ThemeService.gd
 # Autoload Singleton: ThemeService
+# Base Class: Node
+#
+# Responsibility: Global UI theme orchestration, procedural StyleBox creation,
+# cached icon resolution with multi-directory fallback, and background registry.
 # ==============================================================================
 
 extends Node

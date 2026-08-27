@@ -1,6 +1,10 @@
 # ==============================================================================
-# Script: res://Systems/World/WorldController.gd
+# OWNWORLD — WORLD CONTROLLER
+# File: res://Systems/World/WorldController.gd
 # Base Class: Node2D (class_name WorldController)
+#
+# Responsibility: Orchestrates domain sub-controllers (Lifecycle, Transition,
+# InteractionRouter, WorldInteractionController) in decoupled scenes.
 # ==============================================================================
 
 class_name WorldController
@@ -82,11 +86,11 @@ func save_active_room() -> bool:
 
 
 func configure_room_presentation(wallpaper_path: String, _wallpaper_texture: Texture2D, floor_y: float, room_title: String, fill_mode: String, floor_level: String = "1F") -> void:
-	current_wallpaper_path = wallpaper_path
+	current_wallpaper_path = wallpaper_path.strip_edges()
 	current_room_floor_y = floor_y
-	current_room_title = room_title if not room_title.is_empty() else AppState.room_id
-	current_room_floor_level = floor_level if not floor_level.is_empty() else "1F"
-	current_wallpaper_fill_mode = fill_mode if not fill_mode.is_empty() else "cover"
+	current_room_title = room_title.strip_edges() if not room_title.strip_edges().is_empty() else AppState.room_id
+	current_room_floor_level = floor_level.strip_edges() if not floor_level.strip_edges().is_empty() else "1F"
+	current_wallpaper_fill_mode = fill_mode.strip_edges() if not fill_mode.strip_edges().is_empty() else "cover"
 	room_presentation_changed.emit()
 
 
@@ -100,9 +104,10 @@ func set_floor_preview(floor_y: float, _visible: bool) -> void:
 
 
 func request_elevator_travel(_elevator: OwnEntity, target_room_id: String, floor_name: String) -> void:
-	if target_room_id.is_empty():
+	var clean_room_id: String = target_room_id.strip_edges()
+	if clean_room_id.is_empty():
 		return
-	EventBus.room_change_requested.emit(target_room_id, {
+	EventBus.room_change_requested.emit(clean_room_id, {
 		"bundle": [],
 		"arrival_elevator": true,
 		"floor_name": floor_name,

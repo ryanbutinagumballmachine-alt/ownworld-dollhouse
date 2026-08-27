@@ -2,6 +2,10 @@
 # OWNWORLD — RUNTIME APPLICATION STATE
 # File: res://Core/State/AppState.gd
 # Autoload Singleton: AppState
+# Base Class: Node
+#
+# Responsibility: Centralized single-source-of-truth runtime state for active
+# Universe, Room, Atmosphere, Unique Entity ID generation, and Z-index ordering.
 # ==============================================================================
 
 extends Node

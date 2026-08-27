@@ -2,6 +2,9 @@
 # OWNWORLD — ATMOSPHERE & WEATHER CONTROLLER
 # File: res://Systems/AtmosphereController.gd
 # Base Class: Node2D (class_name AtmosphereController)
+#
+# Responsibility: Multi-slice atmosphere lighting modulation, ambient room tints,
+# mobile-optimized outdoor weather particles, and cached radial 2D light textures.
 # ==============================================================================
 
 class_name AtmosphereController

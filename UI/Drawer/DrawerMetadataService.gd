@@ -2,6 +2,9 @@
 # OWNWORLD — DRAWER METADATA SERVICE
 # File: res://UI/Drawer/DrawerMetadataService.gd
 # Base Class: RefCounted (class_name DrawerMetadataService)
+#
+# Responsibility: Metadata management for drawer item tags, registered folders,
+# template persistence, and room-level character deduplication scrubbing.
 # ==============================================================================
 
 class_name DrawerMetadataService
@@ -151,7 +154,7 @@ static func scrub_character_from_universe_rooms(character_id: String, character_
 			var value: Variant = entities[index]
 			if not value is Dictionary: continue
 			var entity_data: Dictionary = value as Dictionary
-			var entity_id: String = str(entity_data.get("id", ""))
+			var entity_id: String = str(entity_data.get("id", "")).strip_edges()
 			var entity_name: String = str(entity_data.get("display_name", "")).strip_edges().to_lower()
 
 			var id_match: bool = not character_id.is_empty() and entity_id == character_id

@@ -2,6 +2,10 @@
 # OWNWORLD — GLOBAL EVENT BUS
 # File: res://Core/Architecture/EventBus.gd
 # Autoload Singleton: EventBus
+# Base Class: Node
+#
+# Responsibility: Decoupled global event routing across all architectural layers.
+# Signals are strictly typed to eliminate reflection overhead and enable compile-time safety.
 # ==============================================================================
 
 extends Node

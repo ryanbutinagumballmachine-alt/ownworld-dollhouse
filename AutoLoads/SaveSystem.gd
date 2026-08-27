@@ -2,6 +2,10 @@
 # OWNWORLD — PERSISTENCE SERVICE COORDINATOR
 # File: res://AutoLoads/SaveSystem.gd
 # Autoload Singleton: SaveSystem
+# Base Class: Node
+#
+# Responsibility: Central coordinator for room files, cast rosters, building
+# floor hierarchies, and universe journals with unified JSON schema compatibility.
 # ==============================================================================
 
 extends Node
@@ -94,7 +98,8 @@ func get_building_floors(building_id: String, universe_id: String = "") -> Array
 		return floors
 
 	var dir: DirAccess = DirAccess.open(save_dir)
-	if dir == null: return floors
+	if dir == null:
+		return floors
 
 	dir.list_dir_begin()
 	var file_name: String = dir.get_next()
@@ -197,10 +202,15 @@ func update_character_data_in_cast(char_data: Dictionary) -> void:
 		if file != null:
 			var parsed: Variant = JSON.parse_string(file.get_as_text())
 			file.close()
+			var cast_items: Array = []
 			if parsed is Array:
-				for item: Variant in (parsed as Array):
-					if item is Dictionary:
-						cast_list.append((item as Dictionary).duplicate(true))
+				cast_items = parsed as Array
+			elif parsed is Dictionary:
+				cast_items = (parsed as Dictionary).get("cast", (parsed as Dictionary).get("templates", []))
+
+			for item: Variant in cast_items:
+				if item is Dictionary:
+					cast_list.append((item as Dictionary).duplicate(true))
 
 	var updated: bool = false
 	for index: int in range(cast_list.size()):

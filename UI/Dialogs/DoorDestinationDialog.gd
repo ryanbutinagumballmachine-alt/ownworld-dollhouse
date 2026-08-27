@@ -2,6 +2,9 @@
 # OWNWORLD — DOOR DESTINATION DIALOG
 # File: res://UI/Dialogs/DoorDestinationDialog.gd
 # Base Class: CanvasLayer (class_name DoorDestinationDialog)
+#
+# Responsibility: Doorway portal configuration modal. Allows selecting destination
+# rooms from existing world map pins or specifying custom room keys.
 # ==============================================================================
 
 class_name DoorDestinationDialog
@@ -275,8 +278,8 @@ func _apply_button_icon(button: Button, icon_key: String) -> void:
 
 func _apply_close_icon(button: Button) -> void:
 	if button == null: return
-	var close_icon: Texture2D = ThemeService.get_icon("icon_close")
-	if close_icon != null: button.icon = close_icon
+	var icon_texture: Texture2D = ThemeService.get_icon("icon_close")
+	if icon_texture != null: button.icon = icon_texture
 	else: button.text = "✕"
 
 

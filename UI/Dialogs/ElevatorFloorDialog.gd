@@ -2,6 +2,9 @@
 # OWNWORLD — ELEVATOR FLOOR ROUTING DIALOG
 # File: res://UI/Dialogs/ElevatorFloorDialog.gd
 # Base Class: CanvasLayer (class_name ElevatorFloorDialog)
+#
+# Responsibility: Interactive elevator floor keypad modal. Queries building floor
+# rosters, highlights the active floor, and dispatches passenger travel requests.
 # ==============================================================================
 
 class_name ElevatorFloorDialog
@@ -148,10 +151,10 @@ func _render_keypad_buttons() -> void:
 
 	var current_room_id: String = _get_current_room_id()
 	var current_room_state: Dictionary = SaveSystem.load_room_state(current_room_id)
-	var bldg_id: String = str(current_room_state.get("building_id", "building_main"))
-	var bldg_name: String = str(current_room_state.get("building_name", "Main Building"))
-	var current_floor_level: String = str(current_room_state.get("floor_level", "1F"))
-	var current_title: String = str(current_room_state.get("room_title", "Main Room"))
+	var bldg_id: String = str(current_room_state.get("building_id", "building_main")).strip_edges()
+	var bldg_name: String = str(current_room_state.get("building_name", "Main Building")).strip_edges()
+	var current_floor_level: String = str(current_room_state.get("floor_level", "1F")).strip_edges()
+	var current_title: String = str(current_room_state.get("room_title", "Main Room")).strip_edges()
 
 	header_lbl.text = "Elevator — " + bldg_name
 	current_floor_label.text = "Current Location: %s [%s]" % [current_title, current_floor_level]

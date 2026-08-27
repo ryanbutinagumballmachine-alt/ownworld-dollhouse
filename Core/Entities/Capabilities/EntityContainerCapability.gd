@@ -1,6 +1,10 @@
 # ==============================================================================
 # OWNWORLD — CONTAINER CAPABILITY
 # File: res://Core/Entities/Capabilities/EntityContainerCapability.gd
+# Base Class: EntityCapability (class_name EntityContainerCapability)
+#
+# Responsibility: Inventory storage, open/close state toggling, and prop item
+# packaging and unpacking for containers (backpacks, chests, drawers, gift boxes).
 # ==============================================================================
 
 class_name EntityContainerCapability
@@ -34,7 +38,7 @@ func store_item(item: OwnEntity) -> bool:
 	var serialized_item: Dictionary = item.to_dict().duplicate(true)
 	stored_items.append(serialized_item)
 	item_stored.emit(serialized_item)
-	if entity != null:
+	if entity != null and is_instance_valid(entity):
 		EventBus.entity_state_changed.emit(entity.entity_id)
 	return true
 
@@ -46,7 +50,7 @@ func unpack_item(index: int) -> Dictionary:
 	var item_data: Dictionary = stored_items[index].duplicate(true)
 	stored_items.remove_at(index)
 	item_unpacked.emit(item_data)
-	if entity != null:
+	if entity != null and is_instance_valid(entity):
 		EventBus.entity_state_changed.emit(entity.entity_id)
 	return item_data
 
@@ -55,11 +59,12 @@ func clear() -> void:
 	if stored_items.is_empty():
 		return
 	stored_items.clear()
-	if entity != null:
+	if entity != null and is_instance_valid(entity):
 		EventBus.entity_state_changed.emit(entity.entity_id)
 
 
-func get_item_count() -> int: return stored_items.size()
+func get_item_count() -> int:
+	return stored_items.size()
 
 
 func get_item(index: int) -> Dictionary:
@@ -76,7 +81,7 @@ func set_open(open: bool) -> void:
 		opened.emit()
 	else:
 		closed.emit()
-	if entity != null:
+	if entity != null and is_instance_valid(entity):
 		EventBus.entity_state_changed.emit(entity.entity_id)
 
 

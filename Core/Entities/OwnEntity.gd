@@ -2,6 +2,10 @@
 # OWNWORLD — ENTITY RUNTIME INSTANCE
 # File: res://Core/Entities/OwnEntity.gd
 # Base Class: Area2D (class_name OwnEntity)
+#
+# Responsibility: Interactive world entity runtime instance. Manages whole-sprite
+# 6-pose matrix, custom animation clips, socket hierarchies, physical interactions,
+# alpha collision detection, and procedural silhouette contour lighting.
 # ==============================================================================
 
 class_name OwnEntity
@@ -178,10 +182,10 @@ func set_entity_state(new_state: Types.EntityState) -> void:
 
 
 func setup(p_id: String, p_display_name: String, p_tex: Texture2D, p_pos: Vector2, p_type: Types.EntityType = Types.EntityType.PROP, p_tex_path: String = "") -> void:
-	entity_id = p_id
-	display_name = p_display_name
+	entity_id = p_id.strip_edges()
+	display_name = p_display_name.strip_edges()
 	entity_type = p_type
-	texture_path = p_tex_path
+	texture_path = p_tex_path.strip_edges()
 	position = p_pos
 	main_texture = p_tex
 	base_layer_band = Types.LayerBands.FLOOR_DECOR if is_floor_decor else Types.LayerBands.PLAYFIELD
@@ -1135,15 +1139,15 @@ func configure_as_portal(p_target_room: String, p_portal_name: String) -> void:
 	is_stairs = false
 	is_elevator = false
 	is_wall_mounted = true
-	target_room_id = p_target_room
-	display_name = p_portal_name if not p_portal_name.is_empty() else display_name
+	target_room_id = p_target_room.strip_edges()
+	display_name = p_portal_name.strip_edges() if not p_portal_name.strip_edges().is_empty() else display_name
 
 
 func configure_as_stairs(p_name: String = "Stairs") -> void:
 	is_portal = true
 	is_stairs = true
 	is_elevator = false
-	display_name = p_name if not p_name.is_empty() else display_name
+	display_name = p_name.strip_edges() if not p_name.strip_edges().is_empty() else display_name
 
 
 func configure_as_elevator(floors: Array[Dictionary] = [], p_name: String = "Elevator") -> void:
@@ -1151,7 +1155,7 @@ func configure_as_elevator(floors: Array[Dictionary] = [], p_name: String = "Ele
 	is_stairs = false
 	is_elevator = true
 	is_wall_mounted = true
-	display_name = p_name if not p_name.is_empty() else display_name
+	display_name = p_name.strip_edges() if not p_name.strip_edges().is_empty() else display_name
 
 	if floors.is_empty():
 		elevator_floors = [
@@ -1673,7 +1677,7 @@ func to_dict() -> Dictionary:
 func from_dict(d: Dictionary) -> void:
 	if d.has("id"):
 		entity_id = str(d["id"]).strip_edges()
-	display_name = str(d.get("display_name", entity_id))
+	display_name = str(d.get("display_name", entity_id)).strip_edges()
 	entity_type = int(d.get("entity_type", Types.EntityType.PROP)) as Types.EntityType
 	_setup_collision_layers()
 
@@ -1723,7 +1727,7 @@ func from_dict(d: Dictionary) -> void:
 
 	is_portal = bool(d.get("is_portal", false))
 	is_stairs = bool(d.get("is_stairs", false))
-	target_room_id = str(d.get("target_room_id", ""))
+	target_room_id = str(d.get("target_room_id", "")).strip_edges()
 	is_door_open = bool(d.get("is_door_open", false))
 	is_elevator = bool(d.get("is_elevator", false))
 
@@ -1736,7 +1740,7 @@ func from_dict(d: Dictionary) -> void:
 	is_active = bool(d.get("is_active", false))
 	is_container = bool(d.get("is_container", false))
 	is_open = bool(d.get("is_open", false))
-	container_open_path = str(d.get("container_open_path", ""))
+	container_open_path = str(d.get("container_open_path", "")).strip_edges()
 	if not container_open_path.is_empty() and FileAccess.file_exists(container_open_path):
 		container_open_texture = UGCManager.load_texture_from_file(container_open_path)
 
@@ -1881,7 +1885,7 @@ class AnchorMarker extends Node2D:
 			var lbl_str: String = anchor_name
 			var font_sz: int = 10
 			var text_w: float = font.get_string_size(lbl_str, HORIZONTAL_ALIGNMENT_LEFT, -1, font_sz).x
-			var bg_rect: Rect2 = Rect2(Vector2(-text_w * 0.5 - 4.0, radius + 4.0), Vector2(text_w + 8.0, 14.0))
-			draw_rect(bg_rect, Color("#000000", 0.85), true)
-			draw_rect(bg_rect, marker_color, false, 1.0)
+			var badge_rect: Rect2 = Rect2(Vector2(-text_w * 0.5 - 4.0, radius + 4.0), Vector2(text_w + 8.0, 14.0))
+			draw_rect(badge_rect, Color("#000000", 0.85), true)
+			draw_rect(badge_rect, marker_color, false, 1.0)
 			draw_string(font, Vector2(-text_w * 0.5, radius + 15.0), lbl_str, HORIZONTAL_ALIGNMENT_CENTER, -1, font_sz, Color.WHITE)

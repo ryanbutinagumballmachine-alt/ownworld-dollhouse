@@ -2,6 +2,10 @@
 # OWNWORLD — UGC MANAGER & DOCUMENTS HUB (ZERO-LAG IN-MEMORY CACHE)
 # File: res://Core/UGCManager.gd
 # Base Class: RefCounted (class_name UGCManager)
+#
+# Responsibility: Centralized user-generated content file system manager,
+# multithreaded asynchronous thumbnail generation, full-resolution mipmapped
+# texture loading, and automatic alpha-silhouette collision polygon generation.
 # ==============================================================================
 
 class_name UGCManager
@@ -35,7 +39,7 @@ static var _library_dirty: bool = true
 
 static func get_documents_hub_dir() -> String:
 	var docs_dir: String = OS.get_system_dir(OS.SYSTEM_DIR_DOCUMENTS)
-	if docs_dir.is_empty() or OS.has_feature("mobile") or OS.has_feature("android"):
+	if docs_dir.is_empty() or OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios"):
 		var test_path: String = docs_dir.path_join("OwnWorld").replace("\\", "/")
 		if DirAccess.make_dir_recursive_absolute(test_path) != OK:
 			docs_dir = "user://"

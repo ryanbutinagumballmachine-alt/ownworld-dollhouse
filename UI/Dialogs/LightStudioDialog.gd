@@ -2,6 +2,9 @@
 # OWNWORLD — LIGHT & GLOW STUDIO
 # File: res://UI/Dialogs/LightStudioDialog.gd
 # Base Class: CanvasLayer (class_name LightStudioDialog)
+#
+# Responsibility: 2D dynamic glow & lighting studio modal. Controls silhouette
+# aura spread, breathing pulse frequencies, ambient radial room lighting, and color swatches.
 # ==============================================================================
 
 class_name LightStudioDialog

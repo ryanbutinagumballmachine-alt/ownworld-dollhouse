@@ -2,6 +2,9 @@
 # OWNWORLD — ROOM REPOSITORY
 # File: res://Core/Persistence/RoomRepository.gd
 # Base Class: RefCounted (class_name RoomRepository)
+#
+# Responsibility: High-level repository abstraction for universe room files,
+# directory sanitization, and room collection queries.
 # ==============================================================================
 
 class_name RoomRepository

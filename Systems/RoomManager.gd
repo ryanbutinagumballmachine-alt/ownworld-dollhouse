@@ -2,6 +2,9 @@
 # OWNWORLD — ROOM STREAMING & HIERARCHY MANAGER
 # File: res://Systems/RoomManager.gd
 # Base Class: RefCounted (class_name RoomManager)
+#
+# Responsibility: Room streaming, node graph instantiation, traveler bundle
+# deduplication, spawn position resolution, and socket hierarchy reconstruction.
 # ==============================================================================
 
 class_name RoomManager

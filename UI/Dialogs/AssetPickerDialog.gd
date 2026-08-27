@@ -2,6 +2,9 @@
 # OWNWORLD — ASSET PICKER DIALOG
 # File: res://UI/Dialogs/AssetPickerDialog.gd
 # Base Class: CanvasLayer (class_name AssetPickerDialog)
+#
+# Responsibility: In-app drawing picker modal with folder breadcrumbs navigation,
+# asynchronous thumbnail previews, search filtering, tag pills, and keyboard dodging.
 # ==============================================================================
 
 class_name AssetPickerDialog
@@ -209,7 +212,7 @@ func _build_ui() -> void:
 
 func open_picker(prompt_title: String = "Select Artwork", default_folder: String = "", on_selected_callback: Callable = Callable()) -> void:
 	header_title_lbl.text = prompt_title
-	current_virtual_folder = default_folder
+	current_virtual_folder = default_folder.strip_edges()
 	current_select_callback = on_selected_callback
 	active_search_query = ""
 	active_tag_filter = "All"

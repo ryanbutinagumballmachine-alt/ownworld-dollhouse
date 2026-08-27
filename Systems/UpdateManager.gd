@@ -2,6 +2,9 @@
 # OWNWORLD — IN-APP UPDATE MANAGER & APK INSTALLER (SCOPED STORAGE RESILIENT)
 # File: res://Systems/UpdateManager.gd
 # Base Class: RefCounted (class_name UpdateManager)
+#
+# Responsibility: Asynchronous GitHub release polling, progress-tracked APK
+# downloading to app sandbox storage, and native Android FileProvider package install.
 # ==============================================================================
 
 class_name UpdateManager
@@ -101,7 +104,7 @@ static func check_for_updates(caller_node: Node, on_result: Callable) -> void:
 		on_result.call(CheckResult.ERROR, "", "", "Failed to initiate update connection (Error %d)." % int(err))
 
 
-## Returns the 100% permission-safe app sandbox path for package updates
+## Returns the 100% permission-safe app sandbox path for package updates.
 static func get_apk_target_path() -> String:
 	return "user://update.apk"
 
@@ -212,7 +215,7 @@ static func install_apk_file(apk_file_path: String) -> void:
 	OS.shell_open(global_path)
 
 
-## Compares two semver strings (e.g. "1.0.22" vs "1.0.23").
+## Compares two semver strings (e.g., "1.0.22" vs "1.0.23").
 static func is_remote_version_newer(local_ver_str: String, remote_ver_str: String) -> bool:
 	var clean_local: String = local_ver_str.trim_prefix("v").trim_prefix("V").strip_edges()
 	var clean_remote: String = remote_ver_str.trim_prefix("v").trim_prefix("V").strip_edges()

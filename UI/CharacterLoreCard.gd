@@ -2,6 +2,10 @@
 # OWNWORLD — CHARACTER LORE CARD & PROFILE STUDIO
 # File: res://UI/CharacterLoreCard.gd
 # Base Class: CanvasLayer (class_name CharacterLoreCard)
+#
+# Responsibility: Comprehensive character profile management. Features 3-tab
+# identity editing (Bio/Status/Traits, Symmetrical Family Trees & Directional
+# Feelings, Story Notes), custom avatar picking, and mobile keyboard dodging.
 # ==============================================================================
 
 class_name CharacterLoreCard
@@ -518,7 +522,7 @@ func _add_trait_row(trait_key: String, trait_value: String) -> void:
 	row.add_theme_constant_override("separation", 6)
 
 	var key_input: LineEdit = LineEdit.new()
-	key_input.text = trait_key
+	key_input.text = trait_key.strip_edges()
 	key_input.placeholder_text = "Detail (e.g. Birthday, Species)"
 	key_input.custom_minimum_size = Vector2(130.0, 30.0)
 	key_input.focus_entered.connect(_on_input_focus_entered)
@@ -526,7 +530,7 @@ func _add_trait_row(trait_key: String, trait_value: String) -> void:
 	row.add_child(key_input)
 
 	var val_input: LineEdit = LineEdit.new()
-	val_input.text = trait_value
+	val_input.text = trait_value.strip_edges()
 	val_input.placeholder_text = "Value (e.g. May 14, Elf)"
 	val_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	val_input.custom_minimum_size = Vector2(0.0, 30.0)
@@ -553,7 +557,7 @@ func _on_avatar_btn_pressed() -> void:
 
 
 func _on_avatar_file_selected(file_path: String) -> void:
-	avatar_path_stored = file_path
+	avatar_path_stored = file_path.strip_edges()
 	_update_avatar_preview()
 
 
@@ -571,12 +575,12 @@ func _resolve_character_portrait(char_dict: Dictionary, explicit_avatar_path: St
 		return UGCManager.get_thumbnail_async(explicit_avatar_path, 128)
 
 	var custom_f: Dictionary = char_dict.get("custom_fields", {})
-	var av_path: String = str(custom_f.get("avatar_path", ""))
+	var av_path: String = str(custom_f.get("avatar_path", "")).strip_edges()
 	if not av_path.is_empty() and FileAccess.file_exists(av_path):
 		return UGCManager.get_thumbnail_async(av_path, 128)
 
 	for k: String in ["ugc_texture_path", "texture_path", "path_to_texture", "ugc_tex"]:
-		var path_str: String = str(char_dict.get(k, ""))
+		var path_str: String = str(char_dict.get(k, "")).strip_edges()
 		if not path_str.is_empty() and FileAccess.file_exists(path_str):
 			return UGCManager.get_thumbnail_async(path_str, 128)
 
@@ -709,7 +713,7 @@ func _add_family_row(target_name: String, relation_type: String, notes: String) 
 	top_hbox.add_child(btn_del)
 
 	var notes_edit: LineEdit = LineEdit.new()
-	notes_edit.text = notes
+	notes_edit.text = notes.strip_edges()
 	notes_edit.placeholder_text = "Marriage date, adoption details, or family notes..."
 	notes_edit.custom_minimum_size = Vector2(0.0, 30.0)
 	notes_edit.focus_entered.connect(_on_input_focus_entered)
@@ -765,7 +769,7 @@ func _add_feeling_row(target_name: String, relation_type: String, notes: String)
 	top_hbox.add_child(btn_del)
 
 	var notes_edit: LineEdit = LineEdit.new()
-	notes_edit.text = notes
+	notes_edit.text = notes.strip_edges()
 	notes_edit.placeholder_text = "Why they feel this way, history of rivalries, or secret feelings..."
 	notes_edit.custom_minimum_size = Vector2(0.0, 30.0)
 	notes_edit.focus_entered.connect(_on_input_focus_entered)
@@ -823,13 +827,13 @@ func open_card_for_character_dict(char_dict: Dictionary) -> void:
 
 
 func _populate_from_data(char_name: String, fields: Dictionary) -> void:
-	name_edit.text = char_name
-	pronouns_edit.text = str(fields.get("pronouns", ""))
-	role_edit.text = str(fields.get("role", ""))
+	name_edit.text = char_name.strip_edges()
+	pronouns_edit.text = str(fields.get("pronouns", "")).strip_edges()
+	role_edit.text = str(fields.get("role", "")).strip_edges()
 	lore_text_edit.text = str(fields.get("lore", ""))
-	avatar_path_stored = str(fields.get("avatar_path", ""))
+	avatar_path_stored = str(fields.get("avatar_path", "")).strip_edges()
 
-	var status_val: String = str(fields.get("life_status", "Living / Active"))
+	var status_val: String = str(fields.get("life_status", "Living / Active")).strip_edges()
 	var st_idx: int = LIFE_STATUSES.find(status_val)
 	status_opt.select(maxi(st_idx, 0))
 
@@ -944,14 +948,14 @@ func _enforce_symmetrical_family(source_name: String, current_family: Array[Dict
 	for c_var: Variant in all_chars:
 		if c_var is Dictionary:
 			var d: Dictionary = (c_var as Dictionary).duplicate(true)
-			var c_name: String = str(d.get("display_name", ""))
+			var c_name: String = str(d.get("display_name", "")).strip_edges()
 			if not c_name.is_empty(): char_map[c_name] = d
 
 	for old_f: Dictionary in old_family:
-		var old_target: String = str(old_f.get("target_name", ""))
+		var old_target: String = str(old_f.get("target_name", "")).strip_edges()
 		var still_exists: bool = false
 		for cur_f: Dictionary in current_family:
-			if str(cur_f.get("target_name", "")) == old_target:
+			if str(cur_f.get("target_name", "")).strip_edges() == old_target:
 				still_exists = true
 				break
 		if not still_exists and not old_target.is_empty() and char_map.has(old_target):
@@ -959,15 +963,15 @@ func _enforce_symmetrical_family(source_name: String, current_family: Array[Dict
 			var c_fields: Dictionary = tgt.get("custom_fields", {})
 			var fam: Array = c_fields.get("family_ties", [])
 			for i: int in range(fam.size() - 1, -1, -1):
-				if fam[i] is Dictionary and str(fam[i].get("target_name", "")) == source_name:
+				if fam[i] is Dictionary and str(fam[i].get("target_name", "")).strip_edges() == source_name:
 					fam.remove_at(i)
 			c_fields["family_ties"] = fam
 			tgt["custom_fields"] = c_fields
 			_update_universe_character_data(tgt)
 
 	for cur_f: Dictionary in current_family:
-		var target_name: String = str(cur_f.get("target_name", ""))
-		var rel_type: String = str(cur_f.get("relation_type", ""))
+		var target_name: String = str(cur_f.get("target_name", "")).strip_edges()
+		var rel_type: String = str(cur_f.get("relation_type", "")).strip_edges()
 
 		if not target_name.is_empty() and target_name != source_name and char_map.has(target_name):
 			var tgt: Dictionary = char_map[target_name]
@@ -977,7 +981,7 @@ func _enforce_symmetrical_family(source_name: String, current_family: Array[Dict
 
 			var found_idx: int = -1
 			for i: int in range(fam.size()):
-				if fam[i] is Dictionary and str(fam[i].get("target_name", "")) == source_name:
+				if fam[i] is Dictionary and str(fam[i].get("target_name", "")).strip_edges() == source_name:
 					found_idx = i
 					break
 
@@ -1013,14 +1017,14 @@ func _sync_directional_feelings(source_name: String, current_feelings: Array[Dic
 	for c_var: Variant in all_chars:
 		if c_var is Dictionary:
 			var d: Dictionary = (c_var as Dictionary).duplicate(true)
-			var c_name: String = str(d.get("display_name", ""))
+			var c_name: String = str(d.get("display_name", "")).strip_edges()
 			if not c_name.is_empty(): char_map[c_name] = d
 
 	for old_b: Dictionary in old_feelings:
-		var old_target: String = str(old_b.get("target_name", ""))
+		var old_target: String = str(old_b.get("target_name", "")).strip_edges()
 		var still_exists: bool = false
 		for cur_b: Dictionary in current_feelings:
-			if str(cur_b.get("target_name", "")) == old_target:
+			if str(cur_b.get("target_name", "")).strip_edges() == old_target:
 				still_exists = true
 				break
 		if not still_exists and not old_target.is_empty() and char_map.has(old_target):
@@ -1029,9 +1033,9 @@ func _sync_directional_feelings(source_name: String, current_feelings: Array[Dic
 			var rels: Array = c_fields.get("relationships", [])
 			var modified: bool = false
 			for i: int in range(rels.size() - 1, -1, -1):
-				if rels[i] is Dictionary and str(rels[i].get("target_name", "")) == source_name:
-					var existing_rel: String = str(rels[i].get("relation_type", ""))
-					var existing_notes: String = str(rels[i].get("notes", ""))
+				if rels[i] is Dictionary and str(rels[i].get("target_name", "")).strip_edges() == source_name:
+					var existing_rel: String = str(rels[i].get("relation_type", "")).strip_edges()
+					var existing_notes: String = str(rels[i].get("notes", "")).strip_edges()
 					if existing_rel == "Distant / Acquaintance" and existing_notes.is_empty():
 						rels.remove_at(i)
 						modified = true
@@ -1041,14 +1045,14 @@ func _sync_directional_feelings(source_name: String, current_feelings: Array[Dic
 				_update_universe_character_data(tgt)
 
 	for cur_b: Dictionary in current_feelings:
-		var target_name: String = str(cur_b.get("target_name", ""))
+		var target_name: String = str(cur_b.get("target_name", "")).strip_edges()
 		if not target_name.is_empty() and target_name != source_name and char_map.has(target_name):
 			var tgt: Dictionary = char_map[target_name]
 			var c_fields: Dictionary = tgt.get("custom_fields", {})
 			var rels: Array = c_fields.get("relationships", [])
 			var already_connected: bool = false
 			for b_var: Variant in rels:
-				if b_var is Dictionary and str(b_var.get("target_name", "")) == source_name:
+				if b_var is Dictionary and str(b_var.get("target_name", "")).strip_edges() == source_name:
 					already_connected = true
 					break
 			if not already_connected:
@@ -1075,7 +1079,7 @@ func _get_universe_character_names() -> Array[String]:
 	var all_chars: Array[Dictionary] = _load_universe_character_data()
 	for c_var: Variant in all_chars:
 		if c_var is Dictionary:
-			var c_name: String = str((c_var as Dictionary).get("display_name", ""))
+			var c_name: String = str((c_var as Dictionary).get("display_name", "")).strip_edges()
 			if not c_name.is_empty() and c_name != my_name and not (c_name in result):
 				result.append(c_name)
 
@@ -1095,17 +1099,22 @@ func _load_universe_character_data() -> Array[Dictionary]:
 		if cast_file != null:
 			var parsed_cast: Variant = JSON.parse_string(cast_file.get_as_text())
 			cast_file.close()
+			var cast_items: Array = []
 			if parsed_cast is Array:
-				for item: Variant in (parsed_cast as Array):
-					if item is Dictionary:
-						var c_data: Dictionary = (item as Dictionary).duplicate(true)
-						var c_id: String = str(c_data.get("id", ""))
-						var c_name: String = str(c_data.get("display_name", "")).strip_edges().to_lower()
-						if c_id.is_empty() or seen_ids.has(c_id): continue
-						if not c_name.is_empty() and seen_names.has(c_name): continue
-						roster.append(c_data)
-						seen_ids[c_id] = true
-						if not c_name.is_empty(): seen_names[c_name] = true
+				cast_items = parsed_cast as Array
+			elif parsed_cast is Dictionary:
+				cast_items = (parsed_cast as Dictionary).get("cast", (parsed_cast as Dictionary).get("templates", []))
+
+			for item: Variant in cast_items:
+				if item is Dictionary:
+					var c_data: Dictionary = (item as Dictionary).duplicate(true)
+					var c_id: String = str(c_data.get("id", "")).strip_edges()
+					var c_name: String = str(c_data.get("display_name", "")).strip_edges().to_lower()
+					if c_id.is_empty() or seen_ids.has(c_id): continue
+					if not c_name.is_empty() and seen_names.has(c_name): continue
+					roster.append(c_data)
+					seen_ids[c_id] = true
+					if not c_name.is_empty(): seen_names[c_name] = true
 
 	return roster
 

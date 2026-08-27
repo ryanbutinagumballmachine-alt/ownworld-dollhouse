@@ -2,6 +2,10 @@
 # OWNWORLD — MAIN APPLICATION ORCHESTRATOR (CROSS-PLATFORM & VIEWPORT RESILIENT)
 # File: res://Core/Main.gd
 # Base Class: Node2D
+#
+# Responsibility: Master runtime scene orchestrator. Coordinates multi-slice
+# room rendering, touch/mouse gesture arbitration, live physics solver ticks,
+# transition cross-fades, and complete UI modal subsystem lifecycle management.
 # ==============================================================================
 
 extends Node2D
@@ -434,7 +438,7 @@ func _apply_room_slices(slices_data: Array[Dictionary]) -> void:
 
 	for i: int in range(room_slices.size()):
 		var sec_data: Dictionary = room_slices[i]
-		var wall_path: String = str(sec_data.get("wallpaper_path", ""))
+		var wall_path: String = str(sec_data.get("wallpaper_path", "")).strip_edges()
 		var fill_mode: String = str(sec_data.get("fill_mode", "cover"))
 		var slice_offset_x: float = float(i) * slice_w
 		var is_odd_slice: bool = (i % 2 == 1)
@@ -454,7 +458,7 @@ func _apply_room_slices(slices_data: Array[Dictionary]) -> void:
 				slice_node.add_child(sprite)
 		else:
 			var custom_wall_str: String = str(sec_data.get("wall_color", "")).strip_edges()
-			var custom_floor_str: String = str(sec_data.get("floor_color", "")).strip_edges()
+			var custom_floor_str: String = str(sec_data.get("floor_color", ""))
 			var custom_trim_str: String = str(sec_data.get("baseboard_color", "")).strip_edges()
 
 			var slice_wall_color: Color = Color(custom_wall_str) if not custom_wall_str.is_empty() else (default_wall.darkened(0.055) if is_odd_slice else default_wall)
@@ -492,7 +496,7 @@ func _apply_room_slices(slices_data: Array[Dictionary]) -> void:
 		if i > 0:
 			var seam_line: ColorRect = ColorRect.new()
 			seam_line.name = "SliceDividerSeam"
-			seam_line.position = Vector2(0.0, 0.0)
+			seam_line.position = Vector2.ZERO
 			seam_line.size = Vector2(2.5, slice_h)
 			seam_line.color = Color(default_border.r * 0.4, default_border.g * 0.4, default_border.b * 0.4, 0.45)
 			seam_line.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -808,6 +812,7 @@ func _handle_press_end(_world_pos: Vector2) -> void:
 			# Portal / Stairs / Elevator Routing
 			if released.entity_type == Types.EntityType.CHARACTER:
 				for portal_ent: OwnEntity in all_entities:
+					if not is_instance_valid(portal_ent): continue
 					if portal_ent != released and portal_ent.is_portal and portal_ent.contains_point(released.global_position):
 						if portal_ent.is_stairs:
 							_handle_stairs_travel(portal_ent, released)
@@ -830,6 +835,7 @@ func _handle_press_end(_world_pos: Vector2) -> void:
 
 			if released.entity_type == Types.EntityType.PROP:
 				for container_ent: OwnEntity in all_entities:
+					if not is_instance_valid(container_ent): continue
 					if container_ent != released and container_ent.is_container and container_ent.contains_point(released.global_position):
 						all_entities.erase(released)
 						container_ent.pack_item_inside(released)
@@ -1574,13 +1580,14 @@ func _on_magic_wheel_action(action_name: String, target: OwnEntity) -> void:
 			_record_history()
 			SaveSystem.save_current_room_state()
 		"store":
-			all_entities.erase(target)
+			_remove_hierarchy(target)
 			if drawer_tray_ui != null: drawer_tray_ui.store_character_in_tray(target)
 			_trigger_haptic(45)
 			_record_history()
 			SaveSystem.save_current_room_state()
+
 		"delete":
-			all_entities.erase(target)
+			_remove_hierarchy(target)
 			target.queue_free()
 			_trigger_haptic(50)
 			_record_history()

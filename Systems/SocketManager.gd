@@ -2,6 +2,9 @@
 # OWNWORLD — SOCKET RESOLVER
 # File: res://Systems/SocketManager.gd
 # Base Class: RefCounted (class_name SocketManager)
+#
+# Responsibility: Evaluates proximity snapping between dragged items and host
+# entities (holding hands, sitting on chairs, wearing hats/glasses, surface props).
 # ==============================================================================
 
 class_name SocketManager

@@ -2,6 +2,10 @@
 # OWNWORLD — UNIVERSE JOURNAL & CHRONICLES
 # File: res://UI/Dialogs/UniverseJournalDialog.gd
 # Base Class: CanvasLayer (class_name UniverseJournalDialog)
+#
+# Responsibility: Comprehensive universe lore chronicle. Manages dated story eras,
+# historical event logs, participating character links, guild/faction hierarchies,
+# leader appointments, headquarters assignments, and member roster ranking.
 # ==============================================================================
 
 class_name UniverseJournalDialog
@@ -1069,17 +1073,22 @@ func _load_universe_character_data() -> Array[Dictionary]:
 		if cast_file != null:
 			var parsed_cast: Variant = JSON.parse_string(cast_file.get_as_text())
 			cast_file.close()
+			var cast_items: Array = []
 			if parsed_cast is Array:
-				for item: Variant in (parsed_cast as Array):
-					if item is Dictionary:
-						var c_data: Dictionary = (item as Dictionary).duplicate(true)
-						var c_id: String = str(c_data.get("id", ""))
-						var c_name: String = str(c_data.get("display_name", "")).strip_edges().to_lower()
-						if c_id.is_empty() or seen_ids.has(c_id): continue
-						if not c_name.is_empty() and seen_names.has(c_name): continue
-						roster.append(c_data)
-						seen_ids[c_id] = true
-						if not c_name.is_empty(): seen_names[c_name] = true
+				cast_items = parsed_cast as Array
+			elif parsed_cast is Dictionary:
+				cast_items = (parsed_cast as Dictionary).get("cast", (parsed_cast as Dictionary).get("templates", []))
+
+			for item: Variant in cast_items:
+				if item is Dictionary:
+					var c_data: Dictionary = (item as Dictionary).duplicate(true)
+					var c_id: String = str(c_data.get("id", ""))
+					var c_name: String = str(c_data.get("display_name", "")).strip_edges().to_lower()
+					if c_id.is_empty() or seen_ids.has(c_id): continue
+					if not c_name.is_empty() and seen_names.has(c_name): continue
+					roster.append(c_data)
+					seen_ids[c_id] = true
+					if not c_name.is_empty(): seen_names[c_name] = true
 
 	return roster
 

@@ -2,6 +2,10 @@
 # OWNWORLD — DRAWER TRAY ORCHESTRATOR (ZERO-LAG IN-MEMORY INDEXING)
 # File: res://UI/Drawer/DrawerTray.gd
 # Base Class: CanvasLayer (class_name DrawerTray)
+#
+# Responsibility: Master bottom drawer tray. Provides instant access to user
+# art drawings, saved prop prefabs, furniture templates, and persistent Cast characters
+# with hold-to-recall gestures, batch selection, search filtering, and folder navigation.
 # ==============================================================================
 
 class_name DrawerTray

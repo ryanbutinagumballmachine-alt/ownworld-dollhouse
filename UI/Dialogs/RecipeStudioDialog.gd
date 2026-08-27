@@ -2,6 +2,9 @@
 # OWNWORLD — RECIPE STUDIO
 # File: res://UI/Dialogs/RecipeStudioDialog.gd
 # Base Class: CanvasLayer (class_name RecipeStudioDialog)
+#
+# Responsibility: Visual crafting recipe creator modal. Matches Ingredient A +
+# Ingredient B to produce crafted output entities with real-time thumbnail previews.
 # ==============================================================================
 
 class_name RecipeStudioDialog
@@ -280,6 +283,9 @@ func _update_preview_from_opt(preview: TextureRect, index: int) -> void:
 	if index >= 0 and index < art_library.size():
 		var texture_variant: Variant = art_library[index].get("texture", null)
 		if texture_variant is Texture2D: preview.texture = texture_variant as Texture2D
+		else:
+			var fpath: String = str(art_library[index].get("file_path", ""))
+			preview.texture = UGCManager.get_thumbnail(fpath)
 
 
 func _on_save_recipe_pressed() -> void:

@@ -1,6 +1,10 @@
 # ==============================================================================
 # OWNWORLD — CONSUMABLE CAPABILITY
 # File: res://Core/Entities/Capabilities/EntityConsumableCapability.gd
+# Base Class: EntityCapability (class_name EntityConsumableCapability)
+#
+# Responsibility: Manages bite/sip depletion counters, multi-stage state transitions,
+# infinite snack modes, and consumption completion notifications.
 # ==============================================================================
 
 class_name EntityConsumableCapability
@@ -40,7 +44,7 @@ func consume_one() -> bool:
 
 	remaining_bites -= 1
 	bite_taken.emit(remaining_bites)
-	if entity != null:
+	if entity != null and is_instance_valid(entity):
 		EventBus.entity_state_changed.emit(entity.entity_id)
 
 	if remaining_bites <= 0:
@@ -52,7 +56,7 @@ func consume_one() -> bool:
 
 func refill() -> void:
 	remaining_bites = max_bites
-	if entity != null:
+	if entity != null and is_instance_valid(entity):
 		EventBus.entity_state_changed.emit(entity.entity_id)
 
 

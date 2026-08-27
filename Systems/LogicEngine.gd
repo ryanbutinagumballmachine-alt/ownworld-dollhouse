@@ -2,6 +2,9 @@
 # OWNWORLD — LOGIC ENGINE
 # File: res://Systems/LogicEngine.gd
 # Base Class: RefCounted (class_name LogicEngine)
+#
+# Responsibility: Visual trigger condition evaluation, item filter validation,
+# and decoupled action command execution for interactive story puzzles.
 # ==============================================================================
 
 class_name LogicEngine
@@ -146,8 +149,7 @@ static func _request_spawn_item(art_name_or_path: String, spawn_position: Vector
 		var art_name: String = str(art.get("name", "")).strip_edges()
 		var file_path: String = str(art.get("file_path", ""))
 		if art_name.to_lower() == requested_name.to_lower() or file_path == requested_name:
-			if art.get("texture", null) is Texture2D:
-				chosen_texture = art["texture"] as Texture2D
+			chosen_texture = UGCManager.load_texture_from_file(file_path)
 			chosen_path = file_path
 			chosen_name = art_name if not art_name.is_empty() else "Item"
 			break

@@ -2,6 +2,9 @@
 # OWNWORLD — ENTITY MODEL
 # File: res://Core/Entities/EntityModel.gd
 # Base Class: RefCounted (class_name EntityModel)
+#
+# Responsibility: Pure data model representing core spatial, classification,
+# and lock states of an entity decoupled from scene-tree Area2D nodes.
 # ==============================================================================
 
 class_name EntityModel
@@ -25,8 +28,8 @@ var floor_decor: bool = false
 
 
 func configure(entity_id: String, name_value: String, type_value: Types.EntityType) -> void:
-	id = entity_id
-	display_name = name_value
+	id = entity_id.strip_edges()
+	display_name = name_value.strip_edges()
 	entity_type = type_value
 
 
@@ -55,8 +58,8 @@ func to_dict() -> Dictionary:
 
 
 func from_dict(data: Dictionary) -> void:
-	id = str(data.get("id", id))
-	display_name = str(data.get("display_name", display_name))
+	id = str(data.get("id", id)).strip_edges()
+	display_name = str(data.get("display_name", display_name)).strip_edges()
 	entity_type = int(data.get("entity_type", int(Types.EntityType.PROP))) as Types.EntityType
 	state = int(data.get("state", int(Types.EntityState.IDLE))) as Types.EntityState
 	locked = bool(data.get("is_locked", false))

@@ -1,7 +1,11 @@
 # ==============================================================================
-# OWNWORLD - LOGIC RULE EDITOR
+# OWNWORLD — LOGIC RULE EDITOR
 # File: res://UI/Dialogs/LogicRuleEditorDialog.gd
 # Base Class: CanvasLayer (class_name LogicRuleEditorDialog)
+#
+# Responsibility: No-code cause-and-effect visual logic scripting modal.
+# Configures (When Trigger -> Target Mode -> Action Execution) rules with dynamic
+# parameter input fields, dialogue text boxes, emotion symbol bars, and asset spawners.
 # ==============================================================================
 
 class_name LogicRuleEditorDialog
@@ -448,12 +452,12 @@ func _render_rules_list() -> void:
 		card.add_child(hbox)
 
 		var when_text: String = _get_when_label(int(rule.get("when", 0)))
-		var filter_text: String = str(rule.get("item_filter", ""))
+		var filter_text: String = str(rule.get("item_filter", "")).strip_edges()
 		if not filter_text.is_empty(): when_text += " (" + filter_text + ")"
 
 		var target_text: String = _get_target_label(int(rule.get("target", 0)))
 		var action_text: String = _get_then_label(int(rule.get("then", 0)))
-		var parameter_text: String = str(rule.get("val", ""))
+		var parameter_text: String = str(rule.get("val", "")).strip_edges()
 		var summary: String = "%s ➔ %s ➔ %s%s" % [
 			when_text, target_text, action_text,
 			(" (" + parameter_text + ")" if not parameter_text.is_empty() else "")

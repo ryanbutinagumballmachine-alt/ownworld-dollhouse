@@ -2,6 +2,9 @@
 # OWNWORLD — DRAWER FOLDER CREATION MODAL
 # File: res://UI/Drawer/DrawerFolderModal.gd
 # Base Class: Control (class_name DrawerFolderModal)
+#
+# Responsibility: Compact dialog for creating nested folders across Assets,
+# Props, Furniture, and Cast drawer tabs.
 # ==============================================================================
 
 class_name DrawerFolderModal

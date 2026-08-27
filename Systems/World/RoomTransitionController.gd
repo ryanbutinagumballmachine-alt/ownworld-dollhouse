@@ -2,6 +2,9 @@
 # OWNWORLD — ROOM TRANSITION CONTROLLER
 # File: res://Systems/World/RoomTransitionController.gd
 # Base Class: Node (class_name RoomTransitionController)
+#
+# Responsibility: Manages asynchronous room transitions with smooth cross-fade
+# overlays, departure state saves, and destination loading.
 # ==============================================================================
 
 class_name RoomTransitionController

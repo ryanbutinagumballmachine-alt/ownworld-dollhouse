@@ -2,6 +2,10 @@
 # OWNWORLD — ROOM & MULTI-SLICE EXPANSION STUDIO
 # File: res://UI/Dialogs/RoomStudioDialog.gd
 # Base Class: CanvasLayer (class_name RoomStudioDialog)
+#
+# Responsibility: Multi-slice room expansion modal (up to 10 screens wide).
+# Configures per-slice wallpapers, fill modes, indoor/outdoor weather masks,
+# procedural wall/floor color palettes, floor baseline heights, and building IDs.
 # ==============================================================================
 
 class_name RoomStudioDialog
@@ -535,15 +539,15 @@ func open_studio(
 	active_room_id: String = "room_main"
 ) -> void:
 	art_library = UGCManager.scan_user_art_library()
-	current_building_name = bldg_name if not bldg_name.is_empty() else "Main Building"
-	current_building_id = bldg_id if not bldg_id.is_empty() else "building_main"
-	current_room_id = active_room_id if not active_room_id.is_empty() else "room_main"
+	current_building_name = bldg_name.strip_edges() if not bldg_name.strip_edges().is_empty() else "Main Building"
+	current_building_id = bldg_id.strip_edges() if not bldg_id.strip_edges().is_empty() else "building_main"
+	current_room_id = active_room_id.strip_edges() if not active_room_id.strip_edges().is_empty() else "room_main"
 
 	if building_lbl != null:
 		building_lbl.text = "Building: %s (%s)" % [current_building_name, current_building_id]
 
-	room_name_edit.text = p_room_title
-	floor_level_edit.text = current_floor_level if not current_floor_level.is_empty() else "1F"
+	room_name_edit.text = p_room_title.strip_edges()
+	floor_level_edit.text = current_floor_level.strip_edges() if not current_floor_level.strip_edges().is_empty() else "1F"
 	if room_id_edit != null:
 		room_id_edit.text = current_room_id
 
@@ -651,7 +655,7 @@ func _sync_active_slice_controls() -> void:
 		return
 
 	var current_sec: Dictionary = room_slices[current_selected_slice_idx]
-	var current_wall_path: String = str(current_sec.get("wallpaper_path", ""))
+	var current_wall_path: String = str(current_sec.get("wallpaper_path", "")).strip_edges()
 	var current_fill_mode: String = str(current_sec.get("fill_mode", "cover"))
 	var is_outdoor: bool = bool(current_sec.get("is_outdoor", false))
 
@@ -663,9 +667,9 @@ func _sync_active_slice_controls() -> void:
 	var def_floor: Color = ThemeService.get_color("container_sub_bg", "#fff0f3").darkened(0.12)
 	var def_trim: Color = ThemeService.get_color("panel_border", "#f9a8d4").darkened(0.08)
 
-	var w_col_str: String = str(current_sec.get("wall_color", ""))
-	var f_col_str: String = str(current_sec.get("floor_color", ""))
-	var t_col_str: String = str(current_sec.get("baseboard_color", ""))
+	var w_col_str: String = str(current_sec.get("wall_color", "")).strip_edges()
+	var f_col_str: String = str(current_sec.get("floor_color", "")).strip_edges()
+	var t_col_str: String = str(current_sec.get("baseboard_color", "")).strip_edges()
 
 	cp_wall_color.color = Color(w_col_str) if not w_col_str.is_empty() else def_wall
 	cp_floor_color.color = Color(f_col_str) if not f_col_str.is_empty() else def_floor
@@ -734,8 +738,8 @@ func _populate_art_dropdown(current_wall_path: String) -> void:
 	var selected_index: int = 0
 	for index: int in range(art_library.size()):
 		var art: Dictionary = art_library[index]
-		var art_name: String = str(art.get("name", "Art"))
-		var art_path: String = str(art.get("file_path", ""))
+		var art_name: String = str(art.get("name", "Art")).strip_edges()
+		var art_path: String = str(art.get("file_path", "")).strip_edges()
 		art_option.add_item(art_name, index + 1)
 		if art_path == current_wall_path: selected_index = index + 1
 
@@ -756,7 +760,7 @@ func _on_art_selected(index: int) -> void:
 		return
 
 	if index > 0 and index <= art_library.size():
-		var chosen_path: String = str(art_library[index - 1].get("file_path", ""))
+		var chosen_path: String = str(art_library[index - 1].get("file_path", "")).strip_edges()
 		room_slices[current_selected_slice_idx]["wallpaper_path"] = chosen_path
 		_update_preview_texture(UGCManager.load_texture_from_file(chosen_path))
 	else:

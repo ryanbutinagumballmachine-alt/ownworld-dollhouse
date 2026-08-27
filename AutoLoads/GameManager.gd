@@ -1,8 +1,11 @@
 # ==============================================================================
 # OWNWORLD — GAME MANAGER
 # File: res://AutoLoads/GameManager.gd
-# Placement: AutoLoad Singleton
-# Base Class: Node (GameManager)
+# Autoload Singleton: GameManager
+# Base Class: Node
+#
+# Responsibility: High-level game session coordination, universe routing,
+# cross-platform display scaling, and cast roster compilation.
 # ==============================================================================
 
 extends Node
@@ -87,7 +90,7 @@ func _enforce_engine_viewport_scaling() -> void:
 	window.content_scale_stretch = Window.CONTENT_SCALE_STRETCH_FRACTIONAL
 	window.content_scale_size = BASE_CANVAS_SIZE
 
-	# Force Sensor Landscape orientation on mobile platforms (Android & iOS)
+	# Enforce Sensor Landscape orientation on mobile platforms (Android & iOS)
 	if OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios"):
 		DisplayServer.screen_set_orientation(DisplayServer.SCREEN_SENSOR_LANDSCAPE)
 
@@ -151,12 +154,7 @@ func _write_session_file() -> void:
 		"time_preset": global_time_preset,
 		"weather_preset": global_weather_preset
 	}
-	var file: FileAccess = FileAccess.open(PATH_SESSION_FILE, FileAccess.WRITE)
-	if file == null:
-		return
-	file.store_string(JSON.stringify(payload, "\t"))
-	file.flush()
-	file.close()
+	JsonFileStore.write_dictionary(PATH_SESSION_FILE, payload)
 
 
 func save_session() -> void:
@@ -164,27 +162,27 @@ func save_session() -> void:
 
 
 func get_universe_save_dir(universe_id: String = "") -> String:
-	var resolved_id: String = universe_id if not universe_id.is_empty() else current_universe_id
+	var resolved_id: String = universe_id.strip_edges() if not universe_id.strip_edges().is_empty() else current_universe_id
 	return PATH_SAVES_ROOT.path_join(resolved_id).path_join("rooms") + "/"
 
 func get_universe_map_path(universe_id: String = "") -> String:
-	var resolved_id: String = universe_id if not universe_id.is_empty() else current_universe_id
+	var resolved_id: String = universe_id.strip_edges() if not universe_id.strip_edges().is_empty() else current_universe_id
 	return PATH_MAPS_DIR.path_join(resolved_id + "_map.json")
 
 func get_universe_cast_path(universe_id: String = "") -> String:
-	var resolved_id: String = universe_id if not universe_id.is_empty() else current_universe_id
+	var resolved_id: String = universe_id.strip_edges() if not universe_id.strip_edges().is_empty() else current_universe_id
 	return PATH_UNIVERSES_DIR.path_join(resolved_id + "_cast.json")
 
 func get_universe_journal_path(universe_id: String = "") -> String:
-	var resolved_id: String = universe_id if not universe_id.is_empty() else current_universe_id
+	var resolved_id: String = universe_id.strip_edges() if not universe_id.strip_edges().is_empty() else current_universe_id
 	return PATH_UNIVERSES_DIR.path_join(resolved_id + "_journal.json")
 
 func get_saved_props_path(universe_id: String = "") -> String:
-	var resolved_id: String = universe_id if not universe_id.is_empty() else current_universe_id
+	var resolved_id: String = universe_id.strip_edges() if not universe_id.strip_edges().is_empty() else current_universe_id
 	return UGCManager.get_templates_directory().path_join(resolved_id + "_props.json")
 
 func get_saved_furniture_path(universe_id: String = "") -> String:
-	var resolved_id: String = universe_id if not universe_id.is_empty() else current_universe_id
+	var resolved_id: String = universe_id.strip_edges() if not universe_id.strip_edges().is_empty() else current_universe_id
 	return UGCManager.get_templates_directory().path_join(resolved_id + "_furniture.json")
 
 
@@ -212,20 +210,25 @@ func get_all_universe_character_data() -> Array[Dictionary]:
 		if cast_file != null:
 			var parsed: Variant = JSON.parse_string(cast_file.get_as_text())
 			cast_file.close()
+			var cast_items: Array = []
 			if parsed is Array:
-				for item: Variant in (parsed as Array):
-					if not item is Dictionary:
-						continue
-					var character_data: Dictionary = (item as Dictionary).duplicate(true)
-					var character_id: String = str(character_data.get("id", ""))
-					var character_name: String = str(character_data.get("display_name", "")).strip_edges().to_lower()
-					if character_id.is_empty() or roster.has(character_id):
-						continue
-					if not character_name.is_empty() and seen_names.has(character_name):
-						continue
-					roster[character_id] = character_data
-					if not character_name.is_empty():
-						seen_names[character_name] = true
+				cast_items = parsed as Array
+			elif parsed is Dictionary:
+				cast_items = (parsed as Dictionary).get("cast", (parsed as Dictionary).get("templates", []))
+
+			for item: Variant in cast_items:
+				if not item is Dictionary:
+					continue
+				var character_data: Dictionary = (item as Dictionary).duplicate(true)
+				var character_id: String = str(character_data.get("id", ""))
+				var character_name: String = str(character_data.get("display_name", "")).strip_edges().to_lower()
+				if character_id.is_empty() or roster.has(character_id):
+					continue
+				if not character_name.is_empty() and seen_names.has(character_name):
+					continue
+				roster[character_id] = character_data
+				if not character_name.is_empty():
+					seen_names[character_name] = true
 
 	var save_dir: String = get_universe_save_dir(current_universe_id)
 	if DirAccess.dir_exists_absolute(save_dir):
@@ -234,7 +237,7 @@ func get_all_universe_character_data() -> Array[Dictionary]:
 			dir.list_dir_begin()
 			var file_name: String = dir.get_next()
 			while not file_name.is_empty():
-				if not dir.current_is_dir() and file_name.ends_with(".json"):
+				if not dir.current_is_dir() and file_name.ends_with(".json") and file_name != "recipes.json":
 					var room_path: String = save_dir.path_join(file_name)
 					var room_file: FileAccess = FileAccess.open(room_path, FileAccess.READ)
 					if room_file != null:
@@ -272,7 +275,7 @@ func update_universe_character_data(char_data: Dictionary) -> void:
 
 
 func clear_current_universe_rooms(universe_id: String = "") -> void:
-	var resolved_id: String = universe_id if not universe_id.is_empty() else current_universe_id
+	var resolved_id: String = universe_id.strip_edges() if not universe_id.strip_edges().is_empty() else current_universe_id
 	var save_dir: String = get_universe_save_dir(resolved_id)
 	if not DirAccess.dir_exists_absolute(save_dir):
 		return

@@ -2,6 +2,9 @@
 # OWNWORLD — ENTITY INTERACTION ROUTER
 # File: res://Systems/Interaction/EntityInteractionRouter.gd
 # Base Class: Node (class_name EntityInteractionRouter)
+#
+# Responsibility: Decoupled routing of tap and drop interactions to appropriate
+# entity capabilities (containers, portals, liquids, sockets, crafting merges).
 # ==============================================================================
 
 class_name EntityInteractionRouter

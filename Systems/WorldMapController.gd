@@ -2,6 +2,9 @@
 # OWNWORLD — WORLD MAP CONTROLLER (CARDLESS PINS & FLOOR MANAGEMENT)
 # File: res://Systems/WorldMapController.gd
 # Base Class: CanvasLayer (class_name WorldMapController)
+#
+# Responsibility: Interactive universe map navigation, cardless building pins,
+# multi-floor registration, and direct room transitions.
 # ==============================================================================
 
 class_name WorldMapController
@@ -728,8 +731,8 @@ func _on_change_bg_pressed() -> void:
 
 
 func _on_bg_asset_selected(fpath: String, texture: Texture2D) -> void:
-	current_bg_image_path = fpath
-	map_background_rect.texture = texture if texture != null else UGCManager.load_texture_from_file(fpath)
+	current_bg_image_path = fpath.strip_edges()
+	map_background_rect.texture = texture if texture != null else UGCManager.load_texture_from_file(current_bg_image_path)
 	empty_hint_label.visible = false
 	save_map_for_current_universe()
 	EventBus.notification_requested.emit("Map background updated!", true)
@@ -749,7 +752,7 @@ func load_map_for_current_universe() -> void:
 	if FileAccess.file_exists(map_file_path):
 		var parsed: Dictionary = JsonFileStore.read_dictionary(map_file_path)
 		if not parsed.is_empty():
-			current_bg_image_path = str(parsed.get("bg_image_path", ""))
+			current_bg_image_path = str(parsed.get("bg_image_path", "")).strip_edges()
 			if not current_bg_image_path.is_empty() and FileAccess.file_exists(current_bg_image_path):
 				map_background_rect.texture = UGCManager.load_texture_from_file(current_bg_image_path)
 				empty_hint_label.visible = false
@@ -761,9 +764,9 @@ func load_map_for_current_universe() -> void:
 			for p_dict_var: Variant in pins_data:
 				if not (p_dict_var is Dictionary): continue
 				var p_dict: Dictionary = p_dict_var as Dictionary
-				var b_name: String = str(p_dict.get("name", p_dict.get("building_name", "Building")))
-				var b_id: String = str(p_dict.get("building_id", p_dict.get("room_id", "building_main")))
-				var p_img_path: String = str(p_dict.get("image_path", ""))
+				var b_name: String = str(p_dict.get("name", p_dict.get("building_name", "Building"))).strip_edges()
+				var b_id: String = str(p_dict.get("building_id", p_dict.get("room_id", "building_main"))).strip_edges()
+				var p_img_path: String = str(p_dict.get("image_path", "")).strip_edges()
 				var p_pos: Vector2 = Vector2(float(p_dict.get("x", 400.0)), float(p_dict.get("y", 200.0)))
 				var tex: Texture2D = UGCManager.get_thumbnail_async(p_img_path, 128) if (not p_img_path.is_empty() and FileAccess.file_exists(p_img_path)) else UGCManager.create_blank_starter_graphic(Vector2(64.0, 64.0), Color("#0284c7"))
 				create_pin(b_name, b_id, p_pos, p_img_path, tex)
@@ -909,10 +912,10 @@ class MapPin extends Control:
 
 
 	func setup(p_name: String, p_bldg_id: String, p_pos: Vector2, p_img_path: String, p_tex: Texture2D, controller_ref: WorldMapController) -> void:
-		building_name = p_name
-		building_id = p_bldg_id
+		building_name = p_name.strip_edges()
+		building_id = p_bldg_id.strip_edges()
 		position = p_pos
-		image_path = p_img_path
+		image_path = p_img_path.strip_edges()
 		pin_texture = p_tex
 		map_controller = controller_ref
 
@@ -923,7 +926,7 @@ class MapPin extends Control:
 
 
 	func set_pin_image(p_path: String, p_tex: Texture2D) -> void:
-		image_path = p_path
+		image_path = p_path.strip_edges()
 		pin_texture = p_tex
 		if texture_rect: texture_rect.texture = p_tex
 

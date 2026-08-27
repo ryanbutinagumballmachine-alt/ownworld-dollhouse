@@ -2,6 +2,9 @@
 # OWNWORLD — ENTITY SERIALIZER
 # File: res://Core/Persistence/EntitySerializer.gd
 # Base Class: RefCounted (class_name EntitySerializer)
+#
+# Responsibility: High-speed extraction and hierarchy bundle serialization for
+# runtime OwnEntity node trees.
 # ==============================================================================
 
 class_name EntitySerializer

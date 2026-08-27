@@ -2,6 +2,9 @@
 # OWNWORLD — FOOD & DRINK STUDIO
 # File: res://UI/Dialogs/FoodStudioDialog.gd
 # Base Class: CanvasLayer (class_name FoodStudioDialog)
+#
+# Responsibility: Interactive consumable configuration modal. Manages beverage
+# modes, infinite snack toggles, and multi-stage bite / sip drawing progression.
 # ==============================================================================
 
 class_name FoodStudioDialog

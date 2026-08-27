@@ -2,6 +2,8 @@
 # OWNWORLD — CORE TYPES & ENUMS
 # File: res://Core/Types.gd
 # Base Class: RefCounted (class_name Types)
+#
+# Responsibility: Enumerations and constant definitions across all domain models.
 # ==============================================================================
 
 class_name Types

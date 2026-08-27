@@ -2,6 +2,9 @@
 # OWNWORLD — ENTITY CAPABILITY SYNCHRONIZER
 # File: res://Core/Entities/CapabilitySynchronizer.gd
 # Base Class: RefCounted (class_name CapabilitySynchronizer)
+#
+# Responsibility: Synchronizes entity flags and properties with modular
+# EntityCapability components during spawning, deserialization, and runtime updates.
 # ==============================================================================
 
 class_name CapabilitySynchronizer
