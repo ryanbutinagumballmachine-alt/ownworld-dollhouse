@@ -61,8 +61,6 @@ func _update_responsive_layout() -> void:
 
 
 func _build_ui() -> void:
-	var is_mob: bool = _is_mobile()
-
 	root_backdrop = Control.new()
 	root_backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root_backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -97,11 +95,11 @@ func _build_ui() -> void:
 	title_lbl.text = "Storage Inventory"
 	title_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title_lbl.theme_type_variation = "HeaderLabel"
-	title_lbl.add_theme_font_size_override("font_size", 14 if is_mob else 12)
+	title_lbl.add_theme_font_size_override("font_size", 14 if _is_mobile() else 12)
 	header_hbox.add_child(title_lbl)
 
 	btn_close = Button.new()
-	btn_close.custom_minimum_size = Vector2(28.0 if is_mob else 22.0, 28.0 if is_mob else 22.0)
+	btn_close.custom_minimum_size = Vector2(28.0 if _is_mobile() else 22.0, 28.0 if _is_mobile() else 22.0)
 	btn_close.focus_mode = Control.FOCUS_NONE
 	btn_close.add_theme_constant_override("icon_max_width", 12)
 	_apply_close_icon(btn_close)
@@ -113,7 +111,7 @@ func _build_ui() -> void:
 	hint_lbl = Label.new()
 	hint_lbl.text = "Tap any item below to unpack it into the room:"
 	hint_lbl.theme_type_variation = "HintLabel"
-	hint_lbl.add_theme_font_size_override("font_size", 11 if is_mob else 10)
+	hint_lbl.add_theme_font_size_override("font_size", 11 if _is_mobile() else 10)
 	vbox.add_child(hint_lbl)
 
 	var scroll: ScrollContainer = ScrollContainer.new()
@@ -138,7 +136,6 @@ func _on_theme_changed(_theme_data: Dictionary) -> void:
 
 func _apply_theme_styling() -> void:
 	if root_panel == null: return
-	var is_mob: bool = _is_mobile()
 	var background_color: Color = ThemeService.get_color("panel_background", "#fff0f5")
 	var border_color: Color = ThemeService.get_color("panel_border", "#f472b6")
 	var button_normal: Color = ThemeService.get_color("button_normal", "#fce7f3")

@@ -186,7 +186,7 @@ func _build_ui() -> void:
 	add_child(toggle_pill_container)
 
 	btn_open_floating_pill = Button.new()
-	btn_open_floating_pill.text = " ▲ DRAWERS ▲ "
+	btn_open_floating_pill.text = " ▲ "
 	btn_open_floating_pill.tooltip_text = "Open Asset & Cast Drawer"
 	btn_open_floating_pill.custom_minimum_size = Vector2(130.0 if is_mob else 90.0, pill_h)
 	btn_open_floating_pill.theme_type_variation = "FloatingCapsule"

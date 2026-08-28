@@ -203,7 +203,8 @@ func _center_window_on_screen() -> void:
 	var screen_index: int = DisplayServer.window_get_current_screen()
 	var screen_rect: Rect2i = DisplayServer.screen_get_usable_rect(screen_index)
 	var window_size: Vector2i = DisplayServer.window_get_size()
-	var centered_pos: Vector2i = screen_rect.position + (screen_rect.size - window_size) / 2
+	var diff: Vector2i = screen_rect.size - window_size
+	var centered_pos: Vector2i = screen_rect.position + Vector2i(int(float(diff.x) * 0.5), int(float(diff.y) * 0.5))
 	DisplayServer.window_set_position(centered_pos)
 
 
