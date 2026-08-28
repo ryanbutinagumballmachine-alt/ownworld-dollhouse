@@ -7,8 +7,8 @@
 # File: res://UI/Dialogs/TutorialDialog.gd
 # Base Class: CanvasLayer (class_name TutorialDialog)
 #
-# Responsibility: In-game player guide and creator handbook modal.
-# 10 player-friendly chapters covering controls, custom drawings,
+# Responsibility: Comprehensive beginner-proof player guide and creator handbook.
+# 10 clear, easy-to-read chapters covering controls, custom drawings,
 # outfits, living animations, sockets, food, story puzzles, rooms, and lore.
 # ==============================================================================
 
@@ -35,81 +35,81 @@ var content_vbox: VBoxContainer = null
 var active_topic_index: int = 0
 var active_filter_query: String = ""
 
-# Handbook Chapters Data (Player-Friendly Content)
+# Handbook Chapters Data (Beginner-Friendly Content)
 var tutorial_chapters: Array[Dictionary] = [
 	{
 		"id": "quickstart",
-		"title": "1. Quickstart & How to Play",
+		"title": "1. The Basics: How to Move & Play",
 		"icon": "icon_play",
 		"badge": "Basics",
 		"sections": [
 			{
-				"title": "Welcome to OwnWorld: Dollhouse!",
-				"body": "OwnWorld: Dollhouse is your personal creative playground. You can tell stories, decorate rooms, dress up characters, cook food, and even make things happen automatically using simple cause-and-effect rules. Best of all, you can bring in your own drawings anytime!"
+				"title": "What is OwnWorld: Dollhouse?",
+				"body": "OwnWorld is an interactive digital toy and story sandbox. Just like playing with a physical dollhouse or paper dolls, you can pick up characters, decorate rooms, dress people up, cook meals, and invent your own stories. Best of all, you can draw your own characters and furniture and bring them into the game anytime!"
 			},
 			{
-				"title": "Gliding Around Rooms",
-				"body": "• Move Around: Drag anywhere on the empty background with your finger or mouse to glide left and right across the room.\n• Smooth Fit: Rooms fit your screen height comfortably, so you never have to worry about clumsy vertical scrolling.\n• Dual-Platform Friendly: Everything works with touch controls on phones and tablets, or with a mouse and keyboard on PC."
+				"title": "Looking Around Your Room",
+				"body": "• Slide Left and Right: Touch or click any empty background area and drag left or right to glide across the room.\n• Comfortable View: Rooms fit your screen height naturally, so you only need to slide side-to-side to explore.\n• Works on Any Device: You can play comfortably using touch on phones and tablets, or using a mouse and keyboard on PC."
 			},
 			{
-				"title": "Picking Up & Interacting",
-				"body": "• Move Anything: Drag and drop any unlocked character or object around the room.\n• Quick Taps: Tap on lights to switch them on, tap doors to open them, tap containers to see inside, or tap stairs to climb to upper floors.\n• The Action Menu: Press and hold on any item (or right-click on PC) to open the round action menu. From there you can flip objects, dress up characters, customize interactions, lock items, or delete them."
+				"title": "Picking Up & Interacting with Items",
+				"body": "• Move Anything: Tap and hold any character or object, drag them wherever you want, and let go to drop them.\n• Quick Taps: Tap a lamp to turn the light on or off. Tap a door to open or close it. Tap a backpack or chest to see what is stored inside. Tap stairs to climb up to the next floor.\n• The Action Menu (Magic Wheel): Press and hold down on any character or object for half a second (or right-click with a mouse on PC). A round action menu will appear with tools to flip the item, change outfits, customize interactions, lock it in place, or delete it."
 			},
 			{
-				"title": "Focus & Zoom Mode",
-				"body": "• Zoom In: Tap the 'Zoom' button in the top navigation bar to zoom in close and inspect fine details, character faces, or small props.\n• Free Camera: While Focus Mode is active, you can pinch-to-zoom on touchscreens or use the mouse wheel on PC.\n• Return to Normal: Tap 'Focus' in the top bar again to smoothly return to regular side-scrolling mode."
+				"title": "Zooming In Close (Focus Mode)",
+				"body": "• Zoom In: Tap the 'Zoom' button in the top navigation bar to unlock camera zoom.\n• Inspect Details: Pinch with two fingers on a touchscreen (or roll your mouse wheel on PC) to zoom in close on faces, small props, or fine drawings.\n• Return to Normal: Tap 'Focus' in the top bar again to lock the camera smoothly back to normal room view."
 			}
 		]
 	},
 	{
 		"id": "ugc_art",
-		"title": "2. Bringing in Your Own Drawings",
+		"title": "2. Adding Your Own Drawings",
 		"icon": "icon_assets",
 		"badge": "Custom Art",
 		"sections": [
 			{
-				"title": "Where Your Drawings Live",
-				"body": "OwnWorld keeps all your artwork inside a folder in your device's Documents area:\n\nDocuments / OwnWorld / Dollhouse / Art\n\nAny PNG, WebP, JPG, or animated GIF saved here (or inside custom subfolders you create) will show up immediately in your Assets drawer."
+				"title": "You Can Draw Anything!",
+				"body": "You do not need to be a professional artist to add things into the game! You can draw characters, pets, hats, food, chairs, or castles using your favorite drawing app on your phone, tablet, or computer (like Procreate, IbisPaint, Krita, Photoshop, or MS Paint)."
 			},
 			{
-				"title": "Importing Drawings in One Tap",
-				"body": "1. Open the bottom drawer by tapping the pill at the bottom of the screen.\n2. Tap the 'Import' button in the toolbar.\n3. Pick any drawing or animated GIF from your photo gallery or files. It will be added to your library instantly!"
+				"title": "Saving with a Transparent Background",
+				"body": "• Use PNG or WebP: When saving or exporting your drawing, choose PNG or WebP format with a transparent background.\n• Magic Automatic Cutouts: You never need to trace manual collision outlines! The game automatically detects the shape of your drawing and turns it into a solid physical object you can pick up and hold.\n• Crop Closely: For the smoothest snapping and dragging, crop empty transparent space closely around your drawing."
 			},
 			{
-				"title": "Magic Automatic Cutouts",
-				"body": "• Transparent Files: Save your drawings with transparent backgrounds (PNG, WebP, or GIF).\n• Instant Hitboxes: The game automatically detects the shape of your drawing so characters and objects can be picked up and snapped accurately without any manual tracing!\n• Clean Borders: Crop transparent space closely around your drawings for the smoothest dragging and placement."
+				"title": "How to Import Drawings into the Game",
+				"body": "1. Open the bottom drawer by tapping the small tab at the bottom of the screen.\n2. Make sure you are on the 'Assets' tab and tap the 'Import' button.\n3. Select your drawing from your device's photo gallery or files.\n4. Tap your drawing card in the drawer to spawn it into your room immediately!"
+			},
+			{
+				"title": "Where Files Live on Your Device",
+				"body": "All drawings are kept inside your device's Documents area:\n\nDocuments / OwnWorld / Dollhouse / Art\n\nYou can also create custom subfolders here (like 'Animals', 'Food', or 'Hats') to keep your drawing collection organized."
 			}
 		]
 	},
 	{
 		"id": "characters_poses",
-		"title": "3. Characters, Outfits & Animations",
+		"title": "3. Playing with Characters",
 		"icon": "icon_cast",
 		"badge": "Characters",
 		"sections": [
 			{
-				"title": "Living Characters & Outfits",
-				"body": "Characters in OwnWorld are fully customizable. They can wear multiple outfits, react to what is happening around them, and have living animated expressions."
+				"title": "Finding & Summoning Characters",
+				"body": "• The Cast Drawer: Open the bottom drawer and tap the 'Cast' tab to see all your characters.\n• Summon to Room: Tap any character card to place them into your active room.\n• Call Back Home: Press and hold down on a character card for half a second to call that character back into the drawer and remove them from the world."
 			},
 			{
-				"title": "Automatic Reactions",
-				"body": "Your characters automatically react to different actions in the dollhouse:\n\n1. Idle: Normal standing posture.\n2. Speaking: Mouth-open talking state during dialogue.\n3. Eating: Chewing reactions when enjoying food or drinks.\n4. Sitting: Activated when placed on chairs, couches, or stools.\n5. Sleeping: Activated when placed onto beds.\n\nTip: If you do not assign a custom drawing for sitting or sleeping, the character will naturally use their default drawing."
+				"title": "Automatic Living Reactions",
+				"body": "Characters automatically react to what you do with them:\n\n1. Standing (Idle): Their regular standing pose.\n2. Talking (Speaking): Mouth opens when they speak dialogue lines.\n3. Eating: Chewing reactions when enjoying food or drinks.\n4. Sitting: Activated when placed on chairs, couches, or stools.\n5. Sleeping: Activated when placed onto beds.\n\nTip: If you have only made a single drawing for a character, they will naturally use that drawing for all poses!"
 			},
 			{
 				"title": "Setting Up Natural Blinking",
-				"body": "Want your characters to blink naturally on their own? Open the States Studio, go to the Timeline tab, add an eyes-open frame and an eyes-closed frame, then choose 'Natural Blink'. The character will stay resting on Frame 1 and smoothly blink every few seconds!"
+				"body": "Want your character to blink naturally while standing around? Open the States Studio, switch to the 'Frames & GIF Timeline' tab, add an eyes-open drawing (Frame 1) and an eyes-closed drawing (Frame 2), then set Playback Mode to 'Natural Blink'. Your character will now stay with open eyes and naturally blink every few seconds!"
 			},
 			{
 				"title": "One-Tap Animated GIFs",
-				"body": "Have an animated GIF of a waving character or a flickering campfire? Open the States Studio (Tab 2) and tap 'Import Animated GIF' to load the animation with its exact timing in one step."
+				"body": "Have an animated GIF of a dancing pet or a waving character? Open the States Studio (Tab 2) and tap 'Import Animated GIF'. The game will import all frames and play them at their exact original speed!"
 			},
 			{
 				"title": "Sprite Sheet Slicing",
-				"body": "If you have a sprite strip or character grid, open Tab 3 in the States Studio. Pick your column and row counts, preview the cutting lines, and tap 'Extract All Slices' to create ready-to-play animation frames instantly."
-			},
-			{
-				"title": "Summoning & Calling Characters Back",
-				"body": "• Summon to Room: Tap any character card in the Cast drawer to place them into your current room.\n• Call Back to Tray: Press and hold down on a character's card in the Cast drawer to recall them back to the tray and clear them from the world."
+				"body": "If you have a sprite strip or character grid image (like a 4-frame walk cycle on one picture), open Tab 3 in the States Studio. Pick your column and row counts, preview the cutting lines, and tap 'Extract All Slices' to turn them into an animation instantly."
 			}
 		]
 	},
@@ -121,15 +121,23 @@ var tutorial_chapters: Array[Dictionary] = [
 		"sections": [
 			{
 				"title": "How Snapping Works",
-				"body": "Items snap together smoothly using Anchor Points. When you drag a hat near a head, a sword near a hand, or a character onto a chair, the item snaps right into place with a chime!"
+				"body": "Items connect together smoothly using Anchor Points. When you drag a hat near a head, a sword near a hand, or a character onto a chair, the item snaps into place with a chime sound!"
+			},
+			{
+				"title": "Holding Items in Hands",
+				"body": "Drag any small prop (like an apple, a wand, or a cup) over a character's hand. The character will automatically grab the item and hold onto it as you move them around."
+			},
+			{
+				"title": "Hats, Glasses & Accessories",
+				"body": "• Hats & Crowns: Drop onto a character's head to wear them.\n• Glasses & Masks: Drop over a character's face.\n• Scarves & Necklaces: Drop near the neck.\n• Wings & Backpacks: Drop over a character's back."
+			},
+			{
+				"title": "Sitting on Chairs & Sleeping in Beds",
+				"body": "• To Sit: Drag a character and drop them onto a chair or sofa. They will automatically sit down.\n• To Sleep: Drag a character onto a bed. They will automatically lie down in a horizontal sleeping position."
 			},
 			{
 				"title": "Using the Anchor Studio",
-				"body": "Long-press any character or furniture piece and select 'Anchors':\n\n1. Choose an Anchor Category from the dropdown (Hand Sockets, Head / Hats, Seat Sockets, Table Surfaces, etc.).\n2. Tap on the drawing preview where you want the connection point to be.\n3. Drag the pin to adjust its position with pixel accuracy.\n4. Tap 'Save Anchors' to finish."
-			},
-			{
-				"title": "Common Socket Types",
-				"body": "• Hand Sockets (hand_1, hand_2): For holding tools, weapons, and food.\n• Head & Face Sockets: For wearing hats, crowns, glasses, and masks.\n• Seat Sockets (seat_1): Tells characters where to sit down on chairs and sofas.\n• Character Sit Baseline (sit_point): Set this on a character's body so their hips line up perfectly with chair cushions.\n• Table Surfaces (surface_1): For placing cups, plates, and decorative props on desks and shelves.\n• Bed Anchors (bed_1): Rotates characters into a sleeping position when dropped onto beds."
+				"body": "Want to fine-tune where a hat sits or where a hand grips? Long-press any character or furniture piece and tap 'Anchors':\n\n1. Pick a category from the dropdown (Hand, Head, Seat, Table Surface, Bed, etc.).\n2. Tap directly on the drawing preview where you want the connection point to be.\n3. Drag the pin with your finger or mouse to adjust its exact location.\n4. Tap 'Save Anchors' when done!"
 			}
 		]
 	},
@@ -140,40 +148,44 @@ var tutorial_chapters: Array[Dictionary] = [
 		"badge": "Interactive",
 		"sections": [
 			{
-				"title": "Eating Food",
-				"body": "Hold any food item near a character's face. The character will open their mouth, play chewing sounds, spray crumbs, and take bites until the snack is finished!"
+				"title": "Feeding Characters",
+				"body": "Drag any food item up to a character's mouth. The character will open their mouth, play chewing sounds, spray crumbs, and take bites until the snack is finished!"
 			},
 			{
 				"title": "Custom Bite Stages (Food Studio)",
-				"body": "Long-press a food item and open 'Food & Drink' to customize it. You can set up multiple progressive bite drawings (such as Whole Apple -> Half Eaten -> Apple Core) or enable 'Infinite' for endless snacking."
+				"body": "Long-press a food item and open 'Food & Drink' to customize it. You can set up multiple progressive bite drawings (such as Whole Pizza -> Slice Taken -> Crust -> Empty Plate) or enable 'Infinite' for endless snacking."
 			},
 			{
-				"title": "Pouring Drinks & Faucets",
-				"body": "• Realistic Sips: Bringing cups to a character's mouth tilts the cup and plays drinking sounds.\n• Cup-to-Cup Pouring: Hover a full teapot, bottle, or cup over an empty cup to tilt and pour liquid, filling the cup below!\n• Running Faucets: Mark an appliance as a 'Water Stream' to create functional kitchen sinks or garden hoses that spray running water particles."
+				"title": "Pouring Drinks & Using Faucets",
+				"body": "• Realistic Sips: Bringing a cup to a character's mouth tilts the cup realistically and plays sipping sounds.\n• Cup-to-Cup Pouring: Pick up a full teapot, bottle, or cup and hover it directly above an empty cup. It will tilt and pour liquid, filling the cup below!\n• Sinks & Faucets: Tap any running faucet to turn on flowing water particles. Hold an empty cup under the water stream to fill it up!"
 			},
 			{
 				"title": "Backpacks, Boxes & Drawers",
-				"body": "Objects marked as Containers can hold items inside them. Drop any prop onto a backpack, treasure chest, or drawer to pack it away. Tap the container anytime to view its storage inventory and unpack items back into the room."
+				"body": "Items marked as Containers can store props inside them. Drop any item onto a backpack, treasure chest, or drawer to pack it away. Tap the container anytime to view its storage inventory and unpack items back into the room."
 			},
 			{
 				"title": "Combining Ingredients (Recipe Creator)",
-				"body": "Open the Main Menu and select 'Visual Recipe Creator' to craft new combinations (like Dough + Tomato = Pizza). In your room, simply drop Ingredient A onto Ingredient B to trigger a magic merge poof!"
+				"body": "Open the Main Menu and tap 'Visual Recipe Creator' to make cooking recipes (like Dough + Tomato = Pizza). In your room, simply drop Ingredient A onto Ingredient B to trigger a magic merge poof!"
 			}
 		]
 	},
 	{
 		"id": "logic_rules",
-		"title": "6. Story Magic & Interactive Puzzles",
+		"title": "6. Story Magic: Make Things Happen",
 		"icon": "icon_logic",
-		"badge": "Storytelling",
+		"badge": "Story Magic",
 		"sections": [
 			{
-				"title": "Make Things Happen Without Coding",
-				"body": "The Logic Rule Editor lets you build interactive story moments, secret passages, and fun surprises without writing a single line of code!"
+				"title": "What is Story Magic?",
+				"body": "The Logic Rule Editor lets you make objects and characters interact automatically without writing a single line of code! You can create working light switches, talking characters, secret doors, and puzzle rewards."
 			},
 			{
-				"title": "The Simple 3-Step Formula",
-				"body": "Every rule is built using three clear choices:\n\n1. When This Happens:\n   Choose the trigger (When Tapped, When an Item is Dropped Onto It, When Grabbed, or When Released).\n   Optional: Set an item name filter so it only works with a specific item (like 'Magic Key').\n\n2. Apply Action To:\n   Choose who reacts (This Item, The Dropped Item, All Characters in Room, or the Room Environment).\n\n3. Then Execute Action:\n   • Speech Bubble: Make characters say custom dialogue lines.\n   • Floating Emoji: Spray hearts, stars, musical notes, or question marks.\n   • Play Animation or Change Clothes: Switch outfits or start dance animations.\n   • Shift Atmosphere: Change the room mood to Sunset or start falling rain.\n   • Spawn a Reward: Conjure an item from your art library into the room.\n   • Teleport: Transition to another room in your world."
+				"title": "The Simple 3-Step Rule Maker",
+				"body": "Every rule is built using three clear choices:\n\n1. When This Happens (Trigger):\n   Pick what starts the action (When Tapped, When an Item is Dropped Onto It, When Picked Up, or When Released).\n   Optional: Set an item name filter so it only works with a specific item (like 'Gold Key').\n\n2. Apply Action To (Target):\n   Choose who reacts (This Item, The Dropped Item, All Characters in the Room, or the Room Environment).\n\n3. Then Execute Action (Effect):\n   • Speech Bubble: Make a character say custom dialogue lines.\n   • Floating Emoji: Spray hearts, stars, music notes, or questions.\n   • Play Animation / Change Clothes: Switch outfits or start dance moves.\n   • Shift Atmosphere: Change the room mood to Sunset or start falling rain.\n   • Spawn a Reward: Conjure an item from your art library into the room.\n   • Teleport: Travel to another room in your world."
+			},
+			{
+				"title": "3 Fun Story Examples to Try",
+				"body": "• Example 1 (Light Switch): Set a lamp to turn its light on or off when tapped.\n• Example 2 (Polite Character): Set a character to say 'Thank you!' and spray hearts whenever they are handed a cookie.\n• Example 3 (Treasure Chest): Set a treasure chest to spawn gold coins when a key is dropped onto it."
 			}
 		]
 	},
@@ -184,28 +196,28 @@ var tutorial_chapters: Array[Dictionary] = [
 		"badge": "Worldbuilding",
 		"sections": [
 			{
-				"title": "The World Map & Building Settings",
-				"body": "Open the World Map from the top bar to view your universe. Switch to Edit Mode and tap the gear on any building pin to open Building Settings. Here you can add new floors, name rooms, assign floor labels (1F, 2F, B1), and pick custom building artwork."
+				"title": "The World Map",
+				"body": "Tap 'Map' in the top bar to view your universe map. Tap any building pin to travel straight to that location. Switch the map to 'Edit' mode to move building pins around, add new buildings, or customize building settings."
 			},
 			{
 				"title": "Stairs & Elevators",
-				"body": "• Auto-Climbing Stairs: Tap stairs (or drop a character on them) to climb directly to the floor above.\n• Keypad Elevators: Step into an elevator to open a floor keypad. Select any registered floor in the building to ride the elevator with all passengers inside!"
+				"body": "• Auto-Climbing Stairs: Tap stairs (or drop a character on them) to climb directly to the floor above!\n• Keypad Elevators: Drop characters inside an elevator. A floor keypad will pop up. Tap any floor button (like 1F, 2F, or Rooftop) and the elevator will close its doors and take everyone to that floor!"
 			},
 			{
-				"title": "Multi-Screen Room Expansion",
-				"body": "• Screen Slices: Each room slice matches the exact width of your screen.\n• Long Rooms: Tap '+ Add Room Slice' in the Room Studio to expand your room up to 10 screens wide for seamless panoramic side-scrolling.\n• Indoor vs. Outdoor: Set individual slices as Outdoors so weather effects (like rain, snow, or falling leaves) only fall in open areas like balconies or gardens."
+				"title": "Multi-Screen Wide Rooms",
+				"body": "• Screen Slices: Each room slice matches the exact width of your device screen.\n• Extra Wide Rooms: In the Room Studio, tap '+ Add Room Slice' to expand your room up to 10 screens wide for seamless side-to-side panoramic scrolling.\n• Outdoor Balconies: Set individual room slices to 'Outdoors' so weather effects (like rain, snow, or falling leaves) fall only on outdoor balconies while keeping indoor rooms dry!"
 			}
 		]
 	},
 	{
 		"id": "lore_journals_factions",
-		"title": "8. Character Profiles & Story Chronicles",
+		"title": "8. Profiles, Family Trees & Lore",
 		"icon": "icon_lore",
 		"badge": "Narrative",
 		"sections": [
 			{
-				"title": "Character Profiles",
-				"body": "Long-press any character and choose 'Profile' to open their 3-tab Lore Card:\n• Tab 1 (Profile): Name, Pronouns, Role/Title, Life Status, custom portrait drawing, and unlimited customizable traits.\n• Tab 2 (Family & Feelings): Two-way family relationships (Parents, Children, Siblings, Partners) and directional feelings (Best Friends, Rivals, Secret Crushes, Mentors).\n• Tab 3 (Backstory): A notebook for writing backstories, personality quirks, and story notes."
+				"title": "Character Lore Cards",
+				"body": "Long-press any character and tap 'Profile' to open their 3-tab Lore Card:\n• Tab 1 (Profile): Name, Pronouns, Role/Title (like Baker or Knight), Life Status, custom portrait picture, and custom traits (like Birthday or Favorite Color).\n• Tab 2 (Family & Feelings): Two-way family connections (Parents, Children, Siblings, Partners) and feelings (Best Friends, Rivals, Secret Crushes, Mentors). When you set one character as a sibling to another, the game links them both ways automatically!\n• Tab 3 (Backstory): A notebook where you can write backstories, secrets, and world notes."
 			},
 			{
 				"title": "World Journal & Guilds",
@@ -240,16 +252,16 @@ var tutorial_chapters: Array[Dictionary] = [
 		"badge": "Customization",
 		"sections": [
 			{
-				"title": "Dynamic Motion & Juice Toggles",
-				"body": "Prefer playful bounces, or a calm, classic paper-doll feel? Open Settings -> Motion FX & Dynamic Juice:\n• Master Juice Toggle: Turn all spring bounces, squashes, and spawn physics on or off.\n• Idle Breathing & Levitation: Toggle or adjust the intensity of gentle breathing and floating effects.\n• Tilting Physics: Toggle cup-pouring and sipping rotations.\n• Squash & Stretch: Toggle chewing and landing bounces."
+				"title": "Dynamic Motion & Juice Controls",
+				"body": "• Love Bouncy Animations? The game includes lively squashes, bounces, and breathing effects when picking up and dropping items.\n• Prefer a Calm Paper-Doll Look? Open Settings -> Motion FX & Dynamic Juice and switch the Master Juice toggle off to disable all bouncy animations."
 			},
 			{
 				"title": "Palette & Font Studio",
-				"body": "Customize the visual style of your entire game! Choose from curated themes (Strawberry Milk, Matcha Latte, Lavender Mist, Midnight Velvet) or pick your own custom colors. You can also drop any .ttf or .otf font file into Documents/OwnWorld/Dollhouse/Font to restyle all in-game text."
+				"body": "Customize the visual style of your entire game! Choose from curated themes (Strawberry Milk, Matcha Latte, Lavender Mist, Peach Sorbet, Midnight Velvet) or pick your own custom colors. You can also drop your own .ttf or .otf font files into Documents/OwnWorld/Dollhouse/Font to change in-game text fonts."
 			},
 			{
 				"title": "Touch & Comfort Settings",
-				"body": "• Interface Scale: Adjust UI sizes to fit phones, tablets, or monitors comfortably.\n• Touch Grab Padding: Increases the grab area around small props so they are easy to pick up on mobile screens.\n• Hold Duration: Customize how long you need to hold down before the Magic Wheel opens or characters recall to the Cast drawer."
+				"body": "• Interface Scale: Adjust UI sizes to fit phones, tablets, or monitors comfortably.\n• Touch Grab Padding: Increases the grab area around small props so they are easy to pick up on mobile touchscreens.\n• Hold Duration: Customize how long you need to hold down before the Magic Wheel opens or characters recall to the Cast drawer."
 			}
 		]
 	}
