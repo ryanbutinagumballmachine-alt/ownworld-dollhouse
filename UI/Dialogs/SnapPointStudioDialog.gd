@@ -1,5 +1,5 @@
 # ==============================================================================
-# OWNWORLD — MOBILE-FIRST ANCHOR & SNAP POINT STUDIO
+# OWNWORLD — MOBILE-FIRST ANCHOR & SNAP POINT STUDIO (TOUCH & MOUSE ADAPTIVE)
 # File: res://UI/Dialogs/SnapPointStudioDialog.gd
 # Base Class: CanvasLayer (class_name SnapPointStudioDialog)
 #
@@ -11,9 +11,8 @@
 class_name SnapPointStudioDialog
 extends CanvasLayer
 
-const MAX_PANEL_WIDTH: float = 620.0
-const MAX_PANEL_HEIGHT: float = 640.0
-const PIN_TOUCH_RADIUS: float = 32.0
+const MAX_PANEL_WIDTH: float = 680.0
+const MAX_PANEL_HEIGHT: float = 580.0
 
 var root_backdrop: Control = null
 var center_container: CenterContainer = null
@@ -51,6 +50,10 @@ var is_dragging_anchor: bool = false
 var active_touch_index: int = -1
 var _is_updating_ui: bool = false
 
+var PIN_TOUCH_RADIUS: float:
+	get:
+		return 38.0 if _is_mobile() else 24.0
+
 var family_definitions: Array[Dictionary] = [
 	{"family": "hand", "label": "Hand Sockets (Hold Props)", "icon": "icon_hand", "is_snap": true, "color": Color("#0284c7")},
 	{"family": "seat", "label": "Seat Sockets (Characters Sit)", "icon": "icon_seat", "is_snap": true, "color": Color("#0ea5e9")},
@@ -80,6 +83,10 @@ func _ready() -> void:
 	_setup_keyboard_dodging()
 
 
+func _is_mobile() -> bool:
+	return ThemeEngine.is_mobile_platform()
+
+
 func _connect_system_signals() -> void:
 	var tree: SceneTree = get_tree()
 	if tree != null and tree.root != null and not tree.root.size_changed.is_connected(_update_responsive_layout):
@@ -89,23 +96,23 @@ func _connect_system_signals() -> void:
 
 
 func _setup_keyboard_dodging() -> void:
-	if custom_name_input != null:
+	if custom_name_input != null and _is_mobile():
 		custom_name_input.focus_entered.connect(_on_input_focus_entered)
 		custom_name_input.focus_exited.connect(_on_input_focus_exited)
 
 
 func _on_input_focus_entered() -> void:
-	if OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios"):
+	if _is_mobile():
 		await get_tree().process_frame
 		await get_tree().process_frame
 		var kb_height: float = DisplayServer.virtual_keyboard_get_height()
 		if kb_height > 0:
 			var tween: Tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-			tween.tween_property(center_container, "position:y", -kb_height * 0.4, 0.25)
+			tween.tween_property(center_container, "position:y", -kb_height * 0.45, 0.25)
 
 
 func _on_input_focus_exited() -> void:
-	if OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios"):
+	if _is_mobile():
 		var tween: Tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 		tween.tween_property(center_container, "position:y", 0.0, 0.25)
 
@@ -120,13 +127,18 @@ func _on_theme_changed(_theme_data: Dictionary) -> void:
 func _update_responsive_layout() -> void:
 	if not is_instance_valid(root_panel): return
 	var viewport_size: Vector2 = get_viewport().get_visible_rect().size if get_viewport() else Vector2(1280.0, 720.0)
-	var target_width: float = clampf(viewport_size.x * 0.94, 290.0, MAX_PANEL_WIDTH)
-	var target_height: float = clampf(viewport_size.y * 0.92, 330.0, MAX_PANEL_HEIGHT)
+	var is_mob: bool = _is_mobile()
+
+	var target_width: float = clampf(viewport_size.x * 0.94, 320.0, MAX_PANEL_WIDTH)
+	var target_height: float = clampf(viewport_size.y * (0.92 if is_mob else 0.88), 320.0, MAX_PANEL_HEIGHT)
 	root_panel.custom_minimum_size = Vector2(target_width, target_height)
 	root_panel.size = Vector2(target_width, target_height)
 
 
 func _build_ui() -> void:
+	var is_mob: bool = _is_mobile()
+	var row_h: float = 34.0 if is_mob else 28.0
+
 	root_backdrop = Control.new()
 	root_backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root_backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -162,11 +174,11 @@ func _build_ui() -> void:
 	header_lbl.text = "Anchor & Socket Studio"
 	header_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header_lbl.theme_type_variation = "HeaderLabel"
-	header_lbl.add_theme_font_size_override("font_size", 13)
+	header_lbl.add_theme_font_size_override("font_size", 14 if is_mob else 12)
 	header_hbox.add_child(header_lbl)
 
 	var close_button: Button = Button.new()
-	close_button.custom_minimum_size = Vector2(24.0, 24.0)
+	close_button.custom_minimum_size = Vector2(28.0 if is_mob else 22.0, 28.0 if is_mob else 22.0)
 	close_button.focus_mode = Control.FOCUS_NONE
 	close_button.add_theme_constant_override("icon_max_width", 12)
 	_apply_close_icon(close_button)
@@ -182,22 +194,22 @@ func _build_ui() -> void:
 
 	opt_family_category = OptionButton.new()
 	opt_family_category.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	opt_family_category.custom_minimum_size = Vector2(0.0, 32.0)
+	opt_family_category.custom_minimum_size = Vector2(0.0, row_h)
 	opt_family_category.item_selected.connect(_on_family_selected)
 	creator_hbox.add_child(opt_family_category)
 
 	custom_name_input = LineEdit.new()
 	custom_name_input.placeholder_text = "Key (e.g. tail_1)..."
-	custom_name_input.custom_minimum_size = Vector2(110.0, 32.0)
+	custom_name_input.custom_minimum_size = Vector2(120.0 if is_mob else 100.0, row_h)
 	custom_name_input.visible = false
 	creator_hbox.add_child(custom_name_input)
 
 	btn_add_anchor = Button.new()
 	btn_add_anchor.text = " + Add Slot"
-	btn_add_anchor.custom_minimum_size = Vector2(100.0, 32.0)
+	btn_add_anchor.custom_minimum_size = Vector2(110.0 if is_mob else 90.0, row_h)
 	btn_add_anchor.focus_mode = Control.FOCUS_NONE
 	btn_add_anchor.add_theme_constant_override("icon_max_width", 14)
-	btn_add_anchor.add_theme_font_size_override("font_size", 10)
+	btn_add_anchor.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	_apply_button_icon(btn_add_anchor, "icon_plus")
 	btn_add_anchor.pressed.connect(_on_add_anchor_pressed)
 	creator_hbox.add_child(btn_add_anchor)
@@ -216,48 +228,48 @@ func _build_ui() -> void:
 	active_badge_lbl.text = "No anchor selected"
 	active_badge_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	active_badge_lbl.theme_type_variation = "HintLabel"
-	active_badge_lbl.add_theme_font_size_override("font_size", 10)
+	active_badge_lbl.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	coords_hbox.add_child(active_badge_lbl)
 
 	var lbl_x: Label = Label.new()
 	lbl_x.text = "X:"
 	lbl_x.theme_type_variation = "HintLabel"
-	lbl_x.add_theme_font_size_override("font_size", 10)
+	lbl_x.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	coords_hbox.add_child(lbl_x)
 
 	spin_x = SpinBox.new()
 	spin_x.min_value = -2000
 	spin_x.max_value = 2000
 	spin_x.step = 1.0
-	spin_x.custom_minimum_size = Vector2(76.0, 28.0)
+	spin_x.custom_minimum_size = Vector2(80.0 if is_mob else 68.0, row_h)
 	spin_x.value_changed.connect(_on_coordinate_spin_changed)
 	coords_hbox.add_child(spin_x)
 
 	var lbl_y: Label = Label.new()
 	lbl_y.text = "Y:"
 	lbl_y.theme_type_variation = "HintLabel"
-	lbl_y.add_theme_font_size_override("font_size", 10)
+	lbl_y.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	coords_hbox.add_child(lbl_y)
 
 	spin_y = SpinBox.new()
 	spin_y.min_value = -2000
 	spin_y.max_value = 2000
 	spin_y.step = 1.0
-	spin_y.custom_minimum_size = Vector2(76.0, 28.0)
+	spin_y.custom_minimum_size = Vector2(80.0 if is_mob else 68.0, row_h)
 	spin_y.value_changed.connect(_on_coordinate_spin_changed)
 	coords_hbox.add_child(spin_y)
 
 	btn_center_anchor = Button.new()
 	btn_center_anchor.text = "Center"
-	btn_center_anchor.custom_minimum_size = Vector2(52.0, 28.0)
+	btn_center_anchor.custom_minimum_size = Vector2(58.0 if is_mob else 48.0, row_h)
 	btn_center_anchor.focus_mode = Control.FOCUS_NONE
-	btn_center_anchor.add_theme_font_size_override("font_size", 9)
+	btn_center_anchor.add_theme_font_size_override("font_size", 10 if is_mob else 9)
 	btn_center_anchor.pressed.connect(_on_center_selected_pressed)
 	coords_hbox.add_child(btn_center_anchor)
 
 	btn_delete_selected = Button.new()
 	btn_delete_selected.text = "✕"
-	btn_delete_selected.custom_minimum_size = Vector2(28.0, 28.0)
+	btn_delete_selected.custom_minimum_size = Vector2(30.0 if is_mob else 26.0, row_h)
 	btn_delete_selected.theme_type_variation = "DangerButton"
 	btn_delete_selected.focus_mode = Control.FOCUS_NONE
 	btn_delete_selected.pressed.connect(_on_delete_selected_pressed)
@@ -267,7 +279,7 @@ func _build_ui() -> void:
 	canvas_panel = PanelContainer.new()
 	canvas_panel.theme_type_variation = "SubPanel"
 	canvas_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	canvas_panel.custom_minimum_size = Vector2(0.0, 180.0)
+	canvas_panel.custom_minimum_size = Vector2(0.0, 170.0 if is_mob else 140.0)
 	canvas_panel.clip_contents = true
 	main_vbox.add_child(canvas_panel)
 
@@ -299,12 +311,12 @@ func _build_ui() -> void:
 	anchors_count_lbl = Label.new()
 	anchors_count_lbl.text = "Placed Anchors (Tap row to select & drag):"
 	anchors_count_lbl.theme_type_variation = "HintLabel"
-	anchors_count_lbl.add_theme_font_size_override("font_size", 10)
+	anchors_count_lbl.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	anchors_count_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	list_hdr_hbox.add_child(anchors_count_lbl)
 
 	var scroll: ScrollContainer = ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(0.0, 85.0)
+	scroll.custom_minimum_size = Vector2(0.0, 90.0 if is_mob else 75.0)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 	scroll.follow_focus = false
@@ -319,9 +331,10 @@ func _build_ui() -> void:
 
 	btn_save = Button.new()
 	btn_save.text = " Save Anchors & Close"
-	btn_save.custom_minimum_size = Vector2(0.0, 36.0)
+	btn_save.custom_minimum_size = Vector2(0.0, row_h + 4.0)
 	btn_save.focus_mode = Control.FOCUS_NONE
 	btn_save.add_theme_constant_override("icon_max_width", 16)
+	btn_save.add_theme_font_size_override("font_size", 12 if is_mob else 11)
 	_apply_button_icon(btn_save, "icon_save")
 	btn_save.pressed.connect(close_dialog)
 	main_vbox.add_child(btn_save)
@@ -716,7 +729,7 @@ func _render_anchors_list() -> void:
 		var empty_lbl: Label = Label.new()
 		empty_lbl.text = "No anchors placed yet. Select a category and tap '+ Add Slot'."
 		empty_lbl.theme_type_variation = "HintLabel"
-		empty_lbl.add_theme_font_size_override("font_size", 10)
+		empty_lbl.add_theme_font_size_override("font_size", 11 if _is_mobile() else 10)
 		anchors_list_vbox.add_child(empty_lbl)
 		return
 
@@ -735,9 +748,10 @@ func _render_anchors_list() -> void:
 
 
 func _create_anchor_list_row(anchor_key: String, pos: Vector2, is_snap: bool, icon_key: String, is_selected: bool) -> void:
+	var is_mob: bool = _is_mobile()
 	var card: PanelContainer = PanelContainer.new()
 	card.theme_type_variation = "SubPanel"
-	card.custom_minimum_size = Vector2(0.0, 30.0)
+	card.custom_minimum_size = Vector2(0.0, 36.0 if is_mob else 30.0)
 
 	var c_accent: Color = ThemeService.get_color("accent_primary", "#ec4899")
 	var c_border: Color = ThemeService.get_color("panel_border", "#f472b6")
@@ -765,8 +779,8 @@ func _create_anchor_list_row(anchor_key: String, pos: Vector2, is_snap: bool, ic
 	select_btn.flat = true
 	select_btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	select_btn.focus_mode = Control.FOCUS_NONE
-	select_btn.add_theme_font_size_override("font_size", 10)
-	select_btn.add_theme_constant_override("icon_max_width", 14)
+	select_btn.add_theme_font_size_override("font_size", 11 if is_mob else 10)
+	select_btn.add_theme_constant_override("icon_max_width", 16 if is_mob else 14)
 
 	var row_icon: Texture2D = ThemeService.get_icon(icon_key)
 	if row_icon != null: select_btn.icon = row_icon
@@ -780,7 +794,7 @@ func _create_anchor_list_row(anchor_key: String, pos: Vector2, is_snap: bool, ic
 	hbox.add_child(select_btn)
 
 	var delete_btn: Button = Button.new()
-	delete_btn.custom_minimum_size = Vector2(20.0, 20.0)
+	delete_btn.custom_minimum_size = Vector2(26.0 if is_mob else 20.0, 26.0 if is_mob else 20.0)
 	delete_btn.theme_type_variation = "DangerButton"
 	delete_btn.focus_mode = Control.FOCUS_NONE
 	delete_btn.add_theme_constant_override("icon_max_width", 10)
@@ -834,8 +848,8 @@ class AnchorOverlayDraw extends Control:
 		var center: Vector2 = render_rect.position + (render_rect.size * 0.5)
 
 		draw_rect(render_rect, Color(1.0, 1.0, 1.0, 0.15), false, 1.0)
-		draw_line(Vector2(center.x - 6.0, center.y), Vector2(center.x + 6.0, center.y), Color(1.0, 1.0, 1.0, 0.35), 1.0)
-		draw_line(Vector2(center.x, center.y - 6.0), Vector2(center.x, center.y + 6.0), Color(1.0, 1.0, 1.0, 0.35), 1.0)
+		draw_line(Vector2(center.x - 8.0, center.y), Vector2(center.x + 8.0, center.y), Color(1.0, 1.0, 1.0, 0.35), 1.0)
+		draw_line(Vector2(center.x, center.y - 8.0), Vector2(center.x, center.y + 8.0), Color(1.0, 1.0, 1.0, 0.35), 1.0)
 
 		var font: Font = ThemeDB.fallback_font
 		var ent: OwnEntity = studio_ref.active_entity
@@ -863,8 +877,8 @@ class AnchorOverlayDraw extends Control:
 
 			draw_line(Vector2(0.0, active_ui_pos.y), Vector2(size.x, active_ui_pos.y), Color(c_accent.r, c_accent.g, c_accent.b, 0.45), 1.0)
 			draw_line(Vector2(active_ui_pos.x, 0.0), Vector2(active_ui_pos.x, size.y), Color(c_accent.r, c_accent.g, c_accent.b, 0.45), 1.0)
-			draw_circle(active_ui_pos, 14.0, Color(c_accent.r, c_accent.g, c_accent.b, 0.2))
-			draw_arc(active_ui_pos, 12.0, 0.0, TAU, 24, c_accent, 2.0)
+			draw_circle(active_ui_pos, 16.0, Color(c_accent.r, c_accent.g, c_accent.b, 0.2))
+			draw_arc(active_ui_pos, 14.0, 0.0, TAU, 24, c_accent, 2.0)
 
 		var all_anchors: Array[Dictionary] = []
 		for s_key: String in ent.snap_points.keys():
@@ -881,24 +895,24 @@ class AnchorOverlayDraw extends Control:
 			var is_sel: bool = (key == sel_key and is_snap == sel_is_snap)
 			var pin_color: Color = studio_ref._get_color_for_key(key, is_snap)
 
-			draw_circle(ui_pos + Vector2(1.0, 1.0), 6.5, Color(0.0, 0.0, 0.0, 0.6))
-			draw_circle(ui_pos, 5.5, pin_color)
-			draw_circle(ui_pos, 2.0, Color.WHITE)
+			draw_circle(ui_pos + Vector2(1.0, 1.0), 7.5, Color(0.0, 0.0, 0.0, 0.6))
+			draw_circle(ui_pos, 6.5, pin_color)
+			draw_circle(ui_pos, 2.5, Color.WHITE)
 
 			var text_str: String = key
-			var font_sz: int = 9
+			var font_sz: int = 10 if studio_ref._is_mobile() else 9
 			var text_w: float = font.get_string_size(text_str, HORIZONTAL_ALIGNMENT_LEFT, -1, font_sz).x
-			var badge_rect: Rect2 = Rect2(ui_pos.x + 8.0, ui_pos.y - 7.0, text_w + 6.0, 13.0)
+			var badge_rect: Rect2 = Rect2(ui_pos.x + 10.0, ui_pos.y - 8.0, text_w + 8.0, 16.0)
 
 			var bg_color: Color = Color("#09090b", 0.90) if is_sel else Color("#18181b", 0.65)
 			var border_color: Color = Color.WHITE if is_sel else Color(pin_color.r, pin_color.g, pin_color.b, 0.7)
 			draw_rect(badge_rect, bg_color, true)
 			draw_rect(badge_rect, border_color, false, 1.0)
-			draw_string(font, Vector2(badge_rect.position.x + 3.0, badge_rect.position.y + 9.5), text_str, HORIZONTAL_ALIGNMENT_LEFT, -1, font_sz, Color.WHITE)
+			draw_string(font, Vector2(badge_rect.position.x + 4.0, badge_rect.position.y + 11.5), text_str, HORIZONTAL_ALIGNMENT_LEFT, -1, font_sz, Color.WHITE)
 
 			if is_sel and studio_ref.is_dragging_anchor:
 				var coord_str: String = "(X: %d, Y: %d)" % [int(local_pos.x), int(local_pos.y)]
 				var c_text_w: float = font.get_string_size(coord_str, HORIZONTAL_ALIGNMENT_LEFT, -1, font_sz).x
-				var coord_rect: Rect2 = Rect2(ui_pos.x - (c_text_w * 0.5) - 4.0, ui_pos.y - 24.0, c_text_w + 8.0, 13.0)
+				var coord_rect: Rect2 = Rect2(ui_pos.x - (c_text_w * 0.5) - 4.0, ui_pos.y - 28.0, c_text_w + 8.0, 15.0)
 				draw_rect(coord_rect, Color("#ec4899", 0.95), true)
-				draw_string(font, Vector2(coord_rect.position.x + 4.0, coord_rect.position.y + 9.5), coord_str, HORIZONTAL_ALIGNMENT_LEFT, -1, font_sz, Color.WHITE)
+				draw_string(font, Vector2(coord_rect.position.x + 4.0, coord_rect.position.y + 11.5), coord_str, HORIZONTAL_ALIGNMENT_LEFT, -1, font_sz, Color.WHITE)

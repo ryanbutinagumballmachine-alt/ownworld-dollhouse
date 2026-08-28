@@ -1,9 +1,5 @@
-# ============================================================
-# File: res://UI/Drawer/DrawerTray.gd
-# ============================================================
-
 # ==============================================================================
-# OWNWORLD — DRAWER TRAY ORCHESTRATOR (UNIVERSAL HOLD GESTURES)
+# OWNWORLD — DRAWER TRAY ORCHESTRATOR (LANDSCAPE ADAPTIVE & GESTURE SAFE)
 # File: res://UI/Drawer/DrawerTray.gd
 # Base Class: CanvasLayer (class_name DrawerTray)
 #
@@ -15,10 +11,15 @@
 class_name DrawerTray
 extends CanvasLayer
 
-const DRAWER_MAX_WIDTH: float = 780.0
-const DRAWER_HEIGHT: float = 230.0
-const CARD_WIDTH: float = 76.0
-const CARD_HEIGHT: float = 86.0
+const DRAWER_MAX_WIDTH: float = 920.0
+const DRAWER_HEIGHT_MOBILE: float = 245.0
+const DRAWER_HEIGHT_DESKTOP: float = 215.0
+
+const CARD_WIDTH_MOBILE: float = 94.0
+const CARD_HEIGHT_MOBILE: float = 112.0
+const CARD_WIDTH_DESKTOP: float = 78.0
+const CARD_HEIGHT_DESKTOP: float = 88.0
+
 const GRID_SPACING: int = 6
 const DRAG_CANCEL_THRESHOLD: float = 16.0
 
@@ -74,6 +75,15 @@ var organize_modal: DrawerOrganizeModal = null
 signal spawn_ugc_requested(item_name: String, tex: Texture2D, file_path: String)
 signal character_spawn_requested(char_data: Dictionary)
 signal template_spawn_requested(template_data: Dictionary)
+
+
+var DRAWER_HEIGHT: float:
+	get:
+		return DRAWER_HEIGHT_MOBILE if _is_mobile() else DRAWER_HEIGHT_DESKTOP
+
+
+func _is_mobile() -> bool:
+	return ThemeEngine.is_mobile_platform()
 
 
 func _get_props_path() -> String:
@@ -149,7 +159,7 @@ func _setup_keyboard_dodging() -> void:
 
 
 func _on_input_focus_entered() -> void:
-	if OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios"):
+	if _is_mobile():
 		await get_tree().process_frame
 		await get_tree().process_frame
 		var kb_height: float = DisplayServer.virtual_keyboard_get_height()
@@ -159,25 +169,29 @@ func _on_input_focus_entered() -> void:
 
 
 func _on_input_focus_exited() -> void:
-	if OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios"):
+	if _is_mobile():
 		var tween: Tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 		tween.tween_property(drawer_root_container, "position:y", 0.0, 0.25)
 
 
 func _build_ui() -> void:
+	var is_mob: bool = _is_mobile()
+	var pill_h: float = 44.0 if is_mob else 32.0
+
 	toggle_pill_container = CenterContainer.new()
 	toggle_pill_container.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
-	toggle_pill_container.offset_top = -32.0
-	toggle_pill_container.offset_bottom = 0.0
+	toggle_pill_container.offset_top = -pill_h - 6.0
+	toggle_pill_container.offset_bottom = -6.0
 	toggle_pill_container.mouse_filter = Control.MOUSE_FILTER_PASS
 	add_child(toggle_pill_container)
 
 	btn_open_floating_pill = Button.new()
-	btn_open_floating_pill.text = " ▲ "
-	btn_open_floating_pill.tooltip_text = "Open Drawer"
-	btn_open_floating_pill.custom_minimum_size = Vector2(76.0, 32.0)
+	btn_open_floating_pill.text = " ▲ DRAWERS ▲ "
+	btn_open_floating_pill.tooltip_text = "Open Asset & Cast Drawer"
+	btn_open_floating_pill.custom_minimum_size = Vector2(130.0 if is_mob else 90.0, pill_h)
 	btn_open_floating_pill.theme_type_variation = "FloatingCapsule"
 	btn_open_floating_pill.focus_mode = Control.FOCUS_NONE
+	btn_open_floating_pill.add_theme_font_size_override("font_size", 12 if is_mob else 10)
 	btn_open_floating_pill.pressed.connect(_toggle_drawer_state)
 	toggle_pill_container.add_child(btn_open_floating_pill)
 
@@ -210,50 +224,51 @@ func _build_ui() -> void:
 	root_panel.add_child(main_drawer_vbox)
 
 	var strip_hbox: HBoxContainer = HBoxContainer.new()
-	strip_hbox.add_theme_constant_override("separation", 6)
+	strip_hbox.add_theme_constant_override("separation", 6 if is_mob else 4)
 	strip_hbox.mouse_filter = Control.MOUSE_FILTER_PASS
 	main_drawer_vbox.add_child(strip_hbox)
 
-	btn_tab_assets = _create_compact_tab_btn("Assets", "icon_assets", func() -> void: _set_tray_mode(TrayMode.ASSETS))
+	var tab_btn_h: float = 34.0 if is_mob else 28.0
+	btn_tab_assets = _create_compact_tab_btn("Assets", "icon_assets", tab_btn_h, func() -> void: _set_tray_mode(TrayMode.ASSETS))
 	strip_hbox.add_child(btn_tab_assets)
 
-	btn_tab_props = _create_compact_tab_btn("Props", "icon_props", func() -> void: _set_tray_mode(TrayMode.PROPS))
+	btn_tab_props = _create_compact_tab_btn("Props", "icon_props", tab_btn_h, func() -> void: _set_tray_mode(TrayMode.PROPS))
 	strip_hbox.add_child(btn_tab_props)
 
-	btn_tab_furniture = _create_compact_tab_btn("Furniture", "icon_furniture", func() -> void: _set_tray_mode(TrayMode.FURNITURE))
+	btn_tab_furniture = _create_compact_tab_btn("Furniture", "icon_furniture", tab_btn_h, func() -> void: _set_tray_mode(TrayMode.FURNITURE))
 	strip_hbox.add_child(btn_tab_furniture)
 
-	btn_tab_cast = _create_compact_tab_btn("Cast", "icon_cast", func() -> void: _set_tray_mode(TrayMode.CAST))
+	btn_tab_cast = _create_compact_tab_btn("Cast", "icon_cast", tab_btn_h, func() -> void: _set_tray_mode(TrayMode.CAST))
 	strip_hbox.add_child(btn_tab_cast)
 
 	strip_hbox.add_child(VSeparator.new())
 
-	btn_import_art = _create_compact_tab_btn("Import", "icon_import", func() -> void:
+	btn_import_art = _create_compact_tab_btn("Import", "icon_import", tab_btn_h, func() -> void:
 		art_import_dialog.theme = ThemeService.create_theme()
 		art_import_dialog.current_dir = UGCManager.get_default_import_directory()
 		art_import_dialog.popup_centered_ratio(0.7)
 	)
 	strip_hbox.add_child(btn_import_art)
 
-	btn_new_folder = _create_compact_tab_btn("Folder", "icon_folder", func() -> void:
+	btn_new_folder = _create_compact_tab_btn("Folder", "icon_folder", tab_btn_h, func() -> void:
 		if folder_modal: folder_modal.open_modal()
 	)
 	strip_hbox.add_child(btn_new_folder)
 
-	btn_batch_toggle = _create_compact_tab_btn("Select", "icon_clone", _toggle_batch_mode)
+	btn_batch_toggle = _create_compact_tab_btn("Select", "icon_clone", tab_btn_h, _toggle_batch_mode)
 	strip_hbox.add_child(btn_batch_toggle)
 
 	search_input = LineEdit.new()
 	search_input.placeholder_text = "Search..."
 	search_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	search_input.custom_minimum_size = Vector2(100.0, 30.0)
+	search_input.custom_minimum_size = Vector2(100.0, tab_btn_h)
 	search_input.text_changed.connect(_on_search_query_changed)
 	strip_hbox.add_child(search_input)
 
 	btn_toggle_drawer = Button.new()
 	btn_toggle_drawer.text = " ▼ "
 	btn_toggle_drawer.tooltip_text = "Hide Drawer"
-	btn_toggle_drawer.custom_minimum_size = Vector2(40.0, 30.0)
+	btn_toggle_drawer.custom_minimum_size = Vector2(40.0 if is_mob else 32.0, tab_btn_h)
 	btn_toggle_drawer.focus_mode = Control.FOCUS_NONE
 	btn_toggle_drawer.pressed.connect(_toggle_drawer_state)
 	strip_hbox.add_child(btn_toggle_drawer)
@@ -265,10 +280,10 @@ func _build_ui() -> void:
 
 	btn_back_up = Button.new()
 	btn_back_up.text = " Up"
-	btn_back_up.custom_minimum_size = Vector2(60.0, 26.0)
+	btn_back_up.custom_minimum_size = Vector2(64.0 if is_mob else 52.0, 28.0 if is_mob else 24.0)
 	btn_back_up.focus_mode = Control.FOCUS_NONE
 	btn_back_up.add_theme_constant_override("icon_max_width", 14)
-	btn_back_up.add_theme_font_size_override("font_size", 10)
+	btn_back_up.add_theme_font_size_override("font_size", 11 if is_mob else 9)
 	var up_icon: Texture2D = ThemeService.get_icon("icon_up")
 	if up_icon: btn_back_up.icon = up_icon
 	btn_back_up.pressed.connect(_navigate_up_one_folder)
@@ -276,7 +291,7 @@ func _build_ui() -> void:
 
 	var breadcrumb_scroll: ScrollContainer = ScrollContainer.new()
 	breadcrumb_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	breadcrumb_scroll.custom_minimum_size = Vector2(0.0, 26.0)
+	breadcrumb_scroll.custom_minimum_size = Vector2(0.0, 28.0 if is_mob else 24.0)
 	breadcrumb_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	breadcrumb_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 	breadcrumb_scroll.follow_focus = false
@@ -289,7 +304,7 @@ func _build_ui() -> void:
 	breadcrumb_scroll.add_child(breadcrumbs_hbox)
 
 	var filter_scroll: ScrollContainer = ScrollContainer.new()
-	filter_scroll.custom_minimum_size = Vector2(0.0, 28.0)
+	filter_scroll.custom_minimum_size = Vector2(0.0, 30.0 if is_mob else 26.0)
 	filter_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	filter_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 	filter_scroll.follow_focus = false
@@ -324,9 +339,12 @@ func _build_ui() -> void:
 
 
 func _build_batch_action_bar() -> void:
+	var is_mob: bool = _is_mobile()
+	var bar_h: float = 36.0 if is_mob else 30.0
+
 	batch_bar_panel = PanelContainer.new()
 	batch_bar_panel.theme_type_variation = "SubPanel"
-	batch_bar_panel.custom_minimum_size = Vector2(0.0, 32.0)
+	batch_bar_panel.custom_minimum_size = Vector2(0.0, bar_h)
 	batch_bar_panel.visible = false
 	main_drawer_vbox.add_child(batch_bar_panel)
 
@@ -338,20 +356,20 @@ func _build_batch_action_bar() -> void:
 	batch_count_lbl = Label.new()
 	batch_count_lbl.text = "0 Selected"
 	batch_count_lbl.theme_type_variation = "HeaderLabel"
-	batch_count_lbl.add_theme_font_size_override("font_size", 10)
+	batch_count_lbl.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	bar_hbox.add_child(batch_count_lbl)
 
 	btn_batch_select_all = Button.new()
 	btn_batch_select_all.text = "All"
 	btn_batch_select_all.focus_mode = Control.FOCUS_NONE
-	btn_batch_select_all.add_theme_font_size_override("font_size", 9)
+	btn_batch_select_all.add_theme_font_size_override("font_size", 11 if is_mob else 9)
 	btn_batch_select_all.pressed.connect(_select_all_visible_items)
 	bar_hbox.add_child(btn_batch_select_all)
 
 	btn_batch_deselect_all = Button.new()
 	btn_batch_deselect_all.text = "None"
 	btn_batch_deselect_all.focus_mode = Control.FOCUS_NONE
-	btn_batch_deselect_all.add_theme_font_size_override("font_size", 9)
+	btn_batch_deselect_all.add_theme_font_size_override("font_size", 11 if is_mob else 9)
 	btn_batch_deselect_all.pressed.connect(_deselect_all_items)
 	bar_hbox.add_child(btn_batch_deselect_all)
 
@@ -360,8 +378,8 @@ func _build_batch_action_bar() -> void:
 	btn_batch_organize = Button.new()
 	btn_batch_organize.text = " Organize..."
 	btn_batch_organize.focus_mode = Control.FOCUS_NONE
-	btn_batch_organize.add_theme_font_size_override("font_size", 10)
-	btn_batch_organize.add_theme_constant_override("icon_max_width", 12)
+	btn_batch_organize.add_theme_font_size_override("font_size", 11 if is_mob else 10)
+	btn_batch_organize.add_theme_constant_override("icon_max_width", 14)
 	var tag_icon: Texture2D = ThemeService.get_icon("icon_tag")
 	if tag_icon: btn_batch_organize.icon = tag_icon
 	btn_batch_organize.pressed.connect(_on_batch_organize_pressed)
@@ -371,8 +389,8 @@ func _build_batch_action_bar() -> void:
 	btn_batch_delete.text = " Delete Batch"
 	btn_batch_delete.theme_type_variation = "DangerButton"
 	btn_batch_delete.focus_mode = Control.FOCUS_NONE
-	btn_batch_delete.add_theme_font_size_override("font_size", 10)
-	btn_batch_delete.add_theme_constant_override("icon_max_width", 12)
+	btn_batch_delete.add_theme_font_size_override("font_size", 11 if is_mob else 10)
+	btn_batch_delete.add_theme_constant_override("icon_max_width", 14)
 	var del_icon: Texture2D = ThemeService.get_icon("icon_close")
 	if del_icon: btn_batch_delete.icon = del_icon
 	btn_batch_delete.pressed.connect(_on_batch_delete_pressed)
@@ -384,9 +402,9 @@ func _build_batch_action_bar() -> void:
 
 	btn_batch_done = Button.new()
 	btn_batch_done.text = " Done"
-	btn_batch_done.custom_minimum_size = Vector2(60.0, 24.0)
+	btn_batch_done.custom_minimum_size = Vector2(64.0 if is_mob else 50.0, 26.0)
 	btn_batch_done.focus_mode = Control.FOCUS_NONE
-	btn_batch_done.add_theme_font_size_override("font_size", 10)
+	btn_batch_done.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	btn_batch_done.pressed.connect(func() -> void: _set_batch_mode(false))
 	bar_hbox.add_child(btn_batch_done)
 
@@ -407,12 +425,12 @@ func _apply_theme() -> void:
 	dock_style.border_width_right = 2
 	dock_style.border_width_top = 2
 	dock_style.border_width_bottom = 0
-	dock_style.corner_radius_top_left = rad + 2
-	dock_style.corner_radius_top_right = rad + 2
-	dock_style.content_margin_left = 10
-	dock_style.content_margin_right = 10
-	dock_style.content_margin_top = 8
-	dock_style.content_margin_bottom = 6
+	dock_style.corner_radius_top_left = rad + 4
+	dock_style.corner_radius_top_right = rad + 4
+	dock_style.content_margin_left = 12 if _is_mobile() else 10
+	dock_style.content_margin_right = 12 if _is_mobile() else 10
+	dock_style.content_margin_top = 10 if _is_mobile() else 8
+	dock_style.content_margin_bottom = 8 if _is_mobile() else 6
 	root_panel.add_theme_stylebox_override("panel", dock_style)
 
 	_update_tab_buttons_appearance()
@@ -433,13 +451,14 @@ func _build_modals() -> void:
 	add_child(organize_modal)
 
 
-func _create_compact_tab_btn(title: String, icon_key: String, callback: Callable) -> Button:
+func _create_compact_tab_btn(title: String, icon_key: String, btn_h: float, callback: Callable) -> Button:
+	var is_mob: bool = _is_mobile()
 	var btn: Button = Button.new()
 	btn.text = " " + title
-	btn.custom_minimum_size = Vector2(0.0, 30.0)
+	btn.custom_minimum_size = Vector2(0.0, btn_h)
 	btn.focus_mode = Control.FOCUS_NONE
-	btn.add_theme_constant_override("icon_max_width", 14)
-	btn.add_theme_font_size_override("font_size", 10)
+	btn.add_theme_constant_override("icon_max_width", 16 if is_mob else 14)
+	btn.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	var icon_tex: Texture2D = ThemeService.get_icon(icon_key)
 	if icon_tex: btn.icon = icon_tex
 	btn.pressed.connect(callback)
@@ -533,18 +552,22 @@ func _update_tab_buttons_appearance() -> void:
 
 func _update_responsive_columns() -> void:
 	if not is_instance_valid(root_panel) or not is_instance_valid(items_grid): return
-	var win_w: float = get_viewport().get_visible_rect().size.x if get_viewport() else 1152.0
-	var target_w: float = minf(DRAWER_MAX_WIDTH, win_w - 24.0)
-	if target_w < 300.0: target_w = 300.0
+	var win_w: float = get_viewport().get_visible_rect().size.x if get_viewport() else 1280.0
+	var is_mob: bool = _is_mobile()
 
+	var target_w: float = minf(DRAWER_MAX_WIDTH, win_w - (32.0 if is_mob else 24.0))
+	if target_w < 320.0: target_w = 320.0
+
+	var d_height: float = DRAWER_HEIGHT
 	root_panel.offset_left = -target_w * 0.5
 	root_panel.offset_right = target_w * 0.5
-	root_panel.offset_top = -DRAWER_HEIGHT
+	root_panel.offset_top = -d_height
 	root_panel.offset_bottom = 0.0
-	root_panel.custom_minimum_size = Vector2(target_w, DRAWER_HEIGHT)
+	root_panel.custom_minimum_size = Vector2(target_w, d_height)
 
 	var usable_w: float = target_w - 28.0
-	var col_stride: float = CARD_WIDTH + float(GRID_SPACING)
+	var card_w: float = CARD_WIDTH_MOBILE if is_mob else CARD_WIDTH_DESKTOP
+	var col_stride: float = card_w + float(GRID_SPACING)
 	var max_cols: int = int((usable_w + float(GRID_SPACING)) / col_stride)
 	items_grid.columns = clampi(max_cols, 3, 10)
 
@@ -584,14 +607,15 @@ func _render_breadcrumbs() -> void:
 
 
 func _create_breadcrumb_pill(label_text: String, icon_key: String, is_active: bool) -> Button:
+	var is_mob: bool = _is_mobile()
 	var btn: Button = Button.new()
 	btn.text = " " + label_text
 	btn.focus_mode = Control.FOCUS_NONE
 	btn.toggle_mode = true
 	btn.button_pressed = is_active
 	btn.theme_type_variation = "Breadcrumb"
-	btn.add_theme_constant_override("icon_max_width", 12)
-	btn.add_theme_font_size_override("font_size", 9)
+	btn.add_theme_constant_override("icon_max_width", 14 if is_mob else 12)
+	btn.add_theme_font_size_override("font_size", 10 if is_mob else 9)
 	var icon_tex: Texture2D = ThemeService.get_icon(icon_key)
 	if icon_tex: btn.icon = icon_tex
 	return btn
@@ -610,8 +634,12 @@ func _navigate_up_one_folder() -> void:
 
 
 func _create_folder_grid_card(folder_name: String) -> void:
+	var is_mob: bool = _is_mobile()
+	var card_w: float = CARD_WIDTH_MOBILE if is_mob else CARD_WIDTH_DESKTOP
+	var card_h: float = CARD_HEIGHT_MOBILE if is_mob else CARD_HEIGHT_DESKTOP
+
 	var card: Button = Button.new()
-	card.custom_minimum_size = Vector2(CARD_WIDTH, CARD_HEIGHT)
+	card.custom_minimum_size = Vector2(card_w, card_h)
 	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	card.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	card.clip_contents = true
@@ -658,7 +686,7 @@ func _create_folder_grid_card(folder_name: String) -> void:
 	var icon_box: PanelContainer = PanelContainer.new()
 	icon_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	icon_box.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	icon_box.custom_minimum_size = Vector2(0.0, 34.0)
+	icon_box.custom_minimum_size = Vector2(0.0, 48.0 if is_mob else 34.0)
 	icon_box.clip_contents = true
 	icon_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
@@ -684,7 +712,7 @@ func _create_folder_grid_card(folder_name: String) -> void:
 
 	var label_box: PanelContainer = PanelContainer.new()
 	label_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	label_box.custom_minimum_size = Vector2(0.0, 18.0)
+	label_box.custom_minimum_size = Vector2(0.0, 22.0 if is_mob else 18.0)
 	label_box.clip_contents = true
 	label_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
@@ -704,7 +732,7 @@ func _create_folder_grid_card(folder_name: String) -> void:
 	name_lbl.clip_text = true
 	name_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	name_lbl.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	name_lbl.add_theme_font_size_override("font_size", 9)
+	name_lbl.add_theme_font_size_override("font_size", 10 if is_mob else 9)
 	name_lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	label_box.add_child(name_lbl)
 	vbox.add_child(label_box)
@@ -765,13 +793,17 @@ func _render_assets_tab() -> void:
 
 
 func _create_asset_card(art_data: Dictionary) -> void:
+	var is_mob: bool = _is_mobile()
+	var card_w: float = CARD_WIDTH_MOBILE if is_mob else CARD_WIDTH_DESKTOP
+	var card_h: float = CARD_HEIGHT_MOBILE if is_mob else CARD_HEIGHT_DESKTOP
+
 	var fname: String = str(art_data.get("name", "Art"))
 	var fpath: String = str(art_data.get("file_path", ""))
 	var item_key: String = fpath
 	var is_selected: bool = selected_batch_items.has(item_key)
 
 	var card: Button = Button.new()
-	card.custom_minimum_size = Vector2(CARD_WIDTH, CARD_HEIGHT)
+	card.custom_minimum_size = Vector2(card_w, card_h)
 	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	card.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	card.clip_contents = true
@@ -798,7 +830,7 @@ func _create_asset_card(art_data: Dictionary) -> void:
 		var chk: CheckBox = CheckBox.new()
 		chk.button_pressed = is_selected
 		chk.mouse_filter = Control.MOUSE_FILTER_IGNORE
-		chk.custom_minimum_size = Vector2(16.0, 16.0)
+		chk.custom_minimum_size = Vector2(22.0 if is_mob else 16.0, 22.0 if is_mob else 16.0)
 		action_row.add_child(chk)
 	else:
 		var btn_tag: Button = _create_card_icon_btn("icon_tag", false)
@@ -829,6 +861,10 @@ func _create_asset_card(art_data: Dictionary) -> void:
 
 
 func _render_templates_tab(file_path: String, type: Types.EntityType, category_key: String) -> void:
+	var is_mob: bool = _is_mobile()
+	var card_w: float = CARD_WIDTH_MOBILE if is_mob else CARD_WIDTH_DESKTOP
+	var card_h: float = CARD_HEIGHT_MOBILE if is_mob else CARD_HEIGHT_DESKTOP
+
 	var templates: Array[Dictionary] = DrawerMetadataService.load_template_array(file_path)
 	var norm_folder: String = current_folder_path.strip_edges().trim_prefix("/").trim_suffix("/")
 	if norm_folder == "Root": norm_folder = ""
@@ -873,7 +909,7 @@ func _render_templates_tab(file_path: String, type: Types.EntityType, category_k
 		var tex: Texture2D = UGCManager.get_thumbnail(img_path)
 		
 		var card: Button = Button.new()
-		card.custom_minimum_size = Vector2(CARD_WIDTH, CARD_HEIGHT)
+		card.custom_minimum_size = Vector2(card_w, card_h)
 		card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		card.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		card.clip_contents = true
@@ -903,7 +939,7 @@ func _render_templates_tab(file_path: String, type: Types.EntityType, category_k
 			var chk: CheckBox = CheckBox.new()
 			chk.button_pressed = is_selected
 			chk.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			chk.custom_minimum_size = Vector2(16.0, 16.0)
+			chk.custom_minimum_size = Vector2(22.0 if is_mob else 16.0, 22.0 if is_mob else 16.0)
 			action_row.add_child(chk)
 		else:
 			var btn_tag: Button = _create_card_icon_btn("icon_tag", false)
@@ -933,6 +969,10 @@ func _render_templates_tab(file_path: String, type: Types.EntityType, category_k
 
 
 func _render_cast_tab() -> void:
+	var is_mob: bool = _is_mobile()
+	var card_w: float = CARD_WIDTH_MOBILE if is_mob else CARD_WIDTH_DESKTOP
+	var card_h: float = CARD_HEIGHT_MOBILE if is_mob else CARD_HEIGHT_DESKTOP
+
 	var raw_cast_list: Array[Dictionary] = _load_cast_data()
 	var norm_folder: String = current_folder_path.strip_edges().trim_prefix("/").trim_suffix("/")
 	if norm_folder == "Root": norm_folder = ""
@@ -987,7 +1027,7 @@ func _render_cast_tab() -> void:
 		var tex: Texture2D = UGCManager.get_thumbnail(c_path)
 		
 		var card: Button = Button.new()
-		card.custom_minimum_size = Vector2(CARD_WIDTH, CARD_HEIGHT)
+		card.custom_minimum_size = Vector2(card_w, card_h)
 		card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		card.size_flags_vertical = Control.SIZE_EXPAND_FILL
 		card.clip_contents = true
@@ -1017,7 +1057,7 @@ func _render_cast_tab() -> void:
 			var chk: CheckBox = CheckBox.new()
 			chk.button_pressed = is_selected
 			chk.mouse_filter = Control.MOUSE_FILTER_IGNORE
-			chk.custom_minimum_size = Vector2(16.0, 16.0)
+			chk.custom_minimum_size = Vector2(22.0 if is_mob else 16.0, 22.0 if is_mob else 16.0)
 			action_row.add_child(chk)
 		else:
 			var btn_tag: Button = _create_card_icon_btn("icon_tag", false)
@@ -1319,12 +1359,15 @@ func _on_batch_organization_saved(items: Array[Dictionary], mode_type: String, t
 
 
 func _create_card_icon_btn(icon_key: String, is_danger: bool = false) -> Button:
+	var is_mob: bool = _is_mobile()
+	var btn_size: float = 24.0 if is_mob else 18.0
+
 	var btn: Button = Button.new()
-	btn.custom_minimum_size = Vector2(18.0, 18.0)
+	btn.custom_minimum_size = Vector2(btn_size, btn_size)
 	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	btn.focus_mode = Control.FOCUS_NONE
 	btn.mouse_filter = Control.MOUSE_FILTER_STOP
-	btn.add_theme_constant_override("icon_max_width", 12)
+	btn.add_theme_constant_override("icon_max_width", 14 if is_mob else 12)
 
 	var s_btn: StyleBoxFlat = StyleBoxFlat.new()
 	s_btn.bg_color = ThemeService.get_color("danger_color", "#f43f5e") if is_danger else ThemeService.get_color("container_sub_bg", "#fdf2f4")
@@ -1352,15 +1395,16 @@ func _create_card_icon_btn(icon_key: String, is_danger: bool = false) -> Button:
 		btn.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
 	else:
 		btn.text = "✕" if is_danger else "•"
-		btn.add_theme_font_size_override("font_size", 9)
+		btn.add_theme_font_size_override("font_size", 10 if is_mob else 9)
 	return btn
 
 
 func _attach_card_visuals(vbox: VBoxContainer, tex: Texture2D, label_text: String) -> void:
+	var is_mob: bool = _is_mobile()
 	var thumb_box: PanelContainer = PanelContainer.new()
 	thumb_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	thumb_box.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	thumb_box.custom_minimum_size = Vector2(0.0, 34.0)
+	thumb_box.custom_minimum_size = Vector2(0.0, 48.0 if is_mob else 34.0)
 	thumb_box.clip_contents = true
 	thumb_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
@@ -1382,7 +1426,7 @@ func _attach_card_visuals(vbox: VBoxContainer, tex: Texture2D, label_text: Strin
 
 	var label_box: PanelContainer = PanelContainer.new()
 	label_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	label_box.custom_minimum_size = Vector2(0.0, 18.0)
+	label_box.custom_minimum_size = Vector2(0.0, 22.0 if is_mob else 18.0)
 	label_box.clip_contents = true
 	label_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
@@ -1402,7 +1446,7 @@ func _attach_card_visuals(vbox: VBoxContainer, tex: Texture2D, label_text: Strin
 	lbl.clip_text = true
 	lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	lbl.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	lbl.add_theme_font_size_override("font_size", 9)
+	lbl.add_theme_font_size_override("font_size", 10 if is_mob else 9)
 	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	label_box.add_child(lbl)
 	vbox.add_child(label_box)
@@ -1417,13 +1461,14 @@ func _build_category_filter_buttons() -> void:
 
 
 func _add_filter_pill(label_text: String, is_active: bool) -> void:
+	var is_mob: bool = _is_mobile()
 	var btn: Button = Button.new()
 	btn.text = label_text
 	btn.focus_mode = Control.FOCUS_NONE
 	btn.toggle_mode = true
 	btn.button_pressed = is_active
 	btn.theme_type_variation = "Breadcrumb"
-	btn.add_theme_font_size_override("font_size", 10)
+	btn.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	btn.pressed.connect(func() -> void:
 		active_category_filter = label_text
 		_build_category_filter_buttons()

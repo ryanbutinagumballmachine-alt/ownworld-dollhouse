@@ -1,5 +1,5 @@
 # ==============================================================================
-# OWNWORLD — THEME STUDIO DIALOG
+# OWNWORLD — THEME STUDIO DIALOG (LANDSCAPE THREE-COLUMN COLOR DESIGNER)
 # File: res://UI/Dialogs/ThemeStudioDialog.gd
 # Base Class: CanvasLayer (class_name ThemeStudioDialog)
 #
@@ -10,8 +10,8 @@
 class_name ThemeStudioDialog
 extends CanvasLayer
 
-const MAX_PANEL_WIDTH: float = 580.0
-const MAX_PANEL_HEIGHT: float = 560.0
+const MAX_PANEL_WIDTH: float = 680.0
+const MAX_PANEL_HEIGHT: float = 580.0
 
 var root_backdrop: Control = null
 var center_container: CenterContainer = null
@@ -62,6 +62,10 @@ func _ready() -> void:
 	_setup_keyboard_dodging()
 
 
+func _is_mobile() -> bool:
+	return ThemeEngine.is_mobile_platform()
+
+
 func _connect_system_signals() -> void:
 	var tree: SceneTree = get_tree()
 	if tree and tree.root and not tree.root.size_changed.is_connected(_update_responsive_layout):
@@ -71,13 +75,13 @@ func _connect_system_signals() -> void:
 
 
 func _setup_keyboard_dodging() -> void:
-	if custom_theme_name_input != null:
+	if custom_theme_name_input != null and _is_mobile():
 		custom_theme_name_input.focus_entered.connect(_on_input_focus_entered)
 		custom_theme_name_input.focus_exited.connect(_on_input_focus_exited)
 
 
 func _on_input_focus_entered() -> void:
-	if OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios"):
+	if _is_mobile():
 		await get_tree().process_frame
 		await get_tree().process_frame
 		var kb_height: float = DisplayServer.virtual_keyboard_get_height()
@@ -87,7 +91,7 @@ func _on_input_focus_entered() -> void:
 
 
 func _on_input_focus_exited() -> void:
-	if OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios"):
+	if _is_mobile():
 		var tween: Tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 		tween.tween_property(center_container, "position:y", 0.0, 0.25)
 
@@ -99,8 +103,10 @@ func _on_theme_changed(_theme_data: Dictionary) -> void:
 func _update_responsive_layout() -> void:
 	if not is_instance_valid(root_panel): return
 	var vp_size: Vector2 = get_viewport().get_visible_rect().size if get_viewport() else Vector2(1280.0, 720.0)
-	var target_w: float = clampf(vp_size.x * 0.92, 290.0, MAX_PANEL_WIDTH)
-	var target_h: float = clampf(vp_size.y * 0.90, 330.0, MAX_PANEL_HEIGHT)
+	var is_mob: bool = _is_mobile()
+
+	var target_w: float = clampf(vp_size.x * 0.94, 320.0, MAX_PANEL_WIDTH)
+	var target_h: float = clampf(vp_size.y * (0.92 if is_mob else 0.88), 300.0, MAX_PANEL_HEIGHT)
 	root_panel.custom_minimum_size = Vector2(target_w, target_h)
 	root_panel.size = Vector2(target_w, target_h)
 
@@ -111,6 +117,9 @@ func _ensure_theme_dir() -> void:
 
 
 func _build_ui() -> void:
+	var is_mob: bool = _is_mobile()
+	var row_h: float = 34.0 if is_mob else 28.0
+
 	root_backdrop = Control.new()
 	root_backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root_backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -145,10 +154,11 @@ func _build_ui() -> void:
 	header_lbl.text = "Palette & Font Studio"
 	header_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header_lbl.theme_type_variation = "HeaderLabel"
+	header_lbl.add_theme_font_size_override("font_size", 14 if is_mob else 12)
 	header_hbox.add_child(header_lbl)
 
 	var btn_close: Button = Button.new()
-	btn_close.custom_minimum_size = Vector2(24.0, 24.0)
+	btn_close.custom_minimum_size = Vector2(28.0 if is_mob else 22.0, 28.0 if is_mob else 22.0)
 	btn_close.focus_mode = Control.FOCUS_NONE
 	btn_close.add_theme_constant_override("icon_max_width", 12)
 	var close_icon: Texture2D = ThemeService.get_icon("icon_close")
@@ -174,6 +184,7 @@ func _build_ui() -> void:
 	preset_hdr = Label.new()
 	preset_hdr.text = "Curated Color Palettes (Tap to Preview):"
 	preset_hdr.theme_type_variation = "HintLabel"
+	preset_hdr.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	vbox.add_child(preset_hdr)
 
 	var presets_grid: GridContainer = GridContainer.new()
@@ -193,10 +204,11 @@ func _build_ui() -> void:
 	user_theme_hdr = Label.new()
 	user_theme_hdr.text = "Your Saved Palettes:"
 	user_theme_hdr.theme_type_variation = "HintLabel"
+	user_theme_hdr.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	vbox.add_child(user_theme_hdr)
 
 	var saved_themes_scroll: ScrollContainer = ScrollContainer.new()
-	saved_themes_scroll.custom_minimum_size = Vector2(0.0, 32.0)
+	saved_themes_scroll.custom_minimum_size = Vector2(0.0, 34.0 if is_mob else 30.0)
 	saved_themes_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	saved_themes_scroll.follow_focus = false
 	vbox.add_child(saved_themes_scroll)
@@ -214,16 +226,16 @@ func _build_ui() -> void:
 	color_grid.add_theme_constant_override("v_separation", 6)
 	vbox.add_child(color_grid)
 
-	cp_panel_bg = _create_color_picker_row(color_grid, "1. Window Background:", Color("#fff5f7"))
-	cp_panel_border = _create_color_picker_row(color_grid, "2. Window Outlines:", Color("#f9a8d4"))
-	cp_container_sub_bg = _create_color_picker_row(color_grid, "3. Inner Slices / Slots:", Color("#fff0f3"))
-	cp_btn_bg = _create_color_picker_row(color_grid, "4. Button Normal:", Color("#fce7ed"))
-	cp_btn_hover = _create_color_picker_row(color_grid, "5. Button Hover:", Color("#fbcfe0"))
-	cp_input_bg = _create_color_picker_row(color_grid, "6. Text Input Field:", Color("#ffffff"))
-	cp_text_primary = _create_color_picker_row(color_grid, "7. Primary Text:", Color("#6c2e3f"))
-	cp_text_muted = _create_color_picker_row(color_grid, "8. Secondary / Hint Text:", Color("#a36374"))
-	cp_accent_primary = _create_color_picker_row(color_grid, "9. Primary Accent (Active):", Color("#ec4899"))
-	cp_accent_danger = _create_color_picker_row(color_grid, "10. Danger / Delete:", Color("#f43f5e"))
+	cp_panel_bg = _create_color_picker_row(color_grid, "1. Window Background:", Color("#fff5f7"), row_h)
+	cp_panel_border = _create_color_picker_row(color_grid, "2. Window Outlines:", Color("#f9a8d4"), row_h)
+	cp_container_sub_bg = _create_color_picker_row(color_grid, "3. Inner Slices / Slots:", Color("#fff0f3"), row_h)
+	cp_btn_bg = _create_color_picker_row(color_grid, "4. Button Normal:", Color("#fce7ed"), row_h)
+	cp_btn_hover = _create_color_picker_row(color_grid, "5. Button Hover:", Color("#fbcfe0"), row_h)
+	cp_input_bg = _create_color_picker_row(color_grid, "6. Text Input Field:", Color("#ffffff"), row_h)
+	cp_text_primary = _create_color_picker_row(color_grid, "7. Primary Text:", Color("#6c2e3f"), row_h)
+	cp_text_muted = _create_color_picker_row(color_grid, "8. Secondary / Hint Text:", Color("#a36374"), row_h)
+	cp_accent_primary = _create_color_picker_row(color_grid, "9. Primary Accent (Active):", Color("#ec4899"), row_h)
+	cp_accent_danger = _create_color_picker_row(color_grid, "10. Danger / Delete:", Color("#f43f5e"), row_h)
 
 	var font_hdr_hbox: HBoxContainer = HBoxContainer.new()
 	vbox.add_child(font_hdr_hbox)
@@ -232,11 +244,13 @@ func _build_ui() -> void:
 	lbl_font_title.text = "Custom Typography (Documents/OwnWorld/Dollhouse/Font):"
 	lbl_font_title.theme_type_variation = "HintLabel"
 	lbl_font_title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	lbl_font_title.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	font_hdr_hbox.add_child(lbl_font_title)
 
 	lbl_current_font = Label.new()
 	lbl_current_font.text = "Default Font"
 	lbl_current_font.theme_type_variation = "HeaderLabel"
+	lbl_current_font.add_theme_font_size_override("font_size", 12 if is_mob else 11)
 	font_hdr_hbox.add_child(lbl_current_font)
 
 	var font_btns_hbox: HBoxContainer = HBoxContainer.new()
@@ -247,7 +261,9 @@ func _build_ui() -> void:
 	btn_browse_font.text = " Browse Font..."
 	btn_browse_font.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	btn_browse_font.focus_mode = Control.FOCUS_NONE
+	btn_browse_font.custom_minimum_size = Vector2(0.0, row_h)
 	btn_browse_font.add_theme_constant_override("icon_max_width", 14)
+	btn_browse_font.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	var font_icon: Texture2D = ThemeService.get_icon("icon_font")
 	if font_icon == null: font_icon = ThemeService.get_icon("icon_folder")
 	if font_icon: btn_browse_font.icon = font_icon
@@ -257,7 +273,9 @@ func _build_ui() -> void:
 	btn_reset_font = Button.new()
 	btn_reset_font.text = " Reset Font"
 	btn_reset_font.focus_mode = Control.FOCUS_NONE
+	btn_reset_font.custom_minimum_size = Vector2(0.0, row_h)
 	btn_reset_font.add_theme_constant_override("icon_max_width", 14)
+	btn_reset_font.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	var reset_icon: Texture2D = ThemeService.get_icon("icon_refresh")
 	if reset_icon == null: reset_icon = ThemeService.get_icon("icon_undo")
 	if reset_icon: btn_reset_font.icon = reset_icon
@@ -271,14 +289,15 @@ func _build_ui() -> void:
 	custom_theme_name_input = LineEdit.new()
 	custom_theme_name_input.placeholder_text = "Save Custom Palette As..."
 	custom_theme_name_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	custom_theme_name_input.custom_minimum_size = Vector2(0.0, 32.0)
+	custom_theme_name_input.custom_minimum_size = Vector2(0.0, row_h)
 	save_custom_row.add_child(custom_theme_name_input)
 
 	btn_save_custom = Button.new()
 	btn_save_custom.text = " Save"
-	btn_save_custom.custom_minimum_size = Vector2(85.0, 32.0)
+	btn_save_custom.custom_minimum_size = Vector2(90.0 if is_mob else 80.0, row_h)
 	btn_save_custom.focus_mode = Control.FOCUS_NONE
 	btn_save_custom.add_theme_constant_override("icon_max_width", 14)
+	btn_save_custom.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	var save_icon: Texture2D = ThemeService.get_icon("icon_save")
 	if save_icon: btn_save_custom.icon = save_icon
 	btn_save_custom.pressed.connect(_on_save_custom_theme_pressed)
@@ -286,9 +305,10 @@ func _build_ui() -> void:
 
 	btn_save_theme = Button.new()
 	btn_save_theme.text = " Apply Palette Globally"
-	btn_save_theme.custom_minimum_size = Vector2(0.0, 36.0)
+	btn_save_theme.custom_minimum_size = Vector2(0.0, row_h + 4.0)
 	btn_save_theme.focus_mode = Control.FOCUS_NONE
 	btn_save_theme.add_theme_constant_override("icon_max_width", 16)
+	btn_save_theme.add_theme_font_size_override("font_size", 12 if is_mob else 11)
 	var apply_icon: Texture2D = ThemeService.get_icon("icon_palette")
 	if apply_icon: btn_save_theme.icon = apply_icon
 	btn_save_theme.pressed.connect(func() -> void: _apply_and_persist_theme(true))
@@ -317,15 +337,16 @@ func close_studio() -> void:
 	visible = false
 
 
-func _create_color_picker_row(parent: GridContainer, label_text: String, default_color: Color) -> ColorPickerButton:
+func _create_color_picker_row(parent: GridContainer, label_text: String, default_color: Color, row_h: float) -> ColorPickerButton:
+	var is_mob: bool = _is_mobile()
 	var lbl: Label = Label.new()
 	lbl.text = label_text
-	lbl.add_theme_font_size_override("font_size", 10)
+	lbl.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	parent.add_child(lbl)
 
 	var c_btn: ColorPickerButton = ColorPickerButton.new()
 	c_btn.color = default_color
-	c_btn.custom_minimum_size = Vector2(65.0, 22.0)
+	c_btn.custom_minimum_size = Vector2(70.0 if is_mob else 60.0, row_h)
 	parent.add_child(c_btn)
 	return c_btn
 
@@ -336,10 +357,12 @@ func _add_preset_button(
 	btn_n: String, btn_h: String, input_bg: String,
 	text_p: String, text_m: String, accent: String, danger: String
 ) -> void:
+	var is_mob: bool = _is_mobile()
 	var btn: Button = Button.new()
 	btn.text = btn_name
 	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	btn.focus_mode = Control.FOCUS_NONE
+	btn.custom_minimum_size = Vector2(0.0, 32.0 if is_mob else 26.0)
 
 	var p_style: StyleBoxFlat = StyleBoxFlat.new()
 	p_style.bg_color = Color(bg)
@@ -348,7 +371,7 @@ func _add_preset_button(
 	p_style.set_corner_radius_all(6)
 	btn.add_theme_stylebox_override("normal", p_style)
 	btn.add_theme_color_override("font_color", Color(text_p))
-	btn.add_theme_font_size_override("font_size", 10)
+	btn.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 
 	btn.pressed.connect(func() -> void:
 		cp_panel_bg.color = Color(bg)
@@ -370,11 +393,13 @@ func _render_user_themes_bar() -> void:
 	for child: Node in saved_themes_container.get_children():
 		child.queue_free()
 
+	var is_mob: bool = _is_mobile()
+
 	if user_saved_themes.is_empty():
 		var empty_lbl: Label = Label.new()
 		empty_lbl.text = "(No custom palettes saved)"
 		empty_lbl.theme_type_variation = "HintLabel"
-		empty_lbl.add_theme_font_size_override("font_size", 10)
+		empty_lbl.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 		saved_themes_container.add_child(empty_lbl)
 		return
 
@@ -385,8 +410,9 @@ func _render_user_themes_bar() -> void:
 		var btn: Button = Button.new()
 		btn.text = " " + theme_name
 		btn.focus_mode = Control.FOCUS_NONE
-		btn.add_theme_font_size_override("font_size", 10)
-		btn.add_theme_constant_override("icon_max_width", 12)
+		btn.add_theme_font_size_override("font_size", 11 if is_mob else 10)
+		btn.add_theme_constant_override("icon_max_width", 14 if is_mob else 12)
+		btn.custom_minimum_size = Vector2(0.0, 30.0 if is_mob else 26.0)
 		var p_icon: Texture2D = ThemeService.get_icon("icon_palette")
 		if p_icon: btn.icon = p_icon
 		var cap_name: String = theme_name
@@ -394,7 +420,7 @@ func _render_user_themes_bar() -> void:
 		hbox.add_child(btn)
 
 		var btn_del: Button = Button.new()
-		btn_del.custom_minimum_size = Vector2(22.0, 22.0)
+		btn_del.custom_minimum_size = Vector2(26.0 if is_mob else 22.0, 30.0 if is_mob else 26.0)
 		btn_del.theme_type_variation = "DangerButton"
 		btn_del.focus_mode = Control.FOCUS_NONE
 		btn_del.add_theme_constant_override("icon_max_width", 10)

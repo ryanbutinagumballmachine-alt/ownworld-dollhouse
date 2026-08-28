@@ -1,17 +1,17 @@
 # ==============================================================================
-# OWNWORLD — MAIN MENU UI
+# OWNWORLD — MAIN MENU UI (LANDSCAPE TWO-COLUMN DUAL-OS LAYOUT)
 # File: res://UI/MainMenuUI.gd
 # Base Class: CanvasLayer (class_name MainMenuUI)
 #
-# Responsibility: Master launcher and navigation modal. Provides access to World
-# Maps, Chronicles, Room Studios, Recipe Crafting, Universe Hub, Updates, and Settings.
+# Responsibility: Master application launcher. Features a landscape-optimized
+# two-column grid layout, touch-friendly 44px buttons, version polling, and PC Esc handling.
 # ==============================================================================
 
 class_name MainMenuUI
 extends CanvasLayer
 
-const MAX_PANEL_WIDTH: float = 480.0
-const MAX_PANEL_HEIGHT: float = 620.0
+const MAX_PANEL_WIDTH: float = 620.0
+const MAX_PANEL_HEIGHT: float = 560.0
 
 var root_backdrop: Control = null
 var bg_dim: ColorRect = null
@@ -22,7 +22,7 @@ var title_lbl: Label = null
 var sub_lbl: Label = null
 var story_info_box: PanelContainer = null
 var universe_info_lbl: Label = null
-var menu_buttons_vbox: VBoxContainer = null
+var menu_grid: GridContainer = null
 var btn_quit: Button = null
 
 var _last_progress_pct: int = -1
@@ -49,29 +49,51 @@ func _ready() -> void:
 	_apply_theme()
 
 
+func _is_mobile() -> bool:
+	return ThemeEngine.is_mobile_platform()
+
+
 func _connect_system_signals() -> void:
 	var tree: SceneTree = get_tree()
 	if tree != null and tree.root != null and not tree.root.size_changed.is_connected(_update_responsive_layout):
 		tree.root.size_changed.connect(_update_responsive_layout)
-	if not ThemeService.theme_changed.is_connected(_on_theme_changed):
-		ThemeService.theme_changed.connect(_on_theme_changed)
+	if not EventBus.theme_changed.is_connected(_on_theme_changed):
+		EventBus.theme_changed.connect(_on_theme_changed)
 
 
 func _on_theme_changed(_theme_data: Dictionary) -> void:
 	_apply_theme()
 
 
+func _unhandled_input(event: InputEvent) -> void:
+	if not visible:
+		return
+	if event is InputEventKey and event.pressed and not event.echo:
+		if event.keycode == KEY_ESCAPE:
+			close_menu()
+			get_viewport().set_input_as_handled()
+
+
 func _update_responsive_layout() -> void:
 	if not is_instance_valid(root_panel): return
 	var viewport: Viewport = get_viewport()
 	var viewport_size: Vector2 = viewport.get_visible_rect().size if viewport != null else Vector2(1280.0, 720.0)
-	var target_width: float = clampf(viewport_size.x * 0.90, 280.0, MAX_PANEL_WIDTH)
-	var target_height: float = clampf(viewport_size.y * 0.92, 320.0, MAX_PANEL_HEIGHT)
+	var is_mob: bool = _is_mobile()
+
+	var target_width: float = clampf(viewport_size.x * 0.92, 320.0, MAX_PANEL_WIDTH)
+	var target_height: float = clampf(viewport_size.y * (0.92 if is_mob else 0.86), 300.0, MAX_PANEL_HEIGHT)
 	root_panel.custom_minimum_size = Vector2(target_width, target_height)
 	root_panel.size = Vector2(target_width, target_height)
 
+	# In landscape, 2 columns keeps menu items within easy reach of both thumbs
+	if menu_grid != null:
+		menu_grid.columns = 2 if target_width >= 420.0 else 1
+
 
 func _build_ui() -> void:
+	var is_mob: bool = _is_mobile()
+	var btn_h: float = 42.0 if is_mob else 34.0
+
 	root_backdrop = Control.new()
 	root_backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root_backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -103,14 +125,14 @@ func _build_ui() -> void:
 	title_lbl.text = "OWNWORLD: DOLLHOUSE"
 	title_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title_lbl.theme_type_variation = "HeaderLabel"
-	title_lbl.add_theme_font_size_override("font_size", 16)
+	title_lbl.add_theme_font_size_override("font_size", 16 if is_mob else 14)
 	main_vbox.add_child(title_lbl)
 
 	sub_lbl = Label.new()
 	sub_lbl.text = "2D Storytelling & Worldbuilding Sandbox"
 	sub_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	sub_lbl.theme_type_variation = "HintLabel"
-	sub_lbl.add_theme_font_size_override("font_size", 10)
+	sub_lbl.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	main_vbox.add_child(sub_lbl)
 
 	story_info_box = PanelContainer.new()
@@ -119,7 +141,7 @@ func _build_ui() -> void:
 
 	universe_info_lbl = Label.new()
 	universe_info_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	universe_info_lbl.add_theme_font_size_override("font_size", 10)
+	universe_info_lbl.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	story_info_box.add_child(universe_info_lbl)
 
 	main_vbox.add_child(HSeparator.new())
@@ -131,40 +153,42 @@ func _build_ui() -> void:
 	scroll.follow_focus = false
 	main_vbox.add_child(scroll)
 
-	menu_buttons_vbox = VBoxContainer.new()
-	menu_buttons_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	menu_buttons_vbox.add_theme_constant_override("separation", 6)
-	scroll.add_child(menu_buttons_vbox)
+	menu_grid = GridContainer.new()
+	menu_grid.columns = 2
+	menu_grid.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	menu_grid.add_theme_constant_override("h_separation", 8)
+	menu_grid.add_theme_constant_override("v_separation", 6)
+	scroll.add_child(menu_grid)
 
-	_add_menu_btn(menu_buttons_vbox, "Play / Resume", "icon_play", func() -> void:
+	_add_menu_btn(menu_grid, "Play / Resume", "icon_play", btn_h, func() -> void:
 		close_menu()
 		enter_sandbox_requested.emit()
 	)
-	_add_menu_btn(menu_buttons_vbox, "World Maps", "icon_map", func() -> void:
+	_add_menu_btn(menu_grid, "World Maps", "icon_map", btn_h, func() -> void:
 		close_menu()
 		open_world_map_requested.emit()
 	)
-	_add_menu_btn(menu_buttons_vbox, "World Journal & Story Chronicles", "icon_tag", func() -> void:
+	_add_menu_btn(menu_grid, "World Journal & Lore", "icon_tag", btn_h, func() -> void:
 		close_menu()
 		open_universe_journal_requested.emit()
 	)
-	_add_menu_btn(menu_buttons_vbox, "Room & Wallpaper Studio", "icon_room", func() -> void:
+	_add_menu_btn(menu_grid, "Room & Slices Studio", "icon_room", btn_h, func() -> void:
 		close_menu()
 		open_room_studio_requested.emit()
 	)
-	_add_menu_btn(menu_buttons_vbox, "Visual Recipe Creator", "icon_recipes", func() -> void:
+	_add_menu_btn(menu_grid, "Visual Recipe Creator", "icon_recipes", btn_h, func() -> void:
 		close_menu()
 		open_recipe_studio_requested.emit()
 	)
-	_add_menu_btn(menu_buttons_vbox, "Story Universes & Worlds", "icon_universe", func() -> void:
+	_add_menu_btn(menu_grid, "Story Universes", "icon_universe", btn_h, func() -> void:
 		close_menu()
 		open_universe_hub_requested.emit()
 	)
-	_add_menu_btn(menu_buttons_vbox, "Palette & Font Studio", "icon_palette", func() -> void:
+	_add_menu_btn(menu_grid, "Palette & Font Studio", "icon_palette", btn_h, func() -> void:
 		close_menu()
 		open_theme_studio_requested.emit()
 	)
-	_add_menu_btn(menu_buttons_vbox, "Check for Updates", "icon_refresh", func() -> void:
+	_add_menu_btn(menu_grid, "Check for Updates", "icon_refresh", btn_h, func() -> void:
 		EventBus.notification_requested.emit("Checking for updates...", true)
 		_last_progress_pct = -1
 
@@ -172,7 +196,6 @@ func _build_ui() -> void:
 			match status:
 				UpdateManager.CheckResult.UPDATE_AVAILABLE:
 					EventBus.notification_requested.emit("Downloading update %s..." % tag, true)
-					
 					UpdateManager.download_and_install_update(
 						self,
 						download_url,
@@ -201,11 +224,11 @@ func _build_ui() -> void:
 					EventBus.notification_requested.emit(message, false)
 		)
 	)
-	_add_menu_btn(menu_buttons_vbox, "Tutorial & Guide Handbook", "icon_lore", func() -> void:
+	_add_menu_btn(menu_grid, "Creator Handbook", "icon_lore", btn_h, func() -> void:
 		close_menu()
 		open_tutorial_requested.emit()
 	)
-	_add_menu_btn(menu_buttons_vbox, "Settings", "icon_settings", func() -> void:
+	_add_menu_btn(menu_grid, "Settings", "icon_settings", btn_h, func() -> void:
 		close_menu()
 		open_settings_requested.emit()
 	)
@@ -215,10 +238,10 @@ func _build_ui() -> void:
 	btn_quit = Button.new()
 	btn_quit.text = " Quit Game"
 	btn_quit.theme_type_variation = "DangerButton"
-	btn_quit.custom_minimum_size = Vector2(0.0, 34.0)
+	btn_quit.custom_minimum_size = Vector2(0.0, btn_h)
 	btn_quit.focus_mode = Control.FOCUS_NONE
 	btn_quit.alignment = HORIZONTAL_ALIGNMENT_CENTER
-	btn_quit.add_theme_constant_override("icon_max_width", 16)
+	btn_quit.add_theme_constant_override("icon_max_width", 18 if is_mob else 16)
 	var quit_icon: Texture2D = ThemeService.get_icon("icon_quit")
 	if quit_icon != null: btn_quit.icon = quit_icon
 	btn_quit.pressed.connect(_on_quit_pressed)
@@ -238,20 +261,22 @@ func close_menu() -> void:
 
 func _update_story_info_display() -> void:
 	if universe_info_lbl == null: return
-	universe_info_lbl.text = "Active Story: %s\nRoom: %s" % [
+	universe_info_lbl.text = "Active Story: %s  |  Room: %s" % [
 		SaveSystem.get_current_universe_name(),
 		SaveSystem.get_current_room_id()
 	]
 
 
-func _add_menu_btn(parent: VBoxContainer, btn_text: String, icon_key: String, on_pressed: Callable) -> void:
+func _add_menu_btn(parent: GridContainer, btn_text: String, icon_key: String, btn_h: float, on_pressed: Callable) -> void:
+	var is_mob: bool = _is_mobile()
 	var btn: Button = Button.new()
 	btn.text = " " + btn_text
-	btn.custom_minimum_size = Vector2(0.0, 34.0)
+	btn.custom_minimum_size = Vector2(0.0, btn_h)
+	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	btn.focus_mode = Control.FOCUS_NONE
 	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-	btn.add_theme_constant_override("icon_max_width", 16)
-	btn.add_theme_font_size_override("font_size", 10)
+	btn.add_theme_constant_override("icon_max_width", 18 if is_mob else 14)
+	btn.add_theme_font_size_override("font_size", 12 if is_mob else 11)
 
 	var icon_texture: Texture2D = ThemeService.get_icon(icon_key)
 	if icon_texture != null:
@@ -269,9 +294,9 @@ func _apply_theme() -> void:
 	if btn_quit != null:
 		btn_quit.icon = ThemeService.get_icon("icon_quit")
 
-	if menu_buttons_vbox == null: return
+	if menu_grid == null: return
 	var buttons: Array[Button] = []
-	for child: Node in menu_buttons_vbox.get_children():
+	for child: Node in menu_grid.get_children():
 		if child is Button: buttons.append(child as Button)
 
 	var icon_keys: Array[String] = [

@@ -1,5 +1,5 @@
 # ==============================================================================
-# OWNWORLD — ELEVATOR FLOOR ROUTING DIALOG
+# OWNWORLD — ELEVATOR FLOOR ROUTING DIALOG (LANDSCAPE TWO-COLUMN KEYPAD)
 # File: res://UI/Dialogs/ElevatorFloorDialog.gd
 # Base Class: CanvasLayer (class_name ElevatorFloorDialog)
 #
@@ -10,8 +10,8 @@
 class_name ElevatorFloorDialog
 extends CanvasLayer
 
-const MAX_PANEL_WIDTH: float = 460.0
-const MAX_PANEL_HEIGHT: float = 420.0
+const MAX_PANEL_WIDTH: float = 520.0
+const MAX_PANEL_HEIGHT: float = 460.0
 const SESSION_FILE: String = "user://session.json"
 
 var root_backdrop: Control = null
@@ -36,6 +36,10 @@ func _ready() -> void:
 	_update_responsive_layout()
 
 
+func _is_mobile() -> bool:
+	return ThemeEngine.is_mobile_platform()
+
+
 func _connect_system_signals() -> void:
 	var tree: SceneTree = get_tree()
 	if tree != null and tree.root != null and not tree.root.size_changed.is_connected(_update_responsive_layout):
@@ -53,13 +57,17 @@ func _on_theme_changed(_theme_data: Dictionary) -> void:
 func _update_responsive_layout() -> void:
 	if not is_instance_valid(root_panel): return
 	var viewport_size: Vector2 = get_viewport().get_visible_rect().size if get_viewport() else Vector2(1280.0, 720.0)
-	var target_width: float = clampf(viewport_size.x * 0.90, 280.0, MAX_PANEL_WIDTH)
-	var target_height: float = clampf(viewport_size.y * 0.80, 240.0, MAX_PANEL_HEIGHT)
+	var is_mob: bool = _is_mobile()
+
+	var target_width: float = clampf(viewport_size.x * 0.92, 300.0, MAX_PANEL_WIDTH)
+	var target_height: float = clampf(viewport_size.y * (0.88 if is_mob else 0.80), 260.0, MAX_PANEL_HEIGHT)
 	root_panel.custom_minimum_size = Vector2(target_width, target_height)
 	root_panel.size = Vector2(target_width, target_height)
 
 
 func _build_ui() -> void:
+	var is_mob: bool = _is_mobile()
+
 	root_backdrop = Control.new()
 	root_backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root_backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -84,7 +92,7 @@ func _build_ui() -> void:
 	var main_vbox: VBoxContainer = VBoxContainer.new()
 	main_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	main_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	main_vbox.add_theme_constant_override("separation", 8)
+	main_vbox.add_theme_constant_override("separation", 6)
 	root_panel.add_child(main_vbox)
 
 	var header_hbox: HBoxContainer = HBoxContainer.new()
@@ -94,10 +102,11 @@ func _build_ui() -> void:
 	header_lbl.text = "Elevator Keypad"
 	header_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header_lbl.theme_type_variation = "HeaderLabel"
+	header_lbl.add_theme_font_size_override("font_size", 14 if is_mob else 12)
 	header_hbox.add_child(header_lbl)
 
 	var close_button: Button = Button.new()
-	close_button.custom_minimum_size = Vector2(24.0, 24.0)
+	close_button.custom_minimum_size = Vector2(28.0 if is_mob else 22.0, 28.0 if is_mob else 22.0)
 	close_button.focus_mode = Control.FOCUS_NONE
 	close_button.add_theme_constant_override("icon_max_width", 12)
 	_apply_close_icon(close_button)
@@ -110,7 +119,7 @@ func _build_ui() -> void:
 	current_floor_label.text = "Active Building Floor: ..."
 	current_floor_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	current_floor_label.theme_type_variation = "HintLabel"
-	current_floor_label.add_theme_font_size_override("font_size", 11)
+	current_floor_label.add_theme_font_size_override("font_size", 12 if is_mob else 11)
 	main_vbox.add_child(current_floor_label)
 
 	var keypad_scroll: ScrollContainer = ScrollContainer.new()
@@ -149,6 +158,7 @@ func _render_keypad_buttons() -> void:
 	if active_elevator == null or not is_instance_valid(active_elevator):
 		return
 
+	var is_mob: bool = _is_mobile()
 	var current_room_id: String = _get_current_room_id()
 	var current_room_state: Dictionary = SaveSystem.load_room_state(current_room_id)
 	var bldg_id: String = str(current_room_state.get("building_id", "building_main")).strip_edges()
@@ -167,6 +177,7 @@ func _render_keypad_buttons() -> void:
 		empty_label.theme_type_variation = "HintLabel"
 		empty_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		empty_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		empty_label.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 		keypad_grid.add_child(empty_label)
 		return
 
@@ -176,6 +187,7 @@ func _render_keypad_buttons() -> void:
 	var panel_border: Color = ThemeService.get_color("panel_border", "#f9a8d4")
 	var text_primary: Color = ThemeService.get_color("text_primary", "#6c2e3f")
 	var corner_radius: int = ThemeService.get_corner_radius()
+	var btn_h: float = 42.0 if is_mob else 34.0
 
 	for floor_data: Dictionary in floors:
 		var room_id: String = str(floor_data.get("room_id", "")).strip_edges()
@@ -184,11 +196,12 @@ func _render_keypad_buttons() -> void:
 
 		var button: Button = Button.new()
 		button.text = " " + floor_label
-		button.custom_minimum_size = Vector2(160.0, 38.0)
+		button.custom_minimum_size = Vector2(0.0, btn_h)
 		button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		button.disabled = (is_current or room_id.is_empty())
 		button.focus_mode = Control.FOCUS_NONE
-		button.add_theme_constant_override("icon_max_width", 16)
+		button.add_theme_constant_override("icon_max_width", 18 if is_mob else 14)
+		button.add_theme_font_size_override("font_size", 12 if is_mob else 11)
 		_apply_button_icon(button, "icon_elevator" if is_current else "icon_door")
 
 		var normal_style: StyleBoxFlat = StyleBoxFlat.new()

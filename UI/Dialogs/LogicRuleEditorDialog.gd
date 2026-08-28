@@ -1,5 +1,5 @@
 # ==============================================================================
-# OWNWORLD — LOGIC RULE EDITOR
+# OWNWORLD — LOGIC RULE EDITOR (NO-CODE CAUSE & EFFECT VISUAL SCRIPTING)
 # File: res://UI/Dialogs/LogicRuleEditorDialog.gd
 # Base Class: CanvasLayer (class_name LogicRuleEditorDialog)
 #
@@ -11,7 +11,7 @@
 class_name LogicRuleEditorDialog
 extends CanvasLayer
 
-const MAX_PANEL_WIDTH: float = 540.0
+const MAX_PANEL_WIDTH: float = 680.0
 const MAX_PANEL_HEIGHT: float = 580.0
 const SYMBOL_PRESETS: Array[String] = ["❤️", "⭐", "🎵", "💧", "🌸", "❓", "❗"]
 
@@ -59,6 +59,10 @@ func _ready() -> void:
 	add_child(asset_picker)
 
 
+func _is_mobile() -> bool:
+	return ThemeEngine.is_mobile_platform()
+
+
 func _connect_system_signals() -> void:
 	var tree: SceneTree = get_tree()
 	if tree != null and tree.root != null and not tree.root.size_changed.is_connected(_update_responsive_layout):
@@ -77,13 +81,18 @@ func _update_responsive_layout() -> void:
 	if not is_instance_valid(root_panel): return
 	var viewport: Viewport = get_viewport()
 	var viewport_size: Vector2 = viewport.get_visible_rect().size if viewport != null else Vector2(1280.0, 720.0)
-	var target_width: float = clampf(viewport_size.x * 0.92, 290.0, MAX_PANEL_WIDTH)
-	var target_height: float = clampf(viewport_size.y * 0.90, 330.0, MAX_PANEL_HEIGHT)
+	var is_mob: bool = _is_mobile()
+
+	var target_width: float = clampf(viewport_size.x * 0.94, 320.0, MAX_PANEL_WIDTH)
+	var target_height: float = clampf(viewport_size.y * (0.92 if is_mob else 0.88), 320.0, MAX_PANEL_HEIGHT)
 	root_panel.custom_minimum_size = Vector2(target_width, target_height)
 	root_panel.size = Vector2(target_width, target_height)
 
 
 func _build_ui() -> void:
+	var is_mob: bool = _is_mobile()
+	var row_h: float = 34.0 if is_mob else 28.0
+
 	root_backdrop = Control.new()
 	root_backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root_backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -108,7 +117,7 @@ func _build_ui() -> void:
 	var outer_vbox: VBoxContainer = VBoxContainer.new()
 	outer_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	outer_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	outer_vbox.add_theme_constant_override("separation", 8)
+	outer_vbox.add_theme_constant_override("separation", 6)
 	root_panel.add_child(outer_vbox)
 
 	var header_hbox: HBoxContainer = HBoxContainer.new()
@@ -118,10 +127,11 @@ func _build_ui() -> void:
 	header_lbl.text = "Cause & Effect Logic Studio"
 	header_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header_lbl.theme_type_variation = "HeaderLabel"
+	header_lbl.add_theme_font_size_override("font_size", 14 if is_mob else 12)
 	header_hbox.add_child(header_lbl)
 
 	var close_button: Button = Button.new()
-	close_button.custom_minimum_size = Vector2(24.0, 24.0)
+	close_button.custom_minimum_size = Vector2(28.0 if is_mob else 22.0, 28.0 if is_mob else 22.0)
 	close_button.focus_mode = Control.FOCUS_NONE
 	close_button.add_theme_constant_override("icon_max_width", 12)
 	close_button.pressed.connect(close_dialog)
@@ -141,50 +151,53 @@ func _build_ui() -> void:
 	body_vbox.add_theme_constant_override("separation", 8)
 	body_scroll.add_child(body_vbox)
 
-	_build_when_section(body_vbox)
-	_build_target_section(body_vbox)
-	_build_action_section(body_vbox)
+	_build_when_section(body_vbox, row_h)
+	_build_target_section(body_vbox, row_h)
+	_build_action_section(body_vbox, row_h)
 
 	btn_add_rule = Button.new()
 	btn_add_rule.text = " Add Cause & Effect Rule"
-	btn_add_rule.custom_minimum_size = Vector2(0.0, 36.0)
+	btn_add_rule.custom_minimum_size = Vector2(0.0, row_h + 4.0)
 	btn_add_rule.focus_mode = Control.FOCUS_NONE
 	btn_add_rule.add_theme_constant_override("icon_max_width", 16)
+	btn_add_rule.add_theme_font_size_override("font_size", 12 if is_mob else 11)
 	btn_add_rule.pressed.connect(_on_add_rule_pressed)
 	body_vbox.add_child(btn_add_rule)
 
 	outer_vbox.add_child(HSeparator.new())
 
 	var rules_scroll: ScrollContainer = ScrollContainer.new()
-	rules_scroll.custom_minimum_size = Vector2(0.0, 110.0)
+	rules_scroll.custom_minimum_size = Vector2(0.0, 110.0 if is_mob else 90.0)
 	rules_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	rules_scroll.follow_focus = false
 	outer_vbox.add_child(rules_scroll)
 
 	rules_list_vbox = VBoxContainer.new()
 	rules_list_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	rules_list_vbox.add_theme_constant_override("separation", 6)
+	rules_list_vbox.add_theme_constant_override("separation", 4)
 	rules_scroll.add_child(rules_list_vbox)
 
 	_refresh_theme_icons()
 
 
-func _build_when_section(parent: VBoxContainer) -> void:
+func _build_when_section(parent: VBoxContainer, row_h: float) -> void:
+	var is_mob: bool = _is_mobile()
 	when_box = PanelContainer.new()
 	when_box.theme_type_variation = "SubPanel"
 	parent.add_child(when_box)
 
 	var when_vbox: VBoxContainer = VBoxContainer.new()
-	when_vbox.add_theme_constant_override("separation", 6)
+	when_vbox.add_theme_constant_override("separation", 4)
 	when_box.add_child(when_vbox)
 
 	lbl_when = Label.new()
 	lbl_when.text = "1. When This Happens:"
 	lbl_when.theme_type_variation = "HeaderLabel"
+	lbl_when.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	when_vbox.add_child(lbl_when)
 
 	opt_when = OptionButton.new()
-	opt_when.custom_minimum_size = Vector2(0.0, 34.0)
+	opt_when.custom_minimum_size = Vector2(0.0, row_h)
 	opt_when.add_item("When Tapped / Clicked", int(Types.TriggerEvent.ON_TAPPED))
 	opt_when.add_item("When an Item is Dropped Onto It", int(Types.TriggerEvent.ON_ITEM_RECEIVED))
 	opt_when.add_item("When Grabbed / Picked Up", int(Types.TriggerEvent.ON_DRAG_STARTED))
@@ -194,27 +207,29 @@ func _build_when_section(parent: VBoxContainer) -> void:
 
 	item_filter_edit = LineEdit.new()
 	item_filter_edit.placeholder_text = "(Optional) Only if dropped item is named: e.g. Magic Key"
-	item_filter_edit.custom_minimum_size = Vector2(0.0, 32.0)
+	item_filter_edit.custom_minimum_size = Vector2(0.0, row_h)
 	item_filter_edit.visible = false
 	when_vbox.add_child(item_filter_edit)
 
 
-func _build_target_section(parent: VBoxContainer) -> void:
+func _build_target_section(parent: VBoxContainer, row_h: float) -> void:
+	var is_mob: bool = _is_mobile()
 	target_box = PanelContainer.new()
 	target_box.theme_type_variation = "SubPanel"
 	parent.add_child(target_box)
 
 	var target_vbox: VBoxContainer = VBoxContainer.new()
-	target_vbox.add_theme_constant_override("separation", 6)
+	target_vbox.add_theme_constant_override("separation", 4)
 	target_box.add_child(target_vbox)
 
 	lbl_target = Label.new()
 	lbl_target.text = "2. Apply Action To:"
 	lbl_target.theme_type_variation = "HeaderLabel"
+	lbl_target.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	target_vbox.add_child(lbl_target)
 
 	opt_target = OptionButton.new()
-	opt_target.custom_minimum_size = Vector2(0.0, 34.0)
+	opt_target.custom_minimum_size = Vector2(0.0, row_h)
 	opt_target.add_item("This Item / Self", int(Types.ActionTarget.SELF))
 	opt_target.add_item("The Item Dropped Onto It", int(Types.ActionTarget.TRIGGER_ITEM))
 	opt_target.add_item("All Characters in Room", int(Types.ActionTarget.ROOM_ALL_CHARACTERS))
@@ -222,22 +237,24 @@ func _build_target_section(parent: VBoxContainer) -> void:
 	target_vbox.add_child(opt_target)
 
 
-func _build_action_section(parent: VBoxContainer) -> void:
+func _build_action_section(parent: VBoxContainer, row_h: float) -> void:
+	var is_mob: bool = _is_mobile()
 	then_box = PanelContainer.new()
 	then_box.theme_type_variation = "SubPanel"
 	parent.add_child(then_box)
 
 	var then_vbox: VBoxContainer = VBoxContainer.new()
-	then_vbox.add_theme_constant_override("separation", 6)
+	then_vbox.add_theme_constant_override("separation", 4)
 	then_box.add_child(then_vbox)
 
 	lbl_then = Label.new()
 	lbl_then.text = "3. Then Execute Action:"
 	lbl_then.theme_type_variation = "HeaderLabel"
+	lbl_then.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	then_vbox.add_child(lbl_then)
 
 	opt_then = OptionButton.new()
-	opt_then.custom_minimum_size = Vector2(0.0, 34.0)
+	opt_then.custom_minimum_size = Vector2(0.0, row_h)
 	opt_then.add_item("Play Animation / Pose", int(Types.ActionCommand.PLAY_ANIM))
 	opt_then.add_item("Stop Animation", 101)
 	opt_then.add_item("Swap Outfit Form", int(Types.ActionCommand.SWAP_FORM))
@@ -258,12 +275,12 @@ func _build_action_section(parent: VBoxContainer) -> void:
 	then_vbox.add_child(param_container)
 
 	dynamic_opt_param = OptionButton.new()
-	dynamic_opt_param.custom_minimum_size = Vector2(0.0, 32.0)
+	dynamic_opt_param.custom_minimum_size = Vector2(0.0, row_h)
 	dynamic_opt_param.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	param_container.add_child(dynamic_opt_param)
 
 	dynamic_line_param = LineEdit.new()
-	dynamic_line_param.custom_minimum_size = Vector2(0.0, 32.0)
+	dynamic_line_param.custom_minimum_size = Vector2(0.0, row_h)
 	dynamic_line_param.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	param_container.add_child(dynamic_line_param)
 
@@ -271,20 +288,23 @@ func _build_action_section(parent: VBoxContainer) -> void:
 	emoji_bar_hbox.add_theme_constant_override("separation", 6)
 	param_container.add_child(emoji_bar_hbox)
 
+	var emoji_btn_size: float = 38.0 if is_mob else 30.0
 	for symbol: String in SYMBOL_PRESETS:
 		var emoji_button: Button = Button.new()
 		emoji_button.text = symbol
-		emoji_button.custom_minimum_size = Vector2(30.0, 28.0)
+		emoji_button.custom_minimum_size = Vector2(emoji_btn_size, emoji_btn_size)
 		emoji_button.focus_mode = Control.FOCUS_NONE
+		emoji_button.add_theme_font_size_override("font_size", 14 if is_mob else 12)
 		var captured_symbol: String = symbol
 		emoji_button.pressed.connect(func() -> void: dynamic_line_param.text = captured_symbol)
 		emoji_bar_hbox.add_child(emoji_button)
 
 	btn_browse_spawn = Button.new()
 	btn_browse_spawn.text = " Browse Art to Spawn..."
-	btn_browse_spawn.custom_minimum_size = Vector2(0.0, 32.0)
+	btn_browse_spawn.custom_minimum_size = Vector2(0.0, row_h)
 	btn_browse_spawn.focus_mode = Control.FOCUS_NONE
 	btn_browse_spawn.add_theme_constant_override("icon_max_width", 14)
+	btn_browse_spawn.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	btn_browse_spawn.pressed.connect(_on_browse_spawn_pressed)
 	param_container.add_child(btn_browse_spawn)
 
@@ -329,9 +349,9 @@ func _on_then_action_changed(index: int) -> void:
 			dynamic_opt_param.visible = true
 			if active_entity != null and active_entity.wardrobe_forms.has(active_entity.active_form_key):
 				var form_data: Dictionary = active_entity.wardrobe_forms[active_entity.active_form_key]
-				var animations: Dictionary = form_data.get("animations", {})
-				for animation_name: String in animations.keys():
-					dynamic_opt_param.add_item(animation_name, dynamic_opt_param.item_count)
+				var states: Dictionary = form_data.get("states", {})
+				for state_name: String in states.keys():
+					dynamic_opt_param.add_item(state_name, dynamic_opt_param.item_count)
 			for fallback_animation: String in ["mouth_open", "eyes_closed", "sitting", "sleeping"]:
 				dynamic_opt_param.add_item(fallback_animation, dynamic_opt_param.item_count)
 		int(Types.ActionCommand.SWAP_FORM):
@@ -433,11 +453,13 @@ func _render_rules_list() -> void:
 	for child: Node in rules_list_vbox.get_children():
 		child.queue_free()
 
+	var is_mob: bool = _is_mobile()
+
 	if active_entity == null or active_entity.logic_rules.is_empty():
 		var empty_label: Label = Label.new()
 		empty_label.text = "No active rules. Add a rule above to build cause-and-effect puzzles!"
 		empty_label.theme_type_variation = "HintLabel"
-		empty_label.add_theme_font_size_override("font_size", 11)
+		empty_label.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 		rules_list_vbox.add_child(empty_label)
 		return
 
@@ -445,7 +467,7 @@ func _render_rules_list() -> void:
 		var rule: Dictionary = active_entity.logic_rules[index]
 		var card: PanelContainer = PanelContainer.new()
 		card.theme_type_variation = "SubPanel"
-		card.custom_minimum_size = Vector2(0.0, 36.0)
+		card.custom_minimum_size = Vector2(0.0, 38.0 if is_mob else 32.0)
 
 		var hbox: HBoxContainer = HBoxContainer.new()
 		hbox.add_theme_constant_override("separation", 8)
@@ -467,11 +489,11 @@ func _render_rules_list() -> void:
 		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		label.text = summary
-		label.add_theme_font_size_override("font_size", 11)
+		label.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 		hbox.add_child(label)
 
 		var delete_button: Button = Button.new()
-		delete_button.custom_minimum_size = Vector2(24.0, 24.0)
+		delete_button.custom_minimum_size = Vector2(28.0 if is_mob else 22.0, 28.0 if is_mob else 22.0)
 		delete_button.theme_type_variation = "DangerButton"
 		delete_button.focus_mode = Control.FOCUS_NONE
 		delete_button.add_theme_constant_override("icon_max_width", 10)

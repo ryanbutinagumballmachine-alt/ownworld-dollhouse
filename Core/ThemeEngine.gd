@@ -1,11 +1,11 @@
 # ==============================================================================
-# OWNWORLD — PROCEDURAL THEME ENGINE & WCAG CONTRAST SOLVER
+# OWNWORLD — PROCEDURAL THEME ENGINE (DUAL-OS ADAPTIVE & WCAG CONTRAST SOLVER)
 # File: res://Core/ThemeEngine.gd
 # Base Class: RefCounted (class_name ThemeEngine)
 #
-# Responsibility: Complete procedural construction of Godot Theme resources from
-# arbitrary color definitions, mathematical WCAG 2.1 contrast ratio enforcement,
-# procedural vector-like UI raster icon generation, and SceneTree propagation.
+# Responsibility: Procedural construction of Godot Theme resources with
+# automatic platform profiling (Android Mobile Landscape vs. Windows Desktop PC),
+# WCAG 2.1 accessibility contrast enforcement, and high-DPI raster icon generation.
 # ==============================================================================
 
 class_name ThemeEngine
@@ -27,13 +27,26 @@ const DEFAULT_PALETTE: Dictionary = {
 	"window_background": "#fff5f7"
 }
 
-const DEFAULT_FONT_SIZE: int = 12
+# Typographic Scale Constants
+const FONT_SIZE_MOBILE_BASE: int = 14
+const FONT_SIZE_MOBILE_HEADER: int = 17
+const FONT_SIZE_MOBILE_HINT: int = 12
+
+const FONT_SIZE_DESKTOP_BASE: int = 12
+const FONT_SIZE_DESKTOP_HEADER: int = 15
+const FONT_SIZE_DESKTOP_HINT: int = 10
+
 const DEFAULT_CORNER_RADIUS: int = 6
 
 const CONTRAST_RATIO_TEXT: float = 4.5
 const CONTRAST_RATIO_UI: float = 3.0
 
 static var _cached_procedural_icons: Dictionary = {}
+
+
+## Detects if the current platform is mobile (Android / iOS).
+static func is_mobile_platform() -> bool:
+	return OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios")
 
 
 ## Calculates relative luminance of a color according to WCAG 2.1 standards.
@@ -74,8 +87,9 @@ static func ensure_contrast(fg: Color, bg: Color, min_ratio: float = CONTRAST_RA
 	return Color.WHITE if should_lighten else Color(0.08, 0.08, 0.08, 1.0)
 
 
-## Procedurally constructs a complete, cohesive Theme resource from arbitrary color dictionary definitions.
+## Procedurally constructs a complete, cohesive Theme resource tailored for the host OS.
 static func create_theme(theme_data: Dictionary, corner_radius: int = DEFAULT_CORNER_RADIUS) -> Theme:
+	var is_mobile: bool = is_mobile_platform()
 	var raw_colors: Dictionary = theme_data.get("colors", {})
 
 	var c_bg: Color = Color(raw_colors.get("panel_background", DEFAULT_PALETTE["panel_background"]))
@@ -90,6 +104,7 @@ static func create_theme(theme_data: Dictionary, corner_radius: int = DEFAULT_CO
 	var c_accent: Color = Color(raw_colors.get("accent_primary", DEFAULT_PALETTE["accent_primary"]))
 	var c_danger: Color = Color(raw_colors.get("accent_danger", DEFAULT_PALETTE["accent_danger"]))
 
+	# Accessibility Contrast Enforcement
 	var c_text_on_bg: Color = ensure_contrast(c_text, c_bg, CONTRAST_RATIO_TEXT)
 	var c_text_on_btn: Color = ensure_contrast(c_text, c_btn_n, CONTRAST_RATIO_TEXT)
 	var c_text_on_sub: Color = ensure_contrast(c_text, c_sub_bg, CONTRAST_RATIO_TEXT)
@@ -101,6 +116,7 @@ static func create_theme(theme_data: Dictionary, corner_radius: int = DEFAULT_CO
 
 	var th: Theme = Theme.new()
 
+	# Custom Font Loading
 	var custom_font: Font = null
 	var fpath: String = str(theme_data.get("font_path", ""))
 	if not fpath.is_empty() and FileAccess.file_exists(fpath):
@@ -115,8 +131,11 @@ static func create_theme(theme_data: Dictionary, corner_radius: int = DEFAULT_CO
 
 	if custom_font != null:
 		th.default_font = custom_font
-	th.default_font_size = DEFAULT_FONT_SIZE
 
+	# Platform-Differentiated Font Scale
+	th.default_font_size = FONT_SIZE_MOBILE_BASE if is_mobile else FONT_SIZE_DESKTOP_BASE
+
+	# Type Variations
 	th.set_type_variation("DangerButton", "Button")
 	th.set_type_variation("Breadcrumb", "Button")
 	th.set_type_variation("SubPanel", "PanelContainer")
@@ -125,14 +144,22 @@ static func create_theme(theme_data: Dictionary, corner_radius: int = DEFAULT_CO
 	th.set_type_variation("HeaderLabel", "Label")
 	th.set_type_variation("HintLabel", "Label")
 
+	# Generate High-DPI UI Icons
 	var icons: Dictionary = _build_runtime_procedural_icons(
-		c_border_safe, c_input_bg, c_accent, c_btn_n, c_btn_h, c_text_on_bg
+		c_border_safe, c_input_bg, c_accent, c_btn_n, c_btn_h, c_text_on_bg, is_mobile
 	)
 
 	var empty_style: StyleBoxEmpty = StyleBoxEmpty.new()
-	var panel_main: StyleBoxFlat = _create_flat_style(c_bg, c_border_safe, corner_radius, 2, 12, 12, 8, 8)
-	var panel_sub: StyleBoxFlat = _create_flat_style(c_sub_bg, c_border_safe, corner_radius, 1, 8, 8, 6, 6)
-	var btn_normal: StyleBoxFlat = _create_flat_style(c_btn_n, c_border_safe, corner_radius, 1, 8, 8, 5, 5)
+
+	# Platform-Adjusted Margins (Spacious on Mobile, Compact on Desktop)
+	var m_btn_h: int = 12 if is_mobile else 8
+	var m_btn_v: int = 8 if is_mobile else 5
+	var m_panel_h: int = 16 if is_mobile else 12
+	var m_panel_v: int = 12 if is_mobile else 8
+
+	var panel_main: StyleBoxFlat = _create_flat_style(c_bg, c_border_safe, corner_radius + 2, 2, m_panel_h, m_panel_h, m_panel_v, m_panel_v)
+	var panel_sub: StyleBoxFlat = _create_flat_style(c_sub_bg, c_border_safe, corner_radius, 1, m_btn_h, m_btn_h, m_btn_v, m_btn_v)
+	var btn_normal: StyleBoxFlat = _create_flat_style(c_btn_n, c_border_safe, corner_radius, 1, m_btn_h, m_btn_h, m_btn_v, m_btn_v)
 
 	var btn_hover: StyleBoxFlat = btn_normal.duplicate() as StyleBoxFlat
 	btn_hover.bg_color = c_btn_h
@@ -159,23 +186,29 @@ static func create_theme(theme_data: Dictionary, corner_radius: int = DEFAULT_CO
 	btn_danger_h.bg_color = c_danger.darkened(0.15)
 	btn_danger_h.border_color = Color.WHITE
 
-	var input_box: StyleBoxFlat = _create_flat_style(c_input_bg, c_border_safe, corner_radius, 1, 8, 8, 5, 5)
+	var input_box: StyleBoxFlat = _create_flat_style(c_input_bg, c_border_safe, corner_radius, 1, m_btn_h, m_btn_h, m_btn_v, m_btn_v)
 	var input_focus: StyleBoxFlat = input_box.duplicate() as StyleBoxFlat
 	input_focus.border_color = c_accent
 	input_focus.set_border_width_all(2)
 
-	var item_selected: StyleBoxFlat = _create_flat_style(c_accent, Color.TRANSPARENT, maxi(corner_radius - 2, 0), 0, 6, 6, 4, 4)
-	var item_hover: StyleBoxFlat = _create_flat_style(c_btn_h, c_accent, maxi(corner_radius - 2, 0), 1, 6, 6, 4, 4)
+	var item_selected: StyleBoxFlat = _create_flat_style(c_accent, Color.TRANSPARENT, maxi(corner_radius - 2, 0), 0, m_btn_h, m_btn_h, m_btn_v, m_btn_v)
+	var item_hover: StyleBoxFlat = _create_flat_style(c_btn_h, c_accent, maxi(corner_radius - 2, 0), 1, m_btn_h, m_btn_h, m_btn_v, m_btn_v)
 
-	# --- LABELS ---
+	# --- LABELS & TYPOGRAPHY ---
 	th.set_color("font_color", "Label", c_text_on_bg)
 	th.set_color("font_shadow_color", "Label", Color.TRANSPARENT)
+	th.set_font_size("font_size", "Label", FONT_SIZE_MOBILE_BASE if is_mobile else FONT_SIZE_DESKTOP_BASE)
+
 	th.set_color("font_color", "HeaderLabel", c_accent)
+	th.set_font_size("font_size", "HeaderLabel", FONT_SIZE_MOBILE_HEADER if is_mobile else FONT_SIZE_DESKTOP_HEADER)
+
 	th.set_color("font_color", "HintLabel", c_muted_on_bg)
+	th.set_font_size("font_size", "HintLabel", FONT_SIZE_MOBILE_HINT if is_mobile else FONT_SIZE_DESKTOP_HINT)
+
 	th.set_color("default_color", "RichTextLabel", c_text_on_bg)
 	th.set_color("font_color", "TooltipLabel", c_text_on_bg)
 
-	# --- BUTTONS ---
+	# --- BUTTONS & CONTROLS ---
 	for btn_type: String in ["Button", "OptionButton", "MenuButton"]:
 		th.set_stylebox("normal", btn_type, btn_normal)
 		th.set_stylebox("hover", btn_type, btn_hover)
@@ -192,7 +225,8 @@ static func create_theme(theme_data: Dictionary, corner_radius: int = DEFAULT_CO
 		th.set_color("icon_hover_color", btn_type, c_accent)
 		th.set_color("icon_pressed_color", btn_type, c_text_on_accent)
 		th.set_color("icon_disabled_color", btn_type, c_muted_on_bg)
-		th.set_constant("icon_max_width", btn_type, 18)
+		th.set_constant("icon_max_width", btn_type, 20 if is_mobile else 16)
+		th.set_font_size("font_size", btn_type, FONT_SIZE_MOBILE_BASE if is_mobile else FONT_SIZE_DESKTOP_BASE)
 
 	th.set_stylebox("normal", "DangerButton", btn_danger_n)
 	th.set_stylebox("hover", "DangerButton", btn_danger_h)
@@ -223,6 +257,9 @@ static func create_theme(theme_data: Dictionary, corner_radius: int = DEFAULT_CO
 		th.set_color("font_disabled_color", chk, c_muted_on_bg)
 		th.set_color("icon_normal_color", chk, c_text_on_bg)
 		th.set_color("icon_hover_color", chk, c_accent)
+		th.set_font_size("font_size", chk, FONT_SIZE_MOBILE_BASE if is_mobile else FONT_SIZE_DESKTOP_BASE)
+		th.set_constant("h_separation", chk, 10 if is_mobile else 6)
+
 		if icons.has(&"chk_unchecked") and icons.has(&"chk_checked"):
 			th.set_icon("unchecked", chk, icons[&"chk_unchecked"])
 			th.set_icon("checked", chk, icons[&"chk_checked"])
@@ -234,10 +271,6 @@ static func create_theme(theme_data: Dictionary, corner_radius: int = DEFAULT_CO
 			th.set_icon("radio_unchecked_disabled", chk, icons[&"radio_unchecked"])
 			th.set_icon("radio_checked_disabled", chk, icons[&"radio_checked"])
 
-	th.set_color("font_color", "LinkButton", c_accent)
-	th.set_color("font_hover_color", "LinkButton", c_accent.lightened(0.2))
-	th.set_color("font_pressed_color", "LinkButton", c_accent.darkened(0.2))
-
 	# --- TEXT INPUTS ---
 	for txt_type: String in ["LineEdit", "TextEdit", "CodeEdit", "SpinBox"]:
 		th.set_stylebox("normal", txt_type, input_box)
@@ -248,6 +281,7 @@ static func create_theme(theme_data: Dictionary, corner_radius: int = DEFAULT_CO
 		th.set_color("selection_color", txt_type, Color(c_accent.r, c_accent.g, c_accent.b, 0.4))
 		th.set_color("font_placeholder_color", txt_type, c_muted_on_input)
 		th.set_color("caret_color", txt_type, c_text_on_input)
+		th.set_font_size("font_size", txt_type, FONT_SIZE_MOBILE_BASE if is_mobile else FONT_SIZE_DESKTOP_BASE)
 
 	if icons.has(&"arrow_down"):
 		th.set_icon("arrow", "OptionButton", icons[&"arrow_down"])
@@ -265,15 +299,7 @@ static func create_theme(theme_data: Dictionary, corner_radius: int = DEFAULT_CO
 		th.set_color("font_color", list_type, c_text_on_sub)
 		th.set_color("font_selected_color", list_type, c_text_on_accent)
 		th.set_color("font_hovered_color", list_type, c_text_on_sub)
-		th.set_color("font_outline_color", list_type, Color.TRANSPARENT)
-
-	if icons.has(&"arrow_down") and icons.has(&"arrow_right"):
-		th.set_icon("arrow", "Tree", icons[&"arrow_down"])
-		th.set_icon("arrow_collapsed", "Tree", icons[&"arrow_right"])
-		th.set_icon("select_arrow", "Tree", icons[&"arrow_down"])
-	if icons.has(&"chk_checked") and icons.has(&"chk_unchecked"):
-		th.set_icon("checked", "Tree", icons[&"chk_checked"])
-		th.set_icon("unchecked", "Tree", icons[&"chk_unchecked"])
+		th.set_font_size("font_size", list_type, FONT_SIZE_MOBILE_BASE if is_mobile else FONT_SIZE_DESKTOP_BASE)
 
 	var popup_box: StyleBoxFlat = panel_main.duplicate() as StyleBoxFlat
 	popup_box.bg_color = c_bg
@@ -284,28 +310,15 @@ static func create_theme(theme_data: Dictionary, corner_radius: int = DEFAULT_CO
 	th.set_color("font_hover_color", "PopupMenu", c_text_on_accent)
 	th.set_color("font_disabled_color", "PopupMenu", c_muted_on_bg)
 	th.set_color("font_separator_color", "PopupMenu", c_muted_on_bg)
-	th.set_constant("icon_max_width", "PopupMenu", 18)
-	th.set_constant("v_separation", "PopupMenu", 6)
-	th.set_constant("h_separation", "PopupMenu", 8)
-
-	if icons.has(&"radio_checked") and icons.has(&"radio_unchecked"):
-		th.set_icon("radio_checked", "PopupMenu", icons[&"radio_checked"])
-		th.set_icon("radio_unchecked", "PopupMenu", icons[&"radio_unchecked"])
-	if icons.has(&"chk_checked") and icons.has(&"chk_unchecked"):
-		th.set_icon("checked", "PopupMenu", icons[&"chk_checked"])
-		th.set_icon("unchecked", "PopupMenu", icons[&"chk_unchecked"])
-	if icons.has(&"arrow_right"):
-		th.set_icon("submenu", "PopupMenu", icons[&"arrow_right"])
-
-	th.set_stylebox("normal", "MenuBar", empty_style)
-	th.set_stylebox("hover", "MenuBar", btn_hover)
-	th.set_stylebox("pressed", "MenuBar", btn_pressed)
-	th.set_color("font_color", "MenuBar", c_text_on_bg)
-	th.set_color("font_hover_color", "MenuBar", c_text_on_btn)
-	th.set_color("font_pressed_color", "MenuBar", c_text_on_accent)
+	th.set_constant("icon_max_width", "PopupMenu", 22 if is_mobile else 18)
+	th.set_constant("v_separation", "PopupMenu", 10 if is_mobile else 6)
+	th.set_constant("h_separation", "PopupMenu", 12 if is_mobile else 8)
+	th.set_font_size("font_size", "PopupMenu", FONT_SIZE_MOBILE_BASE if is_mobile else FONT_SIZE_DESKTOP_BASE)
 
 	# --- TABS & CONTAINERS ---
-	var tab_sel: StyleBoxFlat = _create_flat_style(c_accent, c_border_safe, corner_radius, 1, 10, 10, 6, 6)
+	var m_tab_h: int = 14 if is_mobile else 10
+	var m_tab_v: int = 10 if is_mobile else 6
+	var tab_sel: StyleBoxFlat = _create_flat_style(c_accent, c_border_safe, corner_radius, 1, m_tab_h, m_tab_h, m_tab_v, m_tab_v)
 	var tab_unsel: StyleBoxFlat = tab_sel.duplicate() as StyleBoxFlat
 	tab_unsel.bg_color = c_btn_n
 	var tab_hov: StyleBoxFlat = tab_unsel.duplicate() as StyleBoxFlat
@@ -321,6 +334,7 @@ static func create_theme(theme_data: Dictionary, corner_radius: int = DEFAULT_CO
 		th.set_color("font_selected_color", tab_type, c_text_on_accent)
 		th.set_color("font_unselected_color", tab_type, c_text_on_btn)
 		th.set_color("font_hovered_color", tab_type, c_accent)
+		th.set_font_size("font_size", tab_type, FONT_SIZE_MOBILE_BASE if is_mobile else FONT_SIZE_DESKTOP_BASE)
 
 	th.set_stylebox("panel", "TabContainer", panel_sub)
 	th.set_stylebox("panel", "PanelContainer", panel_main)
@@ -330,20 +344,21 @@ static func create_theme(theme_data: Dictionary, corner_radius: int = DEFAULT_CO
 	th.set_stylebox("panel", "MarginContainer", empty_style)
 
 	var toast_s: StyleBoxFlat = panel_main.duplicate() as StyleBoxFlat
-	toast_s.set_corner_radius_all(16)
+	toast_s.set_corner_radius_all(18)
 	toast_s.bg_color = Color(c_bg.r, c_bg.g, c_bg.b, 0.96)
 	th.set_stylebox("panel", "ToastPanel", toast_s)
 
 	var cap_s: StyleBoxFlat = panel_main.duplicate() as StyleBoxFlat
-	cap_s.set_corner_radius_all(corner_radius + 2)
+	cap_s.set_corner_radius_all(corner_radius + 4)
 	cap_s.bg_color = Color(c_bg.r, c_bg.g, c_bg.b, 0.96)
 	th.set_stylebox("panel", "FloatingCapsule", cap_s)
 	th.set_color("icon_normal_color", "FloatingCapsule", c_text_on_bg)
 	th.set_color("icon_hover_color", "FloatingCapsule", c_accent)
 
-	# --- SLIDERS & PROGRESS BARS ---
-	var s_track: StyleBoxFlat = _create_flat_style(c_sub_bg, c_border_safe, 4, 1, 0, 0, 4, 4)
-	var s_fill: StyleBoxFlat = _create_flat_style(c_accent, Color.TRANSPARENT, 4, 0, 0, 0, 4, 4)
+	# --- SLIDERS & PROGRESS BARS (TOUCH ENLARGED) ---
+	var track_height: int = 6 if is_mobile else 4
+	var s_track: StyleBoxFlat = _create_flat_style(c_sub_bg, c_border_safe, 4, 1, 0, 0, track_height, track_height)
+	var s_fill: StyleBoxFlat = _create_flat_style(c_accent, Color.TRANSPARENT, 4, 0, 0, 0, track_height, track_height)
 
 	for s_type: String in ["HSlider", "VSlider"]:
 		th.set_stylebox("slider", s_type, s_track)
@@ -374,31 +389,28 @@ static func create_theme(theme_data: Dictionary, corner_radius: int = DEFAULT_CO
 	var track_bg_color: Color = Color(c_border_safe.r, c_border_safe.g, c_border_safe.b, 0.45)
 	var track_border_color: Color = Color(c_border_safe.r, c_border_safe.g, c_border_safe.b, 0.75)
 
-	var v_scroll_track: StyleBoxFlat = _create_flat_style(track_bg_color, track_border_color, 6, 1, 7, 7, 4, 4)
-	var v_grabber: StyleBoxFlat = _create_flat_style(c_accent, Color(1, 1, 1, 0.9), 6, 1, 6, 6, 10, 10)
+	var scroll_bar_w: int = 10 if is_mobile else 6
+	var v_scroll_track: StyleBoxFlat = _create_flat_style(track_bg_color, track_border_color, 6, 1, scroll_bar_w, scroll_bar_w, 4, 4)
+	var v_grabber: StyleBoxFlat = _create_flat_style(c_accent, Color(1, 1, 1, 0.9), 6, 1, scroll_bar_w, scroll_bar_w, 12, 12)
 	var v_grabber_hov: StyleBoxFlat = v_grabber.duplicate() as StyleBoxFlat
 	v_grabber_hov.bg_color = c_accent.lightened(0.18)
-	var v_grabber_press: StyleBoxFlat = v_grabber.duplicate() as StyleBoxFlat
-	v_grabber_press.bg_color = c_accent.darkened(0.15)
 
 	th.set_stylebox("scroll", "VScrollBar", v_scroll_track)
 	th.set_stylebox("scroll_focus", "VScrollBar", v_scroll_track)
 	th.set_stylebox("grabber", "VScrollBar", v_grabber)
 	th.set_stylebox("grabber_highlight", "VScrollBar", v_grabber_hov)
-	th.set_stylebox("grabber_pressed", "VScrollBar", v_grabber_press)
+	th.set_stylebox("grabber_pressed", "VScrollBar", v_grabber_hov)
 
-	var h_scroll_track: StyleBoxFlat = _create_flat_style(track_bg_color, track_border_color, 6, 1, 4, 4, 7, 7)
-	var h_grabber: StyleBoxFlat = _create_flat_style(c_accent, Color(1, 1, 1, 0.9), 6, 1, 10, 10, 6, 6)
+	var h_scroll_track: StyleBoxFlat = _create_flat_style(track_bg_color, track_border_color, 6, 1, 4, 4, scroll_bar_w, scroll_bar_w)
+	var h_grabber: StyleBoxFlat = _create_flat_style(c_accent, Color(1, 1, 1, 0.9), 6, 1, 12, 12, scroll_bar_w, scroll_bar_w)
 	var h_grabber_hov: StyleBoxFlat = h_grabber.duplicate() as StyleBoxFlat
 	h_grabber_hov.bg_color = c_accent.lightened(0.18)
-	var h_grabber_press: StyleBoxFlat = h_grabber.duplicate() as StyleBoxFlat
-	h_grabber_press.bg_color = c_accent.darkened(0.15)
 
 	th.set_stylebox("scroll", "HScrollBar", h_scroll_track)
 	th.set_stylebox("scroll_focus", "HScrollBar", h_scroll_track)
 	th.set_stylebox("grabber", "HScrollBar", h_grabber)
 	th.set_stylebox("grabber_highlight", "HScrollBar", h_grabber_hov)
-	th.set_stylebox("grabber_pressed", "HScrollBar", h_grabber_press)
+	th.set_stylebox("grabber_pressed", "HScrollBar", h_grabber_hov)
 
 	# --- WINDOWS & DIALOGS ---
 	for win_type: String in ["Window", "AcceptDialog", "ConfirmationDialog", "FileDialog"]:
@@ -407,17 +419,10 @@ static func create_theme(theme_data: Dictionary, corner_radius: int = DEFAULT_CO
 		th.set_stylebox("embedded_unfocused_border", win_type, panel_main)
 		th.set_color("title_color", win_type, c_accent)
 		th.set_color("font_color", win_type, c_text_on_bg)
+		th.set_font_size("title_font_size", win_type, FONT_SIZE_MOBILE_HEADER if is_mobile else FONT_SIZE_DESKTOP_HEADER)
 		if icons.has(&"close"):
 			th.set_icon("close", win_type, icons[&"close"])
 			th.set_icon("close_pressed", win_type, icons[&"close"])
-
-	th.set_color("folder_icon_color", "FileDialog", Color.WHITE)
-	th.set_color("file_icon_color", "FileDialog", Color.WHITE)
-	th.set_color("file_disabled_color", "FileDialog", Color(1.0, 1.0, 1.0, 0.4))
-
-	var tooltip_box: StyleBoxFlat = panel_sub.duplicate() as StyleBoxFlat
-	tooltip_box.bg_color = Color(c_bg.r, c_bg.g, c_bg.b, 0.95)
-	th.set_stylebox("panel", "TooltipPanel", tooltip_box)
 
 	var h_sep: StyleBoxLine = StyleBoxLine.new()
 	h_sep.color = c_border_safe
@@ -429,14 +434,6 @@ static func create_theme(theme_data: Dictionary, corner_radius: int = DEFAULT_CO
 	v_sep.thickness = 1
 	v_sep.vertical = true
 	th.set_stylebox("separator", "VSeparator", v_sep)
-
-	th.set_stylebox("panel", "GraphEdit", panel_sub)
-	th.set_color("grid_minor", "GraphEdit", Color(c_border_safe.r, c_border_safe.g, c_border_safe.b, 0.15))
-	th.set_color("grid_major", "GraphEdit", Color(c_border_safe.r, c_border_safe.g, c_border_safe.b, 0.35))
-	th.set_stylebox("panel", "GraphNode", panel_main)
-	th.set_stylebox("panel_selected", "GraphNode", input_focus)
-	th.set_stylebox("titlebar", "GraphNode", tab_sel)
-	th.set_stylebox("titlebar_selected", "GraphNode", tab_sel)
 
 	return th
 
@@ -462,12 +459,10 @@ static func _propagate_theme_to_tree(node: Node, th: Theme) -> void:
 
 	if node is OptionButton:
 		var pop: PopupMenu = (node as OptionButton).get_popup()
-		if pop != null:
-			pop.theme = th
+		if pop != null: pop.theme = th
 	elif node is MenuButton:
 		var pop: PopupMenu = (node as MenuButton).get_popup()
-		if pop != null:
-			pop.theme = th
+		if pop != null: pop.theme = th
 
 	for child: Node in node.get_children(true):
 		_propagate_theme_to_tree(child, th)
@@ -483,28 +478,34 @@ static func _build_runtime_procedural_icons(
 	c_accent: Color, 
 	c_btn_n: Color, 
 	c_btn_h: Color, 
-	c_text: Color
+	c_text: Color,
+	is_mobile: bool
 ) -> Dictionary:
-	var cache_key: String = "%s_%s_%s_%s_%s_%s" % [
+	var cache_key: String = "%s_%s_%s_%s_%s_%s_%s" % [
 		c_border.to_html(false), c_input_bg.to_html(false),
 		c_accent.to_html(false), c_btn_n.to_html(false),
-		c_btn_h.to_html(false), c_text.to_html(false)
+		c_btn_h.to_html(false), c_text.to_html(false),
+		str(is_mobile)
 	]
 
 	if _cached_procedural_icons.has(cache_key):
 		return _cached_procedural_icons[cache_key]
 
+	var chk_size: int = 24 if is_mobile else 18
+	var grabber_size: int = 24 if is_mobile else 16
+	var arrow_size: int = 16 if is_mobile else 14
+
 	var out: Dictionary = {}
-	out[&"chk_unchecked"] = _gen_checkbox(false, c_input_bg, c_border, c_accent)
-	out[&"chk_checked"] = _gen_checkbox(true, c_input_bg, c_border, c_accent)
-	out[&"radio_unchecked"] = _gen_radio(false, c_input_bg, c_border, c_accent)
-	out[&"radio_checked"] = _gen_radio(true, c_input_bg, c_border, c_accent)
-	out[&"grabber_n"] = _gen_slider_grabber(false, c_btn_n, c_border, c_accent)
-	out[&"grabber_h"] = _gen_slider_grabber(true, c_btn_h, c_accent, c_accent)
-	out[&"arrow_down"] = _gen_arrow(0, c_text)
-	out[&"arrow_right"] = _gen_arrow(1, c_text)
-	out[&"updown"] = _gen_updown(c_text)
-	out[&"close"] = _gen_close(c_text)
+	out[&"chk_unchecked"] = _gen_checkbox(false, c_input_bg, c_border, c_accent, chk_size)
+	out[&"chk_checked"] = _gen_checkbox(true, c_input_bg, c_border, c_accent, chk_size)
+	out[&"radio_unchecked"] = _gen_radio(false, c_input_bg, c_border, c_accent, chk_size)
+	out[&"radio_checked"] = _gen_radio(true, c_input_bg, c_border, c_accent, chk_size)
+	out[&"grabber_n"] = _gen_slider_grabber(false, c_btn_n, c_border, c_accent, grabber_size)
+	out[&"grabber_h"] = _gen_slider_grabber(true, c_btn_h, c_accent, c_accent, grabber_size)
+	out[&"arrow_down"] = _gen_arrow(0, c_text, arrow_size)
+	out[&"arrow_right"] = _gen_arrow(1, c_text, arrow_size)
+	out[&"updown"] = _gen_updown(c_text, arrow_size)
+	out[&"close"] = _gen_close(c_text, arrow_size)
 
 	_cached_procedural_icons[cache_key] = out
 	return out
@@ -526,90 +527,96 @@ static func _create_flat_style(
 	return s
 
 
-static func _gen_checkbox(is_checked: bool, bg: Color, border: Color, check: Color) -> ImageTexture:
-	var img: Image = Image.create(18, 18, false, Image.FORMAT_RGBA8)
+static func _gen_checkbox(is_checked: bool, bg: Color, border: Color, check: Color, size: int) -> ImageTexture:
+	var img: Image = Image.create(size, size, false, Image.FORMAT_RGBA8)
 	img.fill(Color.TRANSPARENT)
-	img.fill_rect(Rect2i(1, 1, 16, 16), border)
-	img.fill_rect(Rect2i(2, 2, 14, 14), check if is_checked else bg)
+	img.fill_rect(Rect2i(1, 1, size - 2, size - 2), border)
+	img.fill_rect(Rect2i(2, 2, size - 4, size - 4), check if is_checked else bg)
 	if is_checked:
-		img.fill_rect(Rect2i(5, 5, 8, 8), Color.WHITE)
+		var inner_pad: int = maxi(int(float(size) * 0.28), 3)
+		img.fill_rect(Rect2i(inner_pad, inner_pad, size - (inner_pad * 2), size - (inner_pad * 2)), Color.WHITE)
 	return ImageTexture.create_from_image(img)
 
 
-static func _gen_radio(is_checked: bool, bg: Color, border: Color, dot: Color) -> ImageTexture:
-	var size: int = 16
+static func _gen_radio(is_checked: bool, bg: Color, border: Color, dot: Color, size: int) -> ImageTexture:
 	var img: Image = Image.create(size, size, false, Image.FORMAT_RGBA8)
 	img.fill(Color.TRANSPARENT)
-	var center: Vector2 = Vector2(8.0, 8.0)
+	var center: Vector2 = Vector2(float(size) * 0.5, float(size) * 0.5)
+	var outer_r: float = float(size) * 0.44
+	var inner_r: float = float(size) * 0.36
+	var dot_r: float = float(size) * 0.22
 
 	for x: int in range(size):
 		for y: int in range(size):
-			var dist_sq: float = Vector2(float(x) + 0.5, float(y) + 0.5).distance_squared_to(center)
-			if dist_sq <= 42.25: # 6.5^2
-				if dist_sq >= 28.09: # 5.3^2
+			var dist: float = Vector2(float(x) + 0.5, float(y) + 0.5).distance_to(center)
+			if dist <= outer_r:
+				if dist >= inner_r:
 					img.set_pixel(x, y, border)
 				else:
 					img.set_pixel(x, y, bg)
-			if is_checked and dist_sq <= 12.25: # 3.5^2
+			if is_checked and dist <= dot_r:
 				img.set_pixel(x, y, dot)
 	return ImageTexture.create_from_image(img)
 
 
-static func _gen_slider_grabber(is_highlight: bool, bg: Color, border: Color, accent: Color) -> ImageTexture:
-	var size: int = 16
+static func _gen_slider_grabber(is_highlight: bool, bg: Color, border: Color, accent: Color, size: int) -> ImageTexture:
 	var img: Image = Image.create(size, size, false, Image.FORMAT_RGBA8)
 	img.fill(Color.TRANSPARENT)
-	var center: Vector2 = Vector2(8.0, 8.0)
-	var outer_rad_sq: float = 42.25 if is_highlight else 30.25
-	var inner_rad_sq: float = 28.09 if is_highlight else 18.49
+	var center: Vector2 = Vector2(float(size) * 0.5, float(size) * 0.5)
+	var outer_r: float = float(size) * (0.48 if is_highlight else 0.42)
+	var inner_r: float = float(size) * 0.34
 
 	for x: int in range(size):
 		for y: int in range(size):
-			var dist_sq: float = Vector2(float(x) + 0.5, float(y) + 0.5).distance_squared_to(center)
-			if dist_sq <= outer_rad_sq:
-				if dist_sq >= inner_rad_sq:
+			var dist: float = Vector2(float(x) + 0.5, float(y) + 0.5).distance_to(center)
+			if dist <= outer_r:
+				if dist >= inner_r:
 					img.set_pixel(x, y, Color.WHITE if is_highlight else border)
 				else:
 					img.set_pixel(x, y, accent if is_highlight else bg)
 	return ImageTexture.create_from_image(img)
 
 
-static func _gen_arrow(dir: int, color: Color) -> ImageTexture:
-	var size: int = 14
+static func _gen_arrow(dir: int, color: Color, size: int) -> ImageTexture:
 	var img: Image = Image.create(size, size, false, Image.FORMAT_RGBA8)
 	img.fill(Color.TRANSPARENT)
-	if dir == 0:
-		for t: int in range(5):
-			img.set_pixel(3 + t, 4 + t, color)
-			img.set_pixel(3 + t, 5 + t, color)
-			img.set_pixel(11 - t, 4 + t, color)
-			img.set_pixel(11 - t, 5 + t, color)
-	elif dir == 1:
-		for t: int in range(5):
-			img.set_pixel(4 + t, 3 + t, color)
-			img.set_pixel(5 + t, 3 + t, color)
-			img.set_pixel(4 + t, 11 - t, color)
-			img.set_pixel(5 + t, 11 - t, color)
+	var half: int = size / 2
+	if dir == 0: # Down
+		for y: int in range(half - 2, half + 3):
+			var span: int = (half + 2) - y
+			for x: int in range(half - span, half + span + 1):
+				if x >= 0 and x < size and y >= 0 and y < size:
+					img.set_pixel(x, y, color)
+	elif dir == 1: # Right
+		for x: int in range(half - 2, half + 3):
+			var span: int = (half + 2) - x
+			for y: int in range(half - span, half + span + 1):
+				if x >= 0 and x < size and y >= 0 and y < size:
+					img.set_pixel(x, y, color)
 	return ImageTexture.create_from_image(img)
 
 
-static func _gen_updown(color: Color) -> ImageTexture:
-	var size: int = 14
+static func _gen_updown(color: Color, size: int) -> ImageTexture:
 	var img: Image = Image.create(size, size, false, Image.FORMAT_RGBA8)
 	img.fill(Color.TRANSPARENT)
+	var half: int = size / 2
 	for t: int in range(3):
-		img.set_pixel(7 - t, 2 + t, color)
-		img.set_pixel(7 + t, 2 + t, color)
-		img.set_pixel(7 - t, 11 - t, color)
-		img.set_pixel(7 + t, 11 - t, color)
+		img.set_pixel(half - t, 3 + t, color)
+		img.set_pixel(half + t, 3 + t, color)
+		img.set_pixel(half - t, size - 4 - t, color)
+		img.set_pixel(half + t, size - 4 - t, color)
 	return ImageTexture.create_from_image(img)
 
 
-static func _gen_close(color: Color) -> ImageTexture:
-	var size: int = 14
+static func _gen_close(color: Color, size: int) -> ImageTexture:
 	var img: Image = Image.create(size, size, false, Image.FORMAT_RGBA8)
 	img.fill(Color.TRANSPARENT)
-	for i: int in range(3, 11):
+	var pad: int = 3
+	for i: int in range(pad, size - pad):
 		img.set_pixel(i, i, color)
-		img.set_pixel(i, 13 - i, color)
+		img.set_pixel(i, size - 1 - i, color)
+		# Thicken line on touch screens
+		if size >= 16:
+			img.set_pixel(mini(i + 1, size - 1), i, color)
+			img.set_pixel(mini(i + 1, size - 1), size - 1 - i, color)
 	return ImageTexture.create_from_image(img)

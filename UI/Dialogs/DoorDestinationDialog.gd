@@ -1,5 +1,5 @@
 # ==============================================================================
-# OWNWORLD — DOOR DESTINATION DIALOG
+# OWNWORLD — DOOR DESTINATION DIALOG (TOUCH RESPONSIVE & KEYBOARD SHIELDED)
 # File: res://UI/Dialogs/DoorDestinationDialog.gd
 # Base Class: CanvasLayer (class_name DoorDestinationDialog)
 #
@@ -10,8 +10,8 @@
 class_name DoorDestinationDialog
 extends CanvasLayer
 
-const MAX_PANEL_WIDTH: float = 440.0
-const MAX_PANEL_HEIGHT: float = 380.0
+const MAX_PANEL_WIDTH: float = 500.0
+const MAX_PANEL_HEIGHT: float = 440.0
 const SESSION_FILE: String = "user://session.json"
 const MAP_DIRECTORY: String = "user://maps/"
 
@@ -41,6 +41,11 @@ func _ready() -> void:
 	_build_ui()
 	_connect_system_signals()
 	_update_responsive_layout()
+	_setup_keyboard_dodging()
+
+
+func _is_mobile() -> bool:
+	return ThemeEngine.is_mobile_platform()
 
 
 func _connect_system_signals() -> void:
@@ -51,6 +56,31 @@ func _connect_system_signals() -> void:
 		EventBus.theme_changed.connect(_on_theme_changed)
 
 
+func _setup_keyboard_dodging() -> void:
+	if not _is_mobile(): return
+	var edits: Array[LineEdit] = [name_edit, custom_room_edit]
+	for edit in edits:
+		if edit != null:
+			edit.focus_entered.connect(_on_input_focus_entered)
+			edit.focus_exited.connect(_on_input_focus_exited)
+
+
+func _on_input_focus_entered() -> void:
+	if _is_mobile():
+		await get_tree().process_frame
+		await get_tree().process_frame
+		var kb_height: float = DisplayServer.virtual_keyboard_get_height()
+		if kb_height > 0:
+			var tween: Tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+			tween.tween_property(center_container, "position:y", -kb_height * 0.45, 0.25)
+
+
+func _on_input_focus_exited() -> void:
+	if _is_mobile():
+		var tween: Tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		tween.tween_property(center_container, "position:y", 0.0, 0.25)
+
+
 func _on_theme_changed(_theme_data: Dictionary) -> void:
 	_refresh_theme_icons()
 	_update_responsive_layout()
@@ -58,16 +88,20 @@ func _on_theme_changed(_theme_data: Dictionary) -> void:
 
 
 func _update_responsive_layout() -> void:
-	if not is_instance_valid(root_panel):
-		return
+	if not is_instance_valid(root_panel): return
 	var viewport_size: Vector2 = get_viewport().get_visible_rect().size if get_viewport() else Vector2(1280.0, 720.0)
-	var target_width: float = clampf(viewport_size.x * 0.90, 280.0, MAX_PANEL_WIDTH)
-	var target_height: float = clampf(viewport_size.y * 0.85, 280.0, MAX_PANEL_HEIGHT)
+	var is_mob: bool = _is_mobile()
+
+	var target_width: float = clampf(viewport_size.x * 0.92, 300.0, MAX_PANEL_WIDTH)
+	var target_height: float = clampf(viewport_size.y * (0.90 if is_mob else 0.82), 300.0, MAX_PANEL_HEIGHT)
 	root_panel.custom_minimum_size = Vector2(target_width, target_height)
 	root_panel.size = Vector2(target_width, target_height)
 
 
 func _build_ui() -> void:
+	var is_mob: bool = _is_mobile()
+	var row_h: float = 34.0 if is_mob else 28.0
+
 	root_backdrop = Control.new()
 	root_backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root_backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -92,7 +126,7 @@ func _build_ui() -> void:
 	var vbox: VBoxContainer = VBoxContainer.new()
 	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	vbox.add_theme_constant_override("separation", 8)
+	vbox.add_theme_constant_override("separation", 6)
 	root_panel.add_child(vbox)
 
 	var header_hbox: HBoxContainer = HBoxContainer.new()
@@ -102,10 +136,11 @@ func _build_ui() -> void:
 	header_lbl.text = "Configure Doorway"
 	header_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header_lbl.theme_type_variation = "HeaderLabel"
+	header_lbl.add_theme_font_size_override("font_size", 14 if is_mob else 12)
 	header_hbox.add_child(header_lbl)
 
 	var close_button: Button = Button.new()
-	close_button.custom_minimum_size = Vector2(24.0, 24.0)
+	close_button.custom_minimum_size = Vector2(28.0 if is_mob else 22.0, 28.0 if is_mob else 22.0)
 	close_button.focus_mode = Control.FOCUS_NONE
 	close_button.add_theme_constant_override("icon_max_width", 12)
 	_apply_close_icon(close_button)
@@ -117,20 +152,22 @@ func _build_ui() -> void:
 	lbl_name = Label.new()
 	lbl_name.text = "Doorway Name / Label:"
 	lbl_name.theme_type_variation = "HintLabel"
+	lbl_name.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	vbox.add_child(lbl_name)
 
 	name_edit = LineEdit.new()
 	name_edit.placeholder_text = "e.g. Garden Entrance, Castle Gate..."
-	name_edit.custom_minimum_size = Vector2(0.0, 32.0)
+	name_edit.custom_minimum_size = Vector2(0.0, row_h)
 	vbox.add_child(name_edit)
 
 	lbl_target = Label.new()
 	lbl_target.text = "Pick Map Location Destination:"
 	lbl_target.theme_type_variation = "HintLabel"
+	lbl_target.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	vbox.add_child(lbl_target)
 
 	destination_option = OptionButton.new()
-	destination_option.custom_minimum_size = Vector2(0.0, 32.0)
+	destination_option.custom_minimum_size = Vector2(0.0, row_h)
 	_enforce_dropdown_popup_limits(destination_option, 200)
 	destination_option.item_selected.connect(_on_location_selected)
 	vbox.add_child(destination_option)
@@ -138,20 +175,22 @@ func _build_ui() -> void:
 	lbl_custom = Label.new()
 	lbl_custom.text = "Or Custom Room ID:"
 	lbl_custom.theme_type_variation = "HintLabel"
+	lbl_custom.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	vbox.add_child(lbl_custom)
 
 	custom_room_edit = LineEdit.new()
 	custom_room_edit.placeholder_text = "e.g. room_secret_dungeon, room_balcony..."
-	custom_room_edit.custom_minimum_size = Vector2(0.0, 32.0)
+	custom_room_edit.custom_minimum_size = Vector2(0.0, row_h)
 	vbox.add_child(custom_room_edit)
 
 	vbox.add_child(HSeparator.new())
 
 	btn_save = Button.new()
 	btn_save.text = " Save Destination"
-	btn_save.custom_minimum_size = Vector2(0.0, 36.0)
+	btn_save.custom_minimum_size = Vector2(0.0, row_h + 4.0)
 	btn_save.focus_mode = Control.FOCUS_NONE
 	btn_save.add_theme_constant_override("icon_max_width", 16)
+	btn_save.add_theme_font_size_override("font_size", 12 if is_mob else 11)
 	_apply_button_icon(btn_save, "icon_save")
 	btn_save.pressed.connect(save_and_close)
 	vbox.add_child(btn_save)

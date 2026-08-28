@@ -1,15 +1,12 @@
-# ============================================================
-# File: res://AutoLoads/SettingsManager.gd
-# ============================================================
-
 # ==============================================================================
-# OWNWORLD — SETTINGS SERVICE (JUICE & MOTION FX EXTENDED)
+# OWNWORLD — SETTINGS SERVICE (CROSS-PLATFORM & MOTION FX EXTENDED)
 # File: res://AutoLoads/SettingsManager.gd
 # Autoload Singleton: SettingsManager
 # Base Class: Node
 #
-# Responsibility: User configuration persistence, audio server decibel mapping,
-# DPI-aware display scaling, and master/granular procedural juice toggles.
+# Responsibility: User configuration persistence, AudioServer decibel mapping,
+# OS-differentiated DPI scaling (Android Landscape vs. Windows Desktop PC),
+# touch padding, and master/granular procedural juice toggles.
 # ==============================================================================
 
 extends Node
@@ -28,13 +25,11 @@ const DEFAULT_SHOW_TOASTS: bool = true
 const DEFAULT_HAPTICS_ENABLED: bool = true
 const DEFAULT_DEVELOPER_MODE: bool = false
 
-# Touch & Scale Defaults
-const DEFAULT_MOBILE_TOUCH_PADDING: float = 8.0
+# Touch & Scale Bounds
 const MIN_TOUCH_PADDING: float = 0.0
 const MAX_TOUCH_PADDING: float = 40.0
 const MIN_UI_SCALE: float = 0.75
 const MAX_UI_SCALE: float = 2.5
-const DEFAULT_LONG_PRESS_DURATION: float = 0.35
 const MIN_LONG_PRESS_DURATION: float = 0.15
 const MAX_LONG_PRESS_DURATION: float = 1.20
 
@@ -59,6 +54,18 @@ func _ready() -> void:
 	load_settings()
 
 
+func is_mobile() -> bool:
+	return OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios")
+
+
+func get_default_touch_padding() -> float:
+	return 10.0 if is_mobile() else 0.0
+
+
+func get_default_long_press_duration() -> float:
+	return 0.30 if is_mobile() else 0.20
+
+
 func load_settings() -> void:
 	settings_data = {
 		"master_vol": DEFAULT_MASTER_VOLUME,
@@ -69,8 +76,8 @@ func load_settings() -> void:
 		"show_toasts": DEFAULT_SHOW_TOASTS,
 		"haptics_enabled": DEFAULT_HAPTICS_ENABLED,
 		"developer_mode": DEFAULT_DEVELOPER_MODE,
-		"touch_padding": DEFAULT_MOBILE_TOUCH_PADDING,
-		"long_press_duration": DEFAULT_LONG_PRESS_DURATION,
+		"touch_padding": get_default_touch_padding(),
+		"long_press_duration": get_default_long_press_duration(),
 		"juice_enabled": DEFAULT_JUICE_ENABLED,
 		"juice_idle_motion": DEFAULT_JUICE_IDLE_MOTION,
 		"juice_idle_intensity": DEFAULT_JUICE_IDLE_INTENSITY,
@@ -113,10 +120,10 @@ func _normalize_settings() -> void:
 	settings_data["show_toasts"] = bool(settings_data.get("show_toasts", DEFAULT_SHOW_TOASTS))
 	settings_data["haptics_enabled"] = bool(settings_data.get("haptics_enabled", DEFAULT_HAPTICS_ENABLED))
 	settings_data["developer_mode"] = bool(settings_data.get("developer_mode", DEFAULT_DEVELOPER_MODE))
-	settings_data["touch_padding"] = clampf(float(settings_data.get("touch_padding", DEFAULT_MOBILE_TOUCH_PADDING)), MIN_TOUCH_PADDING, MAX_TOUCH_PADDING)
-	settings_data["long_press_duration"] = clampf(float(settings_data.get("long_press_duration", DEFAULT_LONG_PRESS_DURATION)), MIN_LONG_PRESS_DURATION, MAX_LONG_PRESS_DURATION)
+	settings_data["touch_padding"] = clampf(float(settings_data.get("touch_padding", get_default_touch_padding())), MIN_TOUCH_PADDING, MAX_TOUCH_PADDING)
+	settings_data["long_press_duration"] = clampf(float(settings_data.get("long_press_duration", get_default_long_press_duration())), MIN_LONG_PRESS_DURATION, MAX_LONG_PRESS_DURATION)
 
-	# Normalize Juice Settings
+	# Juice Settings Normalization
 	settings_data["juice_enabled"] = bool(settings_data.get("juice_enabled", DEFAULT_JUICE_ENABLED))
 	settings_data["juice_idle_motion"] = bool(settings_data.get("juice_idle_motion", DEFAULT_JUICE_IDLE_MOTION))
 	settings_data["juice_idle_intensity"] = clampf(float(settings_data.get("juice_idle_intensity", DEFAULT_JUICE_IDLE_INTENSITY)), 0.0, 2.0)
@@ -187,24 +194,24 @@ func get_all_juice_settings() -> Dictionary:
 	}
 
 
-# --- STANDARD SETTINGS ---
+# --- PLATFORM-AWARE UI & TOUCH GETTERS ---
 
 func get_long_press_duration() -> float:
-	return float(settings_data.get("long_press_duration", DEFAULT_LONG_PRESS_DURATION))
+	return float(settings_data.get("long_press_duration", get_default_long_press_duration()))
 
 func set_long_press_duration(value: float) -> void:
 	settings_data["long_press_duration"] = clampf(value, MIN_LONG_PRESS_DURATION, MAX_LONG_PRESS_DURATION)
 	save_settings()
 
 func get_mobile_touch_padding() -> float:
-	return float(settings_data.get("touch_padding", DEFAULT_MOBILE_TOUCH_PADDING))
+	return float(settings_data.get("touch_padding", get_default_touch_padding()))
 
 func set_mobile_touch_padding(value: float) -> void:
 	settings_data["touch_padding"] = clampf(value, MIN_TOUCH_PADDING, MAX_TOUCH_PADDING)
 	save_settings()
 
 func get_touch_padding(has_active_touch: bool = false) -> float:
-	if OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios") or has_active_touch:
+	if is_mobile() or has_active_touch:
 		return get_mobile_touch_padding()
 	return 0.0
 
@@ -212,14 +219,15 @@ func get_recommended_ui_scale() -> float:
 	var screen_dpi: float = DisplayServer.screen_get_dpi()
 	var screen_size: Vector2i = DisplayServer.screen_get_size()
 
-	if OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios"):
-		if screen_dpi > 400.0: return 1.6
-		if screen_dpi > 280.0: return 1.4
-		if minf(float(screen_size.x), float(screen_size.y)) >= 900.0: return 1.4
+	if is_mobile():
+		if screen_dpi > 400.0: return 1.5
+		if screen_dpi > 280.0: return 1.35
+		if minf(float(screen_size.x), float(screen_size.y)) >= 900.0: return 1.3
 		return 1.2
 
-	if screen_size.x >= 3840: return 1.75
-	if screen_size.x >= 2560: return 1.25
+	# Windows / Desktop
+	if screen_size.x >= 3840: return 1.5
+	if screen_size.x >= 2560: return 1.2
 	return 1.0
 
 func set_ui_scale(scale_value: float) -> void:

@@ -1,5 +1,5 @@
 # ==============================================================================
-# OWNWORLD — UNIVERSE JOURNAL & CHRONICLES
+# OWNWORLD — UNIVERSE JOURNAL & CHRONICLES (LANDSCAPE MASTER-DETAIL DUAL-OS)
 # File: res://UI/Dialogs/UniverseJournalDialog.gd
 # Base Class: CanvasLayer (class_name UniverseJournalDialog)
 #
@@ -17,7 +17,7 @@ const DEFAULT_UNIVERSE_ID: String = "default_universe"
 
 enum TabMode { TIMELINE, FACTIONS }
 
-const MAX_PANEL_WIDTH: float = 920.0
+const MAX_PANEL_WIDTH: float = 780.0
 const MAX_PANEL_HEIGHT: float = 580.0
 
 var current_tab: TabMode = TabMode.TIMELINE
@@ -79,6 +79,11 @@ func _ready() -> void:
 	_connect_system_signals()
 	_apply_theme_styling()
 	_update_responsive_layout()
+	_setup_keyboard_dodging()
+
+
+func _is_mobile() -> bool:
+	return ThemeEngine.is_mobile_platform()
 
 
 func _connect_system_signals() -> void:
@@ -89,11 +94,38 @@ func _connect_system_signals() -> void:
 		tree.root.size_changed.connect(_update_responsive_layout)
 
 
+func _setup_keyboard_dodging() -> void:
+	if not _is_mobile(): return
+	var inputs: Array[Control] = [t_era_input, t_title_input, t_content_edit, f_name_input, f_motto_input, f_notes_edit]
+	for input in inputs:
+		if input != null:
+			input.focus_entered.connect(_on_input_focus_entered)
+			input.focus_exited.connect(_on_input_focus_exited)
+
+
+func _on_input_focus_entered() -> void:
+	if _is_mobile() and center_box != null:
+		await get_tree().process_frame
+		await get_tree().process_frame
+		var kb_height: float = DisplayServer.virtual_keyboard_get_height()
+		if kb_height > 0:
+			var tween: Tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+			tween.tween_property(center_box, "position:y", -kb_height * 0.4, 0.25)
+
+
+func _on_input_focus_exited() -> void:
+	if _is_mobile() and center_box != null:
+		var tween: Tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		tween.tween_property(center_box, "position:y", 0.0, 0.25)
+
+
 func _update_responsive_layout() -> void:
 	if not is_instance_valid(modal_panel): return
 	var vp_size: Vector2 = get_viewport().get_visible_rect().size if get_viewport() else Vector2(1280.0, 720.0)
-	var target_w: float = clampf(vp_size.x * 0.94, 310.0, MAX_PANEL_WIDTH)
-	var target_h: float = clampf(vp_size.y * 0.90, 350.0, MAX_PANEL_HEIGHT)
+	var is_mob: bool = _is_mobile()
+
+	var target_w: float = clampf(vp_size.x * 0.94, 320.0, MAX_PANEL_WIDTH)
+	var target_h: float = clampf(vp_size.y * (0.92 if is_mob else 0.88), 300.0, MAX_PANEL_HEIGHT)
 	modal_panel.custom_minimum_size = Vector2(target_w, target_h)
 	modal_panel.size = Vector2(target_w, target_h)
 
@@ -161,6 +193,9 @@ func _apply_theme_styling() -> void:
 
 
 func _build_ui() -> void:
+	var is_mob: bool = _is_mobile()
+	var row_h: float = 36.0 if is_mob else 30.0
+
 	root_backdrop = Control.new()
 	root_backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root_backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -185,7 +220,7 @@ func _build_ui() -> void:
 	var main_vbox: VBoxContainer = VBoxContainer.new()
 	main_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	main_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	main_vbox.add_theme_constant_override("separation", 8)
+	main_vbox.add_theme_constant_override("separation", 6)
 	modal_panel.add_child(main_vbox)
 
 	var header_hbox: HBoxContainer = HBoxContainer.new()
@@ -198,25 +233,27 @@ func _build_ui() -> void:
 
 	header_lbl = Label.new()
 	header_lbl.text = "World Journal & Story Chronicles"
-	header_lbl.add_theme_font_size_override("font_size", 16)
+	header_lbl.add_theme_font_size_override("font_size", 15 if is_mob else 13)
 	title_vbox.add_child(header_lbl)
 
 	universe_title_lbl = Label.new()
 	universe_title_lbl.text = "Universe: Default Universe"
-	universe_title_lbl.add_theme_font_size_override("font_size", 11)
+	universe_title_lbl.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	title_vbox.add_child(universe_title_lbl)
 
 	btn_save_journal = Button.new()
 	btn_save_journal.text = "Save Journal"
-	btn_save_journal.custom_minimum_size = Vector2(100.0, 30.0)
+	btn_save_journal.custom_minimum_size = Vector2(110.0 if is_mob else 95.0, row_h)
 	btn_save_journal.focus_mode = Control.FOCUS_NONE
+	btn_save_journal.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	btn_save_journal.pressed.connect(_on_save_button_pressed)
 	header_hbox.add_child(btn_save_journal)
 
 	btn_close_journal = Button.new()
 	btn_close_journal.text = "Close"
-	btn_close_journal.custom_minimum_size = Vector2(70.0, 30.0)
+	btn_close_journal.custom_minimum_size = Vector2(75.0 if is_mob else 65.0, row_h)
 	btn_close_journal.focus_mode = Control.FOCUS_NONE
+	btn_close_journal.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	btn_close_journal.pressed.connect(close_dialog)
 	header_hbox.add_child(btn_close_journal)
 
@@ -227,16 +264,18 @@ func _build_ui() -> void:
 	tab_btn_timeline = Button.new()
 	tab_btn_timeline.text = "Chronicles & Timeline"
 	tab_btn_timeline.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	tab_btn_timeline.custom_minimum_size = Vector2(0.0, 32.0)
+	tab_btn_timeline.custom_minimum_size = Vector2(0.0, row_h)
 	tab_btn_timeline.focus_mode = Control.FOCUS_NONE
+	tab_btn_timeline.add_theme_font_size_override("font_size", 12 if is_mob else 11)
 	tab_btn_timeline.pressed.connect(func() -> void: _select_tab(TabMode.TIMELINE))
 	tab_bar.add_child(tab_btn_timeline)
 
 	tab_btn_factions = Button.new()
 	tab_btn_factions.text = "Factions & Guilds"
 	tab_btn_factions.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	tab_btn_factions.custom_minimum_size = Vector2(0.0, 32.0)
+	tab_btn_factions.custom_minimum_size = Vector2(0.0, row_h)
 	tab_btn_factions.focus_mode = Control.FOCUS_NONE
+	tab_btn_factions.add_theme_font_size_override("font_size", 12 if is_mob else 11)
 	tab_btn_factions.pressed.connect(func() -> void: _select_tab(TabMode.FACTIONS))
 	tab_bar.add_child(tab_btn_factions)
 
@@ -264,16 +303,20 @@ func _build_ui() -> void:
 
 
 func _build_timeline_tab_ui() -> void:
+	var is_mob: bool = _is_mobile()
+	var row_h: float = 34.0 if is_mob else 28.0
+
 	var left_vbox: VBoxContainer = VBoxContainer.new()
-	left_vbox.custom_minimum_size = Vector2(230.0, 0.0)
+	left_vbox.custom_minimum_size = Vector2(240.0 if is_mob else 200.0, 0.0)
 	left_vbox.size_flags_horizontal = Control.SIZE_FILL
-	left_vbox.add_theme_constant_override("separation", 8)
+	left_vbox.add_theme_constant_override("separation", 6)
 	timeline_tab_container.add_child(left_vbox)
 
 	t_add_event_btn = Button.new()
 	t_add_event_btn.text = "+ Add Story Event"
-	t_add_event_btn.custom_minimum_size = Vector2(0.0, 30.0)
+	t_add_event_btn.custom_minimum_size = Vector2(0.0, row_h)
 	t_add_event_btn.focus_mode = Control.FOCUS_NONE
+	t_add_event_btn.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	t_add_event_btn.pressed.connect(_on_add_timeline_entry)
 	left_vbox.add_child(t_add_event_btn)
 
@@ -286,7 +329,7 @@ func _build_timeline_tab_ui() -> void:
 
 	timeline_list_vbox = VBoxContainer.new()
 	timeline_list_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	timeline_list_vbox.add_theme_constant_override("separation", 6)
+	timeline_list_vbox.add_theme_constant_override("separation", 4)
 	scroll_left.add_child(timeline_list_vbox)
 
 	timeline_tab_container.add_child(VSeparator.new())
@@ -300,7 +343,7 @@ func _build_timeline_tab_ui() -> void:
 
 	timeline_editor_vbox = VBoxContainer.new()
 	timeline_editor_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	timeline_editor_vbox.add_theme_constant_override("separation", 8)
+	timeline_editor_vbox.add_theme_constant_override("separation", 6)
 	right_scroll.add_child(timeline_editor_vbox)
 
 	var era_hbox: HBoxContainer = HBoxContainer.new()
@@ -311,11 +354,13 @@ func _build_timeline_tab_ui() -> void:
 	era_lbl.text = "Era / Date:"
 	era_lbl.custom_minimum_size = Vector2(85.0, 0.0)
 	era_lbl.theme_type_variation = "HintLabel"
+	era_lbl.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	era_hbox.add_child(era_lbl)
 
 	t_era_input = LineEdit.new()
 	t_era_input.placeholder_text = "e.g. Year of the Starlight Eclipse"
 	t_era_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	t_era_input.custom_minimum_size = Vector2(0.0, row_h)
 	t_era_input.text_changed.connect(func(_new_t: String) -> void: _commit_active_timeline_field("era", _new_t))
 	era_hbox.add_child(t_era_input)
 
@@ -327,11 +372,13 @@ func _build_timeline_tab_ui() -> void:
 	title_lbl.text = "Event Title:"
 	title_lbl.custom_minimum_size = Vector2(85.0, 0.0)
 	title_lbl.theme_type_variation = "HintLabel"
+	title_lbl.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	title_hbox.add_child(title_lbl)
 
 	t_title_input = LineEdit.new()
 	t_title_input.placeholder_text = "e.g. Founding of the Sunken Library"
 	t_title_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	t_title_input.custom_minimum_size = Vector2(0.0, row_h)
 	t_title_input.text_changed.connect(func(_new_t: String) -> void: _commit_active_timeline_field("title", _new_t))
 	title_hbox.add_child(t_title_input)
 
@@ -343,11 +390,12 @@ func _build_timeline_tab_ui() -> void:
 	room_lbl.text = "Linked Room:"
 	room_lbl.custom_minimum_size = Vector2(85.0, 0.0)
 	room_lbl.theme_type_variation = "HintLabel"
+	room_lbl.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	room_hbox.add_child(room_lbl)
 
 	t_room_opt = OptionButton.new()
 	t_room_opt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	t_room_opt.custom_minimum_size = Vector2(0.0, 30.0)
+	t_room_opt.custom_minimum_size = Vector2(0.0, row_h)
 	_clamp_popup(t_room_opt)
 	t_room_opt.item_selected.connect(_on_timeline_room_selected)
 	room_hbox.add_child(t_room_opt)
@@ -355,6 +403,7 @@ func _build_timeline_tab_ui() -> void:
 	var chars_lbl: Label = Label.new()
 	chars_lbl.text = "Participating Characters:"
 	chars_lbl.theme_type_variation = "HeaderLabel"
+	chars_lbl.add_theme_font_size_override("font_size", 12 if is_mob else 11)
 	timeline_editor_vbox.add_child(chars_lbl)
 
 	t_chars_container = HFlowContainer.new()
@@ -366,10 +415,11 @@ func _build_timeline_tab_ui() -> void:
 	var desc_lbl: Label = Label.new()
 	desc_lbl.text = "Chronicle Narrative Notes:"
 	desc_lbl.theme_type_variation = "HeaderLabel"
+	desc_lbl.add_theme_font_size_override("font_size", 12 if is_mob else 11)
 	timeline_editor_vbox.add_child(desc_lbl)
 
 	t_content_edit = TextEdit.new()
-	t_content_edit.custom_minimum_size = Vector2(0.0, 110.0)
+	t_content_edit.custom_minimum_size = Vector2(0.0, 100.0)
 	t_content_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	t_content_edit.wrap_mode = TextEdit.LINE_WRAPPING_BOUNDARY
 	t_content_edit.placeholder_text = "Describe the story events that unfolded..."
@@ -383,23 +433,28 @@ func _build_timeline_tab_ui() -> void:
 	t_delete_btn = Button.new()
 	t_delete_btn.text = "Delete Event"
 	t_delete_btn.theme_type_variation = "DangerButton"
-	t_delete_btn.custom_minimum_size = Vector2(110.0, 28.0)
+	t_delete_btn.custom_minimum_size = Vector2(110.0 if is_mob else 95.0, row_h)
 	t_delete_btn.focus_mode = Control.FOCUS_NONE
+	t_delete_btn.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	t_delete_btn.pressed.connect(_on_delete_timeline_entry)
 	t_footer.add_child(t_delete_btn)
 
 
 func _build_factions_tab_ui() -> void:
+	var is_mob: bool = _is_mobile()
+	var row_h: float = 34.0 if is_mob else 28.0
+
 	var left_vbox: VBoxContainer = VBoxContainer.new()
-	left_vbox.custom_minimum_size = Vector2(230.0, 0.0)
+	left_vbox.custom_minimum_size = Vector2(240.0 if is_mob else 200.0, 0.0)
 	left_vbox.size_flags_horizontal = Control.SIZE_FILL
-	left_vbox.add_theme_constant_override("separation", 8)
+	left_vbox.add_theme_constant_override("separation", 6)
 	factions_tab_container.add_child(left_vbox)
 
 	f_add_faction_btn = Button.new()
 	f_add_faction_btn.text = "+ Add Faction / Guild"
-	f_add_faction_btn.custom_minimum_size = Vector2(0.0, 30.0)
+	f_add_faction_btn.custom_minimum_size = Vector2(0.0, row_h)
 	f_add_faction_btn.focus_mode = Control.FOCUS_NONE
+	f_add_faction_btn.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	f_add_faction_btn.pressed.connect(_on_add_faction_entry)
 	left_vbox.add_child(f_add_faction_btn)
 
@@ -412,7 +467,7 @@ func _build_factions_tab_ui() -> void:
 
 	factions_list_vbox = VBoxContainer.new()
 	factions_list_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	factions_list_vbox.add_theme_constant_override("separation", 6)
+	factions_list_vbox.add_theme_constant_override("separation", 4)
 	scroll_left.add_child(factions_list_vbox)
 
 	factions_tab_container.add_child(VSeparator.new())
@@ -426,7 +481,7 @@ func _build_factions_tab_ui() -> void:
 
 	factions_editor_vbox = VBoxContainer.new()
 	factions_editor_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	factions_editor_vbox.add_theme_constant_override("separation", 8)
+	factions_editor_vbox.add_theme_constant_override("separation", 6)
 	right_scroll.add_child(factions_editor_vbox)
 
 	var name_hbox: HBoxContainer = HBoxContainer.new()
@@ -437,16 +492,18 @@ func _build_factions_tab_ui() -> void:
 	name_lbl.text = "Faction Name:"
 	name_lbl.custom_minimum_size = Vector2(95.0, 0.0)
 	name_lbl.theme_type_variation = "HintLabel"
+	name_lbl.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	name_hbox.add_child(name_lbl)
 
 	f_name_input = LineEdit.new()
 	f_name_input.placeholder_text = "e.g. Starlight Bakery Guild"
 	f_name_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	f_name_input.custom_minimum_size = Vector2(0.0, row_h)
 	f_name_input.text_changed.connect(func(_new_t: String) -> void: _commit_active_faction_field("name", _new_t))
 	name_hbox.add_child(f_name_input)
 
 	f_color_btn = ColorPickerButton.new()
-	f_color_btn.custom_minimum_size = Vector2(36.0, 28.0)
+	f_color_btn.custom_minimum_size = Vector2(40.0 if is_mob else 36.0, row_h)
 	f_color_btn.color = Color("#ec4899")
 	f_color_btn.color_changed.connect(_on_faction_color_changed)
 	name_hbox.add_child(f_color_btn)
@@ -459,11 +516,12 @@ func _build_factions_tab_ui() -> void:
 	type_lbl.text = "Structure Type:"
 	type_lbl.custom_minimum_size = Vector2(95.0, 0.0)
 	type_lbl.theme_type_variation = "HintLabel"
+	type_lbl.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	type_hbox.add_child(type_lbl)
 
 	f_type_opt = OptionButton.new()
 	f_type_opt.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	f_type_opt.custom_minimum_size = Vector2(0.0, 28.0)
+	f_type_opt.custom_minimum_size = Vector2(0.0, row_h)
 	_clamp_popup(f_type_opt)
 	for i: int in range(FACTION_TYPES.size()):
 		f_type_opt.add_item(FACTION_TYPES[i], i)
@@ -483,10 +541,11 @@ func _build_factions_tab_ui() -> void:
 	var lead_lbl: Label = Label.new()
 	lead_lbl.text = "Guild Leader:"
 	lead_lbl.theme_type_variation = "HintLabel"
+	lead_lbl.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	col_lead.add_child(lead_lbl)
 
 	f_leader_opt = OptionButton.new()
-	f_leader_opt.custom_minimum_size = Vector2(0.0, 28.0)
+	f_leader_opt.custom_minimum_size = Vector2(0.0, row_h)
 	_clamp_popup(f_leader_opt)
 	f_leader_opt.item_selected.connect(_on_faction_leader_selected)
 	col_lead.add_child(f_leader_opt)
@@ -498,10 +557,11 @@ func _build_factions_tab_ui() -> void:
 	var hq_lbl: Label = Label.new()
 	hq_lbl.text = "Headquarters:"
 	hq_lbl.theme_type_variation = "HintLabel"
+	hq_lbl.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	col_hq.add_child(hq_lbl)
 
 	f_hq_opt = OptionButton.new()
-	f_hq_opt.custom_minimum_size = Vector2(0.0, 28.0)
+	f_hq_opt.custom_minimum_size = Vector2(0.0, row_h)
 	_clamp_popup(f_hq_opt)
 	f_hq_opt.item_selected.connect(_on_faction_hq_selected)
 	col_hq.add_child(f_hq_opt)
@@ -514,11 +574,13 @@ func _build_factions_tab_ui() -> void:
 	motto_lbl.text = "Motto / Slogan:"
 	motto_lbl.custom_minimum_size = Vector2(95.0, 0.0)
 	motto_lbl.theme_type_variation = "HintLabel"
+	motto_lbl.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	motto_hbox.add_child(motto_lbl)
 
 	f_motto_input = LineEdit.new()
 	f_motto_input.placeholder_text = "e.g. Baking warmth into every dark corner."
 	f_motto_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	f_motto_input.custom_minimum_size = Vector2(0.0, row_h)
 	f_motto_input.text_changed.connect(func(_new_t: String) -> void: _commit_active_faction_field("motto", _new_t))
 	motto_hbox.add_child(f_motto_input)
 
@@ -532,11 +594,12 @@ func _build_factions_tab_ui() -> void:
 	members_lbl.text = "Member Roster & Ranks:"
 	members_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	members_lbl.theme_type_variation = "HeaderLabel"
+	members_lbl.add_theme_font_size_override("font_size", 12 if is_mob else 11)
 	roster_header_hbox.add_child(members_lbl)
 
 	f_add_member_opt = OptionButton.new()
 	f_add_member_opt.text = "+ Enlist Member..."
-	f_add_member_opt.custom_minimum_size = Vector2(140.0, 26.0)
+	f_add_member_opt.custom_minimum_size = Vector2(150.0 if is_mob else 130.0, row_h)
 	_clamp_popup(f_add_member_opt)
 	f_add_member_opt.item_selected.connect(_on_add_member_selected)
 	roster_header_hbox.add_child(f_add_member_opt)
@@ -551,10 +614,11 @@ func _build_factions_tab_ui() -> void:
 	var f_notes_lbl: Label = Label.new()
 	f_notes_lbl.text = "History & Traditions:"
 	f_notes_lbl.theme_type_variation = "HeaderLabel"
+	f_notes_lbl.add_theme_font_size_override("font_size", 12 if is_mob else 11)
 	factions_editor_vbox.add_child(f_notes_lbl)
 
 	f_notes_edit = TextEdit.new()
-	f_notes_edit.custom_minimum_size = Vector2(0.0, 110.0)
+	f_notes_edit.custom_minimum_size = Vector2(0.0, 100.0)
 	f_notes_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	f_notes_edit.wrap_mode = TextEdit.LINE_WRAPPING_BOUNDARY
 	f_notes_edit.placeholder_text = "Guild traditions, alliances, secrets, and territory..."
@@ -568,8 +632,9 @@ func _build_factions_tab_ui() -> void:
 	f_delete_btn = Button.new()
 	f_delete_btn.text = "Delete Faction"
 	f_delete_btn.theme_type_variation = "DangerButton"
-	f_delete_btn.custom_minimum_size = Vector2(110.0, 28.0)
+	f_delete_btn.custom_minimum_size = Vector2(120.0 if is_mob else 100.0, row_h)
 	f_delete_btn.focus_mode = Control.FOCUS_NONE
+	f_delete_btn.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	f_delete_btn.pressed.connect(_on_delete_faction_entry)
 	f_footer.add_child(f_delete_btn)
 
@@ -631,6 +696,7 @@ func _render_timeline_list() -> void:
 		hint.text = "No events yet.\nTap + Add Story Event to begin your chronicle."
 		hint.theme_type_variation = "HintLabel"
 		hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		hint.add_theme_font_size_override("font_size", 11 if _is_mobile() else 10)
 		timeline_list_vbox.add_child(hint)
 		timeline_editor_vbox.visible = false
 		active_timeline_idx = -1
@@ -649,8 +715,9 @@ func _render_timeline_list() -> void:
 
 		btn.text = "%s\n%s" % [e_title, e_era if not e_era.is_empty() else "Undated"]
 		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		btn.custom_minimum_size = Vector2(0.0, 44.0)
+		btn.custom_minimum_size = Vector2(0.0, 48.0 if _is_mobile() else 40.0)
 		btn.focus_mode = Control.FOCUS_NONE
+		btn.add_theme_font_size_override("font_size", 11 if _is_mobile() else 10)
 		if i == active_timeline_idx: btn.theme_type_variation = "Breadcrumb"
 		var target_i: int = i
 		btn.pressed.connect(func() -> void: _load_timeline_entry_to_editor(target_i))
@@ -688,6 +755,7 @@ func _render_factions_list() -> void:
 		hint.text = "No factions registered.\nTap + Add Faction to build a guild."
 		hint.theme_type_variation = "HintLabel"
 		hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		hint.add_theme_font_size_override("font_size", 11 if _is_mobile() else 10)
 		factions_list_vbox.add_child(hint)
 		factions_editor_vbox.visible = false
 		active_faction_idx = -1
@@ -706,8 +774,9 @@ func _render_factions_list() -> void:
 
 		btn.text = "%s\n%s" % [f_name, f_motto if not f_motto.is_empty() else "No motto"]
 		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		btn.custom_minimum_size = Vector2(0.0, 44.0)
+		btn.custom_minimum_size = Vector2(0.0, 48.0 if _is_mobile() else 40.0)
 		btn.focus_mode = Control.FOCUS_NONE
+		btn.add_theme_font_size_override("font_size", 11 if _is_mobile() else 10)
 		if i == active_faction_idx: btn.theme_type_variation = "Breadcrumb"
 		var target_i: int = i
 		btn.pressed.connect(func() -> void: _load_faction_entry_to_editor(target_i))
@@ -754,8 +823,12 @@ func _render_faction_member_cards(f_dict: Dictionary) -> void:
 		var empty_lbl: Label = Label.new()
 		empty_lbl.text = "No enlisted members in this guild yet."
 		empty_lbl.theme_type_variation = "HintLabel"
+		empty_lbl.add_theme_font_size_override("font_size", 11 if _is_mobile() else 10)
 		f_members_vbox.add_child(empty_lbl)
 		return
+
+	var is_mob: bool = _is_mobile()
+	var row_h: float = 34.0 if is_mob else 28.0
 
 	for i: int in range(normalized_members.size()):
 		var m_data: Dictionary = normalized_members[i]
@@ -766,6 +839,7 @@ func _render_faction_member_cards(f_dict: Dictionary) -> void:
 
 		var card: PanelContainer = PanelContainer.new()
 		card.theme_type_variation = "SubPanel"
+		card.custom_minimum_size = Vector2(0.0, 42.0 if is_mob else 34.0)
 		f_members_vbox.add_child(card)
 
 		var row: HBoxContainer = HBoxContainer.new()
@@ -773,7 +847,7 @@ func _render_faction_member_cards(f_dict: Dictionary) -> void:
 		card.add_child(row)
 
 		var avatar_rect: TextureRect = TextureRect.new()
-		avatar_rect.custom_minimum_size = Vector2(32.0, 32.0)
+		avatar_rect.custom_minimum_size = Vector2(36.0 if is_mob else 28.0, 36.0 if is_mob else 28.0)
 		avatar_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		avatar_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		avatar_rect.texture = _resolve_character_portrait(char_dict)
@@ -781,14 +855,16 @@ func _render_faction_member_cards(f_dict: Dictionary) -> void:
 
 		var name_lbl: Label = Label.new()
 		name_lbl.text = str(char_dict.get("display_name", "Character"))
-		name_lbl.custom_minimum_size = Vector2(110.0, 0.0)
+		name_lbl.custom_minimum_size = Vector2(110.0 if is_mob else 95.0, 0.0)
+		name_lbl.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 		row.add_child(name_lbl)
 
 		var rank_input: LineEdit = LineEdit.new()
 		rank_input.text = c_rank
 		rank_input.placeholder_text = "Rank..."
 		rank_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		rank_input.custom_minimum_size = Vector2(0.0, 26.0)
+		rank_input.custom_minimum_size = Vector2(0.0, row_h)
+		rank_input.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 		var target_idx: int = i
 		rank_input.text_changed.connect(func(new_rank: String) -> void:
 			normalized_members[target_idx]["rank"] = new_rank
@@ -798,15 +874,16 @@ func _render_faction_member_cards(f_dict: Dictionary) -> void:
 
 		var inspect_btn: Button = Button.new()
 		inspect_btn.text = "Inspect"
-		inspect_btn.custom_minimum_size = Vector2(55.0, 26.0)
+		inspect_btn.custom_minimum_size = Vector2(65.0 if is_mob else 55.0, row_h)
 		inspect_btn.focus_mode = Control.FOCUS_NONE
+		inspect_btn.add_theme_font_size_override("font_size", 10 if is_mob else 9)
 		inspect_btn.pressed.connect(func() -> void: _open_character_lore_card(char_dict))
 		row.add_child(inspect_btn)
 
 		var remove_btn: Button = Button.new()
 		remove_btn.text = "✕"
 		remove_btn.theme_type_variation = "DangerButton"
-		remove_btn.custom_minimum_size = Vector2(26.0, 26.0)
+		remove_btn.custom_minimum_size = Vector2(28.0 if is_mob else 24.0, row_h)
 		remove_btn.focus_mode = Control.FOCUS_NONE
 		remove_btn.pressed.connect(func() -> void:
 			normalized_members.remove_at(target_idx)
@@ -903,8 +980,11 @@ func _populate_character_chips(container: Control, active_id_list: Array, on_tog
 		var empty_lbl: Label = Label.new()
 		empty_lbl.text = "No characters in this universe yet."
 		empty_lbl.theme_type_variation = "HintLabel"
+		empty_lbl.add_theme_font_size_override("font_size", 11 if _is_mobile() else 10)
 		container.add_child(empty_lbl)
 		return
+
+	var is_mob: bool = _is_mobile()
 
 	for char_dict: Dictionary in cached_roster:
 		var c_id: String = str(char_dict.get("id", ""))
@@ -916,8 +996,9 @@ func _populate_character_chips(container: Control, active_id_list: Array, on_tog
 		chip_btn.text = c_name
 		chip_btn.toggle_mode = true
 		chip_btn.button_pressed = is_selected
-		chip_btn.custom_minimum_size = Vector2(0.0, 24.0)
+		chip_btn.custom_minimum_size = Vector2(0.0, 28.0 if is_mob else 24.0)
 		chip_btn.focus_mode = Control.FOCUS_NONE
+		chip_btn.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 		if is_selected: chip_btn.theme_type_variation = "Breadcrumb"
 		var target_cid: String = c_id
 		chip_btn.toggled.connect(func(pressed: bool) -> void:

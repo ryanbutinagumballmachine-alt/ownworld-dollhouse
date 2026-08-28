@@ -1,5 +1,5 @@
 # ==============================================================================
-# OWNWORLD — LIGHT & GLOW STUDIO
+# OWNWORLD — LIGHT & GLOW STUDIO (LANDSCAPE TOUCH & SLIDER ADAPTIVE)
 # File: res://UI/Dialogs/LightStudioDialog.gd
 # Base Class: CanvasLayer (class_name LightStudioDialog)
 #
@@ -10,7 +10,7 @@
 class_name LightStudioDialog
 extends CanvasLayer
 
-const MAX_PANEL_WIDTH: float = 540.0
+const MAX_PANEL_WIDTH: float = 620.0
 const MAX_PANEL_HEIGHT: float = 580.0
 
 var root_backdrop: Control = null
@@ -62,6 +62,10 @@ func _ready() -> void:
 	_update_responsive_layout()
 
 
+func _is_mobile() -> bool:
+	return ThemeEngine.is_mobile_platform()
+
+
 func _connect_system_signals() -> void:
 	var tree: SceneTree = get_tree()
 	if tree and tree.root and not tree.root.size_changed.is_connected(_update_responsive_layout):
@@ -79,13 +83,18 @@ func _update_responsive_layout() -> void:
 	if not is_instance_valid(root_panel): return
 	var viewport: Viewport = get_viewport()
 	var viewport_size: Vector2 = viewport.get_visible_rect().size if viewport != null else Vector2(1280.0, 720.0)
-	var target_width: float = clampf(viewport_size.x * 0.92, 290.0, MAX_PANEL_WIDTH)
-	var target_height: float = clampf(viewport_size.y * 0.90, 330.0, MAX_PANEL_HEIGHT)
+	var is_mob: bool = _is_mobile()
+
+	var target_width: float = clampf(viewport_size.x * 0.92, 320.0, MAX_PANEL_WIDTH)
+	var target_height: float = clampf(viewport_size.y * (0.92 if is_mob else 0.88), 320.0, MAX_PANEL_HEIGHT)
 	root_panel.custom_minimum_size = Vector2(target_width, target_height)
 	root_panel.size = Vector2(target_width, target_height)
 
 
 func _build_ui() -> void:
+	var is_mob: bool = _is_mobile()
+	var row_h: float = 34.0 if is_mob else 28.0
+
 	root_backdrop = Control.new()
 	root_backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root_backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -110,7 +119,7 @@ func _build_ui() -> void:
 	var main_vbox: VBoxContainer = VBoxContainer.new()
 	main_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	main_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	main_vbox.add_theme_constant_override("separation", 8)
+	main_vbox.add_theme_constant_override("separation", 6)
 	root_panel.add_child(main_vbox)
 
 	var header_hbox: HBoxContainer = HBoxContainer.new()
@@ -120,10 +129,11 @@ func _build_ui() -> void:
 	header_lbl.text = "Lighting & Glow Studio"
 	header_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header_lbl.theme_type_variation = "HeaderLabel"
+	header_lbl.add_theme_font_size_override("font_size", 14 if is_mob else 12)
 	header_hbox.add_child(header_lbl)
 
 	var close_button: Button = Button.new()
-	close_button.custom_minimum_size = Vector2(24.0, 24.0)
+	close_button.custom_minimum_size = Vector2(28.0 if is_mob else 22.0, 28.0 if is_mob else 22.0)
 	close_button.focus_mode = Control.FOCUS_NONE
 	close_button.add_theme_constant_override("icon_max_width", 12)
 	_apply_close_icon(close_button)
@@ -150,8 +160,9 @@ func _build_ui() -> void:
 
 	chk_light_enabled = CheckBox.new()
 	chk_light_enabled.text = " Enable Light & Glow"
-	chk_light_enabled.custom_minimum_size = Vector2(0.0, 28.0)
-	chk_light_enabled.add_theme_constant_override("icon_max_width", 16)
+	chk_light_enabled.custom_minimum_size = Vector2(0.0, row_h)
+	chk_light_enabled.add_theme_constant_override("icon_max_width", 18 if is_mob else 16)
+	chk_light_enabled.add_theme_font_size_override("font_size", 12 if is_mob else 10)
 	_apply_checkbox_icon(chk_light_enabled, "icon_lighting")
 	chk_light_enabled.toggled.connect(_on_light_toggled)
 	toggle_card.add_child(chk_light_enabled)
@@ -172,10 +183,11 @@ func _build_ui() -> void:
 	lbl_glow_style.text = "Glow Style:"
 	lbl_glow_style.custom_minimum_size = Vector2(90.0, 0.0)
 	lbl_glow_style.theme_type_variation = "HintLabel"
+	lbl_glow_style.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	mode_hbox.add_child(lbl_glow_style)
 
 	opt_light_mode = OptionButton.new()
-	opt_light_mode.custom_minimum_size = Vector2(0.0, 32.0)
+	opt_light_mode.custom_minimum_size = Vector2(0.0, row_h)
 	opt_light_mode.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	_add_icon_option(opt_light_mode, "icon_glow", "Silhouette Contour (Outline Glow)", Types.LightShapeMode.SILHOUETTE_CONTOUR)
 	_add_icon_option(opt_light_mode, "icon_sun", "Ambient Room Glow", Types.LightShapeMode.RADIAL_ROOM)
@@ -186,7 +198,7 @@ func _build_ui() -> void:
 	mode_hint_lbl = Label.new()
 	mode_hint_lbl.text = "Silhouette Glow: Illuminates the entire drawing and casts a soft outer aura."
 	mode_hint_lbl.theme_type_variation = "HintLabel"
-	mode_hint_lbl.add_theme_font_size_override("font_size", 10)
+	mode_hint_lbl.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	mode_inner.add_child(mode_hint_lbl)
 
 	var color_card: PanelContainer = PanelContainer.new()
@@ -204,11 +216,12 @@ func _build_ui() -> void:
 	lbl_glow_color.text = "Glow Color:"
 	lbl_glow_color.custom_minimum_size = Vector2(90.0, 0.0)
 	lbl_glow_color.theme_type_variation = "HintLabel"
+	lbl_glow_color.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	color_top_hbox.add_child(lbl_glow_color)
 
 	color_picker_btn = ColorPickerButton.new()
 	color_picker_btn.text = " Custom Tint"
-	color_picker_btn.custom_minimum_size = Vector2(130.0, 30.0)
+	color_picker_btn.custom_minimum_size = Vector2(140.0 if is_mob else 120.0, row_h)
 	color_picker_btn.focus_mode = Control.FOCUS_NONE
 	color_picker_btn.add_theme_constant_override("icon_max_width", 14)
 	_apply_button_icon(color_picker_btn, "icon_palette")
@@ -235,11 +248,13 @@ func _build_ui() -> void:
 	lbl_brightness.text = "Brightness:"
 	lbl_brightness.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	lbl_brightness.theme_type_variation = "HintLabel"
+	lbl_brightness.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	intensity_header.add_child(lbl_brightness)
 
 	val_intensity_lbl = Label.new()
 	val_intensity_lbl.text = "2.0x"
 	val_intensity_lbl.theme_type_variation = "HeaderLabel"
+	val_intensity_lbl.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	intensity_header.add_child(val_intensity_lbl)
 
 	sld_intensity = HSlider.new()
@@ -247,7 +262,7 @@ func _build_ui() -> void:
 	sld_intensity.max_value = 5.0
 	sld_intensity.step = 0.1
 	sld_intensity.value = 2.0
-	sld_intensity.custom_minimum_size = Vector2(0.0, 22.0)
+	sld_intensity.custom_minimum_size = Vector2(0.0, 24.0)
 	sld_intensity.value_changed.connect(_on_intensity_changed)
 	sliders_vbox.add_child(sld_intensity)
 
@@ -258,11 +273,13 @@ func _build_ui() -> void:
 	lbl_glow_size.text = "Glow Radius:"
 	lbl_glow_size.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	lbl_glow_size.theme_type_variation = "HintLabel"
+	lbl_glow_size.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	radius_header.add_child(lbl_glow_size)
 
 	val_radius_lbl = Label.new()
 	val_radius_lbl.text = "160 px"
 	val_radius_lbl.theme_type_variation = "HeaderLabel"
+	val_radius_lbl.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	radius_header.add_child(val_radius_lbl)
 
 	sld_radius = HSlider.new()
@@ -270,7 +287,7 @@ func _build_ui() -> void:
 	sld_radius.max_value = 450.0
 	sld_radius.step = 5.0
 	sld_radius.value = 160.0
-	sld_radius.custom_minimum_size = Vector2(0.0, 22.0)
+	sld_radius.custom_minimum_size = Vector2(0.0, 24.0)
 	sld_radius.value_changed.connect(_on_radius_changed)
 	sliders_vbox.add_child(sld_radius)
 
@@ -281,11 +298,13 @@ func _build_ui() -> void:
 	lbl_pulse.text = "Breathing Pulse:"
 	lbl_pulse.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	lbl_pulse.theme_type_variation = "HintLabel"
+	lbl_pulse.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	pulse_header.add_child(lbl_pulse)
 
 	val_pulse_lbl = Label.new()
 	val_pulse_lbl.text = "2.0 Hz"
 	val_pulse_lbl.theme_type_variation = "HeaderLabel"
+	val_pulse_lbl.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	pulse_header.add_child(val_pulse_lbl)
 
 	sld_pulse = HSlider.new()
@@ -293,7 +312,7 @@ func _build_ui() -> void:
 	sld_pulse.max_value = 8.0
 	sld_pulse.step = 0.2
 	sld_pulse.value = 2.0
-	sld_pulse.custom_minimum_size = Vector2(0.0, 22.0)
+	sld_pulse.custom_minimum_size = Vector2(0.0, 24.0)
 	sld_pulse.value_changed.connect(_on_pulse_changed)
 	sliders_vbox.add_child(sld_pulse)
 
@@ -301,9 +320,10 @@ func _build_ui() -> void:
 
 	btn_save = Button.new()
 	btn_save.text = " Save Lighting"
-	btn_save.custom_minimum_size = Vector2(0.0, 36.0)
+	btn_save.custom_minimum_size = Vector2(0.0, row_h + 4.0)
 	btn_save.focus_mode = Control.FOCUS_NONE
 	btn_save.add_theme_constant_override("icon_max_width", 16)
+	btn_save.add_theme_font_size_override("font_size", 12 if is_mob else 11)
 	_apply_button_icon(btn_save, "icon_save")
 	btn_save.pressed.connect(close_dialog)
 	main_vbox.add_child(btn_save)
@@ -314,13 +334,15 @@ func _build_preset_swatches() -> void:
 	for child: Node in swatches_hbox.get_children():
 		child.queue_free()
 
+	var is_mob: bool = _is_mobile()
+
 	for preset: Dictionary in PRESET_SWATCHES:
 		var swatch_button: Button = Button.new()
 		swatch_button.text = " " + str(preset.get("name", "Preset"))
 		swatch_button.focus_mode = Control.FOCUS_NONE
-		swatch_button.custom_minimum_size = Vector2(0.0, 26.0)
-		swatch_button.add_theme_constant_override("icon_max_width", 12)
-		swatch_button.add_theme_font_size_override("font_size", 9)
+		swatch_button.custom_minimum_size = Vector2(0.0, 32.0 if is_mob else 26.0)
+		swatch_button.add_theme_constant_override("icon_max_width", 14 if is_mob else 12)
+		swatch_button.add_theme_font_size_override("font_size", 10 if is_mob else 9)
 		_apply_button_icon(swatch_button, str(preset.get("icon", "icon_star")))
 
 		var preset_color: Color = preset.get("color", Color.WHITE) as Color

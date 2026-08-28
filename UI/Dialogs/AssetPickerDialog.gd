@@ -1,5 +1,5 @@
 # ==============================================================================
-# OWNWORLD — ASSET PICKER DIALOG
+# OWNWORLD — ASSET PICKER DIALOG (LANDSCAPE RESPONSIVE DUAL-OS)
 # File: res://UI/Dialogs/AssetPickerDialog.gd
 # Base Class: CanvasLayer (class_name AssetPickerDialog)
 #
@@ -13,8 +13,8 @@ extends CanvasLayer
 const PATH_ITEM_TAGS_FILE: String = "user://my_art_tags.json"
 const PATH_TAGS_LIST_FILE: String = "user://my_art_tags_list.json"
 
-const MAX_PANEL_WIDTH: float = 580.0
-const MAX_PANEL_HEIGHT: float = 520.0
+const MAX_PANEL_WIDTH: float = 640.0
+const MAX_PANEL_HEIGHT: float = 560.0
 
 var root_backdrop: Control = null
 var center_container: CenterContainer = null
@@ -55,6 +55,10 @@ func _ready() -> void:
 	_setup_keyboard_dodging()
 
 
+func _is_mobile() -> bool:
+	return ThemeEngine.is_mobile_platform()
+
+
 func _connect_system_signals() -> void:
 	var tree: SceneTree = get_tree()
 	if tree and tree.root and not tree.root.size_changed.is_connected(_update_responsive_layout):
@@ -62,42 +66,47 @@ func _connect_system_signals() -> void:
 
 
 func _update_responsive_layout() -> void:
-	if not is_instance_valid(root_panel):
-		return
+	if not is_instance_valid(root_panel): return
 	var vp_size: Vector2 = get_viewport().get_visible_rect().size if get_viewport() else Vector2(1280.0, 720.0)
-	var target_w: float = clampf(vp_size.x * 0.92, 290.0, MAX_PANEL_WIDTH)
-	var target_h: float = clampf(vp_size.y * 0.90, 330.0, MAX_PANEL_HEIGHT)
+	var is_mob: bool = _is_mobile()
+
+	var target_w: float = clampf(vp_size.x * 0.94, 300.0, MAX_PANEL_WIDTH)
+	var target_h: float = clampf(vp_size.y * (0.92 if is_mob else 0.88), 300.0, MAX_PANEL_HEIGHT)
 	root_panel.custom_minimum_size = Vector2(target_w, target_h)
 	root_panel.size = Vector2(target_w, target_h)
 
 	if items_grid:
 		var usable_w: float = target_w - 28.0
-		items_grid.columns = clampi(int(usable_w / 76.0), 3, 10)
+		var card_w: float = 88.0 if is_mob else 72.0
+		items_grid.columns = clampi(int(usable_w / (card_w + 6.0)), 3, 10)
 
 
 func _setup_keyboard_dodging() -> void:
-	if search_input:
+	if search_input and _is_mobile():
 		search_input.focus_entered.connect(_on_input_focus_entered)
 		search_input.focus_exited.connect(_on_input_focus_exited)
 
 
 func _on_input_focus_entered() -> void:
-	if OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios"):
+	if _is_mobile():
 		await get_tree().process_frame
 		await get_tree().process_frame
 		var kb_height: float = DisplayServer.virtual_keyboard_get_height()
 		if kb_height > 0:
 			var tween: Tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-			tween.tween_property(center_container, "position:y", -kb_height * 0.5, 0.25)
+			tween.tween_property(center_container, "position:y", -kb_height * 0.45, 0.25)
 
 
 func _on_input_focus_exited() -> void:
-	if OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios"):
+	if _is_mobile():
 		var tween: Tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 		tween.tween_property(center_container, "position:y", 0.0, 0.25)
 
 
 func _build_ui() -> void:
+	var is_mob: bool = _is_mobile()
+	var row_h: float = 34.0 if is_mob else 28.0
+
 	root_backdrop = Control.new()
 	root_backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root_backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -132,10 +141,11 @@ func _build_ui() -> void:
 	header_title_lbl.text = "Select Artwork"
 	header_title_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header_title_lbl.theme_type_variation = "HeaderLabel"
+	header_title_lbl.add_theme_font_size_override("font_size", 14 if is_mob else 12)
 	header_hbox.add_child(header_title_lbl)
 
 	var btn_close: Button = Button.new()
-	btn_close.custom_minimum_size = Vector2(24.0, 24.0)
+	btn_close.custom_minimum_size = Vector2(28.0 if is_mob else 22.0, 28.0 if is_mob else 22.0)
 	btn_close.focus_mode = Control.FOCUS_NONE
 	btn_close.add_theme_constant_override("icon_max_width", 12)
 	var close_icon: Texture2D = ThemeService.get_icon("icon_close")
@@ -152,10 +162,10 @@ func _build_ui() -> void:
 
 	btn_back_up = Button.new()
 	btn_back_up.text = " Up"
-	btn_back_up.custom_minimum_size = Vector2(55.0, 26.0)
+	btn_back_up.custom_minimum_size = Vector2(60.0 if is_mob else 50.0, row_h)
 	btn_back_up.focus_mode = Control.FOCUS_NONE
 	btn_back_up.add_theme_constant_override("icon_max_width", 14)
-	btn_back_up.add_theme_font_size_override("font_size", 10)
+	btn_back_up.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	var up_icon: Texture2D = ThemeService.get_icon("icon_up")
 	if up_icon: btn_back_up.icon = up_icon
 	btn_back_up.pressed.connect(_navigate_up_one_folder)
@@ -163,7 +173,7 @@ func _build_ui() -> void:
 
 	var breadcrumbs_scroll: ScrollContainer = ScrollContainer.new()
 	breadcrumbs_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	breadcrumbs_scroll.custom_minimum_size = Vector2(0.0, 26.0)
+	breadcrumbs_scroll.custom_minimum_size = Vector2(0.0, row_h)
 	breadcrumbs_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	breadcrumbs_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 	breadcrumbs_scroll.follow_focus = false
@@ -180,12 +190,12 @@ func _build_ui() -> void:
 	search_input = LineEdit.new()
 	search_input.placeholder_text = "Search in folder or tags..."
 	search_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	search_input.custom_minimum_size = Vector2(100.0, 28.0)
+	search_input.custom_minimum_size = Vector2(100.0, row_h)
 	search_input.text_changed.connect(_on_search_text_changed)
 	search_row.add_child(search_input)
 
 	var filter_scroll: ScrollContainer = ScrollContainer.new()
-	filter_scroll.custom_minimum_size = Vector2(0.0, 28.0)
+	filter_scroll.custom_minimum_size = Vector2(0.0, row_h)
 	filter_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	filter_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 	filter_scroll.follow_focus = false
@@ -269,14 +279,15 @@ func _render_breadcrumbs() -> void:
 
 
 func _create_breadcrumb_pill(label_text: String, icon_key: String, is_active: bool) -> Button:
+	var is_mob: bool = _is_mobile()
 	var btn: Button = Button.new()
 	btn.text = " " + label_text
 	btn.focus_mode = Control.FOCUS_NONE
 	btn.toggle_mode = true
 	btn.button_pressed = is_active
 	btn.theme_type_variation = "Breadcrumb"
-	btn.add_theme_constant_override("icon_max_width", 12)
-	btn.add_theme_font_size_override("font_size", 9)
+	btn.add_theme_constant_override("icon_max_width", 14 if is_mob else 12)
+	btn.add_theme_font_size_override("font_size", 10 if is_mob else 9)
 	var icon_tex: Texture2D = ThemeService.get_icon(icon_key)
 	if icon_tex: btn.icon = icon_tex
 	return btn
@@ -337,13 +348,17 @@ func _render_grid_view() -> void:
 		var empty_lbl: Label = Label.new()
 		empty_lbl.text = "(No drawings found in this folder)"
 		empty_lbl.theme_type_variation = "HintLabel"
-		empty_lbl.add_theme_font_size_override("font_size", 10)
+		empty_lbl.add_theme_font_size_override("font_size", 11 if _is_mobile() else 10)
 		items_grid.add_child(empty_lbl)
 
 
 func _create_folder_card(folder_name: String) -> void:
+	var is_mob: bool = _is_mobile()
+	var card_w: float = 88.0 if is_mob else 72.0
+	var card_h: float = 100.0 if is_mob else 80.0
+
 	var card: Button = Button.new()
-	card.custom_minimum_size = Vector2(68.0, 76.0)
+	card.custom_minimum_size = Vector2(card_w, card_h)
 	card.focus_mode = Control.FOCUS_NONE
 	
 	var s_normal: StyleBoxFlat = StyleBoxFlat.new()
@@ -366,7 +381,7 @@ func _create_folder_card(folder_name: String) -> void:
 	card.add_child(vbox)
 
 	var icon_rect: TextureRect = TextureRect.new()
-	icon_rect.custom_minimum_size = Vector2(28.0, 28.0)
+	icon_rect.custom_minimum_size = Vector2(36.0 if is_mob else 28.0, 36.0 if is_mob else 28.0)
 	icon_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	icon_rect.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
@@ -379,7 +394,7 @@ func _create_folder_card(folder_name: String) -> void:
 	var name_lbl: Label = Label.new()
 	name_lbl.text = folder_name
 	name_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	name_lbl.add_theme_font_size_override("font_size", 9)
+	name_lbl.add_theme_font_size_override("font_size", 10 if is_mob else 9)
 	vbox.add_child(name_lbl)
 
 	card.pressed.connect(func() -> void:
@@ -394,11 +409,15 @@ func _create_folder_card(folder_name: String) -> void:
 
 
 func _create_image_card(art_data: Dictionary) -> void:
+	var is_mob: bool = _is_mobile()
+	var card_w: float = 88.0 if is_mob else 72.0
+	var card_h: float = 100.0 if is_mob else 80.0
+
 	var fname: String = str(art_data.get("name", "Art"))
 	var fpath: String = str(art_data.get("file_path", ""))
 
 	var card: Button = Button.new()
-	card.custom_minimum_size = Vector2(68.0, 76.0)
+	card.custom_minimum_size = Vector2(card_w, card_h)
 	card.focus_mode = Control.FOCUS_NONE
 	
 	var s_normal: StyleBoxFlat = StyleBoxFlat.new()
@@ -421,7 +440,7 @@ func _create_image_card(art_data: Dictionary) -> void:
 	card.add_child(vbox)
 
 	var thumb_box: PanelContainer = PanelContainer.new()
-	thumb_box.custom_minimum_size = Vector2(40.0, 40.0)
+	thumb_box.custom_minimum_size = Vector2(50.0 if is_mob else 40.0, 50.0 if is_mob else 40.0)
 	thumb_box.clip_contents = true
 	thumb_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
 
@@ -444,7 +463,7 @@ func _create_image_card(art_data: Dictionary) -> void:
 	var lbl: Label = Label.new()
 	lbl.text = fname
 	lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	lbl.add_theme_font_size_override("font_size", 9)
+	lbl.add_theme_font_size_override("font_size", 10 if is_mob else 9)
 	lbl.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	vbox.add_child(lbl)
 
@@ -468,12 +487,13 @@ func _build_tag_filter_pills() -> void:
 
 
 func _add_filter_pill(label_text: String, is_active: bool) -> void:
+	var is_mob: bool = _is_mobile()
 	var btn: Button = Button.new()
 	btn.text = label_text
 	btn.focus_mode = Control.FOCUS_NONE
 	btn.toggle_mode = true
 	btn.button_pressed = is_active
-	btn.add_theme_font_size_override("font_size", 10)
+	btn.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 
 	var c_accent: Color = ThemeService.get_color("accent_primary", "#db2777")
 	var c_btn_n: Color = ThemeService.get_color("button_normal", "#fce7f3")
@@ -486,10 +506,10 @@ func _add_filter_pill(label_text: String, is_active: bool) -> void:
 	s_pill.border_color = c_accent if is_active else c_border
 	s_pill.set_border_width_all(1)
 	s_pill.set_corner_radius_all(rad)
-	s_pill.content_margin_left = 6
-	s_pill.content_margin_right = 6
-	s_pill.content_margin_top = 2
-	s_pill.content_margin_bottom = 2
+	s_pill.content_margin_left = 8 if is_mob else 6
+	s_pill.content_margin_right = 8 if is_mob else 6
+	s_pill.content_margin_top = 4 if is_mob else 2
+	s_pill.content_margin_bottom = 4 if is_mob else 2
 
 	btn.add_theme_stylebox_override("normal", s_pill)
 	btn.add_theme_stylebox_override("hover", s_pill)

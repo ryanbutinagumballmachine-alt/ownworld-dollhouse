@@ -1,5 +1,5 @@
 # ==============================================================================
-# OWNWORLD — RECIPE STUDIO
+# OWNWORLD — RECIPE STUDIO (LANDSCAPE DUAL-OS ADAPTIVE)
 # File: res://UI/Dialogs/RecipeStudioDialog.gd
 # Base Class: CanvasLayer (class_name RecipeStudioDialog)
 #
@@ -10,8 +10,8 @@
 class_name RecipeStudioDialog
 extends CanvasLayer
 
-const MAX_PANEL_WIDTH: float = 500.0
-const MAX_PANEL_HEIGHT: float = 460.0
+const MAX_PANEL_WIDTH: float = 620.0
+const MAX_PANEL_HEIGHT: float = 520.0
 
 var root_backdrop: Control = null
 var center_container: CenterContainer = null
@@ -47,14 +47,42 @@ func _ready() -> void:
 	_build_ui()
 	_connect_system_signals()
 	_update_responsive_layout()
+	_setup_keyboard_dodging()
+
 	if not ThemeService.theme_changed.is_connected(_on_theme_changed):
 		ThemeService.theme_changed.connect(_on_theme_changed)
+
+
+func _is_mobile() -> bool:
+	return ThemeEngine.is_mobile_platform()
 
 
 func _connect_system_signals() -> void:
 	var tree: SceneTree = get_tree()
 	if tree != null and tree.root != null and not tree.root.size_changed.is_connected(_update_responsive_layout):
 		tree.root.size_changed.connect(_update_responsive_layout)
+
+
+func _setup_keyboard_dodging() -> void:
+	if not _is_mobile() or result_name_edit == null: return
+	result_name_edit.focus_entered.connect(_on_input_focus_entered)
+	result_name_edit.focus_exited.connect(_on_input_focus_exited)
+
+
+func _on_input_focus_entered() -> void:
+	if _is_mobile():
+		await get_tree().process_frame
+		await get_tree().process_frame
+		var kb_height: float = DisplayServer.virtual_keyboard_get_height()
+		if kb_height > 0:
+			var tween: Tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+			tween.tween_property(center_container, "position:y", -kb_height * 0.4, 0.25)
+
+
+func _on_input_focus_exited() -> void:
+	if _is_mobile():
+		var tween: Tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		tween.tween_property(center_container, "position:y", 0.0, 0.25)
 
 
 func _on_theme_changed(_theme_data: Dictionary) -> void:
@@ -66,13 +94,18 @@ func _update_responsive_layout() -> void:
 	if not is_instance_valid(root_panel): return
 	var viewport: Viewport = get_viewport()
 	var viewport_size: Vector2 = viewport.get_visible_rect().size if viewport != null else Vector2(1280.0, 720.0)
-	var target_width: float = clampf(viewport_size.x * 0.90, 280.0, MAX_PANEL_WIDTH)
-	var target_height: float = clampf(viewport_size.y * 0.90, 320.0, MAX_PANEL_HEIGHT)
+	var is_mob: bool = _is_mobile()
+
+	var target_width: float = clampf(viewport_size.x * 0.92, 320.0, MAX_PANEL_WIDTH)
+	var target_height: float = clampf(viewport_size.y * (0.90 if is_mob else 0.82), 300.0, MAX_PANEL_HEIGHT)
 	root_panel.custom_minimum_size = Vector2(target_width, target_height)
 	root_panel.size = Vector2(target_width, target_height)
 
 
 func _build_ui() -> void:
+	var is_mob: bool = _is_mobile()
+	var row_h: float = 36.0 if is_mob else 28.0
+
 	root_backdrop = Control.new()
 	root_backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root_backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -97,7 +130,7 @@ func _build_ui() -> void:
 	var main_vbox: VBoxContainer = VBoxContainer.new()
 	main_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	main_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	main_vbox.add_theme_constant_override("separation", 8)
+	main_vbox.add_theme_constant_override("separation", 6)
 	root_panel.add_child(main_vbox)
 
 	var header_hbox: HBoxContainer = HBoxContainer.new()
@@ -107,10 +140,11 @@ func _build_ui() -> void:
 	header_lbl.text = "Visual Recipe Creator"
 	header_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header_lbl.theme_type_variation = "HeaderLabel"
+	header_lbl.add_theme_font_size_override("font_size", 14 if is_mob else 12)
 	header_hbox.add_child(header_lbl)
 
 	var btn_close: Button = Button.new()
-	btn_close.custom_minimum_size = Vector2(24.0, 24.0)
+	btn_close.custom_minimum_size = Vector2(28.0 if is_mob else 22.0, 28.0 if is_mob else 22.0)
 	btn_close.focus_mode = Control.FOCUS_NONE
 	btn_close.add_theme_constant_override("icon_max_width", 12)
 	var close_icon: Texture2D = ThemeService.get_icon("icon_close")
@@ -135,57 +169,59 @@ func _build_ui() -> void:
 
 	var craft_row: HBoxContainer = HBoxContainer.new()
 	craft_row.alignment = BoxContainer.ALIGNMENT_CENTER
-	craft_row.add_theme_constant_override("separation", 12)
+	craft_row.add_theme_constant_override("separation", 12 if is_mob else 8)
 	form_vbox.add_child(craft_row)
+
+	var slot_dim: float = 72.0 if is_mob else 60.0
 
 	var v_a: VBoxContainer = VBoxContainer.new()
 	v_a.alignment = BoxContainer.ALIGNMENT_CENTER
-	v_a.add_theme_constant_override("separation", 6)
+	v_a.add_theme_constant_override("separation", 4)
 	craft_row.add_child(v_a)
 
-	slot_panel_a = _create_preview_slot(v_a)
+	slot_panel_a = _create_preview_slot(v_a, slot_dim)
 	preview_a = slot_panel_a.get_child(0) as TextureRect
 
 	opt_ingredient_a = OptionButton.new()
-	opt_ingredient_a.custom_minimum_size = Vector2(100.0, 30.0)
+	opt_ingredient_a.custom_minimum_size = Vector2(110.0 if is_mob else 95.0, row_h)
 	opt_ingredient_a.item_selected.connect(func(index: int) -> void: _update_preview_from_opt(preview_a, index))
 	v_a.add_child(opt_ingredient_a)
 
 	plus_lbl = Label.new()
 	plus_lbl.text = "+"
 	plus_lbl.theme_type_variation = "HeaderLabel"
-	plus_lbl.add_theme_font_size_override("font_size", 18)
+	plus_lbl.add_theme_font_size_override("font_size", 20 if is_mob else 18)
 	craft_row.add_child(plus_lbl)
 
 	var v_b: VBoxContainer = VBoxContainer.new()
 	v_b.alignment = BoxContainer.ALIGNMENT_CENTER
-	v_b.add_theme_constant_override("separation", 6)
+	v_b.add_theme_constant_override("separation", 4)
 	craft_row.add_child(v_b)
 
-	slot_panel_b = _create_preview_slot(v_b)
+	slot_panel_b = _create_preview_slot(v_b, slot_dim)
 	preview_b = slot_panel_b.get_child(0) as TextureRect
 
 	opt_ingredient_b = OptionButton.new()
-	opt_ingredient_b.custom_minimum_size = Vector2(100.0, 30.0)
+	opt_ingredient_b.custom_minimum_size = Vector2(110.0 if is_mob else 95.0, row_h)
 	opt_ingredient_b.item_selected.connect(func(index: int) -> void: _update_preview_from_opt(preview_b, index))
 	v_b.add_child(opt_ingredient_b)
 
 	equal_lbl = Label.new()
 	equal_lbl.text = "➔"
 	equal_lbl.theme_type_variation = "HeaderLabel"
-	equal_lbl.add_theme_font_size_override("font_size", 16)
+	equal_lbl.add_theme_font_size_override("font_size", 18 if is_mob else 16)
 	craft_row.add_child(equal_lbl)
 
 	var v_res: VBoxContainer = VBoxContainer.new()
 	v_res.alignment = BoxContainer.ALIGNMENT_CENTER
-	v_res.add_theme_constant_override("separation", 6)
+	v_res.add_theme_constant_override("separation", 4)
 	craft_row.add_child(v_res)
 
-	slot_panel_res = _create_preview_slot(v_res)
+	slot_panel_res = _create_preview_slot(v_res, slot_dim)
 	preview_res = slot_panel_res.get_child(0) as TextureRect
 
 	opt_result_item = OptionButton.new()
-	opt_result_item.custom_minimum_size = Vector2(100.0, 30.0)
+	opt_result_item.custom_minimum_size = Vector2(110.0 if is_mob else 95.0, row_h)
 	opt_result_item.item_selected.connect(func(index: int) -> void: _update_preview_from_opt(preview_res, index))
 	v_res.add_child(opt_result_item)
 
@@ -194,20 +230,22 @@ func _build_ui() -> void:
 	lbl_res_name = Label.new()
 	lbl_res_name.text = "Crafted Result Name:"
 	lbl_res_name.theme_type_variation = "HintLabel"
+	lbl_res_name.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	form_vbox.add_child(lbl_res_name)
 
 	result_name_edit = LineEdit.new()
 	result_name_edit.placeholder_text = "e.g. Hot Pizza, Berry Smoothie, Magic Potion..."
-	result_name_edit.custom_minimum_size = Vector2(0.0, 32.0)
+	result_name_edit.custom_minimum_size = Vector2(0.0, row_h)
 	form_vbox.add_child(result_name_edit)
 
 	main_vbox.add_child(HSeparator.new())
 
 	btn_save = Button.new()
 	btn_save.text = " Register & Save Recipe"
-	btn_save.custom_minimum_size = Vector2(0.0, 36.0)
+	btn_save.custom_minimum_size = Vector2(0.0, row_h + 4.0)
 	btn_save.focus_mode = Control.FOCUS_NONE
 	btn_save.add_theme_constant_override("icon_max_width", 16)
+	btn_save.add_theme_font_size_override("font_size", 12 if is_mob else 11)
 
 	var recipe_icon: Texture2D = ThemeService.get_icon("icon_recipes")
 	if recipe_icon == null: recipe_icon = ThemeService.get_icon("icon_save")
@@ -216,10 +254,10 @@ func _build_ui() -> void:
 	main_vbox.add_child(btn_save)
 
 
-func _create_preview_slot(parent_vbox: VBoxContainer) -> PanelContainer:
+func _create_preview_slot(parent_vbox: VBoxContainer, dim: float) -> PanelContainer:
 	var panel: PanelContainer = PanelContainer.new()
 	panel.theme_type_variation = "SubPanel"
-	panel.custom_minimum_size = Vector2(60.0, 60.0)
+	panel.custom_minimum_size = Vector2(dim, dim)
 	panel.clip_contents = true
 	parent_vbox.add_child(panel)
 

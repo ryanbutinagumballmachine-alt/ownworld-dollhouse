@@ -1,22 +1,18 @@
-# ============================================================
-# File: res://Core/Main.gd
-# ============================================================
-
 # ==============================================================================
-# OWNWORLD — MAIN APPLICATION ORCHESTRATOR (UNIVERSAL GESTURE SYNCHRONIZATION)
+# OWNWORLD — MAIN APPLICATION ORCHESTRATOR (CROSS-PLATFORM GESTURE & LIFECYCLE)
 # File: res://Core/Main.gd
 # Base Class: Node2D
 #
 # Responsibility: Master runtime scene orchestrator. Coordinates multi-slice
-# room rendering, touch/mouse gesture arbitration, live physics solver ticks,
-# transition cross-fades, and complete UI modal subsystem lifecycle management.
+# room rendering, touch/mouse gesture isolation, live physics solver ticks,
+# smooth room transitions, safe area layout insets, and OS back gestures.
 # ==============================================================================
 
 extends Node2D
 
 const BASE_ROOM_SIZE: Vector2 = Vector2(1280.0, 720.0)
 
-var TAP_PIXEL_THRESHOLD: float = 24.0 if (OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios")) else 14.0
+var TAP_PIXEL_THRESHOLD: float = 24.0 if (OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios")) else 12.0
 
 var room_slices: Array[Dictionary] = [{
 	"wallpaper_path": "", "fill_mode": "cover", "is_outdoor": false,
@@ -144,10 +140,10 @@ func _apply_hardware_safe_margins() -> void:
 	var bottom_margin: float = float(screen_size.y - (safe_area.position.y + safe_area.size.y))
 
 	if top_nav_bar != null and top_nav_bar.root_container != null:
-		top_nav_bar.root_container.offset_top = maxf(12.0, top_margin + 6.0)
+		top_nav_bar.root_container.offset_top = maxf(10.0, top_margin + 4.0)
 
 	if drawer_tray_ui != null and drawer_tray_ui.root_panel != null:
-		var bottom_offset: float = -maxf(6.0, bottom_margin + 4.0)
+		var bottom_offset: float = -maxf(8.0, bottom_margin + 6.0)
 		drawer_tray_ui.root_panel.offset_bottom = bottom_offset
 		drawer_tray_ui.root_panel.offset_top = bottom_offset - drawer_tray_ui.DRAWER_HEIGHT
 
@@ -572,7 +568,7 @@ func _is_any_modal_open() -> bool:
 	return false
 
 
-# --- INPUT HANDLING WITH DYNAMIC HOLD TIMERS ---
+# --- INPUT HANDLING WITH TOUCH/MOUSE ISOLATION ---
 
 func _input(event: InputEvent) -> void:
 	if is_transitioning_room:
@@ -691,6 +687,15 @@ func _input(event: InputEvent) -> void:
 			_update_active_drag_position(current_pointer_world_pos)
 		elif is_pointer_down and pressed_target_entity == null and main_camera != null and main_camera.is_panning:
 			main_camera.update_drag_pan(mouse_motion.position)
+
+	elif event is InputEventKey and event.pressed and not event.echo:
+		if event.keycode == KEY_Z and event.ctrl_pressed:
+			_on_undo_requested()
+			get_viewport().set_input_as_handled()
+		elif event.keycode == KEY_ESCAPE:
+			if not _is_any_modal_open() and main_menu_ui != null and not main_menu_ui.visible:
+				main_menu_ui.open_menu()
+				get_viewport().set_input_as_handled()
 
 
 func _process(delta: float) -> void:

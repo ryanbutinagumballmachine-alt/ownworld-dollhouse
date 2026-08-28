@@ -1,5 +1,5 @@
 # ==============================================================================
-# OWNWORLD — UNIVERSE HUB / STORY LIBRARY
+# OWNWORLD — UNIVERSE HUB / STORY LIBRARY (LANDSCAPE SAFE & ADAPTIVE)
 # File: res://UI/UniverseHubUI.gd
 # Base Class: CanvasLayer (class_name UniverseHubUI)
 #
@@ -42,6 +42,10 @@ func _ready() -> void:
 	_connect_system_signals()
 
 
+func _is_mobile() -> bool:
+	return ThemeEngine.is_mobile_platform()
+
+
 func _connect_system_signals() -> void:
 	if not ThemeService.theme_changed.is_connected(_on_theme_changed):
 		ThemeService.theme_changed.connect(_on_theme_changed)
@@ -53,21 +57,28 @@ func _on_theme_changed(_theme_data: Dictionary) -> void:
 
 
 func _build_hub_ui() -> void:
+	var is_mob: bool = _is_mobile()
+	var btn_h: float = 38.0 if is_mob else 32.0
+
 	root_panel = PanelContainer.new()
 	root_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root_panel.mouse_filter = Control.MOUSE_FILTER_PASS
 	add_child(root_panel)
 
+	var safe_area: Rect2i = DisplayServer.get_display_safe_area()
+	var margin_left: int = maxi(24, safe_area.position.x + 8) if is_mob else 24
+	var margin_right: int = maxi(24, int(DisplayServer.screen_get_size().x - (safe_area.position.x + safe_area.size.x)) + 8) if is_mob else 24
+
 	var margin: MarginContainer = MarginContainer.new()
 	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
-	margin.add_theme_constant_override("margin_left", 24)
-	margin.add_theme_constant_override("margin_right", 24)
-	margin.add_theme_constant_override("margin_top", 18)
-	margin.add_theme_constant_override("margin_bottom", 18)
+	margin.add_theme_constant_override("margin_left", margin_left)
+	margin.add_theme_constant_override("margin_right", margin_right)
+	margin.add_theme_constant_override("margin_top", 16)
+	margin.add_theme_constant_override("margin_bottom", 16)
 	root_panel.add_child(margin)
 
 	main_vbox = VBoxContainer.new()
-	main_vbox.add_theme_constant_override("separation", 10)
+	main_vbox.add_theme_constant_override("separation", 8)
 	margin.add_child(main_vbox)
 
 	var header_hbox: HBoxContainer = HBoxContainer.new()
@@ -76,6 +87,7 @@ func _build_hub_ui() -> void:
 	header_title_lbl = Label.new()
 	header_title_lbl.text = "Universe Hub & Story Library"
 	header_title_lbl.theme_type_variation = "HeaderLabel"
+	header_title_lbl.add_theme_font_size_override("font_size", 16 if is_mob else 14)
 	header_hbox.add_child(header_title_lbl)
 
 	var spacer: Control = Control.new()
@@ -84,27 +96,30 @@ func _build_hub_ui() -> void:
 
 	btn_import = Button.new()
 	btn_import.text = " Import (.ownpack)"
-	btn_import.custom_minimum_size = Vector2(0.0, 32.0)
+	btn_import.custom_minimum_size = Vector2(0.0, btn_h)
 	btn_import.focus_mode = Control.FOCUS_NONE
 	btn_import.add_theme_constant_override("icon_max_width", 14)
+	btn_import.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	_apply_button_icon(btn_import, "icon_import")
 	btn_import.pressed.connect(_on_open_import_dialog)
 	header_hbox.add_child(btn_import)
 
 	btn_export = Button.new()
 	btn_export.text = " Export Active (.ownpack)"
-	btn_export.custom_minimum_size = Vector2(0.0, 32.0)
+	btn_export.custom_minimum_size = Vector2(0.0, btn_h)
 	btn_export.focus_mode = Control.FOCUS_NONE
 	btn_export.add_theme_constant_override("icon_max_width", 14)
+	btn_export.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	_apply_export_icon(btn_export)
 	btn_export.pressed.connect(_on_export_pack_pressed)
 	header_hbox.add_child(btn_export)
 
 	btn_close = Button.new()
 	btn_close.text = " Close"
-	btn_close.custom_minimum_size = Vector2(0.0, 32.0)
+	btn_close.custom_minimum_size = Vector2(0.0, btn_h)
 	btn_close.focus_mode = Control.FOCUS_NONE
 	btn_close.add_theme_constant_override("icon_max_width", 12)
+	btn_close.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	_apply_button_icon(btn_close, "icon_close")
 	btn_close.pressed.connect(close_hub)
 	header_hbox.add_child(btn_close)
@@ -118,14 +133,15 @@ func _build_hub_ui() -> void:
 	name_input = LineEdit.new()
 	name_input.placeholder_text = "Enter new Story Universe name..."
 	name_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	name_input.custom_minimum_size = Vector2(0.0, 34.0)
+	name_input.custom_minimum_size = Vector2(0.0, btn_h)
 	create_hbox.add_child(name_input)
 
 	btn_create = Button.new()
 	btn_create.text = " Create Universe"
-	btn_create.custom_minimum_size = Vector2(160.0, 34.0)
+	btn_create.custom_minimum_size = Vector2(170.0 if is_mob else 140.0, btn_h)
 	btn_create.focus_mode = Control.FOCUS_NONE
 	btn_create.add_theme_constant_override("icon_max_width", 14)
+	btn_create.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	_apply_create_icon(btn_create)
 	btn_create.pressed.connect(_on_create_universe_pressed)
 	create_hbox.add_child(btn_create)
@@ -167,11 +183,13 @@ func _render_universe_cards() -> void:
 	for child: Node in universe_list_vbox.get_children():
 		child.queue_free()
 
+	var is_mob: bool = _is_mobile()
 	var c_sub_bg: Color = ThemeService.get_color("container_sub_bg", "#fdf2f4")
 	var c_border: Color = ThemeService.get_color("panel_border", "#f472b6")
 	var c_accent: Color = ThemeService.get_color("accent_primary", "#db2777")
 	var current_universe_id: String = SaveSystem.get_current_universe_id()
 	var corner_radius: int = ThemeService.get_corner_radius()
+	var btn_h: float = 38.0 if is_mob else 32.0
 
 	for u_data: Dictionary in universe_registry:
 		var universe_id: String = str(u_data.get("id", ""))
@@ -188,8 +206,8 @@ func _render_universe_cards() -> void:
 		card_style.set_corner_radius_all(corner_radius)
 		card_style.content_margin_left = 14
 		card_style.content_margin_right = 14
-		card_style.content_margin_top = 10
-		card_style.content_margin_bottom = 10
+		card_style.content_margin_top = 8
+		card_style.content_margin_bottom = 8
 		card.add_theme_stylebox_override("panel", card_style)
 
 		var card_hbox: HBoxContainer = HBoxContainer.new()
@@ -203,20 +221,22 @@ func _render_universe_cards() -> void:
 
 		var u_title: Label = Label.new()
 		u_title.text = universe_name
+		u_title.add_theme_font_size_override("font_size", 13 if is_mob else 12)
 		if is_active: u_title.theme_type_variation = "HeaderLabel"
 		info_vbox.add_child(u_title)
 
 		var u_desc: Label = Label.new()
 		u_desc.text = "ID: " + universe_id + (" • Active Now" if is_active else "")
 		u_desc.theme_type_variation = "HintLabel"
-		u_desc.add_theme_font_size_override("font_size", 11)
+		u_desc.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 		info_vbox.add_child(u_desc)
 
 		var btn_play: Button = Button.new()
 		btn_play.text = " Active" if is_active else " Enter"
 		btn_play.focus_mode = Control.FOCUS_NONE
-		btn_play.custom_minimum_size = Vector2(95.0, 32.0)
+		btn_play.custom_minimum_size = Vector2(100.0 if is_mob else 85.0, btn_h)
 		btn_play.add_theme_constant_override("icon_max_width", 14)
+		btn_play.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 		_apply_button_icon(btn_play, "icon_star" if is_active else "icon_play")
 
 		if is_active:
@@ -243,7 +263,7 @@ func _render_universe_cards() -> void:
 			var captured_delete_id: String = universe_id
 			var captured_delete_name: String = universe_name
 			var btn_del: Button = Button.new()
-			btn_del.custom_minimum_size = Vector2(28.0, 32.0)
+			btn_del.custom_minimum_size = Vector2(32.0 if is_mob else 28.0, btn_h)
 			btn_del.theme_type_variation = "DangerButton"
 			btn_del.focus_mode = Control.FOCUS_NONE
 			btn_del.add_theme_constant_override("icon_max_width", 12)

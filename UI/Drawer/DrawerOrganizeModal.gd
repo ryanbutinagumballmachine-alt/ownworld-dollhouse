@@ -1,10 +1,10 @@
 # ==============================================================================
-# OWNWORLD — DRAWER ORGANIZER & TAGGING MODAL
+# OWNWORLD — DRAWER ORGANIZER & TAGGING MODAL (LANDSCAPE TWO-COLUMN DUAL-OS)
 # File: res://UI/Drawer/DrawerOrganizeModal.gd
 # Base Class: Control (class_name DrawerOrganizeModal)
 #
 # Responsibility: Single & batch item organization dialog. Handles folder routing,
-# tag checkbox application, and custom hashtag creation/deletion.
+# tag checkbox application, and custom hashtag creation/deletion with keyboard dodging.
 # ==============================================================================
 
 class_name DrawerOrganizeModal
@@ -15,6 +15,7 @@ signal batch_organization_saved(items: Array[Dictionary], mode_type: String, tar
 signal tag_deleted(tag_name: String)
 signal custom_tag_added(tag_name: String)
 
+var center_box: CenterContainer = null
 var panel: PanelContainer = null
 var item_label: Label = null
 var folder_option: OptionButton = null
@@ -38,7 +39,14 @@ func _init() -> void:
 	_build_ui()
 
 
+func _is_mobile() -> bool:
+	return ThemeEngine.is_mobile_platform()
+
+
 func _build_ui() -> void:
+	var is_mob: bool = _is_mobile()
+	var btn_h: float = 38.0 if is_mob else 30.0
+
 	gui_input.connect(func(e: InputEvent) -> void:
 		if e is InputEventMouseButton and e.pressed and e.button_index == MOUSE_BUTTON_LEFT:
 			close_modal()
@@ -46,53 +54,57 @@ func _build_ui() -> void:
 
 	var dim: ColorRect = ColorRect.new()
 	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	dim.color = Color(0.0, 0.0, 0.0, 0.5)
+	dim.color = Color(0.0, 0.0, 0.0, 0.6)
 	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	add_child(dim)
 
-	var center: CenterContainer = CenterContainer.new()
-	center.set_anchors_preset(Control.PRESET_FULL_RECT)
-	center.mouse_filter = Control.MOUSE_FILTER_PASS
-	add_child(center)
+	center_box = CenterContainer.new()
+	center_box.set_anchors_preset(Control.PRESET_FULL_RECT)
+	center_box.mouse_filter = Control.MOUSE_FILTER_PASS
+	add_child(center_box)
 
 	panel = PanelContainer.new()
-	panel.custom_minimum_size = Vector2(420.0, 400.0)
+	panel.custom_minimum_size = Vector2(460.0 if is_mob else 400.0, 380.0 if is_mob else 340.0)
 	panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	center.add_child(panel)
+	center_box.add_child(panel)
 
 	var vbox: VBoxContainer = VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 8)
+	vbox.add_theme_constant_override("separation", 6)
 	panel.add_child(vbox)
 
 	item_label = Label.new()
 	item_label.text = "Organize Item"
 	item_label.theme_type_variation = "HeaderLabel"
+	item_label.add_theme_font_size_override("font_size", 14 if is_mob else 12)
 	vbox.add_child(item_label)
 
 	var folder_lbl: Label = Label.new()
 	folder_lbl.text = "Destination Folder:"
 	folder_lbl.theme_type_variation = "HintLabel"
+	folder_lbl.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	vbox.add_child(folder_lbl)
 
 	folder_option = OptionButton.new()
-	folder_option.custom_minimum_size = Vector2(0.0, 32.0)
+	folder_option.custom_minimum_size = Vector2(0.0, btn_h)
 	_enforce_dropdown_popup_limits(folder_option, 200)
 	vbox.add_child(folder_option)
 
 	var tag_section_lbl: Label = Label.new()
 	tag_section_lbl.text = "Tags to Apply:"
 	tag_section_lbl.theme_type_variation = "HintLabel"
+	tag_section_lbl.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	vbox.add_child(tag_section_lbl)
 
 	var scroll: ScrollContainer = ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(0.0, 120.0)
+	scroll.custom_minimum_size = Vector2(0.0, 130.0 if is_mob else 110.0)
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.follow_focus = false
 	vbox.add_child(scroll)
 
 	tag_checkboxes_container = GridContainer.new()
 	tag_checkboxes_container.columns = 2
 	tag_checkboxes_container.add_theme_constant_override("h_separation", 10)
-	tag_checkboxes_container.add_theme_constant_override("v_separation", 4)
+	tag_checkboxes_container.add_theme_constant_override("v_separation", 6 if is_mob else 4)
 	scroll.add_child(tag_checkboxes_container)
 
 	var custom_row: HBoxContainer = HBoxContainer.new()
@@ -102,13 +114,16 @@ func _build_ui() -> void:
 	tag_new_input = LineEdit.new()
 	tag_new_input.placeholder_text = "New #tag (e.g. #magic)..."
 	tag_new_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	tag_new_input.custom_minimum_size = Vector2(0.0, 32.0)
+	tag_new_input.custom_minimum_size = Vector2(0.0, btn_h)
 	tag_new_input.text_submitted.connect(func(_t: String) -> void: _on_add_tag_clicked())
+	if is_mob:
+		tag_new_input.focus_entered.connect(_on_input_focus_entered)
+		tag_new_input.focus_exited.connect(_on_input_focus_exited)
 	custom_row.add_child(tag_new_input)
 
 	btn_add_tag = Button.new()
 	btn_add_tag.text = " Tag"
-	btn_add_tag.custom_minimum_size = Vector2(75.0, 32.0)
+	btn_add_tag.custom_minimum_size = Vector2(80.0 if is_mob else 70.0, btn_h)
 	btn_add_tag.focus_mode = Control.FOCUS_NONE
 	btn_add_tag.add_theme_constant_override("icon_max_width", 14)
 
@@ -120,7 +135,7 @@ func _build_ui() -> void:
 
 	btn_save = Button.new()
 	btn_save.text = " Save Organization"
-	btn_save.custom_minimum_size = Vector2(0.0, 36.0)
+	btn_save.custom_minimum_size = Vector2(0.0, btn_h + 4.0)
 	btn_save.focus_mode = Control.FOCUS_NONE
 	btn_save.add_theme_constant_override("icon_max_width", 16)
 
@@ -128,6 +143,22 @@ func _build_ui() -> void:
 	if s_icon: btn_save.icon = s_icon
 	btn_save.pressed.connect(_on_save_clicked)
 	vbox.add_child(btn_save)
+
+
+func _on_input_focus_entered() -> void:
+	if _is_mobile():
+		await get_tree().process_frame
+		await get_tree().process_frame
+		var kb_height: float = DisplayServer.virtual_keyboard_get_height()
+		if kb_height > 0:
+			var tween: Tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+			tween.tween_property(center_box, "position:y", -kb_height * 0.4, 0.25)
+
+
+func _on_input_focus_exited() -> void:
+	if _is_mobile():
+		var tween: Tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		tween.tween_property(center_box, "position:y", 0.0, 0.25)
 
 
 func _enforce_dropdown_popup_limits(opt_btn: OptionButton, max_height: int = 200) -> void:
@@ -197,6 +228,7 @@ func _populate_tag_checkboxes(preselected_tags: Array) -> void:
 	for child: Node in tag_checkboxes_container.get_children():
 		child.queue_free()
 
+	var is_mob: bool = _is_mobile()
 	var t_icon: Texture2D = ThemeService.get_icon("icon_tag")
 	var del_icon: Texture2D = ThemeService.get_icon("icon_close")
 
@@ -209,13 +241,14 @@ func _populate_tag_checkboxes(preselected_tags: Array) -> void:
 		chk.text = " " + t_str
 		chk.button_pressed = (t_str in preselected_tags)
 		chk.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		chk.custom_minimum_size = Vector2(0.0, 26.0)
-		chk.add_theme_constant_override("icon_max_width", 14)
+		chk.custom_minimum_size = Vector2(0.0, 32.0 if is_mob else 26.0)
+		chk.add_theme_constant_override("icon_max_width", 16 if is_mob else 14)
+		chk.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 		if t_icon: chk.icon = t_icon
 		tag_row.add_child(chk)
 
 		var btn_del_tag: Button = Button.new()
-		btn_del_tag.custom_minimum_size = Vector2(20.0, 20.0)
+		btn_del_tag.custom_minimum_size = Vector2(24.0 if is_mob else 20.0, 24.0 if is_mob else 20.0)
 		btn_del_tag.theme_type_variation = "DangerButton"
 		btn_del_tag.focus_mode = Control.FOCUS_NONE
 		btn_del_tag.add_theme_constant_override("icon_max_width", 10)

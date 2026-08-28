@@ -1,10 +1,10 @@
 # ==============================================================================
-# OWNWORLD — MAGIC WHEEL / CONTEXT ACTION CARD
+# OWNWORLD — MAGIC WHEEL / CONTEXT ACTION CARD (SAFE-BOUNDED & ADAPTIVE)
 # File: res://UI/MagicWheel.gd
 # Base Class: CanvasLayer (class_name MagicWheel)
 #
-# Responsibility: Long-press / right-click context menu. Displays contextual tools
-# tailored to target entity capabilities, with viewport-safe bounds positioning.
+# Responsibility: Context action card summoned via timed long-press (mobile)
+# or instant right-click (desktop). Guarantees complete viewport and safe-area bounds.
 # ==============================================================================
 
 class_name MagicWheel
@@ -16,7 +16,8 @@ var header_lbl: Label = null
 var tools_grid: GridContainer = null
 var active_target_entity: OwnEntity = null
 
-const CARD_WIDTH: float = 280.0
+const CARD_WIDTH_MOBILE: float = 320.0
+const CARD_WIDTH_DESKTOP: float = 280.0
 
 signal action_triggered(action_name: String, target_entity: OwnEntity)
 
@@ -32,7 +33,14 @@ func _ready() -> void:
 		ThemeService.theme_changed.connect(_on_theme_changed)
 
 
+func _is_mobile() -> bool:
+	return ThemeEngine.is_mobile_platform()
+
+
 func _build_card_ui() -> void:
+	var is_mob: bool = _is_mobile()
+	var card_w: float = CARD_WIDTH_MOBILE if is_mob else CARD_WIDTH_DESKTOP
+
 	root_backdrop = Control.new()
 	root_backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root_backdrop.mouse_filter = Control.MOUSE_FILTER_PASS
@@ -42,7 +50,7 @@ func _build_card_ui() -> void:
 	card_panel = PanelContainer.new()
 	card_panel.name = "ContextCardPanel"
 	card_panel.theme_type_variation = "SubPanel"
-	card_panel.custom_minimum_size = Vector2(CARD_WIDTH, 0.0)
+	card_panel.custom_minimum_size = Vector2(card_w, 0.0)
 	card_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	root_backdrop.add_child(card_panel)
 
@@ -57,13 +65,13 @@ func _build_card_ui() -> void:
 	header_lbl.text = "Item Actions"
 	header_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header_lbl.theme_type_variation = "HeaderLabel"
-	header_lbl.add_theme_font_size_override("font_size", 12)
+	header_lbl.add_theme_font_size_override("font_size", 13 if is_mob else 12)
 	header_hbox.add_child(header_lbl)
 
 	var btn_close: Button = Button.new()
-	btn_close.custom_minimum_size = Vector2(22.0, 22.0)
+	btn_close.custom_minimum_size = Vector2(28.0 if is_mob else 22.0, 28.0 if is_mob else 22.0)
 	btn_close.focus_mode = Control.FOCUS_NONE
-	btn_close.add_theme_constant_override("icon_max_width", 12)
+	btn_close.add_theme_constant_override("icon_max_width", 14 if is_mob else 12)
 	var close_icon: Texture2D = ThemeService.get_icon("icon_close")
 	if close_icon != null: btn_close.icon = close_icon
 	else: btn_close.text = "✕"
@@ -92,16 +100,19 @@ func open_wheel_for_entity(entity: OwnEntity, screen_pos: Vector2) -> void:
 
 	visible = true
 	card_panel.pivot_offset = Vector2.ZERO
-	card_panel.scale = Vector2(0.9, 0.9)
+	card_panel.scale = Vector2(0.92, 0.92)
 	card_panel.modulate.a = 0.0
 
 	var tween: Tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-	tween.tween_property(card_panel, "scale", Vector2.ONE, 0.15)
-	tween.parallel().tween_property(card_panel, "modulate:a", 1.0, 0.15)
+	tween.tween_property(card_panel, "scale", Vector2.ONE, 0.14)
+	tween.parallel().tween_property(card_panel, "modulate:a", 1.0, 0.14)
 	AudioManager.play_pop_grab()
 
 
 func _populate_context_tools(entity: OwnEntity) -> void:
+	var is_mob: bool = _is_mobile()
+	var btn_h: float = 38.0 if is_mob else 30.0
+
 	var tools: Array[Dictionary] = []
 	tools.append({"name": "character_studio", "label": "States & Anims", "icon": "icon_states"})
 
@@ -147,12 +158,12 @@ func _populate_context_tools(entity: OwnEntity) -> void:
 	for tool_data: Dictionary in tools:
 		var btn: Button = Button.new()
 		btn.text = " " + str(tool_data["label"])
-		btn.custom_minimum_size = Vector2(130.0, 32.0)
+		btn.custom_minimum_size = Vector2(0.0, btn_h)
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		btn.focus_mode = Control.FOCUS_NONE
 		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		btn.add_theme_font_size_override("font_size", 10)
-		btn.add_theme_constant_override("icon_max_width", 14)
+		btn.add_theme_font_size_override("font_size", 11 if is_mob else 10)
+		btn.add_theme_constant_override("icon_max_width", 16 if is_mob else 14)
 
 		var icon_texture: Texture2D = ThemeService.get_icon(str(tool_data["icon"]))
 		if icon_texture == null and str(tool_data["icon"]) == "icon_up":
@@ -169,16 +180,25 @@ func _populate_context_tools(entity: OwnEntity) -> void:
 
 func _position_card_safely(screen_pos: Vector2) -> void:
 	var viewport_size: Vector2 = get_viewport().get_visible_rect().size
-	var estimated_card_height: float = card_panel.size.y if card_panel.size.y > 0.0 else 240.0
+	var safe_area: Rect2i = DisplayServer.get_display_safe_area()
 
-	var target_x: float = screen_pos.x + 24.0
+	var min_safe_x: float = maxf(12.0, float(safe_area.position.x) + 6.0)
+	var max_safe_x: float = minf(viewport_size.x - 12.0, float(safe_area.position.x + safe_area.size.x) - 6.0)
+	var min_safe_y: float = maxf(12.0, float(safe_area.position.y) + 6.0)
+	var max_safe_y: float = minf(viewport_size.y - 12.0, float(safe_area.position.y + safe_area.size.y) - 6.0)
+
+	var is_mob: bool = _is_mobile()
+	var card_w: float = CARD_WIDTH_MOBILE if is_mob else CARD_WIDTH_DESKTOP
+	var estimated_h: float = card_panel.size.y if card_panel.size.y > 0.0 else 260.0
+
+	var target_x: float = screen_pos.x + 20.0
 	var target_y: float = screen_pos.y - 40.0
 
-	if target_x + CARD_WIDTH > viewport_size.x - 16.0:
-		target_x = screen_pos.x - CARD_WIDTH - 24.0
+	if target_x + card_w > max_safe_x:
+		target_x = screen_pos.x - card_w - 20.0
 
-	target_x = clampf(target_x, 16.0, maxf(16.0, viewport_size.x - CARD_WIDTH - 16.0))
-	target_y = clampf(target_y, 16.0, maxf(16.0, viewport_size.y - estimated_card_height - 16.0))
+	target_x = clampf(target_x, min_safe_x, maxf(min_safe_x, max_safe_x - card_w))
+	target_y = clampf(target_y, min_safe_y, maxf(min_safe_y, max_safe_y - estimated_h))
 	card_panel.position = Vector2(target_x, target_y)
 
 

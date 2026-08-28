@@ -1,11 +1,11 @@
 # ==============================================================================
-# OWNWORLD — THEME SERVICE AUTOLOAD
+# OWNWORLD — THEME SERVICE AUTOLOAD (CROSS-PLATFORM ORCHESTRATION)
 # File: res://AutoLoads/ThemeService.gd
 # Autoload Singleton: ThemeService
 # Base Class: Node
 #
-# Responsibility: Global UI theme orchestration, procedural StyleBox creation,
-# cached icon resolution with multi-directory fallback, and background registry.
+# Responsibility: Global UI theme orchestration, platform-adapted StyleBox creation,
+# cached icon resolution with multi-directory fallback, and safe background registries.
 # ==============================================================================
 
 extends Node
@@ -14,7 +14,6 @@ const RES_ICONS_DIRECTORY: String = "res://Assets/Icons/"
 const FALLBACK_RES_ICONS_DIRECTORY: String = "res://assets/icons/"
 
 const DEFAULT_CORNER_RADIUS: int = 6
-const DEFAULT_FONT_SIZE: int = 12
 
 var active_theme_cache: Dictionary = {
 	"colors": ThemeEngine.DEFAULT_PALETTE.duplicate(true),
@@ -35,10 +34,22 @@ func _ready() -> void:
 	_load_persisted_theme()
 
 	var tree: SceneTree = get_tree()
-	if tree:
+	if tree != null:
 		tree.node_added.connect(_on_node_added)
 
 	call_deferred("apply_theme_globally")
+
+
+func is_mobile() -> bool:
+	return ThemeEngine.is_mobile_platform()
+
+
+func get_touch_target_min_height() -> float:
+	return 44.0 if is_mobile() else 32.0
+
+
+func get_touch_target_min_width() -> float:
+	return 44.0 if is_mobile() else 32.0
 
 
 func _on_node_added(node: Node) -> void:
@@ -56,12 +67,10 @@ func _on_node_added(node: Node) -> void:
 
 	if node is OptionButton:
 		var pop: PopupMenu = (node as OptionButton).get_popup()
-		if pop != null:
-			pop.theme = _theme_cache
+		if pop != null: pop.theme = _theme_cache
 	elif node is MenuButton:
 		var pop: PopupMenu = (node as MenuButton).get_popup()
-		if pop != null:
-			pop.theme = _theme_cache
+		if pop != null: pop.theme = _theme_cache
 
 
 func _initialize_theme_directories() -> void:
@@ -114,8 +123,12 @@ func get_color(color_key: String, fallback_hex: String = "#ffffff") -> Color:
 	return Color(fallback_hex)
 
 
-func get_corner_radius() -> int: return DEFAULT_CORNER_RADIUS
-func get_theme_data() -> Dictionary: return active_theme_cache.duplicate(true)
+func get_corner_radius() -> int:
+	return DEFAULT_CORNER_RADIUS
+
+
+func get_theme_data() -> Dictionary:
+	return active_theme_cache.duplicate(true)
 
 
 func create_theme() -> Theme:
@@ -148,7 +161,8 @@ func apply_theme(theme_data: Dictionary) -> void:
 	EventBus.theme_changed.emit(payload)
 
 
-func apply_global_theme(theme_data: Dictionary) -> void: apply_theme(theme_data)
+func apply_global_theme(theme_data: Dictionary) -> void:
+	apply_theme(theme_data)
 
 
 func apply_theme_globally() -> void:
@@ -162,15 +176,17 @@ func apply_theme_globally() -> void:
 
 
 func create_stylebox(background_key: String, border_key: String, radius: int = DEFAULT_CORNER_RADIUS) -> StyleBoxFlat:
+	var m_h: int = 12 if is_mobile() else 8
+	var m_v: int = 8 if is_mobile() else 5
 	var s: StyleBoxFlat = StyleBoxFlat.new()
 	s.bg_color = get_color(background_key, "#ffffff")
 	s.border_color = get_color(border_key, "#f9a8d4")
 	s.set_border_width_all(1)
 	s.set_corner_radius_all(radius)
-	s.content_margin_left = 8
-	s.content_margin_right = 8
-	s.content_margin_top = 5
-	s.content_margin_bottom = 5
+	s.content_margin_left = m_h
+	s.content_margin_right = m_h
+	s.content_margin_top = m_v
+	s.content_margin_bottom = m_v
 	return s
 
 
@@ -229,8 +245,9 @@ func get_popup_icon(icon_name: String) -> Texture2D:
 	if source_image == null:
 		return raw_texture
 
+	var icon_dim: int = 22 if is_mobile() else 18
 	var image: Image = source_image.duplicate()
-	image.resize(18, 18, Image.INTERPOLATE_LANCZOS)
+	image.resize(icon_dim, icon_dim, Image.INTERPOLATE_LANCZOS)
 
 	for x: int in range(image.get_width()):
 		for y: int in range(image.get_height()):

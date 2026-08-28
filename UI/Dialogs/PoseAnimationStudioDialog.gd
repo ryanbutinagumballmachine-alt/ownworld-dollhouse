@@ -1,22 +1,18 @@
-# ============================================================
-# File: res://UI/Dialogs/PoseAnimationStudioDialog.gd
-# ============================================================
-
 # ==============================================================================
-# OWNWORLD — UNIFIED POSE & ANIMATION STUDIO (FULLY SYNCHRONIZED)
+# OWNWORLD — UNIFIED POSE & ANIMATION STUDIO (LANDSCAPE DUAL-OS SYNCHRONIZED)
 # File: res://UI/Dialogs/PoseAnimationStudioDialog.gd
 # Base Class: CanvasLayer (class_name PoseAnimationStudioDialog)
 #
 # Responsibility: Master 3-tab studio dialog for Actor States, Wardrobe Outfits,
 # Interactive Test Mannequin, GIF & Frame Timelines, and Sprite Sheet Slicing.
-# Features direct natural blink test triggers and boundary-safe slice extractions.
+# Optimized for dual-thumb landscape mobile and precision desktop mouse editing.
 # ==============================================================================
 
 class_name PoseAnimationStudioDialog
 extends CanvasLayer
 
-const MAX_PANEL_WIDTH: float = 640.0
-const MAX_PANEL_HEIGHT: float = 660.0
+const MAX_PANEL_WIDTH: float = 760.0
+const MAX_PANEL_HEIGHT: float = 580.0
 
 var root_backdrop: Control = null
 var center_container: CenterContainer = null
@@ -99,6 +95,10 @@ func _ready() -> void:
 	add_child(asset_picker)
 
 
+func _is_mobile() -> bool:
+	return ThemeEngine.is_mobile_platform()
+
+
 func _connect_system_signals() -> void:
 	var tree: SceneTree = get_tree()
 	if tree != null and tree.root != null and not tree.root.size_changed.is_connected(_update_responsive_layout):
@@ -110,8 +110,10 @@ func _connect_system_signals() -> void:
 func _update_responsive_layout() -> void:
 	if not is_instance_valid(root_panel): return
 	var vp_size: Vector2 = get_viewport().get_visible_rect().size if get_viewport() else Vector2(1280.0, 720.0)
-	var target_w: float = clampf(vp_size.x * 0.94, 300.0, MAX_PANEL_WIDTH)
-	var target_h: float = clampf(vp_size.y * 0.92, 340.0, MAX_PANEL_HEIGHT)
+	var is_mob: bool = _is_mobile()
+
+	var target_w: float = clampf(vp_size.x * 0.94, 320.0, MAX_PANEL_WIDTH)
+	var target_h: float = clampf(vp_size.y * (0.92 if is_mob else 0.88), 320.0, MAX_PANEL_HEIGHT)
 	root_panel.custom_minimum_size = Vector2(target_w, target_h)
 	root_panel.size = Vector2(target_w, target_h)
 
@@ -159,6 +161,9 @@ func _process(delta: float) -> void:
 
 
 func _build_ui() -> void:
+	var is_mob: bool = _is_mobile()
+	var row_h: float = 34.0 if is_mob else 28.0
+
 	root_backdrop = Control.new()
 	root_backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root_backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -194,11 +199,11 @@ func _build_ui() -> void:
 	header_lbl.text = "States & Animation Studio"
 	header_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header_lbl.theme_type_variation = "HeaderLabel"
-	header_lbl.add_theme_font_size_override("font_size", 13)
+	header_lbl.add_theme_font_size_override("font_size", 14 if is_mob else 12)
 	header_hbox.add_child(header_lbl)
 
 	var close_button: Button = Button.new()
-	close_button.custom_minimum_size = Vector2(24.0, 24.0)
+	close_button.custom_minimum_size = Vector2(28.0 if is_mob else 22.0, 28.0 if is_mob else 22.0)
 	close_button.focus_mode = Control.FOCUS_NONE
 	close_button.add_theme_constant_override("icon_max_width", 12)
 	_apply_close_icon(close_button)
@@ -209,7 +214,7 @@ func _build_ui() -> void:
 
 	# --- Wardrobe Forms & Outfits Bar ---
 	var forms_scroll: ScrollContainer = ScrollContainer.new()
-	forms_scroll.custom_minimum_size = Vector2(0.0, 32.0)
+	forms_scroll.custom_minimum_size = Vector2(0.0, 36.0 if is_mob else 30.0)
 	forms_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	forms_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 	forms_scroll.follow_focus = false
@@ -226,23 +231,25 @@ func _build_ui() -> void:
 	form_name_input = LineEdit.new()
 	form_name_input.placeholder_text = "New Outfit / Form Name (e.g. Armor, Pajamas)..."
 	form_name_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	form_name_input.custom_minimum_size = Vector2(0.0, 30.0)
+	form_name_input.custom_minimum_size = Vector2(0.0, row_h)
 	add_form_row.add_child(form_name_input)
 
 	btn_choose_form_art = Button.new()
 	btn_choose_form_art.text = " Pick Art..."
-	btn_choose_form_art.custom_minimum_size = Vector2(90.0, 30.0)
+	btn_choose_form_art.custom_minimum_size = Vector2(95.0 if is_mob else 80.0, row_h)
 	btn_choose_form_art.focus_mode = Control.FOCUS_NONE
 	btn_choose_form_art.add_theme_constant_override("icon_max_width", 14)
+	btn_choose_form_art.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	_apply_button_icon(btn_choose_form_art, "icon_folder")
 	btn_choose_form_art.pressed.connect(_on_pick_form_art_pressed)
 	add_form_row.add_child(btn_choose_form_art)
 
 	btn_add_form = Button.new()
 	btn_add_form.text = " + Form"
-	btn_add_form.custom_minimum_size = Vector2(80.0, 30.0)
+	btn_add_form.custom_minimum_size = Vector2(85.0 if is_mob else 75.0, row_h)
 	btn_add_form.focus_mode = Control.FOCUS_NONE
 	btn_add_form.add_theme_constant_override("icon_max_width", 14)
+	btn_add_form.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	_apply_button_icon(btn_add_form, "icon_plus")
 	btn_add_form.pressed.connect(_on_add_form_pressed)
 	add_form_row.add_child(btn_add_form)
@@ -263,6 +270,9 @@ func _build_ui() -> void:
 # --- TAB 1: UNIFIED STATES & MANNEQUIN ---
 
 func _build_states_and_mannequin_tab() -> void:
+	var is_mob: bool = _is_mobile()
+	var row_h: float = 34.0 if is_mob else 28.0
+
 	var tab_vbox: VBoxContainer = VBoxContainer.new()
 	tab_vbox.name = "States & Mannequin"
 	tab_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -281,7 +291,7 @@ func _build_states_and_mannequin_tab() -> void:
 
 	var prev_frame: PanelContainer = PanelContainer.new()
 	prev_frame.theme_type_variation = "SubPanel"
-	prev_frame.custom_minimum_size = Vector2(60.0, 60.0)
+	prev_frame.custom_minimum_size = Vector2(64.0 if is_mob else 54.0, 64.0 if is_mob else 54.0)
 	prev_frame.clip_contents = true
 	m_hbox.add_child(prev_frame)
 
@@ -299,7 +309,7 @@ func _build_states_and_mannequin_tab() -> void:
 	mannequin_status_lbl = Label.new()
 	mannequin_status_lbl.text = "Interactive Test Mannequin — Active: Idle"
 	mannequin_status_lbl.theme_type_variation = "HeaderLabel"
-	mannequin_status_lbl.add_theme_font_size_override("font_size", 10)
+	mannequin_status_lbl.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	m_actions_vbox.add_child(mannequin_status_lbl)
 
 	var test_btn_grid: GridContainer = GridContainer.new()
@@ -321,14 +331,15 @@ func _build_states_and_mannequin_tab() -> void:
 	new_state_name_input = LineEdit.new()
 	new_state_name_input.placeholder_text = "Create Custom State (e.g. dancing, happy, battle)..."
 	new_state_name_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	new_state_name_input.custom_minimum_size = Vector2(0.0, 30.0)
+	new_state_name_input.custom_minimum_size = Vector2(0.0, row_h)
 	add_custom_row.add_child(new_state_name_input)
 
 	btn_add_custom_state = Button.new()
 	btn_add_custom_state.text = " + Add State"
-	btn_add_custom_state.custom_minimum_size = Vector2(100.0, 30.0)
+	btn_add_custom_state.custom_minimum_size = Vector2(110.0 if is_mob else 95.0, row_h)
 	btn_add_custom_state.focus_mode = Control.FOCUS_NONE
 	btn_add_custom_state.add_theme_constant_override("icon_max_width", 14)
+	btn_add_custom_state.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	_apply_button_icon(btn_add_custom_state, "icon_plus")
 	btn_add_custom_state.pressed.connect(_on_add_custom_state_pressed)
 	add_custom_row.add_child(btn_add_custom_state)
@@ -347,12 +358,13 @@ func _build_states_and_mannequin_tab() -> void:
 
 
 func _add_mannequin_test_btn(parent: GridContainer, label_text: String, callback: Callable) -> void:
+	var is_mob: bool = _is_mobile()
 	var btn: Button = Button.new()
 	btn.text = label_text
-	btn.custom_minimum_size = Vector2(0.0, 24.0)
+	btn.custom_minimum_size = Vector2(0.0, 28.0 if is_mob else 24.0)
 	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	btn.focus_mode = Control.FOCUS_NONE
-	btn.add_theme_font_size_override("font_size", 9)
+	btn.add_theme_font_size_override("font_size", 10 if is_mob else 9)
 	btn.pressed.connect(callback)
 	parent.add_child(btn)
 
@@ -360,6 +372,9 @@ func _add_mannequin_test_btn(parent: GridContainer, label_text: String, callback
 # --- TAB 2: FRAME TIMELINE & GIF IMPORTER ---
 
 func _build_timeline_tab() -> void:
+	var is_mob: bool = _is_mobile()
+	var row_h: float = 34.0 if is_mob else 28.0
+
 	var tab_vbox: VBoxContainer = VBoxContainer.new()
 	tab_vbox.name = "Frames & GIF Timeline"
 	tab_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -375,11 +390,12 @@ func _build_timeline_tab() -> void:
 
 	var st_box: VBoxContainer = VBoxContainer.new()
 	var lbl_st: Label = Label.new()
-	lbl_st.text = "Target State to Animate:"
+	lbl_st.text = "Target State:"
 	lbl_st.theme_type_variation = "HintLabel"
+	lbl_st.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	st_box.add_child(lbl_st)
 	opt_edit_state_target = OptionButton.new()
-	opt_edit_state_target.custom_minimum_size = Vector2(0.0, 30.0)
+	opt_edit_state_target.custom_minimum_size = Vector2(0.0, row_h)
 	opt_edit_state_target.item_selected.connect(_on_timeline_target_state_selected)
 	st_box.add_child(opt_edit_state_target)
 	top_controls_grid.add_child(st_box)
@@ -388,9 +404,10 @@ func _build_timeline_tab() -> void:
 	var lbl_m: Label = Label.new()
 	lbl_m.text = "Playback Mode:"
 	lbl_m.theme_type_variation = "HintLabel"
+	lbl_m.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	mode_box.add_child(lbl_m)
 	opt_playback_mode = OptionButton.new()
-	opt_playback_mode.custom_minimum_size = Vector2(0.0, 30.0)
+	opt_playback_mode.custom_minimum_size = Vector2(0.0, row_h)
 	opt_playback_mode.add_item("Forward Loop", int(Types.PlaybackMode.LOOP))
 	opt_playback_mode.add_item("Natural Blink (Frame 0 Idle, 1+ Blink)", int(Types.PlaybackMode.NATURAL_BLINK))
 	opt_playback_mode.add_item("Ping-Pong (Bounce)", int(Types.PlaybackMode.PING_PONG))
@@ -405,10 +422,12 @@ func _build_timeline_tab() -> void:
 	lbl_fps.text = "Speed:"
 	lbl_fps.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	lbl_fps.theme_type_variation = "HintLabel"
+	lbl_fps.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	fps_hdr.add_child(lbl_fps)
 	clip_fps_val_lbl = Label.new()
 	clip_fps_val_lbl.text = "6 FPS"
 	clip_fps_val_lbl.theme_type_variation = "HeaderLabel"
+	clip_fps_val_lbl.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	fps_hdr.add_child(clip_fps_val_lbl)
 	fps_box.add_child(fps_hdr)
 
@@ -417,6 +436,7 @@ func _build_timeline_tab() -> void:
 	clip_fps_slider.max_value = 30.0
 	clip_fps_slider.step = 1.0
 	clip_fps_slider.value = 6.0
+	clip_fps_slider.custom_minimum_size = Vector2(0.0, 22.0)
 	clip_fps_slider.value_changed.connect(func(v: float) -> void: clip_fps_val_lbl.text = "%d FPS" % int(v))
 	fps_box.add_child(clip_fps_slider)
 	top_controls_grid.add_child(fps_box)
@@ -428,7 +448,7 @@ func _build_timeline_tab() -> void:
 
 	timeline_preview_box = PanelContainer.new()
 	timeline_preview_box.theme_type_variation = "SubPanel"
-	timeline_preview_box.custom_minimum_size = Vector2(64.0, 64.0)
+	timeline_preview_box.custom_minimum_size = Vector2(68.0 if is_mob else 56.0, 68.0 if is_mob else 56.0)
 	timeline_preview_box.clip_contents = true
 	preview_row.add_child(timeline_preview_box)
 
@@ -457,24 +477,27 @@ func _build_timeline_tab() -> void:
 
 	btn_import_gif = Button.new()
 	btn_import_gif.text = " Import Animated GIF..."
-	btn_import_gif.custom_minimum_size = Vector2(0.0, 28.0)
+	btn_import_gif.custom_minimum_size = Vector2(0.0, row_h)
 	btn_import_gif.focus_mode = Control.FOCUS_NONE
 	btn_import_gif.add_theme_constant_override("icon_max_width", 14)
+	btn_import_gif.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	_apply_button_icon(btn_import_gif, "icon_play")
 	btn_import_gif.pressed.connect(_on_import_gif_pressed)
 	tool_row.add_child(btn_import_gif)
 
 	btn_add_timeline_frame = Button.new()
 	btn_add_timeline_frame.text = " + Add Frame"
-	btn_add_timeline_frame.custom_minimum_size = Vector2(0.0, 28.0)
+	btn_add_timeline_frame.custom_minimum_size = Vector2(0.0, row_h)
 	btn_add_timeline_frame.focus_mode = Control.FOCUS_NONE
 	btn_add_timeline_frame.add_theme_constant_override("icon_max_width", 14)
+	btn_add_timeline_frame.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	_apply_button_icon(btn_add_timeline_frame, "icon_plus")
 	btn_add_timeline_frame.pressed.connect(_on_add_timeline_frame_pressed)
 	tool_row.add_child(btn_add_timeline_frame)
 
 	check_onion_skin = CheckBox.new()
 	check_onion_skin.text = " Onion Skin Ghost Overlay"
+	check_onion_skin.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	check_onion_skin.toggled.connect(func(v: bool) -> void: timeline_onion_rect.visible = v)
 	action_btns_vbox.add_child(check_onion_skin)
 
@@ -487,14 +510,15 @@ func _build_timeline_tab() -> void:
 
 	timeline_frames_vbox = VBoxContainer.new()
 	timeline_frames_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	timeline_frames_vbox.add_theme_constant_override("separation", 3)
+	timeline_frames_vbox.add_theme_constant_override("separation", 4)
 	frames_scroll.add_child(timeline_frames_vbox)
 
 	btn_save_timeline = Button.new()
 	btn_save_timeline.text = " Save Frames to State"
-	btn_save_timeline.custom_minimum_size = Vector2(0.0, 34.0)
+	btn_save_timeline.custom_minimum_size = Vector2(0.0, row_h + 4.0)
 	btn_save_timeline.focus_mode = Control.FOCUS_NONE
 	btn_save_timeline.add_theme_constant_override("icon_max_width", 16)
+	btn_save_timeline.add_theme_font_size_override("font_size", 12 if is_mob else 11)
 	_apply_button_icon(btn_save_timeline, "icon_save")
 	btn_save_timeline.pressed.connect(_on_save_timeline_to_state_pressed)
 	tab_vbox.add_child(btn_save_timeline)
@@ -503,6 +527,9 @@ func _build_timeline_tab() -> void:
 # --- TAB 3: SPRITE SHEET & STRIP SLICER ---
 
 func _build_slicer_tab() -> void:
+	var is_mob: bool = _is_mobile()
+	var row_h: float = 34.0 if is_mob else 28.0
+
 	var tab_vbox: VBoxContainer = VBoxContainer.new()
 	tab_vbox.name = "Sprite Sheet Slicer"
 	tab_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -517,9 +544,10 @@ func _build_slicer_tab() -> void:
 	btn_choose_sheet_art = Button.new()
 	btn_choose_sheet_art.text = " Choose Sprite Sheet / Strip Drawing..."
 	btn_choose_sheet_art.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	btn_choose_sheet_art.custom_minimum_size = Vector2(0.0, 32.0)
+	btn_choose_sheet_art.custom_minimum_size = Vector2(0.0, row_h)
 	btn_choose_sheet_art.focus_mode = Control.FOCUS_NONE
 	btn_choose_sheet_art.add_theme_constant_override("icon_max_width", 14)
+	btn_choose_sheet_art.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	_apply_button_icon(btn_choose_sheet_art, "icon_folder")
 	btn_choose_sheet_art.pressed.connect(_on_pick_sheet_art_pressed)
 	pick_row.add_child(btn_choose_sheet_art)
@@ -531,44 +559,47 @@ func _build_slicer_tab() -> void:
 	var lbl_c: Label = Label.new()
 	lbl_c.text = "Columns:"
 	lbl_c.theme_type_variation = "HintLabel"
+	lbl_c.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	grid_params_row.add_child(lbl_c)
 
 	spin_cols = SpinBox.new()
 	spin_cols.min_value = 1
 	spin_cols.max_value = 16
 	spin_cols.value = 4
-	spin_cols.custom_minimum_size = Vector2(70.0, 28.0)
+	spin_cols.custom_minimum_size = Vector2(76.0 if is_mob else 65.0, row_h)
 	spin_cols.value_changed.connect(func(_v: float) -> void: if slicer_grid_overlay: slicer_grid_overlay.queue_redraw())
 	grid_params_row.add_child(spin_cols)
 
 	var lbl_r: Label = Label.new()
 	lbl_r.text = "Rows:"
 	lbl_r.theme_type_variation = "HintLabel"
+	lbl_r.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	grid_params_row.add_child(lbl_r)
 
 	spin_rows = SpinBox.new()
 	spin_rows.min_value = 1
 	spin_rows.max_value = 16
 	spin_rows.value = 1
-	spin_rows.custom_minimum_size = Vector2(70.0, 28.0)
+	spin_rows.custom_minimum_size = Vector2(76.0 if is_mob else 65.0, row_h)
 	spin_rows.value_changed.connect(func(_v: float) -> void: if slicer_grid_overlay: slicer_grid_overlay.queue_redraw())
 	grid_params_row.add_child(spin_rows)
 
 	var lbl_dest: Label = Label.new()
 	lbl_dest.text = "Destination State:"
 	lbl_dest.theme_type_variation = "HintLabel"
+	lbl_dest.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	grid_params_row.add_child(lbl_dest)
 
 	opt_slicer_dest_state = OptionButton.new()
 	opt_slicer_dest_state.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	opt_slicer_dest_state.custom_minimum_size = Vector2(0.0, 28.0)
+	opt_slicer_dest_state.custom_minimum_size = Vector2(0.0, row_h)
 	grid_params_row.add_child(opt_slicer_dest_state)
 
 	# Slicer Grid Canvas
 	slicer_preview_box = PanelContainer.new()
 	slicer_preview_box.theme_type_variation = "SubPanel"
 	slicer_preview_box.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	slicer_preview_box.custom_minimum_size = Vector2(0.0, 180.0)
+	slicer_preview_box.custom_minimum_size = Vector2(0.0, 160.0 if is_mob else 140.0)
 	slicer_preview_box.clip_contents = true
 	tab_vbox.add_child(slicer_preview_box)
 
@@ -590,9 +621,10 @@ func _build_slicer_tab() -> void:
 
 	btn_extract_slices = Button.new()
 	btn_extract_slices.text = " Extract All Slices into State"
-	btn_extract_slices.custom_minimum_size = Vector2(0.0, 36.0)
+	btn_extract_slices.custom_minimum_size = Vector2(0.0, row_h + 4.0)
 	btn_extract_slices.focus_mode = Control.FOCUS_NONE
 	btn_extract_slices.add_theme_constant_override("icon_max_width", 16)
+	btn_extract_slices.add_theme_font_size_override("font_size", 12 if is_mob else 11)
 	_apply_button_icon(btn_extract_slices, "icon_plus")
 	btn_extract_slices.pressed.connect(_on_extract_slices_pressed)
 	tab_vbox.add_child(btn_extract_slices)
@@ -629,6 +661,7 @@ func _render_forms_bar() -> void:
 	if forms_hbox_container == null or active_entity == null: return
 	for child: Node in forms_hbox_container.get_children(): child.queue_free()
 
+	var is_mob: bool = _is_mobile()
 	var c_accent: Color = ThemeService.get_color("accent_primary", "#ec4899")
 	var rad: int = ThemeService.get_corner_radius()
 
@@ -637,8 +670,9 @@ func _render_forms_bar() -> void:
 		var btn: Button = Button.new()
 		btn.text = " " + form_name
 		btn.focus_mode = Control.FOCUS_NONE
-		btn.custom_minimum_size = Vector2(0.0, 30.0)
+		btn.custom_minimum_size = Vector2(0.0, 32.0 if is_mob else 28.0)
 		btn.add_theme_constant_override("icon_max_width", 14)
+		btn.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 		_apply_button_icon(btn, "icon_star" if is_active else "icon_states")
 
 		if is_active:
@@ -665,7 +699,7 @@ func _render_forms_bar() -> void:
 
 		if form_name != "Default":
 			var del_btn: Button = Button.new()
-			del_btn.custom_minimum_size = Vector2(22.0, 22.0)
+			del_btn.custom_minimum_size = Vector2(24.0 if is_mob else 20.0, 24.0 if is_mob else 20.0)
 			del_btn.theme_type_variation = "DangerButton"
 			del_btn.focus_mode = Control.FOCUS_NONE
 			_apply_close_icon(del_btn)
@@ -730,9 +764,10 @@ func _render_states_list() -> void:
 
 
 func _create_state_row(state_key: String, label_text: String, icon_key: String, is_customized: bool, data: Dictionary, can_delete: bool) -> void:
+	var is_mob: bool = _is_mobile()
 	var card: PanelContainer = PanelContainer.new()
 	card.theme_type_variation = "SubPanel"
-	card.custom_minimum_size = Vector2(0.0, 38.0)
+	card.custom_minimum_size = Vector2(0.0, 42.0 if is_mob else 36.0)
 
 	var hbox: HBoxContainer = HBoxContainer.new()
 	hbox.add_theme_constant_override("separation", 6)
@@ -740,7 +775,7 @@ func _create_state_row(state_key: String, label_text: String, icon_key: String, 
 
 	var thumb_frame: PanelContainer = PanelContainer.new()
 	thumb_frame.theme_type_variation = "SubPanel"
-	thumb_frame.custom_minimum_size = Vector2(28.0, 28.0)
+	thumb_frame.custom_minimum_size = Vector2(32.0 if is_mob else 26.0, 32.0 if is_mob else 26.0)
 	thumb_frame.clip_contents = true
 	hbox.add_child(thumb_frame)
 
@@ -762,14 +797,14 @@ func _create_state_row(state_key: String, label_text: String, icon_key: String, 
 	var type_str: String = " (Animated: %d frames)" % frame_count if frame_count > 1 else (" (1 Frame)" if is_customized else " (Fallback)")
 	title_lbl.text = label_text + type_str
 	title_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	title_lbl.add_theme_font_size_override("font_size", 10)
+	title_lbl.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	hbox.add_child(title_lbl)
 
 	var btn_pick: Button = Button.new()
 	btn_pick.text = " Pick Art..."
-	btn_pick.custom_minimum_size = Vector2(75.0, 26.0)
+	btn_pick.custom_minimum_size = Vector2(85.0 if is_mob else 72.0, 30.0 if is_mob else 24.0)
 	btn_pick.focus_mode = Control.FOCUS_NONE
-	btn_pick.add_theme_font_size_override("font_size", 9)
+	btn_pick.add_theme_font_size_override("font_size", 10 if is_mob else 9)
 	btn_pick.add_theme_constant_override("icon_max_width", 12)
 	_apply_button_icon(btn_pick, "icon_folder")
 	btn_pick.pressed.connect(func() -> void:
@@ -787,9 +822,9 @@ func _create_state_row(state_key: String, label_text: String, icon_key: String, 
 
 	var btn_edit: Button = Button.new()
 	btn_edit.text = " Timeline"
-	btn_edit.custom_minimum_size = Vector2(70.0, 26.0)
+	btn_edit.custom_minimum_size = Vector2(80.0 if is_mob else 68.0, 30.0 if is_mob else 24.0)
 	btn_edit.focus_mode = Control.FOCUS_NONE
-	btn_edit.add_theme_font_size_override("font_size", 9)
+	btn_edit.add_theme_font_size_override("font_size", 10 if is_mob else 9)
 	btn_edit.add_theme_constant_override("icon_max_width", 12)
 	_apply_button_icon(btn_edit, icon_key)
 	btn_edit.pressed.connect(func() -> void:
@@ -800,7 +835,7 @@ func _create_state_row(state_key: String, label_text: String, icon_key: String, 
 
 	if can_delete:
 		var btn_del: Button = Button.new()
-		btn_del.custom_minimum_size = Vector2(24.0, 26.0)
+		btn_del.custom_minimum_size = Vector2(26.0 if is_mob else 22.0, 30.0 if is_mob else 24.0)
 		btn_del.theme_type_variation = "DangerButton"
 		btn_del.focus_mode = Control.FOCUS_NONE
 		_apply_close_icon(btn_del)
@@ -875,7 +910,6 @@ func _load_state_into_timeline(state_key: String) -> void:
 			opt_playback_mode.selected = idx
 			break
 
-	# Select state in dropdown
 	for idx: int in range(opt_edit_state_target.item_count):
 		if str(opt_edit_state_target.get_item_metadata(idx)) == state_key:
 			opt_edit_state_target.selected = idx
@@ -952,10 +986,13 @@ func _render_timeline_frames() -> void:
 	if timeline_frames_vbox == null: return
 	for child: Node in timeline_frames_vbox.get_children(): child.queue_free()
 
+	var is_mob: bool = _is_mobile()
+	var btn_size: float = 28.0 if is_mob else 22.0
+
 	for i: int in range(working_timeline_frames.size()):
 		var row: PanelContainer = PanelContainer.new()
 		row.theme_type_variation = "SubPanel"
-		row.custom_minimum_size = Vector2(0.0, 32.0)
+		row.custom_minimum_size = Vector2(0.0, 36.0 if is_mob else 30.0)
 
 		var hbox: HBoxContainer = HBoxContainer.new()
 		hbox.add_theme_constant_override("separation", 6)
@@ -963,12 +1000,13 @@ func _render_timeline_frames() -> void:
 
 		var lbl_idx: Label = Label.new()
 		lbl_idx.text = "#%d" % (i + 1)
-		lbl_idx.custom_minimum_size = Vector2(26.0, 0.0)
+		lbl_idx.custom_minimum_size = Vector2(30.0 if is_mob else 24.0, 0.0)
 		lbl_idx.theme_type_variation = "HintLabel"
+		lbl_idx.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 		hbox.add_child(lbl_idx)
 
 		var thumb_frame: PanelContainer = PanelContainer.new()
-		thumb_frame.custom_minimum_size = Vector2(24.0, 24.0)
+		thumb_frame.custom_minimum_size = Vector2(28.0 if is_mob else 22.0, 28.0 if is_mob else 22.0)
 		thumb_frame.clip_contents = true
 		hbox.add_child(thumb_frame)
 
@@ -984,7 +1022,7 @@ func _render_timeline_frames() -> void:
 		fname_lbl.text = p_str.get_file()
 		fname_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		fname_lbl.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-		fname_lbl.add_theme_font_size_override("font_size", 9)
+		fname_lbl.add_theme_font_size_override("font_size", 10 if is_mob else 9)
 		hbox.add_child(fname_lbl)
 
 		var target_idx: int = i
@@ -992,7 +1030,7 @@ func _render_timeline_frames() -> void:
 		# Move Up
 		var btn_up: Button = Button.new()
 		btn_up.text = "▲"
-		btn_up.custom_minimum_size = Vector2(22.0, 22.0)
+		btn_up.custom_minimum_size = Vector2(btn_size, btn_size)
 		btn_up.focus_mode = Control.FOCUS_NONE
 		btn_up.disabled = (i == 0)
 		btn_up.pressed.connect(func() -> void: _swap_timeline_frames(target_idx, target_idx - 1))
@@ -1001,7 +1039,7 @@ func _render_timeline_frames() -> void:
 		# Move Down
 		var btn_down: Button = Button.new()
 		btn_down.text = "▼"
-		btn_down.custom_minimum_size = Vector2(22.0, 22.0)
+		btn_down.custom_minimum_size = Vector2(btn_size, btn_size)
 		btn_down.focus_mode = Control.FOCUS_NONE
 		btn_down.disabled = (i == working_timeline_frames.size() - 1)
 		btn_down.pressed.connect(func() -> void: _swap_timeline_frames(target_idx, target_idx + 1))
@@ -1009,9 +1047,9 @@ func _render_timeline_frames() -> void:
 
 		# Duplicate Frame
 		var btn_dup: Button = Button.new()
-		btn_dup.custom_minimum_size = Vector2(22.0, 22.0)
+		btn_dup.custom_minimum_size = Vector2(btn_size, btn_size)
 		btn_dup.focus_mode = Control.FOCUS_NONE
-		btn_dup.add_theme_constant_override("icon_max_width", 10)
+		btn_dup.add_theme_constant_override("icon_max_width", 12)
 		_apply_button_icon(btn_dup, "icon_clone")
 		btn_dup.pressed.connect(func() -> void:
 			working_timeline_frames.insert(target_idx + 1, working_timeline_frames[target_idx])
@@ -1022,7 +1060,7 @@ func _render_timeline_frames() -> void:
 
 		# Delete Frame
 		var btn_del: Button = Button.new()
-		btn_del.custom_minimum_size = Vector2(22.0, 22.0)
+		btn_del.custom_minimum_size = Vector2(btn_size, btn_size)
 		btn_del.theme_type_variation = "DangerButton"
 		btn_del.focus_mode = Control.FOCUS_NONE
 		_apply_close_icon(btn_del)

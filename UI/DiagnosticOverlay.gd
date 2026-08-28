@@ -1,5 +1,5 @@
 # ==============================================================================
-# OWNWORLD — DIAGNOSTIC OVERLAY
+# OWNWORLD — DIAGNOSTIC OVERLAY (SAFE-AREA ANCHORED & DEVELOPER HUD)
 # File: res://UI/DiagnosticOverlay.gd
 # Base Class: CanvasLayer (class_name DiagnosticOverlay)
 #
@@ -32,6 +32,10 @@ func _ready() -> void:
 	_build_diagnostic_hud()
 	_connect_settings_signal()
 	_sync_with_settings()
+
+
+func _is_mobile() -> bool:
+	return ThemeEngine.is_mobile_platform()
 
 
 func setup(p_main: Node2D) -> void:
@@ -102,6 +106,9 @@ func set_diagnostic_active(active: bool) -> void:
 
 
 func _build_diagnostic_hud() -> void:
+	var is_mob: bool = _is_mobile()
+	var safe_area: Rect2i = DisplayServer.get_display_safe_area()
+
 	debug_canvas = DebugCanvasDraw.new()
 	debug_canvas.set_anchors_preset(Control.PRESET_FULL_RECT)
 	debug_canvas.mouse_filter = Control.MOUSE_FILTER_IGNORE
@@ -111,13 +118,13 @@ func _build_diagnostic_hud() -> void:
 
 	dev_pill_btn = Button.new()
 	dev_pill_btn.text = " DEV"
-	dev_pill_btn.custom_minimum_size = Vector2(75.0, 26.0)
+	dev_pill_btn.custom_minimum_size = Vector2(80.0 if is_mob else 70.0, 32.0 if is_mob else 26.0)
 	dev_pill_btn.anchor_left = 1.0
 	dev_pill_btn.anchor_right = 1.0
-	dev_pill_btn.offset_left = -95.0
-	dev_pill_btn.offset_top = 18.0
-	dev_pill_btn.offset_right = -20.0
-	dev_pill_btn.offset_bottom = 44.0
+	dev_pill_btn.offset_left = -maxf(100.0, float(DisplayServer.screen_get_size().x - (safe_area.position.x + safe_area.size.x)) + 80.0)
+	dev_pill_btn.offset_top = maxf(18.0, float(safe_area.position.y) + 6.0)
+	dev_pill_btn.offset_right = dev_pill_btn.offset_left + (80.0 if is_mob else 70.0)
+	dev_pill_btn.offset_bottom = dev_pill_btn.offset_top + (32.0 if is_mob else 26.0)
 	dev_pill_btn.focus_mode = Control.FOCUS_NONE
 	dev_pill_btn.visible = false
 	dev_pill_btn.theme_type_variation = "FloatingCapsule"
@@ -129,8 +136,8 @@ func _build_diagnostic_hud() -> void:
 	add_child(dev_pill_btn)
 
 	hud_panel = PanelContainer.new()
-	hud_panel.custom_minimum_size = Vector2(280.0, 80.0)
-	hud_panel.position = Vector2(16.0, 60.0)
+	hud_panel.custom_minimum_size = Vector2(300.0 if is_mob else 260.0, 85.0)
+	hud_panel.position = Vector2(maxf(16.0, float(safe_area.position.x) + 6.0), maxf(60.0, float(safe_area.position.y) + 48.0))
 	hud_panel.mouse_filter = Control.MOUSE_FILTER_PASS
 
 	var style: StyleBoxFlat = StyleBoxFlat.new()
@@ -150,16 +157,17 @@ func _build_diagnostic_hud() -> void:
 	hud_panel.add_child(vbox)
 
 	stats_label = Label.new()
-	stats_label.text = "DIAGNOSTICS ACTIVE\nEntities: 0 | Z-Counter: 100\nFPS: 60"
-	stats_label.add_theme_font_size_override("font_size", 11)
+	stats_label.text = "DIAGNOSTICS ACTIVE\nEntities: 0 | FPS: 60"
+	stats_label.add_theme_font_size_override("font_size", 12 if is_mob else 11)
 	stats_label.add_theme_color_override("font_color", Color("#22c55e"))
 	vbox.add_child(stats_label)
 
 	btn_copy_state = Button.new()
 	btn_copy_state.text = " Copy System State (JSON)"
-	btn_copy_state.custom_minimum_size = Vector2(0.0, 26.0)
+	btn_copy_state.custom_minimum_size = Vector2(0.0, 32.0 if is_mob else 26.0)
 	btn_copy_state.focus_mode = Control.FOCUS_NONE
 	btn_copy_state.add_theme_constant_override("icon_max_width", 14)
+	btn_copy_state.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 
 	var copy_icon: Texture2D = ThemeService.get_icon("icon_clone")
 	if not copy_icon: copy_icon = ThemeService.get_icon("icon_save")

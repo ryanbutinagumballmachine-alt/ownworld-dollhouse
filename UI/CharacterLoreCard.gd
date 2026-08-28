@@ -1,5 +1,5 @@
 # ==============================================================================
-# OWNWORLD — CHARACTER LORE CARD & PROFILE STUDIO
+# OWNWORLD — CHARACTER LORE CARD & PROFILE STUDIO (LANDSCAPE DUAL-OS ADAPTIVE)
 # File: res://UI/CharacterLoreCard.gd
 # Base Class: CanvasLayer (class_name CharacterLoreCard)
 #
@@ -14,8 +14,8 @@ extends CanvasLayer
 enum CardTab { PROFILE, BONDS, NOTES }
 var current_tab: CardTab = CardTab.PROFILE
 
-const MAX_CARD_WIDTH: float = 620.0
-const MAX_CARD_HEIGHT: float = 640.0
+const MAX_CARD_WIDTH: float = 760.0
+const MAX_CARD_HEIGHT: float = 580.0
 
 var root_backdrop: Control = null
 var center_container: CenterContainer = null
@@ -120,6 +120,10 @@ func _ready() -> void:
 	add_child(asset_picker)
 
 
+func _is_mobile() -> bool:
+	return ThemeEngine.is_mobile_platform()
+
+
 func _connect_system_signals() -> void:
 	if not ThemeService.theme_changed.is_connected(_on_theme_changed):
 		ThemeService.theme_changed.connect(_on_theme_changed)
@@ -130,6 +134,7 @@ func _connect_system_signals() -> void:
 
 
 func _setup_keyboard_dodging() -> void:
+	if not _is_mobile(): return
 	var inputs: Array[Control] = [name_edit, pronouns_edit, role_edit, lore_text_edit]
 	for input in inputs:
 		if input != null:
@@ -138,35 +143,35 @@ func _setup_keyboard_dodging() -> void:
 
 
 func _on_input_focus_entered() -> void:
-	if OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios"):
+	if _is_mobile() and center_container != null:
 		await get_tree().process_frame
 		await get_tree().process_frame
 		var kb_height: float = DisplayServer.virtual_keyboard_get_height()
 		if kb_height > 0:
 			var tween: Tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-			tween.tween_property(center_container, "position:y", -kb_height * 0.4, 0.25)
+			tween.tween_property(center_container, "position:y", -kb_height * 0.45, 0.25)
 
 
 func _on_input_focus_exited() -> void:
-	if OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios"):
+	if _is_mobile() and center_container != null:
 		var tween: Tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 		tween.tween_property(center_container, "position:y", 0.0, 0.25)
 
 
 func _update_responsive_layout() -> void:
-	if not is_instance_valid(root_panel):
-		return
+	if not is_instance_valid(root_panel): return
 	var vp_size: Vector2 = get_viewport().get_visible_rect().size if get_viewport() else Vector2(1280.0, 720.0)
-	var target_w: float = clampf(vp_size.x * 0.92, 300.0, MAX_CARD_WIDTH)
-	var target_h: float = clampf(vp_size.y * 0.90, 340.0, MAX_CARD_HEIGHT)
+	var is_mob: bool = _is_mobile()
+
+	var target_w: float = clampf(vp_size.x * 0.94, 320.0, MAX_CARD_WIDTH)
+	var target_h: float = clampf(vp_size.y * (0.92 if is_mob else 0.88), 300.0, MAX_CARD_HEIGHT)
 	root_panel.custom_minimum_size = Vector2(target_w, target_h)
 	root_panel.size = Vector2(target_w, target_h)
 
 
 func _on_theme_changed(_theme_data: Dictionary) -> void:
 	_apply_theme_styling()
-	if visible:
-		_switch_tab(current_tab)
+	if visible: _switch_tab(current_tab)
 
 
 func _apply_theme_styling() -> void:
@@ -187,21 +192,21 @@ func _apply_theme_styling() -> void:
 		p_style.content_margin_bottom = 10
 		root_panel.add_theme_stylebox_override("panel", p_style)
 
-	if header_lbl:
-		header_lbl.add_theme_color_override("font_color", c_accent)
+	if header_lbl: header_lbl.add_theme_color_override("font_color", c_accent)
 
 	var save_icon: Texture2D = ThemeService.get_icon("icon_save")
-	if save_icon and btn_save:
-		btn_save.icon = save_icon
+	if save_icon and btn_save: btn_save.icon = save_icon
 
 	var close_icon: Texture2D = ThemeService.get_icon("icon_close")
-	if close_icon and btn_close:
-		btn_close.icon = close_icon
+	if close_icon and btn_close: btn_close.icon = close_icon
 
 	_switch_tab(current_tab)
 
 
 func _build_ui() -> void:
+	var is_mob: bool = _is_mobile()
+	var row_h: float = 34.0 if is_mob else 28.0
+
 	root_backdrop = Control.new()
 	root_backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root_backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -226,7 +231,7 @@ func _build_ui() -> void:
 	var main_vbox: VBoxContainer = VBoxContainer.new()
 	main_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	main_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	main_vbox.add_theme_constant_override("separation", 8)
+	main_vbox.add_theme_constant_override("separation", 6)
 	root_panel.add_child(main_vbox)
 
 	var header_hbox: HBoxContainer = HBoxContainer.new()
@@ -238,14 +243,14 @@ func _build_ui() -> void:
 	header_lbl.text = "Character Profile"
 	header_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header_lbl.theme_type_variation = "HeaderLabel"
-	header_lbl.add_theme_font_size_override("font_size", 14)
+	header_lbl.add_theme_font_size_override("font_size", 14 if is_mob else 12)
 	header_hbox.add_child(header_lbl)
 
 	btn_journal = Button.new()
 	btn_journal.text = " Open World Journal"
-	btn_journal.custom_minimum_size = Vector2(150.0, 28.0)
+	btn_journal.custom_minimum_size = Vector2(160.0 if is_mob else 135.0, row_h)
 	btn_journal.focus_mode = Control.FOCUS_NONE
-	btn_journal.add_theme_font_size_override("font_size", 10)
+	btn_journal.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	btn_journal.add_theme_constant_override("icon_max_width", 12)
 	var book_icon: Texture2D = ThemeService.get_icon("icon_room")
 	if book_icon: btn_journal.icon = book_icon
@@ -253,7 +258,7 @@ func _build_ui() -> void:
 	header_hbox.add_child(btn_journal)
 
 	btn_close = Button.new()
-	btn_close.custom_minimum_size = Vector2(28.0, 28.0)
+	btn_close.custom_minimum_size = Vector2(28.0 if is_mob else 22.0, 28.0 if is_mob else 22.0)
 	btn_close.focus_mode = Control.FOCUS_NONE
 	btn_close.add_theme_constant_override("icon_max_width", 12)
 	var close_icon: Texture2D = ThemeService.get_icon("icon_close")
@@ -266,13 +271,13 @@ func _build_ui() -> void:
 	tab_strip.add_theme_constant_override("separation", 6)
 	main_vbox.add_child(tab_strip)
 
-	btn_tab_profile = _create_tab_button("Profile & Identity", "icon_assets", CardTab.PROFILE)
+	btn_tab_profile = _create_tab_button("Profile & Identity", "icon_assets", CardTab.PROFILE, row_h)
 	tab_strip.add_child(btn_tab_profile)
 
-	btn_tab_bonds = _create_tab_button("Family & Relationships", "icon_cast", CardTab.BONDS)
+	btn_tab_bonds = _create_tab_button("Family & Relationships", "icon_cast", CardTab.BONDS, row_h)
 	tab_strip.add_child(btn_tab_bonds)
 
-	btn_tab_notes = _create_tab_button("Backstory & Notes", "icon_tag", CardTab.NOTES)
+	btn_tab_notes = _create_tab_button("Backstory & Notes", "icon_tag", CardTab.NOTES, row_h)
 	tab_strip.add_child(btn_tab_notes)
 
 	main_vbox.add_child(HSeparator.new())
@@ -284,22 +289,22 @@ func _build_ui() -> void:
 	main_vbox.add_child(content_holder)
 
 	tab_profile_container = VBoxContainer.new()
-	tab_profile_container.add_theme_constant_override("separation", 8)
+	tab_profile_container.add_theme_constant_override("separation", 6)
 	tab_profile_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	tab_profile_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	content_holder.add_child(tab_profile_container)
-	_build_profile_tab()
+	_build_profile_tab(row_h)
 
 	tab_bonds_container = VBoxContainer.new()
-	tab_bonds_container.add_theme_constant_override("separation", 8)
+	tab_bonds_container.add_theme_constant_override("separation", 6)
 	tab_bonds_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	tab_bonds_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	tab_bonds_container.visible = false
 	content_holder.add_child(tab_bonds_container)
-	_build_bonds_tab()
+	_build_bonds_tab(row_h)
 
 	tab_notes_container = VBoxContainer.new()
-	tab_notes_container.add_theme_constant_override("separation", 8)
+	tab_notes_container.add_theme_constant_override("separation", 6)
 	tab_notes_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	tab_notes_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	tab_notes_container.visible = false
@@ -310,9 +315,9 @@ func _build_ui() -> void:
 
 	btn_save = Button.new()
 	btn_save.text = " Save Profile & Close"
-	btn_save.custom_minimum_size = Vector2(0.0, 38.0)
+	btn_save.custom_minimum_size = Vector2(0.0, row_h + 4.0)
 	btn_save.focus_mode = Control.FOCUS_NONE
-	btn_save.add_theme_font_size_override("font_size", 11)
+	btn_save.add_theme_font_size_override("font_size", 12 if is_mob else 11)
 	btn_save.add_theme_constant_override("icon_max_width", 16)
 	var save_icon: Texture2D = ThemeService.get_icon("icon_save")
 	if save_icon: btn_save.icon = save_icon
@@ -322,15 +327,16 @@ func _build_ui() -> void:
 	_switch_tab(CardTab.PROFILE)
 
 
-func _create_tab_button(title: String, icon_key: String, tab_target: CardTab) -> Button:
+func _create_tab_button(title: String, icon_key: String, tab_target: CardTab, row_h: float) -> Button:
+	var is_mob: bool = _is_mobile()
 	var btn: Button = Button.new()
 	btn.text = " " + title
 	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	btn.custom_minimum_size = Vector2(0.0, 32.0)
+	btn.custom_minimum_size = Vector2(0.0, row_h)
 	btn.focus_mode = Control.FOCUS_NONE
 	btn.add_theme_constant_override("icon_max_width", 14)
 	btn.add_theme_constant_override("h_separation", 6)
-	btn.add_theme_font_size_override("font_size", 10)
+	btn.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 
 	var icon_tex: Texture2D = ThemeService.get_icon(icon_key)
 	if icon_tex: btn.icon = icon_tex
@@ -384,7 +390,9 @@ func _switch_tab(target: CardTab) -> void:
 			btn.add_theme_color_override("icon_normal_color", Color.WHITE)
 
 
-func _build_profile_tab() -> void:
+func _build_profile_tab(row_h: float) -> void:
+	var is_mob: bool = _is_mobile()
+
 	var scroll: ScrollContainer = ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -394,7 +402,7 @@ func _build_profile_tab() -> void:
 
 	var vbox: VBoxContainer = VBoxContainer.new()
 	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	vbox.add_theme_constant_override("separation", 8)
+	vbox.add_theme_constant_override("separation", 6)
 	scroll.add_child(vbox)
 
 	var top_profile_hbox: HBoxContainer = HBoxContainer.new()
@@ -406,7 +414,7 @@ func _build_profile_tab() -> void:
 	top_profile_hbox.add_child(avatar_vbox)
 
 	avatar_btn = Button.new()
-	avatar_btn.custom_minimum_size = Vector2(74.0, 74.0)
+	avatar_btn.custom_minimum_size = Vector2(80.0 if is_mob else 68.0, 80.0 if is_mob else 68.0)
 	avatar_btn.focus_mode = Control.FOCUS_NONE
 	avatar_btn.pressed.connect(_on_avatar_btn_pressed)
 	avatar_vbox.add_child(avatar_btn)
@@ -422,7 +430,7 @@ func _build_profile_tab() -> void:
 	avatar_hint.text = "Set Custom Icon"
 	avatar_hint.theme_type_variation = "HintLabel"
 	avatar_hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	avatar_hint.add_theme_font_size_override("font_size", 9)
+	avatar_hint.add_theme_font_size_override("font_size", 10 if is_mob else 9)
 	avatar_vbox.add_child(avatar_hint)
 
 	var info_vbox: VBoxContainer = VBoxContainer.new()
@@ -433,11 +441,12 @@ func _build_profile_tab() -> void:
 	var lbl_name: Label = Label.new()
 	lbl_name.text = "Character Name:"
 	lbl_name.theme_type_variation = "HintLabel"
+	lbl_name.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	info_vbox.add_child(lbl_name)
 
 	name_edit = LineEdit.new()
 	name_edit.placeholder_text = "Name..."
-	name_edit.custom_minimum_size = Vector2(0.0, 32.0)
+	name_edit.custom_minimum_size = Vector2(0.0, row_h)
 	info_vbox.add_child(name_edit)
 
 	var row_grid: GridContainer = GridContainer.new()
@@ -453,11 +462,12 @@ func _build_profile_tab() -> void:
 	var lbl_p: Label = Label.new()
 	lbl_p.text = "Pronouns:"
 	lbl_p.theme_type_variation = "HintLabel"
+	lbl_p.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	col_pronouns.add_child(lbl_p)
 
 	pronouns_edit = LineEdit.new()
 	pronouns_edit.placeholder_text = "e.g. She/Her, They/Them..."
-	pronouns_edit.custom_minimum_size = Vector2(0.0, 30.0)
+	pronouns_edit.custom_minimum_size = Vector2(0.0, row_h)
 	col_pronouns.add_child(pronouns_edit)
 
 	var col_role: VBoxContainer = VBoxContainer.new()
@@ -467,11 +477,12 @@ func _build_profile_tab() -> void:
 	var lbl_r: Label = Label.new()
 	lbl_r.text = "Role / Title:"
 	lbl_r.theme_type_variation = "HintLabel"
+	lbl_r.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	col_role.add_child(lbl_r)
 
 	role_edit = LineEdit.new()
 	role_edit.placeholder_text = "e.g. Baker, Knight..."
-	role_edit.custom_minimum_size = Vector2(0.0, 30.0)
+	role_edit.custom_minimum_size = Vector2(0.0, row_h)
 	col_role.add_child(role_edit)
 
 	var col_status: VBoxContainer = VBoxContainer.new()
@@ -481,10 +492,11 @@ func _build_profile_tab() -> void:
 	var lbl_status: Label = Label.new()
 	lbl_status.text = "Life Status:"
 	lbl_status.theme_type_variation = "HintLabel"
+	lbl_status.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	col_status.add_child(lbl_status)
 
 	status_opt = OptionButton.new()
-	status_opt.custom_minimum_size = Vector2(0.0, 30.0)
+	status_opt.custom_minimum_size = Vector2(0.0, row_h)
 	_enforce_dropdown_popup_limits(status_opt, 200)
 	for i: int in range(LIFE_STATUSES.size()):
 		status_opt.add_item(LIFE_STATUSES[i], i)
@@ -500,14 +512,15 @@ func _build_profile_tab() -> void:
 	lbl_traits.text = "Custom Details & Traits:"
 	lbl_traits.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	lbl_traits.theme_type_variation = "HintLabel"
+	lbl_traits.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	trait_header_row.add_child(lbl_traits)
 
 	btn_add_trait = Button.new()
 	btn_add_trait.text = " + Add Detail"
-	btn_add_trait.custom_minimum_size = Vector2(90.0, 26.0)
+	btn_add_trait.custom_minimum_size = Vector2(100.0 if is_mob else 85.0, 28.0 if is_mob else 24.0)
 	btn_add_trait.focus_mode = Control.FOCUS_NONE
 	btn_add_trait.add_theme_font_size_override("font_size", 10)
-	btn_add_trait.pressed.connect(func() -> void: _add_trait_row("", ""))
+	btn_add_trait.pressed.connect(func() -> void: _add_trait_row("", "", row_h))
 	trait_header_row.add_child(btn_add_trait)
 
 	traits_vbox = VBoxContainer.new()
@@ -516,7 +529,7 @@ func _build_profile_tab() -> void:
 	vbox.add_child(traits_vbox)
 
 
-func _add_trait_row(trait_key: String, trait_value: String) -> void:
+func _add_trait_row(trait_key: String, trait_value: String, row_h: float) -> void:
 	var row: HBoxContainer = HBoxContainer.new()
 	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	row.add_theme_constant_override("separation", 6)
@@ -524,23 +537,25 @@ func _add_trait_row(trait_key: String, trait_value: String) -> void:
 	var key_input: LineEdit = LineEdit.new()
 	key_input.text = trait_key.strip_edges()
 	key_input.placeholder_text = "Detail (e.g. Birthday, Species)"
-	key_input.custom_minimum_size = Vector2(130.0, 30.0)
-	key_input.focus_entered.connect(_on_input_focus_entered)
-	key_input.focus_exited.connect(_on_input_focus_exited)
+	key_input.custom_minimum_size = Vector2(140.0, row_h)
+	if _is_mobile():
+		key_input.focus_entered.connect(_on_input_focus_entered)
+		key_input.focus_exited.connect(_on_input_focus_exited)
 	row.add_child(key_input)
 
 	var val_input: LineEdit = LineEdit.new()
 	val_input.text = trait_value.strip_edges()
 	val_input.placeholder_text = "Value (e.g. May 14, Elf)"
 	val_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	val_input.custom_minimum_size = Vector2(0.0, 30.0)
-	val_input.focus_entered.connect(_on_input_focus_entered)
-	val_input.focus_exited.connect(_on_input_focus_exited)
+	val_input.custom_minimum_size = Vector2(0.0, row_h)
+	if _is_mobile():
+		val_input.focus_entered.connect(_on_input_focus_entered)
+		val_input.focus_exited.connect(_on_input_focus_exited)
 	row.add_child(val_input)
 
 	var btn_del: Button = Button.new()
 	btn_del.text = "✕"
-	btn_del.custom_minimum_size = Vector2(28.0, 30.0)
+	btn_del.custom_minimum_size = Vector2(28.0, row_h)
 	btn_del.theme_type_variation = "DangerButton"
 	btn_del.focus_mode = Control.FOCUS_NONE
 	btn_del.pressed.connect(func() -> void: row.queue_free())
@@ -587,7 +602,9 @@ func _resolve_character_portrait(char_dict: Dictionary, explicit_avatar_path: St
 	return null
 
 
-func _build_bonds_tab() -> void:
+func _build_bonds_tab(row_h: float) -> void:
+	var is_mob: bool = _is_mobile()
+
 	var scroll: ScrollContainer = ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -597,7 +614,7 @@ func _build_bonds_tab() -> void:
 
 	var main_content: VBoxContainer = VBoxContainer.new()
 	main_content.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	main_content.add_theme_constant_override("separation", 10)
+	main_content.add_theme_constant_override("separation", 8)
 	scroll.add_child(main_content)
 
 	var family_header_row: HBoxContainer = HBoxContainer.new()
@@ -611,20 +628,21 @@ func _build_bonds_tab() -> void:
 	var lbl_fam_title: Label = Label.new()
 	lbl_fam_title.text = "Family Ties"
 	lbl_fam_title.theme_type_variation = "HeaderLabel"
+	lbl_fam_title.add_theme_font_size_override("font_size", 12 if is_mob else 11)
 	fam_title_vbox.add_child(lbl_fam_title)
 
 	var lbl_fam_hint: Label = Label.new()
 	lbl_fam_hint.text = "Parents, children, siblings, and partners (automatically linked both ways)."
 	lbl_fam_hint.theme_type_variation = "HintLabel"
-	lbl_fam_hint.add_theme_font_size_override("font_size", 9)
+	lbl_fam_hint.add_theme_font_size_override("font_size", 10 if is_mob else 9)
 	fam_title_vbox.add_child(lbl_fam_hint)
 
 	btn_add_family = Button.new()
 	btn_add_family.text = " + Add Family Member"
-	btn_add_family.custom_minimum_size = Vector2(150.0, 28.0)
+	btn_add_family.custom_minimum_size = Vector2(160.0 if is_mob else 140.0, row_h)
 	btn_add_family.focus_mode = Control.FOCUS_NONE
-	btn_add_family.add_theme_font_size_override("font_size", 10)
-	btn_add_family.pressed.connect(func() -> void: _add_family_row("", "Sibling", ""))
+	btn_add_family.add_theme_font_size_override("font_size", 11 if is_mob else 10)
+	btn_add_family.pressed.connect(func() -> void: _add_family_row("", "Sibling", "", row_h))
 	family_header_row.add_child(btn_add_family)
 
 	family_vbox = VBoxContainer.new()
@@ -645,20 +663,21 @@ func _build_bonds_tab() -> void:
 	var lbl_feel_title: Label = Label.new()
 	lbl_feel_title.text = "Feelings & Relationships"
 	lbl_feel_title.theme_type_variation = "HeaderLabel"
+	lbl_feel_title.add_theme_font_size_override("font_size", 12 if is_mob else 11)
 	feel_title_vbox.add_child(lbl_feel_title)
 
 	var lbl_feel_hint: Label = Label.new()
 	lbl_feel_hint.text = "How this character feels about others (friendships, rivalries, crushes)."
 	lbl_feel_hint.theme_type_variation = "HintLabel"
-	lbl_feel_hint.add_theme_font_size_override("font_size", 9)
+	lbl_feel_hint.add_theme_font_size_override("font_size", 10 if is_mob else 9)
 	feel_title_vbox.add_child(lbl_feel_hint)
 
 	btn_add_feeling = Button.new()
 	btn_add_feeling.text = " + Add Relationship"
-	btn_add_feeling.custom_minimum_size = Vector2(150.0, 28.0)
+	btn_add_feeling.custom_minimum_size = Vector2(160.0 if is_mob else 140.0, row_h)
 	btn_add_feeling.focus_mode = Control.FOCUS_NONE
-	btn_add_feeling.add_theme_font_size_override("font_size", 10)
-	btn_add_feeling.pressed.connect(func() -> void: _add_feeling_row("", "Friend / Ally", ""))
+	btn_add_feeling.add_theme_font_size_override("font_size", 11 if is_mob else 10)
+	btn_add_feeling.pressed.connect(func() -> void: _add_feeling_row("", "Friend / Ally", "", row_h))
 	feel_header_row.add_child(btn_add_feeling)
 
 	feelings_vbox = VBoxContainer.new()
@@ -667,10 +686,11 @@ func _build_bonds_tab() -> void:
 	main_content.add_child(feelings_vbox)
 
 
-func _add_family_row(target_name: String, relation_type: String, notes: String) -> void:
+func _add_family_row(target_name: String, relation_type: String, notes: String, row_h: float) -> void:
+	var is_mob: bool = _is_mobile()
 	var card: PanelContainer = _create_card_container()
 	var vbox: VBoxContainer = VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 6)
+	vbox.add_theme_constant_override("separation", 4)
 	card.add_child(vbox)
 
 	var top_hbox: HBoxContainer = HBoxContainer.new()
@@ -679,7 +699,7 @@ func _add_family_row(target_name: String, relation_type: String, notes: String) 
 
 	var target_option: OptionButton = OptionButton.new()
 	target_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	target_option.custom_minimum_size = Vector2(0.0, 32.0)
+	target_option.custom_minimum_size = Vector2(0.0, row_h)
 	_enforce_dropdown_popup_limits(target_option, 200)
 	top_hbox.add_child(target_option)
 
@@ -693,7 +713,7 @@ func _add_family_row(target_name: String, relation_type: String, notes: String) 
 	target_option.selected = sel_idx
 
 	var rel_option: OptionButton = OptionButton.new()
-	rel_option.custom_minimum_size = Vector2(180.0, 32.0)
+	rel_option.custom_minimum_size = Vector2(190.0 if is_mob else 160.0, row_h)
 	_enforce_dropdown_popup_limits(rel_option, 200)
 	top_hbox.add_child(rel_option)
 
@@ -706,7 +726,7 @@ func _add_family_row(target_name: String, relation_type: String, notes: String) 
 
 	var btn_del: Button = Button.new()
 	btn_del.text = "✕"
-	btn_del.custom_minimum_size = Vector2(30.0, 32.0)
+	btn_del.custom_minimum_size = Vector2(30.0, row_h)
 	btn_del.theme_type_variation = "DangerButton"
 	btn_del.focus_mode = Control.FOCUS_NONE
 	btn_del.pressed.connect(func() -> void: card.queue_free())
@@ -715,18 +735,20 @@ func _add_family_row(target_name: String, relation_type: String, notes: String) 
 	var notes_edit: LineEdit = LineEdit.new()
 	notes_edit.text = notes.strip_edges()
 	notes_edit.placeholder_text = "Marriage date, adoption details, or family notes..."
-	notes_edit.custom_minimum_size = Vector2(0.0, 30.0)
-	notes_edit.focus_entered.connect(_on_input_focus_entered)
-	notes_edit.focus_exited.connect(_on_input_focus_exited)
+	notes_edit.custom_minimum_size = Vector2(0.0, row_h)
+	if is_mob:
+		notes_edit.focus_entered.connect(_on_input_focus_entered)
+		notes_edit.focus_exited.connect(_on_input_focus_exited)
 	vbox.add_child(notes_edit)
 
 	family_vbox.add_child(card)
 
 
-func _add_feeling_row(target_name: String, relation_type: String, notes: String) -> void:
+func _add_feeling_row(target_name: String, relation_type: String, notes: String, row_h: float) -> void:
+	var is_mob: bool = _is_mobile()
 	var card: PanelContainer = _create_card_container()
 	var vbox: VBoxContainer = VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 6)
+	vbox.add_theme_constant_override("separation", 4)
 	card.add_child(vbox)
 
 	var top_hbox: HBoxContainer = HBoxContainer.new()
@@ -735,7 +757,7 @@ func _add_feeling_row(target_name: String, relation_type: String, notes: String)
 
 	var target_option: OptionButton = OptionButton.new()
 	target_option.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	target_option.custom_minimum_size = Vector2(0.0, 32.0)
+	target_option.custom_minimum_size = Vector2(0.0, row_h)
 	_enforce_dropdown_popup_limits(target_option, 200)
 	top_hbox.add_child(target_option)
 
@@ -749,7 +771,7 @@ func _add_feeling_row(target_name: String, relation_type: String, notes: String)
 	target_option.selected = sel_idx
 
 	var rel_option: OptionButton = OptionButton.new()
-	rel_option.custom_minimum_size = Vector2(180.0, 32.0)
+	rel_option.custom_minimum_size = Vector2(190.0 if is_mob else 160.0, row_h)
 	_enforce_dropdown_popup_limits(rel_option, 200)
 	top_hbox.add_child(rel_option)
 
@@ -762,7 +784,7 @@ func _add_feeling_row(target_name: String, relation_type: String, notes: String)
 
 	var btn_del: Button = Button.new()
 	btn_del.text = "✕"
-	btn_del.custom_minimum_size = Vector2(30.0, 32.0)
+	btn_del.custom_minimum_size = Vector2(30.0, row_h)
 	btn_del.theme_type_variation = "DangerButton"
 	btn_del.focus_mode = Control.FOCUS_NONE
 	btn_del.pressed.connect(func() -> void: card.queue_free())
@@ -771,9 +793,10 @@ func _add_feeling_row(target_name: String, relation_type: String, notes: String)
 	var notes_edit: LineEdit = LineEdit.new()
 	notes_edit.text = notes.strip_edges()
 	notes_edit.placeholder_text = "Why they feel this way, history of rivalries, or secret feelings..."
-	notes_edit.custom_minimum_size = Vector2(0.0, 30.0)
-	notes_edit.focus_entered.connect(_on_input_focus_entered)
-	notes_edit.focus_exited.connect(_on_input_focus_exited)
+	notes_edit.custom_minimum_size = Vector2(0.0, row_h)
+	if is_mob:
+		notes_edit.focus_entered.connect(_on_input_focus_entered)
+		notes_edit.focus_exited.connect(_on_input_focus_exited)
 	vbox.add_child(notes_edit)
 
 	feelings_vbox.add_child(card)
@@ -798,6 +821,7 @@ func _build_notes_tab() -> void:
 	var lbl_lore: Label = Label.new()
 	lbl_lore.text = "Backstory, Personality & Story Notes:"
 	lbl_lore.theme_type_variation = "HintLabel"
+	lbl_lore.add_theme_font_size_override("font_size", 11 if _is_mobile() else 10)
 	tab_notes_container.add_child(lbl_lore)
 
 	lore_text_edit = TextEdit.new()
@@ -805,7 +829,7 @@ func _build_notes_tab() -> void:
 	lore_text_edit.wrap_mode = TextEdit.LINE_WRAPPING_BOUNDARY
 	lore_text_edit.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	lore_text_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	lore_text_edit.custom_minimum_size = Vector2(0.0, 180.0)
+	lore_text_edit.custom_minimum_size = Vector2(0.0, 160.0)
 	tab_notes_container.add_child(lore_text_edit)
 
 
@@ -827,6 +851,8 @@ func open_card_for_character_dict(char_dict: Dictionary) -> void:
 
 
 func _populate_from_data(char_name: String, fields: Dictionary) -> void:
+	var row_h: float = 34.0 if _is_mobile() else 28.0
+
 	name_edit.text = char_name.strip_edges()
 	pronouns_edit.text = str(fields.get("pronouns", "")).strip_edges()
 	role_edit.text = str(fields.get("role", "")).strip_edges()
@@ -842,7 +868,7 @@ func _populate_from_data(char_name: String, fields: Dictionary) -> void:
 	for c: Node in traits_vbox.get_children(): c.queue_free()
 	var traits_dict: Dictionary = fields.get("traits", {})
 	for k: Variant in traits_dict.keys():
-		_add_trait_row(str(k), str(traits_dict[k]))
+		_add_trait_row(str(k), str(traits_dict[k]), row_h)
 
 	for c: Node in family_vbox.get_children(): c.queue_free()
 	var raw_family: Array = fields.get("family_ties", [])
@@ -851,7 +877,7 @@ func _populate_from_data(char_name: String, fields: Dictionary) -> void:
 		if f_var is Dictionary:
 			var f_dict: Dictionary = (f_var as Dictionary).duplicate(true)
 			initial_family_snapshot.append(f_dict)
-			_add_family_row(str(f_dict.get("target_name", "")), str(f_dict.get("relation_type", "Sibling")), str(f_dict.get("notes", "")))
+			_add_family_row(str(f_dict.get("target_name", "")), str(f_dict.get("relation_type", "Sibling")), str(f_dict.get("notes", "")), row_h)
 
 	for c: Node in feelings_vbox.get_children(): c.queue_free()
 	var raw_feelings: Array = fields.get("relationships", [])
@@ -860,7 +886,7 @@ func _populate_from_data(char_name: String, fields: Dictionary) -> void:
 		if e_var is Dictionary:
 			var e_dict: Dictionary = (e_var as Dictionary).duplicate(true)
 			initial_feelings_snapshot.append(e_dict)
-			_add_feeling_row(str(e_dict.get("target_name", "")), str(e_dict.get("relation_type", "Friend / Ally")), str(e_dict.get("notes", "")))
+			_add_feeling_row(str(e_dict.get("target_name", "")), str(e_dict.get("relation_type", "Friend / Ally")), str(e_dict.get("notes", "")), row_h)
 
 	_switch_tab(CardTab.PROFILE)
 	visible = true
@@ -1108,7 +1134,7 @@ func _load_universe_character_data() -> Array[Dictionary]:
 			for item: Variant in cast_items:
 				if item is Dictionary:
 					var c_data: Dictionary = (item as Dictionary).duplicate(true)
-					var c_id: String = str(c_data.get("id", "")).strip_edges()
+					var c_id: String = str(c_data.get("id", ""))
 					var c_name: String = str(c_data.get("display_name", "")).strip_edges().to_lower()
 					if c_id.is_empty() or seen_ids.has(c_id): continue
 					if not c_name.is_empty() and seen_names.has(c_name): continue

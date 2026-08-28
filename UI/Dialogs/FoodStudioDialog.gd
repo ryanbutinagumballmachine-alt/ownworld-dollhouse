@@ -1,5 +1,5 @@
 # ==============================================================================
-# OWNWORLD — FOOD & DRINK STUDIO
+# OWNWORLD — FOOD & DRINK STUDIO (LANDSCAPE DUAL-OS ADAPTIVE)
 # File: res://UI/Dialogs/FoodStudioDialog.gd
 # Base Class: CanvasLayer (class_name FoodStudioDialog)
 #
@@ -10,7 +10,7 @@
 class_name FoodStudioDialog
 extends CanvasLayer
 
-const MAX_PANEL_WIDTH: float = 500.0
+const MAX_PANEL_WIDTH: float = 560.0
 const MAX_PANEL_HEIGHT: float = 540.0
 
 var root_backdrop: Control = null
@@ -44,6 +44,10 @@ func _ready() -> void:
 	add_child(asset_picker)
 
 
+func _is_mobile() -> bool:
+	return ThemeEngine.is_mobile_platform()
+
+
 func _connect_system_signals() -> void:
 	var tree: SceneTree = get_tree()
 	if tree and tree.root and not tree.root.size_changed.is_connected(_update_responsive_layout):
@@ -62,13 +66,18 @@ func _update_responsive_layout() -> void:
 	if not is_instance_valid(root_panel): return
 	var viewport: Viewport = get_viewport()
 	var viewport_size: Vector2 = viewport.get_visible_rect().size if viewport != null else Vector2(1280.0, 720.0)
-	var target_width: float = clampf(viewport_size.x * 0.90, 280.0, MAX_PANEL_WIDTH)
-	var target_height: float = clampf(viewport_size.y * 0.90, 320.0, MAX_PANEL_HEIGHT)
+	var is_mob: bool = _is_mobile()
+
+	var target_width: float = clampf(viewport_size.x * 0.92, 300.0, MAX_PANEL_WIDTH)
+	var target_height: float = clampf(viewport_size.y * (0.90 if is_mob else 0.84), 300.0, MAX_PANEL_HEIGHT)
 	root_panel.custom_minimum_size = Vector2(target_width, target_height)
 	root_panel.size = Vector2(target_width, target_height)
 
 
 func _build_ui() -> void:
+	var is_mob: bool = _is_mobile()
+	var row_h: float = 36.0 if is_mob else 28.0
+
 	root_backdrop = Control.new()
 	root_backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root_backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -93,7 +102,7 @@ func _build_ui() -> void:
 	var main_vbox: VBoxContainer = VBoxContainer.new()
 	main_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	main_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	main_vbox.add_theme_constant_override("separation", 8)
+	main_vbox.add_theme_constant_override("separation", 6)
 	root_panel.add_child(main_vbox)
 
 	var header_hbox: HBoxContainer = HBoxContainer.new()
@@ -103,10 +112,11 @@ func _build_ui() -> void:
 	header_lbl.text = "Food & Drink Studio"
 	header_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header_lbl.theme_type_variation = "HeaderLabel"
+	header_lbl.add_theme_font_size_override("font_size", 14 if is_mob else 12)
 	header_hbox.add_child(header_lbl)
 
 	var close_button: Button = Button.new()
-	close_button.custom_minimum_size = Vector2(24.0, 24.0)
+	close_button.custom_minimum_size = Vector2(28.0 if is_mob else 22.0, 28.0 if is_mob else 22.0)
 	close_button.focus_mode = Control.FOCUS_NONE
 	close_button.add_theme_constant_override("icon_max_width", 12)
 	_apply_close_icon(close_button)
@@ -136,21 +146,23 @@ func _build_ui() -> void:
 	mode_card.add_child(mode_vbox)
 
 	check_is_drink = CheckBox.new()
-	check_is_drink.text = " Beverage / Liquid Mode (Supports Pouring & Fill Levels)"
-	check_is_drink.custom_minimum_size = Vector2(0.0, 28.0)
-	check_is_drink.add_theme_constant_override("icon_max_width", 16)
+	check_is_drink.text = " Beverage Mode (Supports Pouring & Fill Levels)"
+	check_is_drink.custom_minimum_size = Vector2(0.0, row_h)
+	check_is_drink.add_theme_constant_override("icon_max_width", 18 if is_mob else 16)
+	check_is_drink.add_theme_font_size_override("font_size", 12 if is_mob else 10)
 	mode_vbox.add_child(check_is_drink)
 
 	check_is_infinite = CheckBox.new()
 	check_is_infinite.text = " Infinite (Endless bites & sips without depleting)"
-	check_is_infinite.custom_minimum_size = Vector2(0.0, 28.0)
-	check_is_infinite.add_theme_constant_override("icon_max_width", 16)
+	check_is_infinite.custom_minimum_size = Vector2(0.0, row_h)
+	check_is_infinite.add_theme_constant_override("icon_max_width", 18 if is_mob else 16)
+	check_is_infinite.add_theme_font_size_override("font_size", 12 if is_mob else 10)
 	mode_vbox.add_child(check_is_infinite)
 
 	var stages_label: Label = Label.new()
 	stages_label.text = "Sequential Bite / Sip Stages (Leave empty to use base art):"
 	stages_label.theme_type_variation = "HintLabel"
-	stages_label.add_theme_font_size_override("font_size", 10)
+	stages_label.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	form_vbox.add_child(stages_label)
 
 	stages_vbox = VBoxContainer.new()
@@ -160,9 +172,10 @@ func _build_ui() -> void:
 
 	btn_add_stage = Button.new()
 	btn_add_stage.text = " Add Next Bite / Stage Drawing..."
-	btn_add_stage.custom_minimum_size = Vector2(0.0, 32.0)
+	btn_add_stage.custom_minimum_size = Vector2(0.0, row_h)
 	btn_add_stage.focus_mode = Control.FOCUS_NONE
 	btn_add_stage.add_theme_constant_override("icon_max_width", 14)
+	btn_add_stage.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	btn_add_stage.pressed.connect(_on_add_stage_pressed)
 	form_vbox.add_child(btn_add_stage)
 
@@ -170,9 +183,10 @@ func _build_ui() -> void:
 
 	btn_save = Button.new()
 	btn_save.text = " Save Food / Drink State"
-	btn_save.custom_minimum_size = Vector2(0.0, 36.0)
+	btn_save.custom_minimum_size = Vector2(0.0, row_h + 4.0)
 	btn_save.focus_mode = Control.FOCUS_NONE
 	btn_save.add_theme_constant_override("icon_max_width", 16)
+	btn_save.add_theme_font_size_override("font_size", 12 if is_mob else 11)
 	btn_save.pressed.connect(save_and_close)
 	main_vbox.add_child(btn_save)
 
@@ -220,13 +234,14 @@ func _render_stages_list() -> void:
 	for child: Node in stages_vbox.get_children():
 		child.queue_free()
 
+	var is_mob: bool = _is_mobile()
 	var border_color: Color = ThemeService.get_color("panel_border", "#f472b6")
 	var input_background: Color = ThemeService.get_color("input_background", "#ffffff")
 
 	for index: int in range(custom_stage_paths.size()):
 		var card: PanelContainer = PanelContainer.new()
 		card.theme_type_variation = "SubPanel"
-		card.custom_minimum_size = Vector2(0.0, 36.0)
+		card.custom_minimum_size = Vector2(0.0, 42.0 if is_mob else 36.0)
 
 		var hbox: HBoxContainer = HBoxContainer.new()
 		hbox.add_theme_constant_override("separation", 8)
@@ -235,10 +250,11 @@ func _render_stages_list() -> void:
 		var stage_label: Label = Label.new()
 		stage_label.text = "Stage %d:" % (index + 1)
 		stage_label.theme_type_variation = "HintLabel"
+		stage_label.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 		hbox.add_child(stage_label)
 
 		var thumbnail_frame: PanelContainer = PanelContainer.new()
-		thumbnail_frame.custom_minimum_size = Vector2(26.0, 26.0)
+		thumbnail_frame.custom_minimum_size = Vector2(34.0 if is_mob else 26.0, 34.0 if is_mob else 26.0)
 		thumbnail_frame.clip_contents = true
 
 		var thumbnail_style: StyleBoxFlat = StyleBoxFlat.new()
@@ -261,10 +277,11 @@ func _render_stages_list() -> void:
 		path_label.text = custom_stage_paths[index].get_file()
 		path_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 		path_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		path_label.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 		hbox.add_child(path_label)
 
 		var delete_button: Button = Button.new()
-		delete_button.custom_minimum_size = Vector2(22.0, 22.0)
+		delete_button.custom_minimum_size = Vector2(28.0 if is_mob else 22.0, 28.0 if is_mob else 22.0)
 		delete_button.theme_type_variation = "DangerButton"
 		delete_button.focus_mode = Control.FOCUS_NONE
 		delete_button.add_theme_constant_override("icon_max_width", 10)

@@ -1,9 +1,5 @@
-# ============================================================
-# File: res://UI/Dialogs/TutorialDialog.gd
-# ============================================================
-
 # ==============================================================================
-# OWNWORLD — IN-GAME TUTORIAL & CREATOR HANDBOOK (UPDATED & EXPANDED)
+# OWNWORLD — IN-GAME CREATOR HANDBOOK (LANDSCAPE MASTER-DETAIL DUAL-OS)
 # File: res://UI/Dialogs/TutorialDialog.gd
 # Base Class: CanvasLayer (class_name TutorialDialog)
 #
@@ -17,8 +13,8 @@ extends CanvasLayer
 
 signal dialog_closed()
 
-const MAX_PANEL_WIDTH: float = 960.0
-const MAX_PANEL_HEIGHT: float = 620.0
+const MAX_PANEL_WIDTH: float = 780.0
+const MAX_PANEL_HEIGHT: float = 580.0
 
 var root_backdrop: Control = null
 var center_container: CenterContainer = null
@@ -39,7 +35,7 @@ var active_filter_query: String = ""
 var tutorial_chapters: Array[Dictionary] = [
 	{
 		"id": "quickstart",
-		"title": "1. Quickstart and Controls",
+		"title": "1. Quickstart & Controls",
 		"icon": "icon_play",
 		"badge": "Basics",
 		"sections": [
@@ -48,8 +44,8 @@ var tutorial_chapters: Array[Dictionary] = [
 				"body": "OwnWorld: Dollhouse is an open 2D storytelling, dollhouse, and worldbuilding sandbox. Everything you see (characters, furniture, food, room layouts, and cause-and-effect logic) can be customized or created from scratch using your own drawings."
 			},
 			{
-				"title": "Side-Scrolling by Default",
-				"body": "• Horizontal Gliding: Rooms fit your device screen height with zero vertical scrolling. Drag any empty background area left or right with your mouse or finger to glide smoothly between room slices.\n• Screen-Fitting View: Each room slice is automatically formatted to fit your screen aspect ratio perfectly."
+				"title": "Dual-OS Ergonomics & Side-Scrolling",
+				"body": "• Mobile Landscape Gliding: Rooms fit your device screen height with zero vertical camera lag. Drag any empty background area left or right with your finger or mouse to glide smoothly between room slices.\n• Touch Targets: Interactive items and buttons are calibrated to comfortable 44–48dp mobile touch sizes with notch and gesture bar shielding.\n• Desktop PC Cues: On PC, enjoy sub-pixel mouse precision, right-click context menus, and mouse wheel zooming."
 			},
 			{
 				"title": "Focus and Zoom Mode",
@@ -57,17 +53,13 @@ var tutorial_chapters: Array[Dictionary] = [
 			},
 			{
 				"title": "Interacting with Objects & Universal Hold",
-				"body": "• Tap / Click: Tap on lights, doors, elevators, stairs, containers, or appliances to trigger their default action (turn on/off, climb upstairs, open/close, travel floors, toggle).\n• Drag and Drop: Press and drag any unlocked item or character. Drop them onto chairs, tables, beds, or stairs to snap or travel.\n• Magic Wheel: Long-press any item or character (or right-click) to open the Magic Wheel context menu. The required hold time dynamically matches the slider in your Settings menu!"
-			},
-			{
-				"title": "Dynamic Smart Notifications",
-				"body": "Notification toasts automatically detect active UI elements and display smoothly below the Top Navigation Bar without overlapping buttons."
+				"body": "• Tap / Click: Tap on lights, doors, elevators, stairs, containers, or appliances to trigger their default action (turn on/off, climb upstairs, open/close, travel floors, toggle).\n• Drag and Drop: Press and drag any unlocked item or character. Drop them onto chairs, tables, beds, or stairs to snap or travel.\n• Magic Wheel: Long-press any item or character on touchscreens (or right-click on PC) to open the Magic Wheel context menu. The required hold time dynamically matches the slider in your Settings menu!"
 			}
 		]
 	},
 	{
 		"id": "ugc_art",
-		"title": "2. Bringing Your Drawings & GIFs to Life",
+		"title": "2. Drawings & Animated GIFs",
 		"icon": "icon_assets",
 		"badge": "Custom Art",
 		"sections": [
@@ -87,13 +79,13 @@ var tutorial_chapters: Array[Dictionary] = [
 	},
 	{
 		"id": "characters_poses",
-		"title": "3. Unified Actor States, GIFs & Natural Blinking",
+		"title": "3. Unified States & Natural Blinks",
 		"icon": "icon_cast",
 		"badge": "Characters",
 		"sections": [
 			{
 				"title": "The Unified Actor State Paradigm",
-				"body": "In OwnWorld, Poses, Animations, and GIFs are harmonized into a single system: **Actor States**! Every pose, expression, or walk cycle is simply a State that holds either a single static drawing OR a multi-frame animation sequence / GIF."
+				"body": "In OwnWorld, Poses, Animations, and GIFs are harmonized into a single system: Actor States! Every pose, expression, or walk cycle is simply a State that holds either a single static drawing OR a multi-frame animation sequence / GIF."
 			},
 			{
 				"title": "Core Automated Engine Hooks",
@@ -101,15 +93,15 @@ var tutorial_chapters: Array[Dictionary] = [
 			},
 			{
 				"title": "Setting up Natural Blinks on States",
-				"body": "Want a character to blink naturally while idle or sitting? In the Timeline tab, add your open-eyes frame (Frame 1) and your closed-eyes frame (Frame 2). Set the Playback Mode to **Natural Blink**! The character will rest on Frame 1 and swiftly blink every 2.5–5 seconds automatically."
+				"body": "Want a character to blink naturally while idle or sitting? In the Timeline tab, add your open-eyes frame (Frame 1) and your closed-eyes frame (Frame 2). Set the Playback Mode to Natural Blink! The character will rest on Frame 1 and swiftly blink every 2.5–5 seconds automatically."
 			},
 			{
 				"title": "Native GIF Importing in One Tap",
-				"body": "In the States Studio (Tab 2), tap **'Import Animated GIF'** to convert any `.gif` file into a living animation state at its native frame rate with zero manual frame slicing!"
+				"body": "In the States Studio (Tab 2), tap 'Import Animated GIF' to convert any .gif file into a living animation state at its native frame rate with zero manual frame slicing!"
 			},
 			{
 				"title": "Procedural Sprite Sheet & Strip Slicing",
-				"body": "Imported a 4x1 walk cycle strip or a 4x2 action grid? Open Tab 3 (Sprite Sheet Slicer), choose your Columns and Rows with real-time cutting lines, and tap **'Extract All Slices into State'** to generate memory-cached frames instantly!"
+				"body": "Imported a 4x1 walk cycle strip or a 4x2 action grid? Open Tab 3 (Sprite Sheet Slicer), choose your Columns and Rows with real-time cutting lines, and tap 'Extract All Slices into State' to generate memory-cached frames instantly!"
 			},
 			{
 				"title": "Summoning and Hold-to-Recall",
@@ -119,7 +111,7 @@ var tutorial_chapters: Array[Dictionary] = [
 	},
 	{
 		"id": "anchors_sockets",
-		"title": "4. Sockets and Dressing Up",
+		"title": "4. Sockets & Dressing Up",
 		"icon": "icon_anchors",
 		"badge": "Sockets",
 		"sections": [
@@ -139,7 +131,7 @@ var tutorial_chapters: Array[Dictionary] = [
 	},
 	{
 		"id": "food_liquids_crafting",
-		"title": "5. Food, Drinks, Liquids and Cooking",
+		"title": "5. Food, Drinks & Cooking",
 		"icon": "icon_food",
 		"badge": "Interactive",
 		"sections": [
@@ -167,7 +159,7 @@ var tutorial_chapters: Array[Dictionary] = [
 	},
 	{
 		"id": "logic_rules",
-		"title": "6. Cause and Effect Logic Studio",
+		"title": "6. Cause & Effect Logic Studio",
 		"icon": "icon_logic",
 		"badge": "Visual Scripting",
 		"sections": [
@@ -183,7 +175,7 @@ var tutorial_chapters: Array[Dictionary] = [
 	},
 	{
 		"id": "rooms_elevators_map",
-		"title": "7. Rooms, Floors, Elevators and Maps",
+		"title": "7. Rooms, Floors & Elevators",
 		"icon": "icon_room",
 		"badge": "Worldbuilding",
 		"sections": [
@@ -203,7 +195,7 @@ var tutorial_chapters: Array[Dictionary] = [
 	},
 	{
 		"id": "lore_journals_factions",
-		"title": "8. Character Profiles, Family Trees and Lore",
+		"title": "8. Profiles, Family Trees & Lore",
 		"icon": "icon_lore",
 		"badge": "Narrative",
 		"sections": [
@@ -219,7 +211,7 @@ var tutorial_chapters: Array[Dictionary] = [
 	},
 	{
 		"id": "universes_packs",
-		"title": "9. Universes and Story Packs",
+		"title": "9. Universes & Story Packs",
 		"icon": "icon_universe",
 		"badge": "Sharing",
 		"sections": [
@@ -239,7 +231,7 @@ var tutorial_chapters: Array[Dictionary] = [
 	},
 	{
 		"id": "theming_settings",
-		"title": "10. Aesthetics, Themes and Toggleable Juice",
+		"title": "10. Themes & Toggleable Juice",
 		"icon": "icon_palette",
 		"badge": "Customization",
 		"sections": [
@@ -259,9 +251,9 @@ var tutorial_chapters: Array[Dictionary] = [
 	},
 	{
 		"id": "wip_known_issues",
-		"title": "11. Roadmap and Creator Tips",
+		"title": "11. Roadmap & Creator Tips",
 		"icon": "icon_dev",
-		"badge": "WIP and Roadmap",
+		"badge": "WIP & Roadmap",
 		"sections": [
 			{
 				"title": "Active Development Notice",
@@ -290,6 +282,10 @@ func _ready() -> void:
 	_apply_theme_styling()
 
 
+func _is_mobile() -> bool:
+	return ThemeEngine.is_mobile_platform()
+
+
 func _connect_system_signals() -> void:
 	if not ThemeService.theme_changed.is_connected(_on_theme_changed):
 		ThemeService.theme_changed.connect(_on_theme_changed)
@@ -301,8 +297,10 @@ func _connect_system_signals() -> void:
 func _update_responsive_layout() -> void:
 	if not is_instance_valid(root_panel): return
 	var vp_size: Vector2 = get_viewport().get_visible_rect().size if get_viewport() else Vector2(1280.0, 720.0)
-	var target_w: float = clampf(vp_size.x * 0.94, 310.0, MAX_PANEL_WIDTH)
-	var target_h: float = clampf(vp_size.y * 0.92, 340.0, MAX_PANEL_HEIGHT)
+	var is_mob: bool = _is_mobile()
+
+	var target_w: float = clampf(vp_size.x * 0.94, 320.0, MAX_PANEL_WIDTH)
+	var target_h: float = clampf(vp_size.y * (0.92 if is_mob else 0.88), 300.0, MAX_PANEL_HEIGHT)
 	root_panel.custom_minimum_size = Vector2(target_w, target_h)
 	root_panel.size = Vector2(target_w, target_h)
 
@@ -331,6 +329,8 @@ func close_handbook() -> void:
 
 
 func _build_ui() -> void:
+	var is_mob: bool = _is_mobile()
+
 	root_backdrop = Control.new()
 	root_backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root_backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -355,7 +355,7 @@ func _build_ui() -> void:
 	var main_vbox: VBoxContainer = VBoxContainer.new()
 	main_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	main_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	main_vbox.add_theme_constant_override("separation", 8)
+	main_vbox.add_theme_constant_override("separation", 6)
 	root_panel.add_child(main_vbox)
 
 	var header_hbox: HBoxContainer = HBoxContainer.new()
@@ -366,18 +366,18 @@ func _build_ui() -> void:
 	header_title_lbl = Label.new()
 	header_title_lbl.text = "OwnWorld Creator Handbook & Guide"
 	header_title_lbl.theme_type_variation = "HeaderLabel"
-	header_title_lbl.add_theme_font_size_override("font_size", 14)
+	header_title_lbl.add_theme_font_size_override("font_size", 14 if is_mob else 12)
 	header_title_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header_hbox.add_child(header_title_lbl)
 
 	search_input = LineEdit.new()
 	search_input.placeholder_text = "Search topics (states, GIF, slicer, juice)..."
-	search_input.custom_minimum_size = Vector2(260.0, 30.0)
+	search_input.custom_minimum_size = Vector2(260.0 if is_mob else 200.0, 32.0 if is_mob else 26.0)
 	search_input.text_changed.connect(_on_search_query_changed)
 	header_hbox.add_child(search_input)
 
 	btn_close = Button.new()
-	btn_close.custom_minimum_size = Vector2(28.0, 28.0)
+	btn_close.custom_minimum_size = Vector2(28.0 if is_mob else 22.0, 28.0 if is_mob else 22.0)
 	btn_close.focus_mode = Control.FOCUS_NONE
 	btn_close.add_theme_constant_override("icon_max_width", 12)
 	var close_icon: Texture2D = ThemeService.get_icon("icon_close")
@@ -395,7 +395,7 @@ func _build_ui() -> void:
 	main_vbox.add_child(split_hbox)
 
 	var left_scroll: ScrollContainer = ScrollContainer.new()
-	left_scroll.custom_minimum_size = Vector2(240.0, 0.0)
+	left_scroll.custom_minimum_size = Vector2(250.0 if is_mob else 210.0, 0.0)
 	left_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	left_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	left_scroll.follow_focus = false
@@ -422,7 +422,7 @@ func _build_ui() -> void:
 
 	content_vbox = VBoxContainer.new()
 	content_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	content_vbox.add_theme_constant_override("separation", 12)
+	content_vbox.add_theme_constant_override("separation", 10)
 	content_scroll.add_child(content_vbox)
 
 
@@ -430,6 +430,7 @@ func _render_topics_sidebar() -> void:
 	if not topics_list_vbox: return
 	for child: Node in topics_list_vbox.get_children(): child.queue_free()
 
+	var is_mob: bool = _is_mobile()
 	var c_accent: Color = ThemeService.get_color("accent_primary", "#ec4899")
 	var rad: int = ThemeService.get_corner_radius()
 
@@ -450,10 +451,10 @@ func _render_topics_sidebar() -> void:
 		var btn: Button = Button.new()
 		btn.text = " " + c_title
 		btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		btn.custom_minimum_size = Vector2(0.0, 34.0)
+		btn.custom_minimum_size = Vector2(0.0, 36.0 if is_mob else 30.0)
 		btn.focus_mode = Control.FOCUS_NONE
 		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		btn.add_theme_font_size_override("font_size", 10)
+		btn.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 		btn.add_theme_constant_override("icon_max_width", 14)
 
 		var icon_tex: Texture2D = ThemeService.get_icon(str(chapter.get("icon", "icon_room")))
@@ -490,6 +491,7 @@ func _render_active_topic_content() -> void:
 	if active_topic_index < 0 or active_topic_index >= tutorial_chapters.size():
 		return
 
+	var is_mob: bool = _is_mobile()
 	var chapter: Dictionary = tutorial_chapters[active_topic_index]
 	var c_title: String = str(chapter["title"])
 	var c_badge: String = str(chapter.get("badge", ""))
@@ -504,7 +506,7 @@ func _render_active_topic_content() -> void:
 	title_card.add_child(title_hbox)
 
 	var icon_rect: TextureRect = TextureRect.new()
-	icon_rect.custom_minimum_size = Vector2(28.0, 28.0)
+	icon_rect.custom_minimum_size = Vector2(30.0 if is_mob else 24.0, 30.0 if is_mob else 24.0)
 	icon_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	var icon_tex: Texture2D = ThemeService.get_icon(str(chapter.get("icon", "icon_room")))
@@ -514,14 +516,14 @@ func _render_active_topic_content() -> void:
 	var title_lbl: Label = Label.new()
 	title_lbl.text = c_title
 	title_lbl.theme_type_variation = "HeaderLabel"
-	title_lbl.add_theme_font_size_override("font_size", 13)
+	title_lbl.add_theme_font_size_override("font_size", 14 if is_mob else 12)
 	title_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title_hbox.add_child(title_lbl)
 
 	var badge_lbl: Label = Label.new()
 	badge_lbl.text = c_badge.to_upper()
 	badge_lbl.theme_type_variation = "HintLabel"
-	badge_lbl.add_theme_font_size_override("font_size", 9)
+	badge_lbl.add_theme_font_size_override("font_size", 10 if is_mob else 9)
 	title_hbox.add_child(badge_lbl)
 
 	for sec_var: Variant in sections:
@@ -535,20 +537,20 @@ func _render_active_topic_content() -> void:
 		content_vbox.add_child(card)
 
 		var card_vbox: VBoxContainer = VBoxContainer.new()
-		card_vbox.add_theme_constant_override("separation", 6)
+		card_vbox.add_theme_constant_override("separation", 4)
 		card.add_child(card_vbox)
 
 		if not s_title.is_empty():
 			var st_lbl: Label = Label.new()
 			st_lbl.text = s_title
 			st_lbl.theme_type_variation = "HeaderLabel"
-			st_lbl.add_theme_font_size_override("font_size", 11)
+			st_lbl.add_theme_font_size_override("font_size", 12 if is_mob else 11)
 			card_vbox.add_child(st_lbl)
 
 		var sb_lbl: Label = Label.new()
 		sb_lbl.text = s_body
 		sb_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-		sb_lbl.add_theme_font_size_override("font_size", 10)
+		sb_lbl.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 		sb_lbl.add_theme_color_override("font_color", ThemeService.get_color("text_primary", "#6c2e3f"))
 		card_vbox.add_child(sb_lbl)
 
@@ -556,10 +558,14 @@ func _render_active_topic_content() -> void:
 	nav_row.add_theme_constant_override("separation", 10)
 	content_vbox.add_child(nav_row)
 
+	var btn_h: float = 34.0 if is_mob else 28.0
+
 	if active_topic_index > 0:
 		var btn_prev: Button = Button.new()
 		btn_prev.text = "◄ Previous Chapter"
+		btn_prev.custom_minimum_size = Vector2(0.0, btn_h)
 		btn_prev.focus_mode = Control.FOCUS_NONE
+		btn_prev.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 		btn_prev.pressed.connect(func() -> void:
 			active_topic_index -= 1
 			_render_topics_sidebar()
@@ -574,8 +580,10 @@ func _render_active_topic_content() -> void:
 
 	if active_topic_index < tutorial_chapters.size() - 1:
 		var btn_next: Button = Button.new()
-		btn_next.text = "Next Chapter: " + str(tutorial_chapters[active_topic_index + 1]["title"]).split(". ")[-1] + " ►"
+		btn_next.text = "Next Chapter ►"
+		btn_next.custom_minimum_size = Vector2(0.0, btn_h)
 		btn_next.focus_mode = Control.FOCUS_NONE
+		btn_next.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 		btn_next.pressed.connect(func() -> void:
 			active_topic_index += 1
 			_render_topics_sidebar()

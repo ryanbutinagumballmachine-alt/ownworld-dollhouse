@@ -1,5 +1,5 @@
 # ==============================================================================
-# OWNWORLD — CONTAINER STORAGE DIALOG
+# OWNWORLD — CONTAINER STORAGE DIALOG (RESPONSIVE TOUCH UNPACKING)
 # File: res://UI/Dialogs/ContainerStorageDialog.gd
 # Base Class: CanvasLayer (class_name ContainerStorageDialog)
 #
@@ -10,8 +10,8 @@
 class_name ContainerStorageDialog
 extends CanvasLayer
 
-const MAX_PANEL_WIDTH: float = 480.0
-const MAX_PANEL_HEIGHT: float = 260.0
+const MAX_PANEL_WIDTH: float = 520.0
+const MAX_PANEL_HEIGHT: float = 280.0
 
 var root_backdrop: Control = null
 var center_container: CenterContainer = null
@@ -37,6 +37,10 @@ func _ready() -> void:
 	_update_responsive_layout()
 
 
+func _is_mobile() -> bool:
+	return ThemeEngine.is_mobile_platform()
+
+
 func _connect_system_signals() -> void:
 	var tree: SceneTree = get_tree()
 	if tree != null and tree.root != null and not tree.root.size_changed.is_connected(_update_responsive_layout):
@@ -46,16 +50,19 @@ func _connect_system_signals() -> void:
 
 
 func _update_responsive_layout() -> void:
-	if not is_instance_valid(root_panel):
-		return
+	if not is_instance_valid(root_panel): return
 	var viewport_size: Vector2 = get_viewport().get_visible_rect().size if get_viewport() else Vector2(1280.0, 720.0)
-	var target_width: float = clampf(viewport_size.x * 0.90, 280.0, MAX_PANEL_WIDTH)
-	var target_height: float = clampf(viewport_size.y * 0.45, 200.0, MAX_PANEL_HEIGHT)
+	var is_mob: bool = _is_mobile()
+
+	var target_width: float = clampf(viewport_size.x * 0.92, 300.0, MAX_PANEL_WIDTH)
+	var target_height: float = clampf(viewport_size.y * (0.50 if is_mob else 0.42), 220.0, MAX_PANEL_HEIGHT)
 	root_panel.custom_minimum_size = Vector2(target_width, target_height)
 	root_panel.size = Vector2(target_width, target_height)
 
 
 func _build_ui() -> void:
+	var is_mob: bool = _is_mobile()
+
 	root_backdrop = Control.new()
 	root_backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root_backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -80,7 +87,7 @@ func _build_ui() -> void:
 	var vbox: VBoxContainer = VBoxContainer.new()
 	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	vbox.add_theme_constant_override("separation", 8)
+	vbox.add_theme_constant_override("separation", 6)
 	root_panel.add_child(vbox)
 
 	var header_hbox: HBoxContainer = HBoxContainer.new()
@@ -90,10 +97,11 @@ func _build_ui() -> void:
 	title_lbl.text = "Storage Inventory"
 	title_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title_lbl.theme_type_variation = "HeaderLabel"
+	title_lbl.add_theme_font_size_override("font_size", 14 if is_mob else 12)
 	header_hbox.add_child(title_lbl)
 
 	btn_close = Button.new()
-	btn_close.custom_minimum_size = Vector2(24.0, 24.0)
+	btn_close.custom_minimum_size = Vector2(28.0 if is_mob else 22.0, 28.0 if is_mob else 22.0)
 	btn_close.focus_mode = Control.FOCUS_NONE
 	btn_close.add_theme_constant_override("icon_max_width", 12)
 	_apply_close_icon(btn_close)
@@ -103,8 +111,9 @@ func _build_ui() -> void:
 	vbox.add_child(HSeparator.new())
 
 	hint_lbl = Label.new()
-	hint_lbl.text = "Click an item below to unpack it into the room:"
+	hint_lbl.text = "Tap any item below to unpack it into the room:"
 	hint_lbl.theme_type_variation = "HintLabel"
+	hint_lbl.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	vbox.add_child(hint_lbl)
 
 	var scroll: ScrollContainer = ScrollContainer.new()
@@ -129,6 +138,7 @@ func _on_theme_changed(_theme_data: Dictionary) -> void:
 
 func _apply_theme_styling() -> void:
 	if root_panel == null: return
+	var is_mob: bool = _is_mobile()
 	var background_color: Color = ThemeService.get_color("panel_background", "#fff0f5")
 	var border_color: Color = ThemeService.get_color("panel_border", "#f472b6")
 	var button_normal: Color = ThemeService.get_color("button_normal", "#fce7f3")
@@ -192,6 +202,9 @@ func _render_stored_items() -> void:
 	for child: Node in items_grid.get_children():
 		child.queue_free()
 
+	var is_mob: bool = _is_mobile()
+	var btn_size: float = 84.0 if is_mob else 70.0
+
 	var container_background: Color = ThemeService.get_color("container_sub_bg", "#fdf2f4")
 	var border_color: Color = ThemeService.get_color("panel_border", "#f472b6")
 	var text_primary: Color = ThemeService.get_color("text_primary", "#4a1525")
@@ -205,7 +218,8 @@ func _render_stored_items() -> void:
 		empty_label.theme_type_variation = "HintLabel"
 		empty_label.add_theme_color_override("font_color", text_muted)
 		empty_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-		empty_label.custom_minimum_size = Vector2(260.0, 70.0)
+		empty_label.custom_minimum_size = Vector2(280.0, 70.0)
+		empty_label.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 		items_grid.add_child(empty_label)
 		return
 
@@ -215,13 +229,13 @@ func _render_stored_items() -> void:
 		var item_texture_path: String = str(item_data.get("texture_path", ""))
 
 		var button: Button = Button.new()
-		button.custom_minimum_size = Vector2(70.0, 70.0)
+		button.custom_minimum_size = Vector2(btn_size, btn_size)
 		button.text = item_name
 		button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		button.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
 		button.expand_icon = true
 		button.focus_mode = Control.FOCUS_NONE
-		button.add_theme_constant_override("icon_max_width", 44)
+		button.add_theme_constant_override("icon_max_width", 50 if is_mob else 44)
 
 		if not item_texture_path.is_empty() and FileAccess.file_exists(item_texture_path):
 			button.icon = UGCManager.load_texture_from_file(item_texture_path)
@@ -243,7 +257,7 @@ func _render_stored_items() -> void:
 		button.add_theme_color_override("font_color", text_primary)
 		button.add_theme_color_override("font_hover_color", text_primary)
 		button.add_theme_color_override("font_pressed_color", text_primary)
-		button.add_theme_font_size_override("font_size", 9)
+		button.add_theme_font_size_override("font_size", 10 if is_mob else 9)
 
 		var captured_data: Dictionary = item_data.duplicate(true)
 		var captured_index: int = index

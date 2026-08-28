@@ -1,5 +1,5 @@
 # ==============================================================================
-# OWNWORLD — ROOM & MULTI-SLICE EXPANSION STUDIO
+# OWNWORLD — ROOM & MULTI-SLICE EXPANSION STUDIO (LANDSCAPE DUAL-OS ADAPTIVE)
 # File: res://UI/Dialogs/RoomStudioDialog.gd
 # Base Class: CanvasLayer (class_name RoomStudioDialog)
 #
@@ -12,8 +12,8 @@ class_name RoomStudioDialog
 extends CanvasLayer
 
 const MAX_SLICES: int = 10
-const MAX_PANEL_WIDTH: float = 640.0
-const MAX_PANEL_HEIGHT: float = 700.0
+const MAX_PANEL_WIDTH: float = 760.0
+const MAX_PANEL_HEIGHT: float = 600.0
 
 var root_backdrop: Control = null
 var center_container: CenterContainer = null
@@ -87,6 +87,10 @@ func _ready() -> void:
 	_setup_keyboard_dodging()
 
 
+func _is_mobile() -> bool:
+	return ThemeEngine.is_mobile_platform()
+
+
 func _connect_system_signals() -> void:
 	var tree: SceneTree = get_tree()
 	if tree != null and tree.root != null and not tree.root.size_changed.is_connected(_update_responsive_layout):
@@ -96,6 +100,7 @@ func _connect_system_signals() -> void:
 
 
 func _setup_keyboard_dodging() -> void:
+	if not _is_mobile(): return
 	var edits: Array[LineEdit] = [room_name_edit, room_id_edit, floor_level_edit]
 	for edit in edits:
 		if edit != null:
@@ -104,7 +109,7 @@ func _setup_keyboard_dodging() -> void:
 
 
 func _on_input_focus_entered() -> void:
-	if OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios"):
+	if _is_mobile():
 		await get_tree().process_frame
 		await get_tree().process_frame
 		var kb_height: float = DisplayServer.virtual_keyboard_get_height()
@@ -114,7 +119,7 @@ func _on_input_focus_entered() -> void:
 
 
 func _on_input_focus_exited() -> void:
-	if OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios"):
+	if _is_mobile():
 		var tween: Tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 		tween.tween_property(center_container, "position:y", 0.0, 0.25)
 
@@ -128,13 +133,18 @@ func _on_theme_changed(_theme_data: Dictionary) -> void:
 func _update_responsive_layout() -> void:
 	if not is_instance_valid(root_panel): return
 	var viewport_size: Vector2 = get_viewport().get_visible_rect().size if get_viewport() else Vector2(1280.0, 720.0)
-	var target_width: float = clampf(viewport_size.x * 0.94, 280.0, MAX_PANEL_WIDTH)
-	var target_height: float = clampf(viewport_size.y * 0.92, 340.0, MAX_PANEL_HEIGHT)
+	var is_mob: bool = _is_mobile()
+
+	var target_width: float = clampf(viewport_size.x * 0.94, 320.0, MAX_PANEL_WIDTH)
+	var target_height: float = clampf(viewport_size.y * (0.92 if is_mob else 0.88), 320.0, MAX_PANEL_HEIGHT)
 	root_panel.custom_minimum_size = Vector2(target_width, target_height)
 	root_panel.size = Vector2(target_width, target_height)
 
 
 func _build_ui() -> void:
+	var is_mob: bool = _is_mobile()
+	var row_h: float = 34.0 if is_mob else 28.0
+
 	root_backdrop = Control.new()
 	root_backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
 	root_backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
@@ -159,7 +169,7 @@ func _build_ui() -> void:
 	var main_vbox: VBoxContainer = VBoxContainer.new()
 	main_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	main_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	main_vbox.add_theme_constant_override("separation", 8)
+	main_vbox.add_theme_constant_override("separation", 6)
 	root_panel.add_child(main_vbox)
 
 	var header_hbox: HBoxContainer = HBoxContainer.new()
@@ -170,11 +180,11 @@ func _build_ui() -> void:
 	header_lbl.text = "Room Expansion & Layout Studio"
 	header_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header_lbl.theme_type_variation = "HeaderLabel"
-	header_lbl.add_theme_font_size_override("font_size", 14)
+	header_lbl.add_theme_font_size_override("font_size", 14 if is_mob else 12)
 	header_hbox.add_child(header_lbl)
 
 	var close_button: Button = Button.new()
-	close_button.custom_minimum_size = Vector2(26.0, 26.0)
+	close_button.custom_minimum_size = Vector2(28.0 if is_mob else 22.0, 28.0 if is_mob else 22.0)
 	close_button.focus_mode = Control.FOCUS_NONE
 	close_button.add_theme_constant_override("icon_max_width", 12)
 	_apply_close_icon(close_button)
@@ -207,37 +217,40 @@ func _build_ui() -> void:
 	var lbl_name: Label = Label.new()
 	lbl_name.text = "Room Name / Label:"
 	lbl_name.theme_type_variation = "HintLabel"
+	lbl_name.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	name_box.add_child(lbl_name)
 
 	room_name_edit = LineEdit.new()
 	room_name_edit.placeholder_text = "e.g. Living Room, Library..."
-	room_name_edit.custom_minimum_size = Vector2(0.0, 32.0)
+	room_name_edit.custom_minimum_size = Vector2(0.0, row_h)
 	name_box.add_child(room_name_edit)
 
 	var floor_box: VBoxContainer = VBoxContainer.new()
-	floor_box.custom_minimum_size = Vector2(110.0, 0.0)
+	floor_box.custom_minimum_size = Vector2(110.0 if is_mob else 90.0, 0.0)
 	floor_box.add_theme_constant_override("separation", 3)
 	id_row.add_child(floor_box)
 
 	var lbl_flr_lvl: Label = Label.new()
 	lbl_flr_lvl.text = "Floor Level:"
 	lbl_flr_lvl.theme_type_variation = "HintLabel"
+	lbl_flr_lvl.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	floor_box.add_child(lbl_flr_lvl)
 
 	floor_level_edit = LineEdit.new()
 	floor_level_edit.placeholder_text = "e.g. 1F, 2F, B1..."
 	floor_level_edit.text = "1F"
-	floor_level_edit.custom_minimum_size = Vector2(0.0, 32.0)
+	floor_level_edit.custom_minimum_size = Vector2(0.0, row_h)
 	floor_box.add_child(floor_level_edit)
 
 	var id_box: VBoxContainer = VBoxContainer.new()
-	id_box.custom_minimum_size = Vector2(160.0, 0.0)
+	id_box.custom_minimum_size = Vector2(180.0 if is_mob else 150.0, 0.0)
 	id_box.add_theme_constant_override("separation", 3)
 	id_row.add_child(id_box)
 
 	var lbl_id: Label = Label.new()
-	lbl_id.text = "Room ID (Key for Elevators):"
+	lbl_id.text = "Room ID (File Key):"
 	lbl_id.theme_type_variation = "HintLabel"
+	lbl_id.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	id_box.add_child(lbl_id)
 
 	var id_input_row: HBoxContainer = HBoxContainer.new()
@@ -248,14 +261,14 @@ func _build_ui() -> void:
 	room_id_edit.text = "room_main"
 	room_id_edit.editable = false
 	room_id_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	room_id_edit.custom_minimum_size = Vector2(0.0, 32.0)
+	room_id_edit.custom_minimum_size = Vector2(0.0, row_h)
 	id_input_row.add_child(room_id_edit)
 
 	btn_copy_room_id = Button.new()
 	btn_copy_room_id.text = "Copy"
-	btn_copy_room_id.custom_minimum_size = Vector2(50.0, 32.0)
+	btn_copy_room_id.custom_minimum_size = Vector2(55.0 if is_mob else 48.0, row_h)
 	btn_copy_room_id.focus_mode = Control.FOCUS_NONE
-	btn_copy_room_id.add_theme_font_size_override("font_size", 10)
+	btn_copy_room_id.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	btn_copy_room_id.pressed.connect(_on_copy_room_id_pressed)
 	id_input_row.add_child(btn_copy_room_id)
 
@@ -266,7 +279,7 @@ func _build_ui() -> void:
 	building_lbl = Label.new()
 	building_lbl.text = "Building: Main Building (building_main)"
 	building_lbl.theme_type_variation = "HeaderLabel"
-	building_lbl.add_theme_font_size_override("font_size", 11)
+	building_lbl.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	bldg_banner.add_child(building_lbl)
 
 	var slices_card: PanelContainer = PanelContainer.new()
@@ -284,10 +297,11 @@ func _build_ui() -> void:
 	lbl_sec.text = "Room Slices (1 Slice = 1 Device Screen Width):"
 	lbl_sec.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	lbl_sec.theme_type_variation = "HeaderLabel"
+	lbl_sec.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	sec_hdr.add_child(lbl_sec)
 
 	var slice_scroll: ScrollContainer = ScrollContainer.new()
-	slice_scroll.custom_minimum_size = Vector2(0.0, 36.0)
+	slice_scroll.custom_minimum_size = Vector2(0.0, 36.0 if is_mob else 30.0)
 	slice_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	slice_scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 	slice_scroll.follow_focus = false
@@ -304,16 +318,18 @@ func _build_ui() -> void:
 	btn_add_slice = Button.new()
 	btn_add_slice.text = " + Add Room Slice"
 	btn_add_slice.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	btn_add_slice.custom_minimum_size = Vector2(0.0, 30.0)
+	btn_add_slice.custom_minimum_size = Vector2(0.0, row_h)
 	btn_add_slice.focus_mode = Control.FOCUS_NONE
+	btn_add_slice.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	btn_add_slice.pressed.connect(_on_add_slice_pressed)
 	slice_actions_hbox.add_child(btn_add_slice)
 
 	btn_remove_slice = Button.new()
 	btn_remove_slice.text = " Remove Slice"
 	btn_remove_slice.theme_type_variation = "DangerButton"
-	btn_remove_slice.custom_minimum_size = Vector2(0.0, 30.0)
+	btn_remove_slice.custom_minimum_size = Vector2(120.0 if is_mob else 100.0, row_h)
 	btn_remove_slice.focus_mode = Control.FOCUS_NONE
+	btn_remove_slice.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	btn_remove_slice.pressed.connect(_on_remove_slice_pressed)
 	slice_actions_hbox.add_child(btn_remove_slice)
 
@@ -333,11 +349,12 @@ func _build_ui() -> void:
 	lbl_env.text = "Slice Environment:"
 	lbl_env.theme_type_variation = "HeaderLabel"
 	lbl_env.custom_minimum_size = Vector2(130.0, 0.0)
+	lbl_env.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	env_hdr_hbox.add_child(lbl_env)
 
 	opt_slice_environment = OptionButton.new()
 	opt_slice_environment.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	opt_slice_environment.custom_minimum_size = Vector2(0.0, 32.0)
+	opt_slice_environment.custom_minimum_size = Vector2(0.0, row_h)
 	_add_icon_option(opt_slice_environment, "icon_room", "🏠 Indoors (Weather precipitation blocked)", 0)
 	_add_icon_option(opt_slice_environment, "icon_sun", "🌳 Outdoors (Rain/snow falls on this slice)", 1)
 	opt_slice_environment.item_selected.connect(_on_slice_environment_selected)
@@ -346,7 +363,7 @@ func _build_ui() -> void:
 	slice_env_hint = Label.new()
 	slice_env_hint.text = "Indoors: Weather precipitation will not fall inside this slice."
 	slice_env_hint.theme_type_variation = "HintLabel"
-	slice_env_hint.add_theme_font_size_override("font_size", 10)
+	slice_env_hint.add_theme_font_size_override("font_size", 10 if is_mob else 9)
 	env_vbox.add_child(slice_env_hint)
 
 	var colors_card: PanelContainer = PanelContainer.new()
@@ -360,7 +377,7 @@ func _build_ui() -> void:
 	var colors_title: Label = Label.new()
 	colors_title.text = "Procedural Colors (Used when no custom wallpaper is assigned):"
 	colors_title.theme_type_variation = "HeaderLabel"
-	colors_title.add_theme_font_size_override("font_size", 11)
+	colors_title.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	colors_vbox.add_child(colors_title)
 
 	var color_pickers_grid: GridContainer = GridContainer.new()
@@ -373,9 +390,10 @@ func _build_ui() -> void:
 	var lbl_w_c: Label = Label.new()
 	lbl_w_c.text = "Wall Color:"
 	lbl_w_c.theme_type_variation = "HintLabel"
+	lbl_w_c.add_theme_font_size_override("font_size", 10)
 	wall_c_vbox.add_child(lbl_w_c)
 	cp_wall_color = ColorPickerButton.new()
-	cp_wall_color.custom_minimum_size = Vector2(0.0, 28.0)
+	cp_wall_color.custom_minimum_size = Vector2(0.0, 32.0 if is_mob else 26.0)
 	cp_wall_color.color_changed.connect(_on_procedural_wall_color_changed)
 	wall_c_vbox.add_child(cp_wall_color)
 	color_pickers_grid.add_child(wall_c_vbox)
@@ -384,9 +402,10 @@ func _build_ui() -> void:
 	var lbl_t_c: Label = Label.new()
 	lbl_t_c.text = "Trim / Baseboard:"
 	lbl_t_c.theme_type_variation = "HintLabel"
+	lbl_t_c.add_theme_font_size_override("font_size", 10)
 	trim_c_vbox.add_child(lbl_t_c)
 	cp_trim_color = ColorPickerButton.new()
-	cp_trim_color.custom_minimum_size = Vector2(0.0, 28.0)
+	cp_trim_color.custom_minimum_size = Vector2(0.0, 32.0 if is_mob else 26.0)
 	cp_trim_color.color_changed.connect(_on_procedural_trim_color_changed)
 	trim_c_vbox.add_child(cp_trim_color)
 	color_pickers_grid.add_child(trim_c_vbox)
@@ -395,18 +414,19 @@ func _build_ui() -> void:
 	var lbl_f_c: Label = Label.new()
 	lbl_f_c.text = "Floor Color:"
 	lbl_f_c.theme_type_variation = "HintLabel"
+	lbl_f_c.add_theme_font_size_override("font_size", 10)
 	floor_c_vbox.add_child(lbl_f_c)
 	cp_floor_color = ColorPickerButton.new()
-	cp_floor_color.custom_minimum_size = Vector2(0.0, 28.0)
+	cp_floor_color.custom_minimum_size = Vector2(0.0, 32.0 if is_mob else 26.0)
 	cp_floor_color.color_changed.connect(_on_procedural_floor_color_changed)
 	floor_c_vbox.add_child(cp_floor_color)
 	color_pickers_grid.add_child(floor_c_vbox)
 
 	btn_reset_slice_colors = Button.new()
 	btn_reset_slice_colors.text = " Reset to Theme Palette Defaults"
-	btn_reset_slice_colors.custom_minimum_size = Vector2(0.0, 26.0)
+	btn_reset_slice_colors.custom_minimum_size = Vector2(0.0, 28.0 if is_mob else 24.0)
 	btn_reset_slice_colors.focus_mode = Control.FOCUS_NONE
-	btn_reset_slice_colors.add_theme_font_size_override("font_size", 9)
+	btn_reset_slice_colors.add_theme_font_size_override("font_size", 10 if is_mob else 9)
 	btn_reset_slice_colors.pressed.connect(_on_reset_slice_colors_pressed)
 	colors_vbox.add_child(btn_reset_slice_colors)
 
@@ -425,11 +445,13 @@ func _build_ui() -> void:
 	lbl_floor.text = "Floor Baseline (Walk Level Across All Slices):"
 	lbl_floor.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	lbl_floor.theme_type_variation = "HeaderLabel"
+	lbl_floor.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	floor_header.add_child(lbl_floor)
 
 	floor_val_lbl = Label.new()
 	floor_val_lbl.text = "580 px"
 	floor_val_lbl.theme_type_variation = "HintLabel"
+	floor_val_lbl.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	floor_header.add_child(floor_val_lbl)
 
 	floor_slider = HSlider.new()
@@ -444,7 +466,8 @@ func _build_ui() -> void:
 	check_show_floor_line = CheckBox.new()
 	check_show_floor_line.text = " Show Floor Guide Line"
 	check_show_floor_line.button_pressed = true
-	check_show_floor_line.custom_minimum_size = Vector2(0.0, 28.0)
+	check_show_floor_line.custom_minimum_size = Vector2(0.0, row_h)
+	check_show_floor_line.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	_apply_checkbox_icon(check_show_floor_line, "icon_floor")
 	check_show_floor_line.toggled.connect(func(is_toggled: bool) -> void: floor_preview_changed.emit(floor_slider.value, is_toggled))
 	floor_box_c.add_child(check_show_floor_line)
@@ -456,10 +479,11 @@ func _build_ui() -> void:
 	slice_status_lbl = Label.new()
 	slice_status_lbl.text = "Slice Artwork (Leave empty for procedural wall/floor):"
 	slice_status_lbl.theme_type_variation = "HintLabel"
+	slice_status_lbl.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	wall_box.add_child(slice_status_lbl)
 
 	art_option = OptionButton.new()
-	art_option.custom_minimum_size = Vector2(0.0, 32.0)
+	art_option.custom_minimum_size = Vector2(0.0, row_h)
 	_enforce_dropdown_popup_limits(art_option, 200)
 	art_option.item_selected.connect(_on_art_selected)
 	wall_box.add_child(art_option)
@@ -471,10 +495,11 @@ func _build_ui() -> void:
 	var lbl_fill: Label = Label.new()
 	lbl_fill.text = "Slice Artwork Scaling:"
 	lbl_fill.theme_type_variation = "HintLabel"
+	lbl_fill.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	fill_box.add_child(lbl_fill)
 
 	fill_mode_option = OptionButton.new()
-	fill_mode_option.custom_minimum_size = Vector2(0.0, 32.0)
+	fill_mode_option.custom_minimum_size = Vector2(0.0, row_h)
 	_enforce_dropdown_popup_limits(fill_mode_option, 200)
 	for index: int in range(FILL_MODES.size()):
 		fill_mode_option.add_item(str(FILL_MODES[index]["label"]), index)
@@ -483,7 +508,7 @@ func _build_ui() -> void:
 
 	preview_panel = PanelContainer.new()
 	preview_panel.theme_type_variation = "SubPanel"
-	preview_panel.custom_minimum_size = Vector2(0.0, 85.0)
+	preview_panel.custom_minimum_size = Vector2(0.0, 90.0 if is_mob else 75.0)
 	preview_panel.clip_contents = true
 	form_vbox.add_child(preview_panel)
 
@@ -503,9 +528,10 @@ func _build_ui() -> void:
 	btn_apply = Button.new()
 	btn_apply.text = " Apply & Save Room Layout"
 	btn_apply.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	btn_apply.custom_minimum_size = Vector2(0.0, 36.0)
+	btn_apply.custom_minimum_size = Vector2(0.0, row_h + 4.0)
 	btn_apply.focus_mode = Control.FOCUS_NONE
 	btn_apply.add_theme_constant_override("icon_max_width", 16)
+	btn_apply.add_theme_font_size_override("font_size", 12 if is_mob else 11)
 	_apply_button_icon(btn_apply, "icon_save")
 	btn_apply.pressed.connect(_on_save_pressed)
 	button_row.add_child(btn_apply)
@@ -513,9 +539,10 @@ func _build_ui() -> void:
 	btn_clear_slice = Button.new()
 	btn_clear_slice.text = " Revert Slice to Wall"
 	btn_clear_slice.theme_type_variation = "DangerButton"
-	btn_clear_slice.custom_minimum_size = Vector2(160.0, 36.0)
+	btn_clear_slice.custom_minimum_size = Vector2(170.0 if is_mob else 140.0, row_h + 4.0)
 	btn_clear_slice.focus_mode = Control.FOCUS_NONE
 	btn_clear_slice.add_theme_constant_override("icon_max_width", 16)
+	btn_clear_slice.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	_apply_button_icon(btn_clear_slice, "icon_delete")
 	btn_clear_slice.pressed.connect(_on_clear_slice_wallpaper_pressed)
 	button_row.add_child(btn_clear_slice)
@@ -586,6 +613,7 @@ func _render_slice_tabs() -> void:
 	for child: Node in slices_tab_container.get_children():
 		child.queue_free()
 
+	var is_mob: bool = _is_mobile()
 	var c_accent: Color = ThemeService.get_color("accent_primary", "#db2777")
 	var rad: int = ThemeService.get_corner_radius()
 
@@ -598,10 +626,10 @@ func _render_slice_tabs() -> void:
 		var art_tag: String = " 🖼️" if has_art else ""
 		var btn: Button = Button.new()
 		btn.text = " Slice %d%s%s " % [(i + 1), env_tag, art_tag]
-		btn.custom_minimum_size = Vector2(0.0, 30.0)
+		btn.custom_minimum_size = Vector2(0.0, 32.0 if is_mob else 28.0)
 		btn.focus_mode = Control.FOCUS_NONE
 		btn.theme_type_variation = "Breadcrumb"
-		btn.add_theme_font_size_override("font_size", 10)
+		btn.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 
 		if is_selected:
 			var s_act: StyleBoxFlat = StyleBoxFlat.new()
@@ -637,7 +665,7 @@ func _on_add_slice_pressed() -> void:
 	current_selected_slice_idx = room_slices.size() - 1
 	_render_slice_tabs()
 	_sync_active_slice_controls()
-	EventBus.notification_requested.emit("Added Slice %d (Screen %d)" % [room_slices.size(), room_slices.size()], true)
+	EventBus.notification_requested.emit("Added Slice %d" % room_slices.size(), true)
 
 
 func _on_remove_slice_pressed() -> void:
