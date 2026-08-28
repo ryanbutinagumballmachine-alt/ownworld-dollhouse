@@ -1,10 +1,11 @@
 # ==============================================================================
-# OWNWORLD — DIAGNOSTIC OVERLAY (SAFE-AREA ANCHORED & DEVELOPER HUD)
+# OWNWORLD — DIAGNOSTIC OVERLAY & INTEGRATED MOBILE SIMULATOR
 # File: res://UI/DiagnosticOverlay.gd
 # Base Class: CanvasLayer (class_name DiagnosticOverlay)
 #
 # Responsibility: Developer diagnostics heads-up display. Renders real-time FPS,
 # coordinate metrics, collision polylines, socket links, and system state JSON dumps.
+# Features a built-in Mobile View & Hardware Notch Simulator for desktop developers.
 # ==============================================================================
 
 class_name DiagnosticOverlay
@@ -12,7 +13,42 @@ extends CanvasLayer
 
 const SESSION_FILE: String = "user://session.json"
 
+const RESOLUTION_PRESETS: Array[Dictionary] = [
+	{
+		"name": "Standard Phone (16:9)",
+		"size": Vector2i(1280, 720),
+		"aspect": "16:9",
+		"notch_width": 0.0
+	},
+	{
+		"name": "Flagship (19.5:9 - iPhone 15 / Galaxy S24)",
+		"size": Vector2i(1560, 720),
+		"aspect": "19.5:9",
+		"notch_width": 44.0
+	},
+	{
+		"name": "Tall Display (20:9 - Pixel / OnePlus)",
+		"size": Vector2i(1600, 720),
+		"aspect": "20:9",
+		"notch_width": 48.0
+	},
+	{
+		"name": "Cinema Ultrawide (21:9 - Sony Xperia)",
+		"size": Vector2i(1680, 720),
+		"aspect": "21:9",
+		"notch_width": 54.0
+	},
+	{
+		"name": "Tablet Landscape (4:3 - iPad)",
+		"size": Vector2i(960, 720),
+		"aspect": "4:3",
+		"notch_width": 0.0
+	}
+]
+
 var is_debug_active: bool = false
+var is_notch_visible: bool = false
+var active_preset_index: int = 0
 var main_ref: Node2D = null
 
 var hud_panel: PanelContainer = null
@@ -20,6 +56,13 @@ var stats_label: Label = null
 var btn_copy_state: Button = null
 var debug_canvas: Control = null
 var dev_pill_btn: Button = null
+
+# Mobile Simulator Controls embedded in Dev HUD
+var sim_box: VBoxContainer = null
+var preset_opt: OptionButton = null
+var btn_toggle_notch: Button = null
+var btn_toggle_ui_mode: Button = null
+var btn_center_window: Button = null
 
 var _update_timer: float = 0.0
 
@@ -77,9 +120,23 @@ func _process(delta: float) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if not (event is InputEventKey and event.pressed and not event.echo):
 		return
-	if event.keycode == KEY_F1 and SettingsManager.is_developer_mode_enabled():
-		toggle_diagnostic_hud()
-		get_viewport().set_input_as_handled()
+
+	if not SettingsManager.is_developer_mode_enabled():
+		return
+
+	match event.keycode:
+		KEY_F1:
+			toggle_diagnostic_hud()
+			get_viewport().set_input_as_handled()
+		KEY_F3:
+			cycle_resolution_preset()
+			get_viewport().set_input_as_handled()
+		KEY_F4:
+			toggle_simulated_notch()
+			get_viewport().set_input_as_handled()
+		KEY_F5:
+			toggle_mobile_ui_mode()
+			get_viewport().set_input_as_handled()
 
 
 func toggle_diagnostic_hud() -> void:
@@ -102,7 +159,52 @@ func set_diagnostic_active(active: bool) -> void:
 				if ent_var is OwnEntity and is_instance_valid(ent_var):
 					(ent_var as OwnEntity).update_gizmo_visibility(active)
 
-	EventBus.notification_requested.emit("Diagnostics: " + ("ENABLED" if active else "DISABLED"), true)
+	EventBus.notification_requested.emit("Diagnostics: " + ("ENABLED (F1)" if active else "DISABLED"), true)
+
+
+func cycle_resolution_preset() -> void:
+	active_preset_index = (active_preset_index + 1) % RESOLUTION_PRESETS.size()
+	_apply_resolution_preset(active_preset_index)
+
+
+func toggle_simulated_notch() -> void:
+	is_notch_visible = not is_notch_visible
+	if debug_canvas: debug_canvas.queue_redraw()
+	EventBus.notification_requested.emit("Camera Notch Overlay: " + ("ON (F4)" if is_notch_visible else "OFF"), true)
+
+
+func toggle_mobile_ui_mode() -> void:
+	var next_mode: bool = not SettingsManager.is_simulating_mobile_layout()
+	SettingsManager.set_simulating_mobile_layout(next_mode)
+	_update_sim_buttons_text()
+	EventBus.notification_requested.emit("UI Mode: " + ("Mobile (48dp Touch Targets)" if next_mode else "Desktop (Precision Pointer)") + " (F5)", true)
+
+
+func _apply_resolution_preset(index: int) -> void:
+	if index < 0 or index >= RESOLUTION_PRESETS.size(): return
+	active_preset_index = index
+	var preset: Dictionary = RESOLUTION_PRESETS[active_preset_index]
+	var target_size: Vector2i = preset["size"] as Vector2i
+
+	# Resize desktop window
+	DisplayServer.window_set_size(target_size)
+	_center_window_on_screen()
+
+	if preset_opt:
+		preset_opt.selected = active_preset_index
+
+	if debug_canvas:
+		debug_canvas.queue_redraw()
+
+	EventBus.notification_requested.emit("Resized to: %s [%dx%d]" % [str(preset["name"]), target_size.x, target_size.y], true)
+
+
+func _center_window_on_screen() -> void:
+	var screen_index: int = DisplayServer.window_get_current_screen()
+	var screen_rect: Rect2i = DisplayServer.screen_get_usable_rect(screen_index)
+	var window_size: Vector2i = DisplayServer.window_get_size()
+	var centered_pos: Vector2i = screen_rect.position + (screen_rect.size - window_size) / 2
+	DisplayServer.window_set_position(centered_pos)
 
 
 func _build_diagnostic_hud() -> void:
@@ -136,7 +238,7 @@ func _build_diagnostic_hud() -> void:
 	add_child(dev_pill_btn)
 
 	hud_panel = PanelContainer.new()
-	hud_panel.custom_minimum_size = Vector2(300.0 if is_mob else 260.0, 85.0)
+	hud_panel.custom_minimum_size = Vector2(300.0 if is_mob else 270.0, 0.0)
 	hud_panel.position = Vector2(maxf(16.0, float(safe_area.position.x) + 6.0), maxf(60.0, float(safe_area.position.y) + 48.0))
 	hud_panel.mouse_filter = Control.MOUSE_FILTER_PASS
 
@@ -145,8 +247,8 @@ func _build_diagnostic_hud() -> void:
 	style.border_color = Color("#22c55e")
 	style.set_border_width_all(2)
 	style.set_corner_radius_all(6)
-	style.content_margin_left = 12
-	style.content_margin_right = 12
+	style.content_margin_left = 10
+	style.content_margin_right = 10
 	style.content_margin_top = 8
 	style.content_margin_bottom = 8
 	hud_panel.add_theme_stylebox_override("panel", style)
@@ -157,17 +259,17 @@ func _build_diagnostic_hud() -> void:
 	hud_panel.add_child(vbox)
 
 	stats_label = Label.new()
-	stats_label.text = "DIAGNOSTICS ACTIVE\nEntities: 0 | FPS: 60"
-	stats_label.add_theme_font_size_override("font_size", 12 if is_mob else 11)
+	stats_label.text = "DIAGNOSTICS ACTIVE (F1)\nFPS: 60"
+	stats_label.add_theme_font_size_override("font_size", 11)
 	stats_label.add_theme_color_override("font_color", Color("#22c55e"))
 	vbox.add_child(stats_label)
 
 	btn_copy_state = Button.new()
 	btn_copy_state.text = " Copy System State (JSON)"
-	btn_copy_state.custom_minimum_size = Vector2(0.0, 32.0 if is_mob else 26.0)
+	btn_copy_state.custom_minimum_size = Vector2(0.0, 28.0 if is_mob else 24.0)
 	btn_copy_state.focus_mode = Control.FOCUS_NONE
 	btn_copy_state.add_theme_constant_override("icon_max_width", 14)
-	btn_copy_state.add_theme_font_size_override("font_size", 11 if is_mob else 10)
+	btn_copy_state.add_theme_font_size_override("font_size", 10)
 
 	var copy_icon: Texture2D = ThemeService.get_icon("icon_clone")
 	if not copy_icon: copy_icon = ThemeService.get_icon("icon_save")
@@ -178,7 +280,7 @@ func _build_diagnostic_hud() -> void:
 	btn_s.bg_color = Color("#1e293b")
 	btn_s.border_color = Color("#22c55e")
 	btn_s.set_border_width_all(1)
-	btn_s.set_corner_radius_all(6)
+	btn_s.set_corner_radius_all(4)
 	btn_copy_state.add_theme_stylebox_override("normal", btn_s)
 
 	var btn_hov: StyleBoxFlat = btn_s.duplicate() as StyleBoxFlat
@@ -187,6 +289,70 @@ func _build_diagnostic_hud() -> void:
 	btn_copy_state.add_theme_stylebox_override("focus", StyleBoxEmpty.new())
 	btn_copy_state.add_theme_color_override("font_color", Color.WHITE)
 	vbox.add_child(btn_copy_state)
+
+	# --- Integrated Mobile View Simulator Section ---
+	vbox.add_child(HSeparator.new())
+
+	sim_box = VBoxContainer.new()
+	sim_box.add_theme_constant_override("separation", 4)
+	vbox.add_child(sim_box)
+
+	var sim_title: Label = Label.new()
+	sim_title.text = "MOBILE SIMULATOR:"
+	sim_title.theme_type_variation = "HintLabel"
+	sim_title.add_theme_font_size_override("font_size", 10)
+	sim_title.add_theme_color_override("font_color", Color("#ec4899"))
+	sim_box.add_child(sim_title)
+
+	preset_opt = OptionButton.new()
+	preset_opt.custom_minimum_size = Vector2(0.0, 26.0)
+	preset_opt.add_theme_font_size_override("font_size", 10)
+	for i: int in range(RESOLUTION_PRESETS.size()):
+		preset_opt.add_item(str(RESOLUTION_PRESETS[i]["name"]), i)
+	preset_opt.selected = active_preset_index
+	preset_opt.item_selected.connect(_on_dropdown_preset_selected)
+	sim_box.add_child(preset_opt)
+
+	var btn_row: HBoxContainer = HBoxContainer.new()
+	btn_row.add_theme_constant_override("separation", 4)
+	sim_box.add_child(btn_row)
+
+	btn_toggle_ui_mode = Button.new()
+	btn_toggle_ui_mode.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	btn_toggle_ui_mode.custom_minimum_size = Vector2(0.0, 24.0)
+	btn_toggle_ui_mode.focus_mode = Control.FOCUS_NONE
+	btn_toggle_ui_mode.add_theme_font_size_override("font_size", 9)
+	btn_toggle_ui_mode.pressed.connect(toggle_mobile_ui_mode)
+	btn_row.add_child(btn_toggle_ui_mode)
+
+	btn_toggle_notch = Button.new()
+	btn_toggle_notch.text = "Notch (F4)"
+	btn_toggle_notch.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	btn_toggle_notch.custom_minimum_size = Vector2(0.0, 24.0)
+	btn_toggle_notch.focus_mode = Control.FOCUS_NONE
+	btn_toggle_notch.add_theme_font_size_override("font_size", 9)
+	btn_toggle_notch.pressed.connect(toggle_simulated_notch)
+	btn_row.add_child(btn_toggle_notch)
+
+	btn_center_window = Button.new()
+	btn_center_window.text = "Center"
+	btn_center_window.custom_minimum_size = Vector2(48.0, 24.0)
+	btn_center_window.focus_mode = Control.FOCUS_NONE
+	btn_center_window.add_theme_font_size_override("font_size", 9)
+	btn_center_window.pressed.connect(_center_window_on_screen)
+	btn_row.add_child(btn_center_window)
+
+	_update_sim_buttons_text()
+
+
+func _update_sim_buttons_text() -> void:
+	if btn_toggle_ui_mode != null:
+		var is_sim_mob: bool = SettingsManager.is_simulating_mobile_layout()
+		btn_toggle_ui_mode.text = "UI: " + ("Mobile (F5)" if is_sim_mob else "Desktop (F5)")
+
+
+func _on_dropdown_preset_selected(index: int) -> void:
+	_apply_resolution_preset(index)
 
 
 func _update_stats_display() -> void:
@@ -207,7 +373,7 @@ func _update_stats_display() -> void:
 	var room_id: String = str(session.get("room_id", str(main_ref.get("current_room_id"))))
 	if room_id.is_empty(): room_id = "room_main"
 
-	stats_label.text = "DIAGNOSTICS | %d FPS\nRoom: %s | Entities: %d\nCam: (%d, %d) @ %.2fx" % [
+	stats_label.text = "DIAGNOSTICS (F1) | %d FPS\nRoom: %s | Entities: %d\nCam: (%d, %d) @ %.2fx" % [
 		int(fps), room_id, entity_count, int(cam_pos.x), int(cam_pos.y), cam_zoom
 	]
 
@@ -264,9 +430,36 @@ class DebugCanvasDraw extends Control:
 	var overlay_ref: DiagnosticOverlay = null
 
 	func _draw() -> void:
-		if not overlay_ref or not overlay_ref.is_debug_active or not is_instance_valid(overlay_ref.main_ref):
+		if not overlay_ref or not overlay_ref.is_debug_active:
 			return
 
+		var vp_size: Vector2 = get_viewport_rect().size
+
+		# 1. Simulated Camera Notch & Punch-Hole Overlay
+		if overlay_ref.is_notch_visible:
+			var preset: Dictionary = overlay_ref.RESOLUTION_PRESETS[overlay_ref.active_preset_index]
+			var notch_w: float = float(preset["notch_width"])
+
+			if notch_w > 0.0:
+				var punch_radius: float = 14.0
+				var punch_pos: Vector2 = Vector2(notch_w * 0.5, vp_size.y * 0.5)
+				draw_circle(punch_pos, punch_radius + 2.0, Color(0.0, 0.0, 0.0, 0.85))
+				draw_circle(punch_pos, punch_radius, Color("#09090b"))
+				draw_circle(punch_pos, punch_radius - 5.0, Color("#1e1b4b"))
+
+				var safe_color: Color = Color("#ec4899", 0.45)
+				draw_line(Vector2(notch_w, 0.0), Vector2(notch_w, vp_size.y), safe_color, 1.5)
+				draw_line(Vector2(vp_size.x - notch_w, 0.0), Vector2(vp_size.x - notch_w, vp_size.y), safe_color, 1.5)
+				draw_line(Vector2(0.0, 10.0), Vector2(vp_size.x, 10.0), safe_color, 1.0)
+				draw_line(Vector2(0.0, vp_size.y - 12.0), Vector2(vp_size.x, vp_size.y - 12.0), safe_color, 1.0)
+
+				var pill_w: float = 140.0
+				var pill_h: float = 4.5
+				var pill_pos: Vector2 = Vector2((vp_size.x - pill_w) * 0.5, vp_size.y - 8.0)
+				draw_rect(Rect2(pill_pos, Vector2(pill_w, pill_h)), Color(1.0, 1.0, 1.0, 0.65), true)
+
+		# 2. Entity Gizmos & Collision Outlines
+		if not is_instance_valid(overlay_ref.main_ref): return
 		var cam: Camera2D = overlay_ref.main_ref.get("main_camera") as Camera2D
 		if not cam or not is_instance_valid(cam): return
 

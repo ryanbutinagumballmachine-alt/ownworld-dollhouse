@@ -24,6 +24,7 @@ const DEFAULT_GRID_SIZE: int = 32
 const DEFAULT_SHOW_TOASTS: bool = true
 const DEFAULT_HAPTICS_ENABLED: bool = true
 const DEFAULT_DEVELOPER_MODE: bool = false
+const DEFAULT_SIMULATE_MOBILE_LAYOUT: bool = false
 
 # Touch & Scale Bounds
 const MIN_TOUCH_PADDING: float = 0.0
@@ -58,6 +59,18 @@ func is_mobile() -> bool:
 	return ThemeEngine.is_mobile_platform()
 
 
+func is_simulating_mobile_layout() -> bool:
+	return bool(settings_data.get("dev_simulate_mobile_layout", DEFAULT_SIMULATE_MOBILE_LAYOUT))
+
+
+func set_simulating_mobile_layout(enabled: bool) -> void:
+	settings_data["dev_simulate_mobile_layout"] = enabled
+	ThemeEngine.force_mobile_override = enabled
+	_apply_ui_scale()
+	ThemeService.apply_theme_globally()
+	save_settings()
+
+
 func get_default_touch_padding() -> float:
 	return 10.0 if is_mobile() else 0.0
 
@@ -76,6 +89,7 @@ func load_settings() -> void:
 		"show_toasts": DEFAULT_SHOW_TOASTS,
 		"haptics_enabled": DEFAULT_HAPTICS_ENABLED,
 		"developer_mode": DEFAULT_DEVELOPER_MODE,
+		"dev_simulate_mobile_layout": DEFAULT_SIMULATE_MOBILE_LAYOUT,
 		"touch_padding": get_default_touch_padding(),
 		"long_press_duration": get_default_long_press_duration(),
 		"juice_enabled": DEFAULT_JUICE_ENABLED,
@@ -94,6 +108,8 @@ func load_settings() -> void:
 
 	if not stored_data.has("ui_scale"):
 		settings_data["ui_scale"] = get_recommended_ui_scale()
+
+	ThemeEngine.force_mobile_override = is_simulating_mobile_layout()
 
 	_apply_audio_volumes()
 	_apply_ui_scale()
@@ -120,6 +136,7 @@ func _normalize_settings() -> void:
 	settings_data["show_toasts"] = bool(settings_data.get("show_toasts", DEFAULT_SHOW_TOASTS))
 	settings_data["haptics_enabled"] = bool(settings_data.get("haptics_enabled", DEFAULT_HAPTICS_ENABLED))
 	settings_data["developer_mode"] = bool(settings_data.get("developer_mode", DEFAULT_DEVELOPER_MODE))
+	settings_data["dev_simulate_mobile_layout"] = bool(settings_data.get("dev_simulate_mobile_layout", DEFAULT_SIMULATE_MOBILE_LAYOUT))
 	settings_data["touch_padding"] = clampf(float(settings_data.get("touch_padding", get_default_touch_padding())), MIN_TOUCH_PADDING, MAX_TOUCH_PADDING)
 	settings_data["long_press_duration"] = clampf(float(settings_data.get("long_press_duration", get_default_long_press_duration())), MIN_LONG_PRESS_DURATION, MAX_LONG_PRESS_DURATION)
 
