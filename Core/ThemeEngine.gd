@@ -5,7 +5,7 @@
 #
 # Responsibility: Procedural construction of Godot Theme resources with
 # automatic platform profiling (Android Mobile Landscape vs. Windows Desktop PC),
-# WCAG 2.1 accessibility contrast enforcement, and high-DPI raster icon generation.
+# simulator override hooks, WCAG 2.1 accessibility contrast enforcement, and high-DPI raster icon generation.
 # ==============================================================================
 
 class_name ThemeEngine
@@ -43,9 +43,14 @@ const CONTRAST_RATIO_UI: float = 3.0
 
 static var _cached_procedural_icons: Dictionary = {}
 
+## Development simulator override flag for live laptop testing
+static var force_mobile_override: bool = false
 
-## Detects if the current platform is mobile (Android / iOS).
+
+## Detects if the current platform is mobile (Android / iOS) or forced by the simulator.
 static func is_mobile_platform() -> bool:
+	if force_mobile_override:
+		return true
 	return OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios")
 
 
@@ -580,7 +585,7 @@ static func _gen_slider_grabber(is_highlight: bool, bg: Color, border: Color, ac
 static func _gen_arrow(dir: int, color: Color, size: int) -> ImageTexture:
 	var img: Image = Image.create(size, size, false, Image.FORMAT_RGBA8)
 	img.fill(Color.TRANSPARENT)
-	var half: int = size / 2
+	var half: int = int(float(size) * 0.5)
 	if dir == 0: # Down
 		for y: int in range(half - 2, half + 3):
 			var span: int = (half + 2) - y
@@ -599,7 +604,7 @@ static func _gen_arrow(dir: int, color: Color, size: int) -> ImageTexture:
 static func _gen_updown(color: Color, size: int) -> ImageTexture:
 	var img: Image = Image.create(size, size, false, Image.FORMAT_RGBA8)
 	img.fill(Color.TRANSPARENT)
-	var half: int = size / 2
+	var half: int = int(float(size) * 0.5)
 	for t: int in range(3):
 		img.set_pixel(half - t, 3 + t, color)
 		img.set_pixel(half + t, 3 + t, color)
@@ -615,7 +620,6 @@ static func _gen_close(color: Color, size: int) -> ImageTexture:
 	for i: int in range(pad, size - pad):
 		img.set_pixel(i, i, color)
 		img.set_pixel(i, size - 1 - i, color)
-		# Thicken line on touch screens
 		if size >= 16:
 			img.set_pixel(mini(i + 1, size - 1), i, color)
 			img.set_pixel(mini(i + 1, size - 1), size - 1 - i, color)
