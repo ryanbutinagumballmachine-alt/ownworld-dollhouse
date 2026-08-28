@@ -176,22 +176,33 @@ func _on_input_focus_exited() -> void:
 
 func _build_ui() -> void:
 	var is_mob: bool = _is_mobile()
-	var pill_h: float = 44.0 if is_mob else 32.0
+# Floating Drawer Open Pill Handle
+	var pill_w: float = 60.0 if is_mob else 48.0
+	var pill_h: float = 36.0 if is_mob else 26.0
 
 	toggle_pill_container = CenterContainer.new()
 	toggle_pill_container.set_anchors_preset(Control.PRESET_BOTTOM_WIDE)
-	toggle_pill_container.offset_top = -pill_h - 6.0
-	toggle_pill_container.offset_bottom = -6.0
+	toggle_pill_container.offset_top = -pill_h - (6.0 if is_mob else 4.0)
+	toggle_pill_container.offset_bottom = -(6.0 if is_mob else 4.0)
 	toggle_pill_container.mouse_filter = Control.MOUSE_FILTER_PASS
 	add_child(toggle_pill_container)
 
 	btn_open_floating_pill = Button.new()
-	btn_open_floating_pill.text = " ▲ "
 	btn_open_floating_pill.tooltip_text = "Open Asset & Cast Drawer"
-	btn_open_floating_pill.custom_minimum_size = Vector2(130.0 if is_mob else 90.0, pill_h)
+	btn_open_floating_pill.custom_minimum_size = Vector2(pill_w, pill_h)
 	btn_open_floating_pill.theme_type_variation = "FloatingCapsule"
 	btn_open_floating_pill.focus_mode = Control.FOCUS_NONE
-	btn_open_floating_pill.add_theme_font_size_override("font_size", 12 if is_mob else 10)
+	btn_open_floating_pill.add_theme_constant_override("icon_max_width", 16 if is_mob else 14)
+	btn_open_floating_pill.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	btn_open_floating_pill.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
+
+	var uparrow_icon: Texture2D = ThemeService.get_icon("icon_uparrow")
+	if uparrow_icon != null:
+		btn_open_floating_pill.icon = uparrow_icon
+	else:
+		btn_open_floating_pill.text = "▲"
+		btn_open_floating_pill.add_theme_font_size_override("font_size", 12 if is_mob else 10)
+
 	btn_open_floating_pill.pressed.connect(_toggle_drawer_state)
 	toggle_pill_container.add_child(btn_open_floating_pill)
 
@@ -266,10 +277,20 @@ func _build_ui() -> void:
 	strip_hbox.add_child(search_input)
 
 	btn_toggle_drawer = Button.new()
-	btn_toggle_drawer.text = " ▼ "
 	btn_toggle_drawer.tooltip_text = "Hide Drawer"
-	btn_toggle_drawer.custom_minimum_size = Vector2(40.0 if is_mob else 32.0, tab_btn_h)
+	btn_toggle_drawer.custom_minimum_size = Vector2(36.0 if is_mob else 30.0, tab_btn_h)
 	btn_toggle_drawer.focus_mode = Control.FOCUS_NONE
+	btn_toggle_drawer.add_theme_constant_override("icon_max_width", 16 if is_mob else 14)
+	btn_toggle_drawer.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	btn_toggle_drawer.vertical_icon_alignment = VERTICAL_ALIGNMENT_CENTER
+
+	var down_icon: Texture2D = ThemeService.get_icon("icon_downarrow")
+	if down_icon != null:
+		btn_toggle_drawer.icon = down_icon
+	else:
+		btn_toggle_drawer.text = "▼"
+		btn_toggle_drawer.add_theme_font_size_override("font_size", 12 if is_mob else 10)
+
 	btn_toggle_drawer.pressed.connect(_toggle_drawer_state)
 	strip_hbox.add_child(btn_toggle_drawer)
 
@@ -432,6 +453,18 @@ func _apply_theme() -> void:
 	dock_style.content_margin_top = 10 if _is_mobile() else 8
 	dock_style.content_margin_bottom = 8 if _is_mobile() else 6
 	root_panel.add_theme_stylebox_override("panel", dock_style)
+
+	if btn_open_floating_pill != null:
+		var up_ico: Texture2D = ThemeService.get_icon("icon_uparrow")
+		if up_ico != null:
+			btn_open_floating_pill.icon = up_ico
+			btn_open_floating_pill.text = ""
+
+	if btn_toggle_drawer != null:
+		var down_ico: Texture2D = ThemeService.get_icon("icon_downarrow")
+		if down_ico != null:
+			btn_toggle_drawer.icon = down_ico
+			btn_toggle_drawer.text = ""
 
 	_update_tab_buttons_appearance()
 	_render_breadcrumbs()
