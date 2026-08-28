@@ -7,9 +7,10 @@
 # File: res://UI/Dialogs/TutorialDialog.gd
 # Base Class: CanvasLayer (class_name TutorialDialog)
 #
-# Responsibility: Comprehensive beginner-proof player guide and creator handbook.
-# 10 clear, easy-to-read chapters covering controls, custom drawings,
-# outfits, living animations, sockets, food, story puzzles, rooms, and lore.
+# Responsibility: Comprehensive master creator handbook and player guide.
+# 14 clear, beginner-proof chapters covering every system in the game:
+# controls, drawers, custom art, characters, animations, anchors, food,
+# crafting, lighting, rooms, elevators, story magic, lore, and settings.
 # ==============================================================================
 
 class_name TutorialDialog
@@ -35,35 +36,67 @@ var content_vbox: VBoxContainer = null
 var active_topic_index: int = 0
 var active_filter_query: String = ""
 
-# Handbook Chapters Data (Beginner-Friendly Content)
+# Master Handbook Chapters Data (14 Comprehensive Systems)
 var tutorial_chapters: Array[Dictionary] = [
 	{
 		"id": "quickstart",
-		"title": "1. The Basics: How to Move & Play",
+		"title": "1. Quickstart, Controls & Navigation",
 		"icon": "icon_play",
 		"badge": "Basics",
 		"sections": [
 			{
 				"title": "What is OwnWorld: Dollhouse?",
-				"body": "OwnWorld is an interactive digital toy and story sandbox. Just like playing with a physical dollhouse or paper dolls, you can pick up characters, decorate rooms, dress people up, cook meals, and invent your own stories. Best of all, you can draw your own characters and furniture and bring them into the game anytime!"
+				"body": "OwnWorld is an interactive digital playset and storytelling sandbox. Just like playing with a physical wooden dollhouse or paper dolls, you can pick up characters, decorate rooms, dress people up, cook meals, and invent your own adventures. Best of all, you can draw your own characters and furniture and bring them into the game anytime!"
 			},
 			{
 				"title": "Looking Around Your Room",
-				"body": "• Slide Left and Right: Touch or click any empty background area and drag left or right to glide across the room.\n• Comfortable View: Rooms fit your screen height naturally, so you only need to slide side-to-side to explore.\n• Works on Any Device: You can play comfortably using touch on phones and tablets, or using a mouse and keyboard on PC."
+				"body": "• Slide Left and Right: Touch or click any empty background area and drag left or right to glide smoothly across the room.\n• Comfortable View: Rooms fit your screen height naturally, so you only need to slide side-to-side to explore.\n• Dual-Platform Friendly: Everything works with touch controls on phones and tablets, or with a mouse and keyboard on PC."
 			},
 			{
-				"title": "Picking Up & Interacting with Items",
+				"title": "Picking Up & Moving Objects",
 				"body": "• Move Anything: Tap and hold any character or object, drag them wherever you want, and let go to drop them.\n• Quick Taps: Tap a lamp to turn the light on or off. Tap a door to open or close it. Tap a backpack or chest to see what is stored inside. Tap stairs to climb up to the next floor.\n• The Action Menu (Magic Wheel): Press and hold down on any character or object for half a second (or right-click with a mouse on PC). A round action menu will appear with tools to flip the item, change outfits, customize interactions, lock it in place, or delete it."
 			},
 			{
-				"title": "Zooming In Close (Focus Mode)",
+				"title": "Focus & Zoom Mode",
 				"body": "• Zoom In: Tap the 'Zoom' button in the top navigation bar to unlock camera zoom.\n• Inspect Details: Pinch with two fingers on a touchscreen (or roll your mouse wheel on PC) to zoom in close on faces, small props, or fine drawings.\n• Return to Normal: Tap 'Focus' in the top bar again to lock the camera smoothly back to normal room view."
+			},
+			{
+				"title": "The Top Navigation Bar",
+				"body": "• Menu: Opens the Main Menu to access settings, tutorials, and universe options.\n• Guide: Opens this Creator Handbook anytime.\n• Floors: Quick dropdown to switch between floors in your active building.\n• Zoom: Toggles Focus Mode for close-up camera inspection.\n• Map: Opens the World Map to travel between buildings.\n• Room: Opens the Room Studio to customize wallpapers and floor heights.\n• Undo: Step backward through your recent actions (you can also press Ctrl+Z on PC)."
+			}
+		]
+	},
+	{
+		"id": "drawer_tray",
+		"title": "2. The Drawer Tray, Folders & Tagging",
+		"icon": "icon_folder",
+		"badge": "Storage",
+		"sections": [
+			{
+				"title": "Opening the Drawer Tray",
+				"body": "Tap the small tab button at the bottom of your screen to slide open the master Drawer Tray. This is where all your drawings, saved furniture, props, and story characters live."
+			},
+			{
+				"title": "The 4 Drawer Tabs",
+				"body": "1. Assets: Contains all raw drawings and animated GIFs you have imported into the game.\n2. Props: Saved portable items, tools, food dishes, and accessories.\n3. Furniture: Saved chairs, tables, beds, lights, stairs, and decorative furniture pieces.\n4. Cast: Your active character roster where you can summon characters into rooms or call them back home."
+			},
+			{
+				"title": "Creating & Navigating Folders",
+				"body": "• Create Folders: Tap '+ Folder' in the drawer toolbar to create custom categories (like 'Animals', 'Food', 'Outfits', or 'Kitchen').\n• Breadcrumbs Navigation: The path bar shows your current location. Tap any folder name in the bar to jump back, or tap 'Up' to step out one level."
+			},
+			{
+				"title": "Searching & Category Tags",
+				"body": "• Search Bar: Type any keyword into the search box to find drawings, props, or characters instantly.\n• Tag Filter Pills: Tap tag pills (like #props, #food, #furniture, #characters, or #magic) to filter items quickly. You can create custom hashtags in the item organizer!"
+			},
+			{
+				"title": "Batch Selection & Organizing",
+				"body": "• Batch Select: Tap 'Select' in the drawer toolbar to turn on multi-item selection.\n• Organize Multiple Items: Check the boxes on multiple drawings or props, then tap 'Organize' to move them all to a new folder or assign tags together in one step!\n• Batch Delete: Select multiple items and tap 'Delete Batch' to clean up your library quickly."
 			}
 		]
 	},
 	{
 		"id": "ugc_art",
-		"title": "2. Adding Your Own Drawings",
+		"title": "3. Bringing in Your Own Drawings",
 		"icon": "icon_assets",
 		"badge": "Custom Art",
 		"sections": [
@@ -77,45 +110,65 @@ var tutorial_chapters: Array[Dictionary] = [
 			},
 			{
 				"title": "How to Import Drawings into the Game",
-				"body": "1. Open the bottom drawer by tapping the small tab at the bottom of the screen.\n2. Make sure you are on the 'Assets' tab and tap the 'Import' button.\n3. Select your drawing from your device's photo gallery or files.\n4. Tap your drawing card in the drawer to spawn it into your room immediately!"
+				"body": "1. Open the bottom drawer by tapping the tab at the bottom of the screen.\n2. Make sure you are on the 'Assets' tab and tap the 'Import' button.\n3. Select your drawing from your device's photo gallery or files.\n4. Tap your drawing card in the drawer to spawn it into your room immediately!"
 			},
 			{
 				"title": "Where Files Live on Your Device",
-				"body": "All drawings are kept inside your device's Documents area:\n\nDocuments / OwnWorld / Dollhouse / Art\n\nYou can also create custom subfolders here (like 'Animals', 'Food', or 'Hats') to keep your drawing collection organized."
+				"body": "All drawings are kept inside your device's Documents area:\n\nDocuments / OwnWorld / Dollhouse / Art\n\nYou can also create custom subfolders here on your computer or file manager to keep your drawing collection organized."
 			}
 		]
 	},
 	{
-		"id": "characters_poses",
-		"title": "3. Playing with Characters",
+		"id": "characters_cast",
+		"title": "4. Playing with Characters & The Cast Tray",
 		"icon": "icon_cast",
 		"badge": "Characters",
 		"sections": [
 			{
 				"title": "Finding & Summoning Characters",
-				"body": "• The Cast Drawer: Open the bottom drawer and tap the 'Cast' tab to see all your characters.\n• Summon to Room: Tap any character card to place them into your active room.\n• Call Back Home: Press and hold down on a character card for half a second to call that character back into the drawer and remove them from the world."
+				"body": "• The Cast Drawer: Open the bottom drawer and tap the 'Cast' tab to see all your characters.\n• Summon to Room: Tap any character card to place them into your active room.\n• Call Back Home (Universal Hold): Press and hold down on a character card for half a second to call that character back into the drawer and remove them from the world."
 			},
 			{
 				"title": "Automatic Living Reactions",
 				"body": "Characters automatically react to what you do with them:\n\n1. Standing (Idle): Their regular standing pose.\n2. Talking (Speaking): Mouth opens when they speak dialogue lines.\n3. Eating: Chewing reactions when enjoying food or drinks.\n4. Sitting: Activated when placed on chairs, couches, or stools.\n5. Sleeping: Activated when placed onto beds.\n\nTip: If you have only made a single drawing for a character, they will naturally use that drawing for all poses!"
 			},
 			{
+				"title": "Duplicating & Managing Characters",
+				"body": "• Duplicate: Tap the copy icon on any character card in the Cast drawer to clone them.\n• Return to Drawer: Long-press any character in the room and select 'Return to Cast' on the Magic Wheel to pack them safely back into your tray."
+			}
+		]
+	},
+	{
+		"id": "states_animations",
+		"title": "5. Outfits, Animations & Natural Blinking",
+		"icon": "icon_states",
+		"badge": "Animation",
+		"sections": [
+			{
+				"title": "Multiple Outfits (Wardrobe Forms)",
+				"body": "Want your character to change clothes? Long-press the character, choose 'States & Anims', and tap '+ Form'. Type a form name (like 'Pajamas', 'Armor', or 'Party Outfit') and pick a new drawing. You can switch between outfits anytime!"
+			},
+			{
 				"title": "Setting Up Natural Blinking",
-				"body": "Want your character to blink naturally while standing around? Open the States Studio, switch to the 'Frames & GIF Timeline' tab, add an eyes-open drawing (Frame 1) and an eyes-closed drawing (Frame 2), then set Playback Mode to 'Natural Blink'. Your character will now stay with open eyes and naturally blink every few seconds!"
+				"body": "Want your character to blink naturally while standing around?\n\n1. Open the States Studio and switch to the 'Frames & GIF Timeline' tab.\n2. Add an eyes-open drawing (Frame 1) and an eyes-closed drawing (Frame 2).\n3. Set Playback Mode to 'Natural Blink'.\n4. Your character will now stay with open eyes and naturally blink every few seconds!"
 			},
 			{
 				"title": "One-Tap Animated GIFs",
 				"body": "Have an animated GIF of a dancing pet or a waving character? Open the States Studio (Tab 2) and tap 'Import Animated GIF'. The game will import all frames and play them at their exact original speed!"
 			},
 			{
-				"title": "Sprite Sheet Slicing",
-				"body": "If you have a sprite strip or character grid image (like a 4-frame walk cycle on one picture), open Tab 3 in the States Studio. Pick your column and row counts, preview the cutting lines, and tap 'Extract All Slices' to turn them into an animation instantly."
+				"title": "Sprite Sheet Grid Slicing",
+				"body": "If you have a sprite strip or character grid image (like a 4-frame walk cycle on one picture), open Tab 3 in the States Studio. Pick your column and row counts, preview the cutting lines, and tap 'Extract All Slices' to turn them into a playable animation instantly."
+			},
+			{
+				"title": "Testing on the Mannequin",
+				"body": "Use the Interactive Test Mannequin station at the top of Tab 1 to preview and test your character's blinking, sitting, sleeping, and talking animations in real time."
 			}
 		]
 	},
 	{
 		"id": "anchors_sockets",
-		"title": "4. Dressing Up & Snapping Items",
+		"title": "6. Dressing Up & The Anchor Studio",
 		"icon": "icon_anchors",
 		"badge": "Sockets",
 		"sections": [
@@ -138,18 +191,22 @@ var tutorial_chapters: Array[Dictionary] = [
 			{
 				"title": "Using the Anchor Studio",
 				"body": "Want to fine-tune where a hat sits or where a hand grips? Long-press any character or furniture piece and tap 'Anchors':\n\n1. Pick a category from the dropdown (Hand, Head, Seat, Table Surface, Bed, etc.).\n2. Tap directly on the drawing preview where you want the connection point to be.\n3. Drag the pin with your finger or mouse to adjust its exact location.\n4. Tap 'Save Anchors' when done!"
+			},
+			{
+				"title": "Sit Baseline (Hip Alignment)",
+				"body": "Place a 'Sit Baseline' (sit_point) anchor near the bottom of a character's body so their hips and legs line up perfectly when sitting on chair cushions."
 			}
 		]
 	},
 	{
-		"id": "food_liquids_crafting",
-		"title": "5. Food, Cooking & Interactive Props",
+		"id": "food_liquids_containers",
+		"title": "7. Food, Drinks, Sinks & Containers",
 		"icon": "icon_food",
 		"badge": "Interactive",
 		"sections": [
 			{
 				"title": "Feeding Characters",
-				"body": "Drag any food item up to a character's mouth. The character will open their mouth, play chewing sounds, spray crumbs, and take bites until the snack is finished!"
+				"body": "Drag any food item up to a character's mouth. The character will open their mouth, play chewing sounds, spray yellow crumb particles, and take bites until the snack is finished!"
 			},
 			{
 				"title": "Custom Bite Stages (Food Studio)",
@@ -162,16 +219,116 @@ var tutorial_chapters: Array[Dictionary] = [
 			{
 				"title": "Backpacks, Boxes & Drawers",
 				"body": "Items marked as Containers can store props inside them. Drop any item onto a backpack, treasure chest, or drawer to pack it away. Tap the container anytime to view its storage inventory and unpack items back into the room."
+			}
+		]
+	},
+	{
+		"id": "crafting_recipes",
+		"title": "8. Cooking Recipes & Item Merging",
+		"icon": "icon_recipes",
+		"badge": "Crafting",
+		"sections": [
+			{
+				"title": "Combining Ingredients in the Room",
+				"body": "You can combine items directly in your room! Drop Ingredient A on top of Ingredient B. If there is a matching recipe, a magic merge poof will appear and transform both items into a brand-new crafted object!"
 			},
 			{
-				"title": "Combining Ingredients (Recipe Creator)",
-				"body": "Open the Main Menu and tap 'Visual Recipe Creator' to make cooking recipes (like Dough + Tomato = Pizza). In your room, simply drop Ingredient A onto Ingredient B to trigger a magic merge poof!"
+				"title": "The Visual Recipe Creator",
+				"body": "Open the Main Menu and select 'Visual Recipe Creator' to build new recipes:\n\n1. Select Ingredient A from your art library.\n2. Select Ingredient B from your art library.\n3. Pick what item will be created as the result.\n4. Type a name for your new creation (like 'Hot Pizza' or 'Magic Elixir') and tap 'Register & Save Recipe'!"
+			},
+			{
+				"title": "Fun Recipe Ideas to Try",
+				"body": "• Bakery: Dough + Tomato = Pizza; Flour + Sugar = Birthday Cake.\n• Alchemy: Purple Crystal + Water Bottle = Magic Potion.\n• Crafting: Stick + Iron Ingot = Knight Sword."
+			}
+		]
+	},
+	{
+		"id": "lighting_glow",
+		"title": "9. Lighting & 2D Glow Effects Studio",
+		"icon": "icon_lighting",
+		"badge": "Visuals",
+		"sections": [
+			{
+				"title": "The Lighting Studio",
+				"body": "Long-press any lamp, campfire, magic wand, or glowing crystal and select 'Lighting' to customize its 2D glow effects."
+			},
+			{
+				"title": "Glow Styles",
+				"body": "• Silhouette Contour: Draws a glowing outline aura around the exact transparent shape of your drawing.\n• Ambient Room Glow: Fills the surrounding space with soft radial room light.\n• Light Anchors: Emits light points directly from placed light pins."
+			},
+			{
+				"title": "Light Customization Controls",
+				"body": "• Brightness: Adjust how strongly the light glows.\n• Glow Radius: Expand or shrink the reach of the light.\n• Breathing Pulse: Make the light gently pulse like a breathing candle or heartbeat.\n• Color Swatches: Pick from warm Candle light, Fairy Pink, Sky Blue, Violet, Emerald, or choose your own custom color!"
+			}
+		]
+	},
+	{
+		"id": "rooms_atmosphere",
+		"title": "10. Room Studio, Multi-Screen Slices & Weather",
+		"icon": "icon_room",
+		"badge": "Rooms",
+		"sections": [
+			{
+				"title": "The Room Studio",
+				"body": "Tap 'Room' in the top bar to customize your active room layout, wallpapers, wall colors, floor lines, and building assignments."
+			},
+			{
+				"title": "Multi-Screen Wide Rooms (Slices)",
+				"body": "• Screen Slices: Each room slice matches the exact width of your device screen.\n• Extra Wide Rooms: Tap '+ Add Room Slice' in the Room Studio to expand your room up to 10 screens wide for seamless side-to-side panoramic scrolling."
+			},
+			{
+				"title": "Wallpapers & Procedural Colors",
+				"body": "• Custom Wallpaper: Assign custom artwork from your library to any slice, and choose how it scales (Cover, Fit, Stretch, Tile, or Original).\n• Procedural Colors: If no custom art is chosen, use the built-in color pickers to customize the wall, baseboard trim, and floor colors."
+			},
+			{
+				"title": "Floor Baseline Slider",
+				"body": "Use the Floor Baseline slider to adjust where characters walk and where furniture sits across the entire room."
+			},
+			{
+				"title": "Outdoor Balcony Weather Masks",
+				"body": "Set individual room slices to 'Outdoors'. When rain, snow, autumn leaves, or dust storms are active, the weather will fall only on outdoor slices (like balconies or gardens) while keeping indoor living rooms dry!"
+			},
+			{
+				"title": "Atmosphere & Mood Presets",
+				"body": "In the World Map toolbar, pick from 5 lighting moods:\n• Day (Bright and clear)\n• Sunset (Warm golden tones)\n• Night (Deep cozy midnight blue)\n• Cozy (Warm ambient indoor glow)\n• Cyberpunk (Moody violet and neon tones)"
+			}
+		]
+	},
+	{
+		"id": "world_map_elevators",
+		"title": "11. World Map, Doors, Stairs & Elevators",
+		"icon": "icon_map",
+		"badge": "Worldbuilding",
+		"sections": [
+			{
+				"title": "The World Map",
+				"body": "Tap 'Map' in the top bar to view your entire universe map. Tap any building pin to travel straight to that location. Switch the map to 'Edit' mode to move building pins around, add new buildings, or customize building settings."
+			},
+			{
+				"title": "Building Settings & Floor Management",
+				"body": "In Map Edit Mode, tap the gear icon on any building pin to open Building Settings. Here you can add new floors (1F, 2F, B1, Rooftop), rename rooms, and assign custom building artwork in one place."
+			},
+			{
+				"title": "Auto-Climbing Stairs",
+				"body": "Drop a character onto stairs (or tap the stairs) to climb directly to the floor above in the same building!"
+			},
+			{
+				"title": "Multi-Floor Keypad Elevators",
+				"body": "Drop characters inside an elevator. A floor keypad will pop up. Tap any floor button (like 1F, 2F, or Rooftop) and the elevator will close its doors and take everyone to that floor!"
+			},
+			{
+				"title": "Doorway Portals",
+				"body": "Long-press any doorway and select 'Destination' to link it to another room or map location. When a character walks through the door, they will travel straight to that room!"
+			},
+			{
+				"title": "Quick Floor Switcher",
+				"body": "Tap the floor button in the Top Navigation Bar (e.g. '1F') to open a quick floor dropdown and jump to any floor in your active building."
 			}
 		]
 	},
 	{
 		"id": "logic_rules",
-		"title": "6. Story Magic: Make Things Happen",
+		"title": "12. Story Magic & Cause-and-Effect Rules",
 		"icon": "icon_logic",
 		"badge": "Story Magic",
 		"sections": [
@@ -190,28 +347,8 @@ var tutorial_chapters: Array[Dictionary] = [
 		]
 	},
 	{
-		"id": "rooms_elevators_map",
-		"title": "7. Rooms, Floors & Elevators",
-		"icon": "icon_room",
-		"badge": "Worldbuilding",
-		"sections": [
-			{
-				"title": "The World Map",
-				"body": "Tap 'Map' in the top bar to view your universe map. Tap any building pin to travel straight to that location. Switch the map to 'Edit' mode to move building pins around, add new buildings, or customize building settings."
-			},
-			{
-				"title": "Stairs & Elevators",
-				"body": "• Auto-Climbing Stairs: Tap stairs (or drop a character on them) to climb directly to the floor above!\n• Keypad Elevators: Drop characters inside an elevator. A floor keypad will pop up. Tap any floor button (like 1F, 2F, or Rooftop) and the elevator will close its doors and take everyone to that floor!"
-			},
-			{
-				"title": "Multi-Screen Wide Rooms",
-				"body": "• Screen Slices: Each room slice matches the exact width of your device screen.\n• Extra Wide Rooms: In the Room Studio, tap '+ Add Room Slice' to expand your room up to 10 screens wide for seamless side-to-side panoramic scrolling.\n• Outdoor Balconies: Set individual room slices to 'Outdoors' so weather effects (like rain, snow, or falling leaves) fall only on outdoor balconies while keeping indoor rooms dry!"
-			}
-		]
-	},
-	{
 		"id": "lore_journals_factions",
-		"title": "8. Profiles, Family Trees & Lore",
+		"title": "13. Character Profiles, Family Trees & Lore",
 		"icon": "icon_lore",
 		"badge": "Narrative",
 		"sections": [
@@ -220,37 +357,29 @@ var tutorial_chapters: Array[Dictionary] = [
 				"body": "Long-press any character and tap 'Profile' to open their 3-tab Lore Card:\n• Tab 1 (Profile): Name, Pronouns, Role/Title (like Baker or Knight), Life Status, custom portrait picture, and custom traits (like Birthday or Favorite Color).\n• Tab 2 (Family & Feelings): Two-way family connections (Parents, Children, Siblings, Partners) and feelings (Best Friends, Rivals, Secret Crushes, Mentors). When you set one character as a sibling to another, the game links them both ways automatically!\n• Tab 3 (Backstory): A notebook where you can write backstories, secrets, and world notes."
 			},
 			{
-				"title": "World Journal & Guilds",
+				"title": "World Journal & Story Chronicles",
 				"body": "Open the World Journal from the Main Menu to chronicle the history of your universe:\n• Story Chronicles: Record dated eras, memorable events, participating characters, and linked rooms.\n• Guilds & Factions: Create kingdoms, clubs, schools, or alliances with custom badge colors, mottos, headquarters, appointed leaders, and ranked member rosters."
 			}
 		]
 	},
 	{
-		"id": "universes_packs",
-		"title": "9. Story Worlds & Sharing Packs",
-		"icon": "icon_universe",
-		"badge": "Sharing",
+		"id": "universes_packs_settings",
+		"title": "14. Universes, Sharing Packs & Settings",
+		"icon": "icon_settings",
+		"badge": "Settings",
 		"sections": [
 			{
-				"title": "Story Universes",
+				"title": "Separate Story Universes",
 				"body": "Universes are completely separate creative worlds. Each universe has its own independent rooms, Cast rosters, recipes, World Maps, and Journal chronicles. Switch between stories anytime in the Universe Hub."
 			},
 			{
-				"title": "Exporting Story Packs",
+				"title": "Exporting & Sharing Story Packs",
 				"body": "Want to share your creation? Tap 'Export Active (.ownpack)' in the Universe Hub to bundle your entire world into a single shareable package saved to:\n\nDocuments / OwnWorld / Dollhouse / Exports"
 			},
 			{
 				"title": "Importing Story Packs",
 				"body": "Download an .ownpack file created by a friend and tap 'Import (.ownpack)' in the Universe Hub to load and explore their world in one tap!"
-			}
-		]
-	},
-	{
-		"id": "theming_settings",
-		"title": "10. Themes, Comfort & Motion Controls",
-		"icon": "icon_palette",
-		"badge": "Customization",
-		"sections": [
+			},
 			{
 				"title": "Dynamic Motion & Juice Controls",
 				"body": "• Love Bouncy Animations? The game includes lively squashes, bounces, and breathing effects when picking up and dropping items.\n• Prefer a Calm Paper-Doll Look? Open Settings -> Motion FX & Dynamic Juice and switch the Master Juice toggle off to disable all bouncy animations."
