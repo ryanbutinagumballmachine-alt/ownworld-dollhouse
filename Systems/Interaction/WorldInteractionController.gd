@@ -1,162 +1,190 @@
 # ==============================================================================
-# OWNWORLD — WORLD INTERACTION CONTROLLER
+# OWNWORLD — WORLD INTERACTION CONTROLLER (HYPER OPTIMIZED)
 # File: res://Systems/Interaction/WorldInteractionController.gd
-# Base Class: Node (class_name WorldInteractionController)
+# Base Class: Node
 #
-# Responsibility: Low-level input mediation, touch vs mouse isolation,
-# topmost entity picking with pixel alpha testing, and drag-and-drop routing.
+# Responsibility: Passive API for entity manipulation. Driven entirely by the
+# HyperInputRouter. Handles topmost entity picking, drag clamping, and drop routing.
 # ==============================================================================
 
 class_name WorldInteractionController
 extends Node
 
-@export var entity_root: Node2D
-@export var main_camera: Camera2D
-@export var interaction_router: Node
-@export var magic_wheel_ui: Node
-@export var room_bounds: Rect2 = Rect2(0, 0, 1920, 1080)
+var entity_root: Node2D = null
+var interaction_router: EntityInteractionRouter = null
+var all_entities: Array[OwnEntity] = []
 
-var is_pointer_down: bool = false
+var room_bounds: Rect2 = Rect2(0, 0, 1920, 1080)
+var current_floor_y: float = 580.0
+
 var active_dragged_entity: OwnEntity = null
 var pressed_target_entity: OwnEntity = null
 var drag_offset: Vector2 = Vector2.ZERO
-var active_touch_count: int = 0
 
-
-func _ready() -> void:
+func setup(p_entity_root: Node2D, p_router: EntityInteractionRouter, p_entities: Array[OwnEntity]) -> void:
+	entity_root = p_entity_root
+	interaction_router = p_router
+	all_entities = p_entities
 	set_process(false)
 
+func _process(delta: float) -> void:
+	if active_dragged_entity != null and is_instance_valid(active_dragged_entity):
+		InteractionSolver.process_live_interactions(delta, active_dragged_entity, all_entities)
 
-func set_room_bounds(bounds: Rect2) -> void:
-	room_bounds = bounds
+func begin_interaction(world_pos: Vector2, is_multi_touch: bool) -> bool:
+	var touch_padding: float = SettingsManager.get_touch_padding(is_multi_touch)
+	pressed_target_entity = get_topmost_entity(world_pos, touch_padding)
 
+	if pressed_target_entity != null and not pressed_target_entity.is_locked:
+		if pressed_target_entity.parent_socket_entity != null:
+			pressed_target_entity.detach_from_socket(entity_root)
 
-func _unhandled_input(event: InputEvent) -> void:
-	if event is InputEventScreenTouch:
-		var st: InputEventScreenTouch = event as InputEventScreenTouch
-		if st.pressed: 
-			active_touch_count += 1
-		else: 
-			active_touch_count = maxi(0, active_touch_count - 1)
+		var root_ent: OwnEntity = _get_ysort_root_entity(pressed_target_entity)
+		if root_ent.get_parent() == entity_root:
+			entity_root.move_child(root_ent, -1)
+
+		active_dragged_entity = pressed_target_entity
+		drag_offset = active_dragged_entity.global_position - world_pos
+		active_dragged_entity.on_grab()
 		
-	# STRICT INPUT SEPARATION: Ignore emulated mouse events if a touch is active
-	if (event is InputEventMouseButton or event is InputEventMouseMotion) and active_touch_count > 0:
-		return
+		_trigger_haptic(25)
+		LogicEngine.evaluate_trigger(Types.TriggerEvent.ON_DRAG_STARTED, active_dragged_entity)
+		AudioManager.play_pop_grab()
+		set_process(true)
+		return true
+	return false
 
-	if event is InputEventMouseButton:
-		var e: InputEventMouseButton = event as InputEventMouseButton
-		if e.button_index == MOUSE_BUTTON_LEFT:
-			if e.pressed: 
-				_press(_screen_to_world(e.position))
-			else: 
-				_release(_screen_to_world(e.position))
-		elif e.button_index == MOUSE_BUTTON_MIDDLE:
-			if main_camera != null and is_instance_valid(main_camera):
-				if e.pressed and main_camera.has_method("start_drag_pan"): 
-					main_camera.start_drag_pan(e.position)
-				elif not e.pressed and main_camera.has_method("end_drag_pan"): 
-					main_camera.end_drag_pan()
-	elif event is InputEventMouseMotion and active_dragged_entity != null:
-		_move(_screen_to_world((event as InputEventMouseMotion).position))
-
-
-func _process(_delta: float) -> void:
-	if active_dragged_entity != null:
-		_move(_screen_to_world(get_viewport().get_mouse_position()))
-
-
-func _press(world_pos: Vector2) -> void:
-	is_pointer_down = true
-	pressed_target_entity = _find_topmost(world_pos)
-	if pressed_target_entity == null:
-		if main_camera != null and is_instance_valid(main_camera) and main_camera.has_method("start_drag_pan"):
-			main_camera.start_drag_pan(get_viewport().get_mouse_position())
-		return
-	if pressed_target_entity.is_locked:
-		return
-	active_dragged_entity = pressed_target_entity
-	drag_offset = active_dragged_entity.global_position - world_pos
-	active_dragged_entity.on_grab()
-	AudioManager.play_pop_grab()
-	set_process(true)
-
-
-func _move(world_pos: Vector2) -> void:
+func update_interaction(world_pos: Vector2) -> void:
 	if active_dragged_entity == null or not is_instance_valid(active_dragged_entity):
 		return
-	var target_position: Vector2 = world_pos + drag_offset
+
+	var target_pos: Vector2 = world_pos + drag_offset
 	if SettingsManager.is_grid_snap_enabled():
 		var grid_size: float = float(SettingsManager.get_grid_size())
-		target_position = target_position.snapped(Vector2(grid_size, grid_size))
-	active_dragged_entity.global_position = target_position
+		target_pos = target_pos.snapped(Vector2(grid_size, grid_size))
 
+	var half_width: float = active_dragged_entity.get_visual_half_width()
+	var bottom_offset: float = active_dragged_entity.get_visual_bottom_offset()
+	var top_offset: float = active_dragged_entity.texture_size.y * 0.5 * active_dragged_entity.entity_scale
 
-func _release(world_pos: Vector2) -> void:
-	is_pointer_down = false
-	if main_camera != null and is_instance_valid(main_camera) and main_camera.has_method("end_drag_pan"):
-		main_camera.end_drag_pan()
+	target_pos.x = clampf(target_pos.x, room_bounds.position.x + half_width, room_bounds.end.x - half_width)
 
-	if active_dragged_entity == null:
-		if pressed_target_entity != null and is_instance_valid(pressed_target_entity):
-			if interaction_router != null and interaction_router.has_method("handle_tap"):
-				interaction_router.handle_tap(pressed_target_entity)
-		set_process(false)
-		return
+	if active_dragged_entity.is_wall_mounted:
+		var max_wall_y: float = current_floor_y - bottom_offset - 4.0
+		target_pos.y = clampf(target_pos.y, room_bounds.position.y + top_offset, maxf(room_bounds.position.y + top_offset, max_wall_y))
+	else:
+		target_pos.y = clampf(target_pos.y, room_bounds.position.y + top_offset, room_bounds.end.y - bottom_offset)
 
-	var entity: OwnEntity = active_dragged_entity
+	active_dragged_entity.global_position = target_pos
+
+func end_interaction(world_pos: Vector2, is_quick_tap: bool) -> void:
+	var released: OwnEntity = active_dragged_entity
 	active_dragged_entity = null
-	entity.on_drop()
-	if interaction_router != null and interaction_router.has_method("handle_drop"):
-		var entities: Array[OwnEntity] = []
-		if entity_root != null:
-			for child: Node in entity_root.get_children():
-				if child is OwnEntity and is_instance_valid(child):
-					entities.append(child as OwnEntity)
-		interaction_router.handle_drop(entity, world_pos, {"entities": entities, "canvas": entity_root})
 	set_process(false)
 
+	if released != null and is_instance_valid(released):
+		released.on_drop()
+		LogicEngine.evaluate_trigger(Types.TriggerEvent.ON_DRAG_ENDED, released)
+		AudioManager.play_drop_cushion()
 
-func _find_topmost(world_pos: Vector2) -> OwnEntity:
-	if entity_root == null:
-		return null
+		if is_quick_tap:
+			interaction_router.handle_tap(released, all_entities)
+		else:
+			interaction_router.handle_drop(released, world_pos, {"entities": all_entities, "canvas": entity_root})
+			_apply_physical_gravity_settle(released)
+			
+		_record_history()
+		SaveSystem.save_current_room_state()
 
-	var touch_padding: float = SettingsManager.get_touch_padding(active_touch_count > 0)
+	elif is_quick_tap and pressed_target_entity != null and is_instance_valid(pressed_target_entity):
+		interaction_router.handle_tap(pressed_target_entity, all_entities)
+		_record_history()
+		SaveSystem.save_current_room_state()
+
+	pressed_target_entity = null
+
+func get_topmost_entity(world_pos: Vector2, touch_padding: float = 0.0) -> OwnEntity:
 	var exact_hits: Array[OwnEntity] = []
 	var padded_hits: Array[OwnEntity] = []
 
-	for child: Node in entity_root.get_children():
-		if not child is OwnEntity or not is_instance_valid(child): 
-			continue
-		var entity: OwnEntity = child as OwnEntity
-		if not entity.visible: 
-			continue
-		
-		if entity.has_point_exact(world_pos):
-			exact_hits.append(entity)
-		elif entity.contains_point(world_pos, touch_padding):
-			padded_hits.append(entity)
+	for entity: OwnEntity in all_entities:
+		if is_instance_valid(entity) and entity.is_visible_in_tree():
+			if entity.has_point_exact(world_pos):
+				exact_hits.append(entity)
+			elif entity.contains_point(world_pos, touch_padding):
+				padded_hits.append(entity)
 
 	var candidates: Array[OwnEntity] = exact_hits if not exact_hits.is_empty() else padded_hits
 	var best: OwnEntity = null
 
 	for entity: OwnEntity in candidates:
-		if best == null or _is_entity_in_front(entity, best):
+		if best == null or _is_entity_in_front_of(entity, best):
 			best = entity
-
 	return best
 
-
-func _is_entity_in_front(a: OwnEntity, b: OwnEntity) -> bool:
+func _is_entity_in_front_of(a: OwnEntity, b: OwnEntity) -> bool:
 	if a == b: return false
 	if not is_instance_valid(a): return false
 	if not is_instance_valid(b): return true
-	if a.z_index != b.z_index:
-		return a.z_index > b.z_index
-	if not is_equal_approx(a.global_position.y, b.global_position.y) and absf(a.global_position.y - b.global_position.y) > 0.5:
-		return a.global_position.y > b.global_position.y
+
+	if a.parent_socket_entity == b: return a.z_index >= 0
+	if b.parent_socket_entity == a: return b.z_index < 0
+
+	var z_a: int = _calculate_effective_z(a)
+	var z_b: int = _calculate_effective_z(b)
+	if z_a != z_b: return z_a > z_b
+
+	var root_a: OwnEntity = _get_ysort_root_entity(a)
+	var root_b: OwnEntity = _get_ysort_root_entity(b)
+
+	if root_a != root_b:
+		var y_a: float = root_a.global_position.y
+		var y_b: float = root_b.global_position.y
+		if not is_equal_approx(y_a, y_b) and absf(y_a - y_b) > 0.5:
+			return y_a > y_b
+		return root_a.get_index() > root_b.get_index()
+
 	return a.get_index() > b.get_index()
 
+func _get_ysort_root_entity(entity: OwnEntity) -> OwnEntity:
+	var current: OwnEntity = entity
+	while current.parent_socket_entity != null and is_instance_valid(current.parent_socket_entity):
+		current = current.parent_socket_entity
+	return current
 
-func _screen_to_world(screen_position: Vector2) -> Vector2:
-	var viewport: Viewport = get_viewport()
-	return viewport.get_canvas_transform().affine_inverse() * screen_position if viewport != null else screen_position
+func _calculate_effective_z(entity: OwnEntity) -> int:
+	if not is_instance_valid(entity): return 0
+	if entity.z_as_relative and entity.get_parent() is Node2D:
+		var parent_node: Node2D = entity.get_parent() as Node2D
+		if parent_node is OwnEntity:
+			return _calculate_effective_z(parent_node as OwnEntity) + entity.z_index
+		return parent_node.z_index + entity.z_index
+	return entity.z_index
+
+func _apply_physical_gravity_settle(entity: OwnEntity) -> void:
+	if entity.is_wall_mounted or entity.can_float or entity.is_floor_decor or entity.parent_socket_entity != null:
+		return
+
+	var bottom_offset: float = entity.get_visual_bottom_offset()
+	var floor_baseline: float = current_floor_y - bottom_offset
+	if entity.global_position.y < floor_baseline - 15.0:
+		var drop_dist: float = floor_baseline - entity.global_position.y
+		var fall_duration: float = clampf(drop_dist * 0.0008, 0.2, 0.4)
+
+		if SettingsManager.is_juice_squash_stretch_enabled():
+			var tween: Tween = create_tween().set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
+			tween.tween_property(entity, "global_position:y", floor_baseline, fall_duration)
+		else:
+			entity.global_position.y = floor_baseline
+
+func _trigger_haptic(duration_ms: int = 30) -> void:
+	if SettingsManager.are_haptics_enabled() and (OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios")):
+		if Input.has_method("vibrate_handheld"):
+			Input.vibrate_handheld(duration_ms)
+
+func _record_history() -> void:
+	var history: Node = get_node_or_null("/root/HistoryManager")
+	if history != null and history.has_method("record_snapshot"):
+		var main_node: Node = get_tree().root.find_child("Main", true, false)
+		if main_node and main_node.has_method("_serialize_state"):
+			history.call("record_snapshot", main_node.call("_serialize_state"))

@@ -1,22 +1,13 @@
 # ==============================================================================
-# OWNWORLD — DOOR DESTINATION DIALOG (TOUCH RESPONSIVE & KEYBOARD SHIELDED)
+# OWNWORLD — DOOR DESTINATION DIALOG (HYPER OPTIMIZED)
 # File: res://UI/Dialogs/DoorDestinationDialog.gd
-# Base Class: CanvasLayer (class_name DoorDestinationDialog)
-#
-# Responsibility: Doorway portal configuration modal. Allows selecting destination
-# rooms from existing world map pins or specifying custom room keys.
+# Base Class: HyperUIDialog
 # ==============================================================================
 
 class_name DoorDestinationDialog
-extends CanvasLayer
+extends HyperUIDialog
 
-const MAX_PANEL_WIDTH: float = 500.0
-const MAX_PANEL_HEIGHT: float = 440.0
 const MAP_DIRECTORY: String = "user://maps/"
-
-var root_backdrop: Control = null
-var center_container: CenterContainer = null
-var root_panel: PanelContainer = null
 
 var active_door_entity: OwnEntity = null
 var header_lbl: Label = null
@@ -31,96 +22,14 @@ var btn_save: Button = null
 
 var location_ids: Array[String] = []
 
+func _init() -> void:
+	max_panel_width = 500.0
+	max_panel_height = 440.0
 
-func _ready() -> void:
+func _build_content() -> void:
 	name = "DoorDestinationDialog"
-	layer = 120
-	visible = false
-	add_to_group("modal_ui")
-	_build_ui()
-	_connect_system_signals()
-	_update_responsive_layout()
-	_setup_keyboard_dodging()
-
-
-func _is_mobile() -> bool:
-	return ThemeEngine.is_mobile_platform()
-
-
-func _connect_system_signals() -> void:
-	var tree: SceneTree = get_tree()
-	if tree != null and tree.root != null and not tree.root.size_changed.is_connected(_update_responsive_layout):
-		tree.root.size_changed.connect(_update_responsive_layout)
-	if not EventBus.theme_changed.is_connected(_on_theme_changed):
-		EventBus.theme_changed.connect(_on_theme_changed)
-
-
-func _setup_keyboard_dodging() -> void:
-	if not _is_mobile(): return
-	var edits: Array[LineEdit] = [name_edit, custom_room_edit]
-	for edit in edits:
-		if edit != null:
-			edit.focus_entered.connect(_on_input_focus_entered)
-			edit.focus_exited.connect(_on_input_focus_exited)
-
-
-func _on_input_focus_entered() -> void:
-	if _is_mobile():
-		await get_tree().process_frame
-		await get_tree().process_frame
-		var kb_height: float = DisplayServer.virtual_keyboard_get_height()
-		if kb_height > 0:
-			var tween: Tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-			tween.tween_property(center_container, "position:y", -kb_height * 0.45, 0.25)
-
-
-func _on_input_focus_exited() -> void:
-	if _is_mobile():
-		var tween: Tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-		tween.tween_property(center_container, "position:y", 0.0, 0.25)
-
-
-func _on_theme_changed(_theme_data: Dictionary) -> void:
-	_refresh_theme_icons()
-	_update_responsive_layout()
-	if visible: _populate_map_locations()
-
-
-func _update_responsive_layout() -> void:
-	if not is_instance_valid(root_panel): return
-	var viewport_size: Vector2 = get_viewport().get_visible_rect().size if get_viewport() else Vector2(1280.0, 720.0)
-	var is_mob: bool = _is_mobile()
-
-	var target_width: float = clampf(viewport_size.x * 0.92, 300.0, MAX_PANEL_WIDTH)
-	var target_height: float = clampf(viewport_size.y * (0.90 if is_mob else 0.82), 300.0, MAX_PANEL_HEIGHT)
-	root_panel.custom_minimum_size = Vector2(target_width, target_height)
-	root_panel.size = Vector2(target_width, target_height)
-
-
-func _build_ui() -> void:
-	var is_mob: bool = _is_mobile()
+	var is_mob: bool = is_mobile()
 	var row_h: float = 34.0 if is_mob else 28.0
-
-	root_backdrop = Control.new()
-	root_backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
-	root_backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
-	root_backdrop.gui_input.connect(_on_backdrop_gui_input)
-	add_child(root_backdrop)
-
-	var background_dim: ColorRect = ColorRect.new()
-	background_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	background_dim.color = Color(0.0, 0.0, 0.0, 0.65)
-	background_dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root_backdrop.add_child(background_dim)
-
-	center_container = CenterContainer.new()
-	center_container.set_anchors_preset(Control.PRESET_FULL_RECT)
-	center_container.mouse_filter = Control.MOUSE_FILTER_PASS
-	root_backdrop.add_child(center_container)
-
-	root_panel = PanelContainer.new()
-	root_panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	center_container.add_child(root_panel)
 
 	var vbox: VBoxContainer = VBoxContainer.new()
 	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -142,8 +51,8 @@ func _build_ui() -> void:
 	close_button.custom_minimum_size = Vector2(28.0 if is_mob else 22.0, 28.0 if is_mob else 22.0)
 	close_button.focus_mode = Control.FOCUS_NONE
 	close_button.add_theme_constant_override("icon_max_width", 12)
-	_apply_close_icon(close_button)
-	close_button.pressed.connect(close_dialog)
+	apply_close_icon(close_button)
+	close_button.pressed.connect(_on_close_requested)
 	header_hbox.add_child(close_button)
 
 	vbox.add_child(HSeparator.new())
@@ -157,6 +66,7 @@ func _build_ui() -> void:
 	name_edit = LineEdit.new()
 	name_edit.placeholder_text = "e.g. Garden Entrance, Castle Gate..."
 	name_edit.custom_minimum_size = Vector2(0.0, row_h)
+	register_keyboard_dodge(name_edit)
 	vbox.add_child(name_edit)
 
 	lbl_target = Label.new()
@@ -180,6 +90,7 @@ func _build_ui() -> void:
 	custom_room_edit = LineEdit.new()
 	custom_room_edit.placeholder_text = "e.g. room_secret_dungeon, room_balcony..."
 	custom_room_edit.custom_minimum_size = Vector2(0.0, row_h)
+	register_keyboard_dodge(custom_room_edit)
 	vbox.add_child(custom_room_edit)
 
 	vbox.add_child(HSeparator.new())
@@ -190,10 +101,17 @@ func _build_ui() -> void:
 	btn_save.focus_mode = Control.FOCUS_NONE
 	btn_save.add_theme_constant_override("icon_max_width", 16)
 	btn_save.add_theme_font_size_override("font_size", 12 if is_mob else 11)
-	_apply_button_icon(btn_save, "icon_save")
-	btn_save.pressed.connect(save_and_close)
+	apply_button_icon(btn_save, "icon_save")
+	btn_save.pressed.connect(_on_save_pressed)
 	vbox.add_child(btn_save)
 
+func _on_theme_updated() -> void:
+	apply_button_icon(btn_save, "icon_save")
+	if root_panel == null: return
+	for node: Node in root_panel.find_children("*", "Button", true, false):
+		if node is Button and (node as Button).text == "✕":
+			apply_close_icon(node as Button)
+	if visible: _populate_map_locations()
 
 func open_for_door(door_ent: OwnEntity) -> void:
 	if not is_instance_valid(door_ent):
@@ -201,16 +119,13 @@ func open_for_door(door_ent: OwnEntity) -> void:
 	active_door_entity = door_ent
 	name_edit.text = door_ent.display_name
 	custom_room_edit.text = door_ent.target_room_id
-	_update_responsive_layout()
 	_populate_map_locations()
-	visible = true
+	open_dialog()
 
-
-func close_dialog() -> void:
-	visible = false
+func _on_close_requested() -> void:
 	active_door_entity = null
 	location_ids.clear()
-
+	super._on_close_requested()
 
 func _populate_map_locations() -> void:
 	if destination_option == null: return
@@ -256,15 +171,13 @@ func _populate_map_locations() -> void:
 
 	destination_option.selected = selected_index
 
-
 func _on_location_selected(index: int) -> void:
 	if index > 0 and index < location_ids.size():
 		custom_room_edit.text = location_ids[index]
 
-
-func save_and_close() -> void:
+func _on_save_pressed() -> void:
 	if active_door_entity == null or not is_instance_valid(active_door_entity):
-		visible = false
+		_on_close_requested()
 		return
 
 	var current_room_id: String = AppState.room_id
@@ -285,8 +198,7 @@ func save_and_close() -> void:
 	SaveSystem.save_current_room_state()
 	EventBus.entity_state_changed.emit(active_door_entity.entity_id)
 	EventBus.notification_requested.emit("Door Leads to: " + active_door_entity.target_room_id, true)
-	close_dialog()
-
+	_on_close_requested()
 
 func _enforce_dropdown_popup_limits(option_button: OptionButton, max_height: int = 200) -> void:
 	if option_button == null: return
@@ -294,29 +206,3 @@ func _enforce_dropdown_popup_limits(option_button: OptionButton, max_height: int
 	if popup == null: return
 	popup.max_size = Vector2i(4000, max_height)
 	popup.about_to_popup.connect(func() -> void: popup.max_size = Vector2i(4000, max_height))
-
-
-func _refresh_theme_icons() -> void:
-	_apply_button_icon(btn_save, "icon_save")
-	if root_panel == null: return
-	for node: Node in root_panel.find_children("*", "Button", true, false):
-		if node is Button and (node as Button).text == "✕":
-			_apply_close_icon(node as Button)
-
-
-func _apply_button_icon(button: Button, icon_key: String) -> void:
-	if button == null: return
-	var icon_texture: Texture2D = ThemeService.get_icon(icon_key)
-	if icon_texture != null: button.icon = icon_texture
-
-
-func _apply_close_icon(button: Button) -> void:
-	if button == null: return
-	var icon_texture: Texture2D = ThemeService.get_icon("icon_close")
-	if icon_texture != null: button.icon = icon_texture
-	else: button.text = "✕"
-
-
-func _on_backdrop_gui_input(event: InputEvent) -> void:
-	if (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT) or (event is InputEventScreenTouch and event.pressed):
-		save_and_close()

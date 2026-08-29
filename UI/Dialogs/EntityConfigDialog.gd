@@ -1,22 +1,12 @@
 # ==============================================================================
-# OWNWORLD — ENTITY CONFIGURATION DIALOG (TOUCH & CAPABILITY MATRICES)
+# OWNWORLD — ENTITY CONFIGURATION DIALOG (HYPER OPTIMIZED)
 # File: res://UI/Dialogs/EntityConfigDialog.gd
-# Base Class: CanvasLayer (class_name EntityConfigDialog)
-#
-# Responsibility: Master capability toggles modal for selected items. Configures
-# classification (Prop/Character/Furniture/Container), scale, physical placement
-# rules, and interactive feature flags (food, drink, cup, faucet, light, stairs, elevator).
+# Base Class: HyperUIDialog
 # ==============================================================================
 
 class_name EntityConfigDialog
-extends CanvasLayer
+extends HyperUIDialog
 
-const MAX_PANEL_WIDTH: float = 620.0
-const MAX_PANEL_HEIGHT: float = 580.0
-
-var root_backdrop: Control = null
-var center_container: CenterContainer = null
-var root_panel: PanelContainer = null
 var active_entity: OwnEntity = null
 
 var header_lbl: Label = null
@@ -44,70 +34,14 @@ var check_elevator: CheckBox = null
 
 var btn_save: Button = null
 
+func _init() -> void:
+	max_panel_width = 620.0
+	max_panel_height = 580.0
 
-func _ready() -> void:
+func _build_content() -> void:
 	name = "EntityConfigDialog"
-	layer = 120
-	visible = false
-	add_to_group("modal_ui")
-	_build_ui()
-	_connect_system_signals()
-	_update_responsive_layout()
-
-
-func _is_mobile() -> bool:
-	return ThemeEngine.is_mobile_platform()
-
-
-func _connect_system_signals() -> void:
-	var tree: SceneTree = get_tree()
-	if tree and tree.root and not tree.root.size_changed.is_connected(_update_responsive_layout):
-		tree.root.size_changed.connect(_update_responsive_layout)
-	if not EventBus.theme_changed.is_connected(_on_theme_changed):
-		EventBus.theme_changed.connect(_on_theme_changed)
-
-
-func _on_theme_changed(_theme_data: Dictionary) -> void:
-	_refresh_theme_icons()
-	_update_responsive_layout()
-
-
-func _update_responsive_layout() -> void:
-	if not is_instance_valid(root_panel): return
-	var viewport: Viewport = get_viewport()
-	var viewport_size: Vector2 = viewport.get_visible_rect().size if viewport != null else Vector2(1280.0, 720.0)
-	var is_mob: bool = _is_mobile()
-
-	var target_width: float = clampf(viewport_size.x * 0.92, 320.0, MAX_PANEL_WIDTH)
-	var target_height: float = clampf(viewport_size.y * (0.92 if is_mob else 0.88), 300.0, MAX_PANEL_HEIGHT)
-	root_panel.custom_minimum_size = Vector2(target_width, target_height)
-	root_panel.size = Vector2(target_width, target_height)
-
-
-func _build_ui() -> void:
-	var is_mob: bool = _is_mobile()
+	var is_mob: bool = is_mobile()
 	var row_h: float = 34.0 if is_mob else 28.0
-
-	root_backdrop = Control.new()
-	root_backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
-	root_backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
-	root_backdrop.gui_input.connect(_on_backdrop_gui_input)
-	add_child(root_backdrop)
-
-	var background_dim: ColorRect = ColorRect.new()
-	background_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	background_dim.color = Color(0.0, 0.0, 0.0, 0.65)
-	background_dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root_backdrop.add_child(background_dim)
-
-	center_container = CenterContainer.new()
-	center_container.set_anchors_preset(Control.PRESET_FULL_RECT)
-	center_container.mouse_filter = Control.MOUSE_FILTER_PASS
-	root_backdrop.add_child(center_container)
-
-	root_panel = PanelContainer.new()
-	root_panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	center_container.add_child(root_panel)
 
 	var main_vbox: VBoxContainer = VBoxContainer.new()
 	main_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -129,8 +63,8 @@ func _build_ui() -> void:
 	close_button.custom_minimum_size = Vector2(28.0 if is_mob else 22.0, 28.0 if is_mob else 22.0)
 	close_button.focus_mode = Control.FOCUS_NONE
 	close_button.add_theme_constant_override("icon_max_width", 12)
-	_apply_close_icon(close_button)
-	close_button.pressed.connect(save_and_close)
+	apply_close_icon(close_button)
+	close_button.pressed.connect(_on_close_requested)
 	header_hbox.add_child(close_button)
 
 	main_vbox.add_child(HSeparator.new())
@@ -147,10 +81,10 @@ func _build_ui() -> void:
 	form_vbox.add_theme_constant_override("separation", 8)
 	scroll.add_child(form_vbox)
 
-	_build_scale_section(form_vbox, row_h)
-	_build_type_section(form_vbox, row_h)
-	_build_physics_section(form_vbox, row_h)
-	_build_capabilities_section(form_vbox, row_h)
+	_build_scale_section(form_vbox, row_h, is_mob)
+	_build_type_section(form_vbox, row_h, is_mob)
+	_build_physics_section(form_vbox, row_h, is_mob)
+	_build_capabilities_section(form_vbox, row_h, is_mob)
 
 	main_vbox.add_child(HSeparator.new())
 
@@ -160,14 +94,11 @@ func _build_ui() -> void:
 	btn_save.focus_mode = Control.FOCUS_NONE
 	btn_save.add_theme_constant_override("icon_max_width", 16)
 	btn_save.add_theme_font_size_override("font_size", 12 if is_mob else 11)
-	var save_icon: Texture2D = ThemeService.get_icon("icon_save")
-	if save_icon != null: btn_save.icon = save_icon
-	btn_save.pressed.connect(save_and_close)
+	apply_button_icon(btn_save, "icon_save")
+	btn_save.pressed.connect(_on_save_pressed)
 	main_vbox.add_child(btn_save)
 
-
-func _build_scale_section(parent: VBoxContainer, _row_h: float) -> void:
-	var is_mob: bool = _is_mobile()
+func _build_scale_section(parent: VBoxContainer, _row_h: float, is_mob: bool) -> void:
 	var scale_card: PanelContainer = PanelContainer.new()
 	scale_card.theme_type_variation = "SubPanel"
 	parent.add_child(scale_card)
@@ -201,9 +132,7 @@ func _build_scale_section(parent: VBoxContainer, _row_h: float) -> void:
 	scale_slider.value_changed.connect(_on_scale_slider_changed)
 	scale_inner.add_child(scale_slider)
 
-
-func _build_type_section(parent: VBoxContainer, row_h: float) -> void:
-	var is_mob: bool = _is_mobile()
+func _build_type_section(parent: VBoxContainer, row_h: float, is_mob: bool) -> void:
 	var type_card: PanelContainer = PanelContainer.new()
 	type_card.theme_type_variation = "SubPanel"
 	parent.add_child(type_card)
@@ -222,9 +151,7 @@ func _build_type_section(parent: VBoxContainer, row_h: float) -> void:
 	type_option.custom_minimum_size = Vector2(0.0, row_h)
 	type_inner.add_child(type_option)
 
-
-func _build_physics_section(parent: VBoxContainer, row_h: float) -> void:
-	var is_mob: bool = _is_mobile()
+func _build_physics_section(parent: VBoxContainer, row_h: float, is_mob: bool) -> void:
 	var physics_card: PanelContainer = PanelContainer.new()
 	physics_card.theme_type_variation = "SubPanel"
 	parent.add_child(physics_card)
@@ -239,18 +166,16 @@ func _build_physics_section(parent: VBoxContainer, row_h: float) -> void:
 	lbl_phys.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	physics_inner.add_child(lbl_phys)
 
-	check_rug = _create_icon_check("icon_rug", "Floor Decor / Rug (Stays under all furniture)", row_h)
+	check_rug = _create_icon_check("icon_rug", "Floor Decor / Rug (Stays under all furniture)", row_h, is_mob)
 	physics_inner.add_child(check_rug)
 
-	check_wall = _create_icon_check("icon_wall", "Wall Mounted (Ignores gravity baseline)", row_h)
+	check_wall = _create_icon_check("icon_wall", "Wall Mounted (Ignores gravity baseline)", row_h, is_mob)
 	physics_inner.add_child(check_wall)
 
-	check_float = _create_icon_check("icon_float", "Can Float (Floats mid-air when dropped)", row_h)
+	check_float = _create_icon_check("icon_float", "Can Float (Floats mid-air when dropped)", row_h, is_mob)
 	physics_inner.add_child(check_float)
 
-
-func _build_capabilities_section(parent: VBoxContainer, row_h: float) -> void:
-	var is_mob: bool = _is_mobile()
+func _build_capabilities_section(parent: VBoxContainer, row_h: float, is_mob: bool) -> void:
 	var capabilities_card: PanelContainer = PanelContainer.new()
 	capabilities_card.theme_type_variation = "SubPanel"
 	parent.add_child(capabilities_card)
@@ -271,30 +196,29 @@ func _build_capabilities_section(parent: VBoxContainer, row_h: float) -> void:
 	roles_grid.add_theme_constant_override("v_separation", 4)
 	capabilities_inner.add_child(roles_grid)
 
-	check_food = _create_icon_check("icon_apple", "Solid Food", row_h)
+	check_food = _create_icon_check("icon_apple", "Solid Food", row_h, is_mob)
 	roles_grid.add_child(check_food)
 
-	check_drink = _create_icon_check("icon_drink", "Beverage", row_h)
+	check_drink = _create_icon_check("icon_drink", "Beverage", row_h, is_mob)
 	roles_grid.add_child(check_drink)
 
-	check_cup = _create_icon_check("icon_cup", "Fillable Cup", row_h)
+	check_cup = _create_icon_check("icon_cup", "Fillable Cup", row_h, is_mob)
 	roles_grid.add_child(check_cup)
 
-	check_faucet = _create_icon_check("icon_faucet", "Water Stream", row_h)
+	check_faucet = _create_icon_check("icon_faucet", "Water Stream", row_h, is_mob)
 	roles_grid.add_child(check_faucet)
 
-	check_lamp = _create_icon_check("icon_lighting", "2D Light Glow", row_h)
+	check_lamp = _create_icon_check("icon_lighting", "2D Light Glow", row_h, is_mob)
 	roles_grid.add_child(check_lamp)
 
-	check_portal = _create_icon_check("icon_door", "Doorway", row_h)
+	check_portal = _create_icon_check("icon_door", "Doorway", row_h, is_mob)
 	roles_grid.add_child(check_portal)
 
-	check_stairs = _create_icon_check("icon_stairs", "Stairs (Auto-Climb)", row_h)
+	check_stairs = _create_icon_check("icon_stairs", "Stairs (Auto-Climb)", row_h, is_mob)
 	roles_grid.add_child(check_stairs)
 
-	check_elevator = _create_icon_check("icon_elevator", "Elevator", row_h)
+	check_elevator = _create_icon_check("icon_elevator", "Elevator", row_h, is_mob)
 	roles_grid.add_child(check_elevator)
-
 
 func _populate_type_dropdown() -> void:
 	if type_option == null: return
@@ -304,32 +228,24 @@ func _populate_type_dropdown() -> void:
 	_add_icon_option(type_option, "icon_furniture", "Furniture (Seat / Surface / Bed)", int(Types.EntityType.FURNITURE))
 	_add_icon_option(type_option, "icon_backpack", "Bag / Storage Container", int(Types.EntityType.CONTAINER))
 
-
 func _add_icon_option(option_button: OptionButton, icon_key: String, text_label: String, item_id: int) -> void:
 	var icon_texture: Texture2D = ThemeService.get_popup_icon(icon_key)
 	if icon_texture != null: option_button.add_icon_item(icon_texture, " " + text_label, item_id)
 	else: option_button.add_item(text_label, item_id)
 
-
-func _create_icon_check(icon_key: String, title: String, row_h: float) -> CheckBox:
-	var is_mob: bool = _is_mobile()
+func _create_icon_check(icon_key: String, title: String, row_h: float, is_mob: bool) -> CheckBox:
 	var checkbox: CheckBox = CheckBox.new()
 	checkbox.text = " " + title
 	checkbox.custom_minimum_size = Vector2(0.0, row_h)
 	checkbox.add_theme_constant_override("icon_max_width", 18 if is_mob else 16)
 	checkbox.add_theme_font_size_override("font_size", 11 if is_mob else 10)
-	var icon_texture: Texture2D = ThemeService.get_icon(icon_key)
-	if icon_texture == null and icon_key == "icon_stairs":
-		icon_texture = ThemeService.get_icon("icon_up")
-	if icon_texture != null: checkbox.icon = icon_texture
+	apply_checkbox_icon(checkbox, icon_key)
 	return checkbox
-
 
 func open_for_entity(entity: OwnEntity) -> void:
 	if not is_instance_valid(entity): return
 	active_entity = entity
 	_populate_type_dropdown()
-	_update_responsive_layout()
 
 	scale_slider.value = entity.entity_scale
 	scale_val_lbl.text = "%d%%" % int(entity.entity_scale * 100.0)
@@ -350,16 +266,14 @@ func open_for_entity(entity: OwnEntity) -> void:
 	check_portal.button_pressed = (entity.is_portal and not entity.is_elevator and not entity.is_stairs)
 	check_stairs.button_pressed = entity.is_stairs
 	check_elevator.button_pressed = entity.is_elevator
-	visible = true
-
+	open_dialog()
 
 func _on_scale_slider_changed(value: float) -> void:
 	if scale_val_lbl != null: scale_val_lbl.text = "%d%%" % int(value * 100.0)
 	if active_entity != null and is_instance_valid(active_entity):
 		active_entity.set_entity_scale(value)
 
-
-func save_and_close() -> void:
+func _on_save_pressed() -> void:
 	if active_entity != null and is_instance_valid(active_entity):
 		var selected_type: Types.EntityType = type_option.get_selected_id() as Types.EntityType
 		active_entity.set_entity_type(selected_type)
@@ -408,43 +322,27 @@ func save_and_close() -> void:
 		EventBus.entity_state_changed.emit(active_entity.entity_id)
 		EventBus.notification_requested.emit("Saved: " + active_entity.display_name, true)
 
-	visible = false
+	_on_close_requested()
+
+func _on_close_requested() -> void:
 	active_entity = null
+	super._on_close_requested()
 
+func _on_theme_updated() -> void:
+	apply_button_icon(btn_save, "icon_save")
+	if check_rug != null: apply_checkbox_icon(check_rug, "icon_rug")
+	if check_wall != null: apply_checkbox_icon(check_wall, "icon_wall")
+	if check_float != null: apply_checkbox_icon(check_float, "icon_float")
+	if check_food != null: apply_checkbox_icon(check_food, "icon_apple")
+	if check_drink != null: apply_checkbox_icon(check_drink, "icon_drink")
+	if check_cup != null: apply_checkbox_icon(check_cup, "icon_cup")
+	if check_faucet != null: apply_checkbox_icon(check_faucet, "icon_faucet")
+	if check_lamp != null: apply_checkbox_icon(check_lamp, "icon_lighting")
+	if check_portal != null: apply_checkbox_icon(check_portal, "icon_door")
+	if check_stairs != null: apply_checkbox_icon(check_stairs, "icon_stairs")
+	if check_elevator != null: apply_checkbox_icon(check_elevator, "icon_elevator")
 
-func _refresh_theme_icons() -> void:
-	if btn_save != null:
-		var save_icon: Texture2D = ThemeService.get_icon("icon_save")
-		if save_icon != null: btn_save.icon = save_icon
-
-	if check_rug != null: _apply_checkbox_icon(check_rug, "icon_rug")
-	if check_wall != null: _apply_checkbox_icon(check_wall, "icon_wall")
-	if check_float != null: _apply_checkbox_icon(check_float, "icon_float")
-	if check_food != null: _apply_checkbox_icon(check_food, "icon_apple")
-	if check_drink != null: _apply_checkbox_icon(check_drink, "icon_drink")
-	if check_cup != null: _apply_checkbox_icon(check_cup, "icon_cup")
-	if check_faucet != null: _apply_checkbox_icon(check_faucet, "icon_faucet")
-	if check_lamp != null: _apply_checkbox_icon(check_lamp, "icon_lighting")
-	if check_portal != null: _apply_checkbox_icon(check_portal, "icon_door")
-	if check_stairs != null: _apply_checkbox_icon(check_stairs, "icon_stairs")
-	if check_elevator != null: _apply_checkbox_icon(check_elevator, "icon_elevator")
-
-
-func _apply_checkbox_icon(checkbox: CheckBox, icon_key: String) -> void:
-	if checkbox == null: return
-	var icon_texture: Texture2D = ThemeService.get_icon(icon_key)
-	if icon_texture == null and icon_key == "icon_stairs":
-		icon_texture = ThemeService.get_icon("icon_up")
-	if icon_texture != null: checkbox.icon = icon_texture
-
-
-func _apply_close_icon(button: Button) -> void:
-	if button == null: return
-	var close_icon: Texture2D = ThemeService.get_icon("icon_close")
-	if close_icon != null: button.icon = close_icon
-	else: button.text = "✕"
-
-
-func _on_backdrop_gui_input(event: InputEvent) -> void:
-	if (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT) or (event is InputEventScreenTouch and event.pressed):
-		save_and_close()
+	if root_panel == null: return
+	for node: Node in root_panel.find_children("*", "Button", true, false):
+		if node is Button and (node as Button).text == "✕":
+			apply_close_icon(node as Button)

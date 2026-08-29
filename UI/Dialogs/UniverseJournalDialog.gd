@@ -1,24 +1,15 @@
 # ==============================================================================
-# OWNWORLD — UNIVERSE JOURNAL & CHRONICLES (LANDSCAPE MASTER-DETAIL DUAL-OS)
+# OWNWORLD — UNIVERSE JOURNAL & CHRONICLES (HYPER OPTIMIZED)
 # File: res://UI/Dialogs/UniverseJournalDialog.gd
-# Base Class: CanvasLayer (class_name UniverseJournalDialog)
-#
-# Responsibility: Comprehensive universe lore chronicle. Manages dated story eras,
-# historical event logs, participating character links, guild/faction hierarchies,
-# leader appointments, headquarters assignments, and member roster ranking.
+# Base Class: HyperUIDialog
 # ==============================================================================
 
 class_name UniverseJournalDialog
-extends CanvasLayer
-
-signal dialog_closed()
+extends HyperUIDialog
 
 const DEFAULT_UNIVERSE_ID: String = "default_universe"
 
 enum TabMode { TIMELINE, FACTIONS }
-
-const MAX_PANEL_WIDTH: float = 780.0
-const MAX_PANEL_HEIGHT: float = 580.0
 
 var current_tab: TabMode = TabMode.TIMELINE
 var journal_data: Dictionary = {"timeline": [], "factions": []}
@@ -27,9 +18,6 @@ var active_timeline_idx: int = -1
 var active_faction_idx: int = -1
 var cached_roster: Array[Dictionary] = []
 
-var root_backdrop: Control = null
-var center_box: CenterContainer = null
-var modal_panel: PanelContainer = null
 var header_lbl: Label = null
 var universe_title_lbl: Label = null
 var btn_save_journal: Button = null
@@ -69,164 +57,20 @@ const FACTION_TYPES: Array[String] = [
 	"Academy / Scholarly", "Kingdom / Court", "Rebellion / Freefolk", "Independent Collective"
 ]
 
+func _init() -> void:
+	max_panel_width = 780.0
+	max_panel_height = 580.0
 
-func _ready() -> void:
+func _build_content() -> void:
 	name = "UniverseJournalDialog"
-	layer = 110
-	visible = false
-	add_to_group("modal_ui")
-	_build_ui()
-	_connect_system_signals()
-	_apply_theme_styling()
-	_update_responsive_layout()
-	_setup_keyboard_dodging()
-
-
-func _is_mobile() -> bool:
-	return ThemeEngine.is_mobile_platform()
-
-
-func _connect_system_signals() -> void:
-	if not ThemeService.theme_changed.is_connected(_on_theme_changed):
-		ThemeService.theme_changed.connect(_on_theme_changed)
-	var tree: SceneTree = get_tree()
-	if tree and tree.root and not tree.root.size_changed.is_connected(_update_responsive_layout):
-		tree.root.size_changed.connect(_update_responsive_layout)
-
-
-func _setup_keyboard_dodging() -> void:
-	if not _is_mobile(): 
-		return
-	var inputs: Array[Control] = [t_era_input, t_title_input, t_content_edit, f_name_input, f_motto_input, f_notes_edit]
-	for input in inputs:
-		if input != null:
-			input.focus_entered.connect(_on_input_focus_entered)
-			input.focus_exited.connect(_on_input_focus_exited)
-
-
-func _on_input_focus_entered() -> void:
-	if _is_mobile() and center_box != null:
-		await get_tree().process_frame
-		await get_tree().process_frame
-		var kb_height: float = DisplayServer.virtual_keyboard_get_height()
-		if kb_height > 0:
-			var tween: Tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-			tween.tween_property(center_box, "position:y", -kb_height * 0.4, 0.25)
-
-
-func _on_input_focus_exited() -> void:
-	if _is_mobile() and center_box != null:
-		var tween: Tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-		tween.tween_property(center_box, "position:y", 0.0, 0.25)
-
-
-func _update_responsive_layout() -> void:
-	if not is_instance_valid(modal_panel): 
-		return
-	var vp_size: Vector2 = get_viewport().get_visible_rect().size if get_viewport() else Vector2(1280.0, 720.0)
-	var is_mob: bool = _is_mobile()
-
-	var target_w: float = clampf(vp_size.x * 0.94, 320.0, MAX_PANEL_WIDTH)
-	var target_h: float = clampf(vp_size.y * (0.92 if is_mob else 0.88), 300.0, MAX_PANEL_HEIGHT)
-	modal_panel.custom_minimum_size = Vector2(target_w, target_h)
-	modal_panel.size = Vector2(target_w, target_h)
-
-
-func _on_theme_changed(_theme_data: Dictionary) -> void:
-	_apply_theme_styling()
-	if visible: 
-		_select_tab(current_tab)
-
-
-func _load_journal_state() -> void:
-	journal_data = SaveSystem.load_universe_journal(AppState.universe_id)
-	cached_roster = GameManager.get_all_universe_character_data()
-
-	if universe_title_lbl:
-		universe_title_lbl.text = "Universe: %s" % (AppState.universe_name if not AppState.universe_name.is_empty() else "Universe")
-
-
-func open_journal() -> void:
-	_load_journal_state()
-	_update_responsive_layout()
-	_apply_theme_styling()
-	_select_tab(current_tab)
-	visible = true
-
-
-func close_dialog() -> void:
-	_save_silently()
-	visible = false
-	dialog_closed.emit()
-
-
-func _apply_theme_styling() -> void:
-	var c_bg: Color = ThemeService.get_color("panel_background", "#fff5f7")
-	var c_border: Color = ThemeService.get_color("panel_border", "#f9a8d4")
-	var c_accent: Color = ThemeService.get_color("accent_primary", "#ec4899")
-	var c_muted: Color = ThemeService.get_color("text_muted", "#a36374")
-	var c_text: Color = ThemeService.get_color("text_primary", "#6c2e3f")
-	var radius: int = ThemeService.get_corner_radius()
-
-	if modal_panel:
-		var p_style: StyleBoxFlat = StyleBoxFlat.new()
-		p_style.bg_color = c_bg
-		p_style.border_color = c_border
-		p_style.set_border_width_all(2)
-		p_style.set_corner_radius_all(radius + 2)
-		p_style.content_margin_left = 14
-		p_style.content_margin_right = 14
-		p_style.content_margin_top = 10
-		p_style.content_margin_bottom = 10
-		modal_panel.add_theme_stylebox_override("panel", p_style)
-
-	if header_lbl: 
-		header_lbl.add_theme_color_override("font_color", c_accent)
-	if universe_title_lbl: 
-		universe_title_lbl.add_theme_color_override("font_color", c_muted)
-
-	var icon_timeline: Texture2D = ThemeService.get_icon("icon_room")
-	if icon_timeline and tab_btn_timeline: 
-		tab_btn_timeline.icon = icon_timeline
-
-	var icon_factions: Texture2D = ThemeService.get_icon("icon_cast")
-	if icon_factions and tab_btn_factions: 
-		tab_btn_factions.icon = icon_factions
-
-	_style_tab_button(tab_btn_timeline, current_tab == TabMode.TIMELINE, c_accent, c_text, radius)
-	_style_tab_button(tab_btn_factions, current_tab == TabMode.FACTIONS, c_accent, c_text, radius)
-
-
-func _build_ui() -> void:
-	var is_mob: bool = _is_mobile()
+	var is_mob: bool = is_mobile()
 	var row_h: float = 36.0 if is_mob else 30.0
-
-	root_backdrop = Control.new()
-	root_backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
-	root_backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
-	root_backdrop.gui_input.connect(_on_backdrop_gui_input)
-	add_child(root_backdrop)
-
-	var bg_dim: ColorRect = ColorRect.new()
-	bg_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	bg_dim.color = Color(0.0, 0.0, 0.0, 0.65)
-	bg_dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root_backdrop.add_child(bg_dim)
-
-	center_box = CenterContainer.new()
-	center_box.set_anchors_preset(Control.PRESET_FULL_RECT)
-	center_box.mouse_filter = Control.MOUSE_FILTER_PASS
-	root_backdrop.add_child(center_box)
-
-	modal_panel = PanelContainer.new()
-	modal_panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	center_box.add_child(modal_panel)
 
 	var main_vbox: VBoxContainer = VBoxContainer.new()
 	main_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	main_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	main_vbox.add_theme_constant_override("separation", 6)
-	modal_panel.add_child(main_vbox)
+	root_panel.add_child(main_vbox)
 
 	var header_hbox: HBoxContainer = HBoxContainer.new()
 	header_hbox.add_theme_constant_override("separation", 10)
@@ -259,7 +103,7 @@ func _build_ui() -> void:
 	btn_close_journal.custom_minimum_size = Vector2(75.0 if is_mob else 65.0, row_h)
 	btn_close_journal.focus_mode = Control.FOCUS_NONE
 	btn_close_journal.add_theme_font_size_override("font_size", 11 if is_mob else 10)
-	btn_close_journal.pressed.connect(close_dialog)
+	btn_close_journal.pressed.connect(_on_close_requested)
 	header_hbox.add_child(btn_close_journal)
 
 	var tab_bar: HBoxContainer = HBoxContainer.new()
@@ -297,20 +141,16 @@ func _build_ui() -> void:
 	timeline_tab_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	timeline_tab_container.add_theme_constant_override("separation", 10)
 	content_holder.add_child(timeline_tab_container)
-	_build_timeline_tab_ui()
+	_build_timeline_tab_ui(row_h, is_mob)
 
 	factions_tab_container = HBoxContainer.new()
 	factions_tab_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	factions_tab_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	factions_tab_container.add_theme_constant_override("separation", 10)
 	content_holder.add_child(factions_tab_container)
-	_build_factions_tab_ui()
+	_build_factions_tab_ui(row_h, is_mob)
 
-
-func _build_timeline_tab_ui() -> void:
-	var is_mob: bool = _is_mobile()
-	var row_h: float = 34.0 if is_mob else 28.0
-
+func _build_timeline_tab_ui(row_h: float, is_mob: bool) -> void:
 	var left_vbox: VBoxContainer = VBoxContainer.new()
 	left_vbox.custom_minimum_size = Vector2(240.0 if is_mob else 200.0, 0.0)
 	left_vbox.size_flags_horizontal = Control.SIZE_FILL
@@ -367,6 +207,7 @@ func _build_timeline_tab_ui() -> void:
 	t_era_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	t_era_input.custom_minimum_size = Vector2(0.0, row_h)
 	t_era_input.text_changed.connect(func(_new_t: String) -> void: _commit_active_timeline_field("era", _new_t))
+	register_keyboard_dodge(t_era_input)
 	era_hbox.add_child(t_era_input)
 
 	var title_hbox: HBoxContainer = HBoxContainer.new()
@@ -385,6 +226,7 @@ func _build_timeline_tab_ui() -> void:
 	t_title_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	t_title_input.custom_minimum_size = Vector2(0.0, row_h)
 	t_title_input.text_changed.connect(func(_new_t: String) -> void: _commit_active_timeline_field("title", _new_t))
+	register_keyboard_dodge(t_title_input)
 	title_hbox.add_child(t_title_input)
 
 	var room_hbox: HBoxContainer = HBoxContainer.new()
@@ -429,6 +271,7 @@ func _build_timeline_tab_ui() -> void:
 	t_content_edit.wrap_mode = TextEdit.LINE_WRAPPING_BOUNDARY
 	t_content_edit.placeholder_text = "Describe the story events that unfolded..."
 	t_content_edit.text_changed.connect(func() -> void: _commit_active_timeline_field("content", t_content_edit.text))
+	register_keyboard_dodge(t_content_edit)
 	timeline_editor_vbox.add_child(t_content_edit)
 
 	var t_footer: HBoxContainer = HBoxContainer.new()
@@ -444,11 +287,7 @@ func _build_timeline_tab_ui() -> void:
 	t_delete_btn.pressed.connect(_on_delete_timeline_entry)
 	t_footer.add_child(t_delete_btn)
 
-
-func _build_factions_tab_ui() -> void:
-	var is_mob: bool = _is_mobile()
-	var row_h: float = 34.0 if is_mob else 28.0
-
+func _build_factions_tab_ui(row_h: float, is_mob: bool) -> void:
 	var left_vbox: VBoxContainer = VBoxContainer.new()
 	left_vbox.custom_minimum_size = Vector2(240.0 if is_mob else 200.0, 0.0)
 	left_vbox.size_flags_horizontal = Control.SIZE_FILL
@@ -505,6 +344,7 @@ func _build_factions_tab_ui() -> void:
 	f_name_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	f_name_input.custom_minimum_size = Vector2(0.0, row_h)
 	f_name_input.text_changed.connect(func(_new_t: String) -> void: _commit_active_faction_field("name", _new_t))
+	register_keyboard_dodge(f_name_input)
 	name_hbox.add_child(f_name_input)
 
 	f_color_btn = ColorPickerButton.new()
@@ -587,6 +427,7 @@ func _build_factions_tab_ui() -> void:
 	f_motto_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	f_motto_input.custom_minimum_size = Vector2(0.0, row_h)
 	f_motto_input.text_changed.connect(func(_new_t: String) -> void: _commit_active_faction_field("motto", _new_t))
+	register_keyboard_dodge(f_motto_input)
 	motto_hbox.add_child(f_motto_input)
 
 	factions_editor_vbox.add_child(HSeparator.new())
@@ -628,6 +469,7 @@ func _build_factions_tab_ui() -> void:
 	f_notes_edit.wrap_mode = TextEdit.LINE_WRAPPING_BOUNDARY
 	f_notes_edit.placeholder_text = "Guild traditions, alliances, secrets, and territory..."
 	f_notes_edit.text_changed.connect(func() -> void: _commit_active_faction_field("notes", f_notes_edit.text))
+	register_keyboard_dodge(f_notes_edit)
 	factions_editor_vbox.add_child(f_notes_edit)
 
 	var f_footer: HBoxContainer = HBoxContainer.new()
@@ -643,6 +485,38 @@ func _build_factions_tab_ui() -> void:
 	f_delete_btn.pressed.connect(_on_delete_faction_entry)
 	f_footer.add_child(f_delete_btn)
 
+func _on_theme_updated() -> void:
+	var c_accent: Color = ThemeService.get_color("accent_primary", "#ec4899")
+	var c_muted: Color = ThemeService.get_color("text_muted", "#a36374")
+	var c_text: Color = ThemeService.get_color("text_primary", "#6c2e3f")
+	var radius: int = ThemeService.get_corner_radius()
+
+	if header_lbl: header_lbl.add_theme_color_override("font_color", c_accent)
+	if universe_title_lbl: universe_title_lbl.add_theme_color_override("font_color", c_muted)
+
+	apply_button_icon(tab_btn_timeline, "icon_room")
+	apply_button_icon(tab_btn_factions, "icon_cast")
+
+	_style_tab_button(tab_btn_timeline, current_tab == TabMode.TIMELINE, c_accent, c_text, radius)
+	_style_tab_button(tab_btn_factions, current_tab == TabMode.FACTIONS, c_accent, c_text, radius)
+
+	if visible: _select_tab(current_tab)
+
+func _load_journal_state() -> void:
+	journal_data = SaveSystem.load_universe_journal(AppState.universe_id)
+	cached_roster = GameManager.get_all_universe_character_data()
+
+	if universe_title_lbl:
+		universe_title_lbl.text = "Universe: %s" % (AppState.universe_name if not AppState.universe_name.is_empty() else "Universe")
+
+func open_journal() -> void:
+	_load_journal_state()
+	_select_tab(current_tab)
+	open_dialog()
+
+func _on_close_requested() -> void:
+	_save_silently()
+	super._on_close_requested()
 
 func _select_tab(tab: TabMode) -> void:
 	current_tab = tab
@@ -659,7 +533,6 @@ func _select_tab(tab: TabMode) -> void:
 	match current_tab:
 		TabMode.TIMELINE: _render_timeline_list()
 		TabMode.FACTIONS: _render_factions_list()
-
 
 func _style_tab_button(btn: Button, is_active: bool, c_accent: Color, _c_text: Color, rad: int) -> void:
 	if not btn: return
@@ -691,7 +564,6 @@ func _style_tab_button(btn: Button, is_active: bool, c_accent: Color, _c_text: C
 		btn.add_theme_color_override("font_hover_color", Color.WHITE)
 		btn.add_theme_color_override("icon_normal_color", Color.WHITE)
 
-
 func _render_timeline_list() -> void:
 	for c: Node in timeline_list_vbox.get_children():
 		c.queue_free()
@@ -701,7 +573,7 @@ func _render_timeline_list() -> void:
 		hint.text = "No events yet.\nTap + Add Story Event to begin your chronicle."
 		hint.theme_type_variation = "HintLabel"
 		hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		hint.add_theme_font_size_override("font_size", 11 if _is_mobile() else 10)
+		hint.add_theme_font_size_override("font_size", 11 if is_mobile() else 10)
 		timeline_list_vbox.add_child(hint)
 		timeline_editor_vbox.visible = false
 		active_timeline_idx = -1
@@ -720,16 +592,15 @@ func _render_timeline_list() -> void:
 
 		btn.text = "%s\n%s" % [e_title, e_era if not e_era.is_empty() else "Undated"]
 		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		btn.custom_minimum_size = Vector2(0.0, 48.0 if _is_mobile() else 40.0)
+		btn.custom_minimum_size = Vector2(0.0, 48.0 if is_mobile() else 40.0)
 		btn.focus_mode = Control.FOCUS_NONE
-		btn.add_theme_font_size_override("font_size", 11 if _is_mobile() else 10)
+		btn.add_theme_font_size_override("font_size", 11 if is_mobile() else 10)
 		if i == active_timeline_idx: btn.theme_type_variation = "Breadcrumb"
 		var target_i: int = i
 		btn.pressed.connect(func() -> void: _load_timeline_entry_to_editor(target_i))
 		timeline_list_vbox.add_child(btn)
 
 	_load_timeline_entry_to_editor(active_timeline_idx)
-
 
 func _load_timeline_entry_to_editor(idx: int) -> void:
 	var timeline_arr: Array = journal_data.get("timeline", [])
@@ -750,7 +621,6 @@ func _load_timeline_entry_to_editor(idx: int) -> void:
 		_save_silently()
 	)
 
-
 func _render_factions_list() -> void:
 	for c: Node in factions_list_vbox.get_children():
 		c.queue_free()
@@ -760,7 +630,7 @@ func _render_factions_list() -> void:
 		hint.text = "No factions registered.\nTap + Add Faction to build a guild."
 		hint.theme_type_variation = "HintLabel"
 		hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-		hint.add_theme_font_size_override("font_size", 11 if _is_mobile() else 10)
+		hint.add_theme_font_size_override("font_size", 11 if is_mobile() else 10)
 		factions_list_vbox.add_child(hint)
 		factions_editor_vbox.visible = false
 		active_faction_idx = -1
@@ -779,16 +649,15 @@ func _render_factions_list() -> void:
 
 		btn.text = "%s\n%s" % [f_name, f_motto if not f_motto.is_empty() else "No motto"]
 		btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
-		btn.custom_minimum_size = Vector2(0.0, 48.0 if _is_mobile() else 40.0)
+		btn.custom_minimum_size = Vector2(0.0, 48.0 if is_mobile() else 40.0)
 		btn.focus_mode = Control.FOCUS_NONE
-		btn.add_theme_font_size_override("font_size", 11 if _is_mobile() else 10)
+		btn.add_theme_font_size_override("font_size", 11 if is_mobile() else 10)
 		if i == active_faction_idx: btn.theme_type_variation = "Breadcrumb"
 		var target_i: int = i
 		btn.pressed.connect(func() -> void: _load_faction_entry_to_editor(target_i))
 		factions_list_vbox.add_child(btn)
 
 	_load_faction_entry_to_editor(active_faction_idx)
-
 
 func _load_faction_entry_to_editor(idx: int) -> void:
 	var factions_arr: Array = journal_data.get("factions", [])
@@ -810,7 +679,6 @@ func _load_faction_entry_to_editor(idx: int) -> void:
 	_populate_add_member_dropdown()
 	_render_faction_member_cards(f_dict)
 
-
 func _render_faction_member_cards(f_dict: Dictionary) -> void:
 	for c: Node in f_members_vbox.get_children():
 		c.queue_free()
@@ -828,11 +696,11 @@ func _render_faction_member_cards(f_dict: Dictionary) -> void:
 		var empty_lbl: Label = Label.new()
 		empty_lbl.text = "No enlisted members in this guild yet."
 		empty_lbl.theme_type_variation = "HintLabel"
-		empty_lbl.add_theme_font_size_override("font_size", 11 if _is_mobile() else 10)
+		empty_lbl.add_theme_font_size_override("font_size", 11 if is_mobile() else 10)
 		f_members_vbox.add_child(empty_lbl)
 		return
 
-	var is_mob: bool = _is_mobile()
+	var is_mob: bool = is_mobile()
 	var row_h: float = 34.0 if is_mob else 28.0
 
 	for i: int in range(normalized_members.size()):
@@ -898,7 +766,6 @@ func _render_faction_member_cards(f_dict: Dictionary) -> void:
 		)
 		row.add_child(remove_btn)
 
-
 func _populate_faction_leader_selector(opt_btn: OptionButton, selected_leader_id: String) -> void:
 	opt_btn.clear()
 	opt_btn.add_item("None / Unassigned", 0)
@@ -913,7 +780,6 @@ func _populate_faction_leader_selector(opt_btn: OptionButton, selected_leader_id
 		opt_btn.set_item_metadata(item_idx, c_id)
 		if c_id == selected_leader_id: sel_idx = item_idx
 	opt_btn.select(sel_idx)
-
 
 func _populate_add_member_dropdown() -> void:
 	f_add_member_opt.clear()
@@ -935,7 +801,6 @@ func _populate_add_member_dropdown() -> void:
 			f_add_member_opt.set_item_metadata(item_counter, c_id)
 			item_counter += 1
 
-
 func _on_add_member_selected(index: int) -> void:
 	if index <= 0: return
 	var c_id: String = str(f_add_member_opt.get_item_metadata(index))
@@ -949,21 +814,17 @@ func _on_add_member_selected(index: int) -> void:
 		_save_silently()
 		_load_faction_entry_to_editor(active_faction_idx)
 
-
 func _on_faction_type_selected(index: int) -> void:
 	if index >= 0 and index < FACTION_TYPES.size():
 		_commit_active_faction_field("type", FACTION_TYPES[index])
-
 
 func _on_faction_leader_selected(index: int) -> void:
 	var leader_id: String = str(f_leader_opt.get_item_metadata(index))
 	_commit_active_faction_field("leader_id", leader_id)
 
-
 func _on_faction_hq_selected(index: int) -> void:
 	var hq_id: String = str(f_hq_opt.get_item_metadata(index))
 	_commit_active_faction_field("headquarters_room_id", hq_id)
-
 
 func _resolve_character_portrait(char_dict: Dictionary) -> Texture2D:
 	var custom_f: Dictionary = char_dict.get("custom_fields", {})
@@ -977,7 +838,6 @@ func _resolve_character_portrait(char_dict: Dictionary) -> Texture2D:
 			return UGCManager.load_texture_from_file(path_str)
 	return null
 
-
 func _populate_character_chips(container: Control, active_id_list: Array, on_toggle_callback: Callable) -> void:
 	for c: Node in container.get_children():
 		c.queue_free()
@@ -985,11 +845,11 @@ func _populate_character_chips(container: Control, active_id_list: Array, on_tog
 		var empty_lbl: Label = Label.new()
 		empty_lbl.text = "No characters in this universe yet."
 		empty_lbl.theme_type_variation = "HintLabel"
-		empty_lbl.add_theme_font_size_override("font_size", 11 if _is_mobile() else 10)
+		empty_lbl.add_theme_font_size_override("font_size", 11 if is_mobile() else 10)
 		container.add_child(empty_lbl)
 		return
 
-	var is_mob: bool = _is_mobile()
+	var is_mob: bool = is_mobile()
 
 	for char_dict: Dictionary in cached_roster:
 		var c_id: String = str(char_dict.get("id", ""))
@@ -1011,7 +871,6 @@ func _populate_character_chips(container: Control, active_id_list: Array, on_tog
 			on_toggle_callback.call(target_cid, pressed)
 		)
 		container.add_child(chip_btn)
-
 
 func _populate_room_selector(opt_btn: OptionButton, selected_room_id: String) -> void:
 	opt_btn.clear()
@@ -1038,13 +897,11 @@ func _populate_room_selector(opt_btn: OptionButton, selected_room_id: String) ->
 
 	opt_btn.select(sel_idx)
 
-
 func _on_timeline_room_selected(index: int) -> void:
 	var timeline_arr: Array = journal_data.get("timeline", [])
 	if active_timeline_idx >= 0 and active_timeline_idx < timeline_arr.size():
 		timeline_arr[active_timeline_idx]["room_id"] = str(t_room_opt.get_item_metadata(index))
 		_save_silently()
-
 
 func _on_add_timeline_entry() -> void:
 	var timeline_arr: Array = journal_data.get("timeline", [])
@@ -1062,7 +919,6 @@ func _on_add_timeline_entry() -> void:
 	_save_silently()
 	_render_timeline_list()
 
-
 func _on_delete_timeline_entry() -> void:
 	var timeline_arr: Array = journal_data.get("timeline", [])
 	if active_timeline_idx >= 0 and active_timeline_idx < timeline_arr.size():
@@ -1071,7 +927,6 @@ func _on_delete_timeline_entry() -> void:
 		active_timeline_idx = maxi(active_timeline_idx - 1, 0)
 		_save_silently()
 		_render_timeline_list()
-
 
 func _commit_active_timeline_field(field_key: String, value: Variant) -> void:
 	var timeline_arr: Array = journal_data.get("timeline", [])
@@ -1084,7 +939,6 @@ func _commit_active_timeline_field(field_key: String, value: Variant) -> void:
 				var e_title: String = str(timeline_arr[active_timeline_idx].get("title", "Untitled Event"))
 				var e_era: String = str(timeline_arr[active_timeline_idx].get("era", "Undated"))
 				btn_node.text = "%s\n%s" % [e_title if not e_title.is_empty() else "Untitled Event", e_era if not e_era.is_empty() else "Undated"]
-
 
 func _on_add_faction_entry() -> void:
 	var factions_arr: Array = journal_data.get("factions", [])
@@ -1105,7 +959,6 @@ func _on_add_faction_entry() -> void:
 	_save_silently()
 	_render_factions_list()
 
-
 func _on_delete_faction_entry() -> void:
 	var factions_arr: Array = journal_data.get("factions", [])
 	if active_faction_idx >= 0 and active_faction_idx < factions_arr.size():
@@ -1114,7 +967,6 @@ func _on_delete_faction_entry() -> void:
 		active_faction_idx = maxi(active_faction_idx - 1, 0)
 		_save_silently()
 		_render_factions_list()
-
 
 func _commit_active_faction_field(field_key: String, value: Variant) -> void:
 	var factions_arr: Array = journal_data.get("factions", [])
@@ -1128,16 +980,13 @@ func _commit_active_faction_field(field_key: String, value: Variant) -> void:
 				var f_motto: String = str(factions_arr[active_faction_idx].get("motto", "No motto"))
 				btn_node.text = "%s\n%s" % [f_name if not f_name.is_empty() else "Unnamed Faction", f_motto if not f_motto.is_empty() else "No motto"]
 
-
 func _on_faction_color_changed(new_color: Color) -> void:
 	_commit_active_faction_field("badge_color", new_color.to_html(false))
-
 
 func _find_character_by_id(char_id: String) -> Dictionary:
 	for c: Dictionary in cached_roster:
 		if str(c.get("id", "")) == char_id: return c
 	return {}
-
 
 func _open_character_lore_card(char_dict: Dictionary) -> void:
 	if char_dict.is_empty(): return
@@ -1146,15 +995,12 @@ func _open_character_lore_card(char_dict: Dictionary) -> void:
 	if card_ui and card_ui.has_method("open_card_for_character_dict"):
 		card_ui.call("open_card_for_character_dict", char_dict)
 
-
 func _save_silently() -> void:
 	SaveSystem.save_universe_journal(AppState.universe_id, journal_data)
-
 
 func _on_save_button_pressed() -> void:
 	_save_silently()
 	EventBus.notification_requested.emit("Saved: World Journal", true)
-
 
 func _clamp_popup(opt_btn: OptionButton) -> void:
 	if not opt_btn: return
@@ -1162,8 +1008,3 @@ func _clamp_popup(opt_btn: OptionButton) -> void:
 	if p:
 		p.max_size = Vector2i(4000, 200)
 		p.about_to_popup.connect(func() -> void: p.max_size = Vector2i(4000, 200))
-
-
-func _on_backdrop_gui_input(event: InputEvent) -> void:
-	if (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT) or (event is InputEventScreenTouch and event.pressed):
-		close_dialog()

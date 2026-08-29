@@ -1,21 +1,11 @@
 # ==============================================================================
-# OWNWORLD — RECIPE STUDIO (LANDSCAPE DUAL-OS ADAPTIVE)
+# OWNWORLD — RECIPE STUDIO (HYPER OPTIMIZED)
 # File: res://UI/Dialogs/RecipeStudioDialog.gd
-# Base Class: CanvasLayer (class_name RecipeStudioDialog)
-#
-# Responsibility: Visual crafting recipe creator modal. Matches Ingredient A +
-# Ingredient B to produce crafted output entities with real-time thumbnail previews.
+# Base Class: HyperUIDialog
 # ==============================================================================
 
 class_name RecipeStudioDialog
-extends CanvasLayer
-
-const MAX_PANEL_WIDTH: float = 620.0
-const MAX_PANEL_HEIGHT: float = 520.0
-
-var root_backdrop: Control = null
-var center_container: CenterContainer = null
-var root_panel: PanelContainer = null
+extends HyperUIDialog
 
 var header_lbl: Label = null
 var plus_lbl: Label = null
@@ -38,94 +28,14 @@ var preview_res: TextureRect = null
 
 var art_library: Array[Dictionary] = []
 
+func _init() -> void:
+	max_panel_width = 620.0
+	max_panel_height = 520.0
 
-func _ready() -> void:
+func _build_content() -> void:
 	name = "RecipeStudioDialog"
-	layer = 120
-	visible = false
-	add_to_group("modal_ui")
-	_build_ui()
-	_connect_system_signals()
-	_update_responsive_layout()
-	_setup_keyboard_dodging()
-
-	if not ThemeService.theme_changed.is_connected(_on_theme_changed):
-		ThemeService.theme_changed.connect(_on_theme_changed)
-
-
-func _is_mobile() -> bool:
-	return ThemeEngine.is_mobile_platform()
-
-
-func _connect_system_signals() -> void:
-	var tree: SceneTree = get_tree()
-	if tree != null and tree.root != null and not tree.root.size_changed.is_connected(_update_responsive_layout):
-		tree.root.size_changed.connect(_update_responsive_layout)
-
-
-func _setup_keyboard_dodging() -> void:
-	if not _is_mobile() or result_name_edit == null: return
-	result_name_edit.focus_entered.connect(_on_input_focus_entered)
-	result_name_edit.focus_exited.connect(_on_input_focus_exited)
-
-
-func _on_input_focus_entered() -> void:
-	if _is_mobile():
-		await get_tree().process_frame
-		await get_tree().process_frame
-		var kb_height: float = DisplayServer.virtual_keyboard_get_height()
-		if kb_height > 0:
-			var tween: Tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-			tween.tween_property(center_container, "position:y", -kb_height * 0.4, 0.25)
-
-
-func _on_input_focus_exited() -> void:
-	if _is_mobile():
-		var tween: Tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-		tween.tween_property(center_container, "position:y", 0.0, 0.25)
-
-
-func _on_theme_changed(_theme_data: Dictionary) -> void:
-	_apply_theme_icons()
-	_apply_preview_theme()
-
-
-func _update_responsive_layout() -> void:
-	if not is_instance_valid(root_panel): return
-	var viewport: Viewport = get_viewport()
-	var viewport_size: Vector2 = viewport.get_visible_rect().size if viewport != null else Vector2(1280.0, 720.0)
-	var is_mob: bool = _is_mobile()
-
-	var target_width: float = clampf(viewport_size.x * 0.92, 320.0, MAX_PANEL_WIDTH)
-	var target_height: float = clampf(viewport_size.y * (0.90 if is_mob else 0.82), 300.0, MAX_PANEL_HEIGHT)
-	root_panel.custom_minimum_size = Vector2(target_width, target_height)
-	root_panel.size = Vector2(target_width, target_height)
-
-
-func _build_ui() -> void:
-	var is_mob: bool = _is_mobile()
+	var is_mob: bool = is_mobile()
 	var row_h: float = 36.0 if is_mob else 28.0
-
-	root_backdrop = Control.new()
-	root_backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
-	root_backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
-	root_backdrop.gui_input.connect(_on_backdrop_gui_input)
-	add_child(root_backdrop)
-
-	var bg_dim: ColorRect = ColorRect.new()
-	bg_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	bg_dim.color = Color(0.0, 0.0, 0.0, 0.65)
-	bg_dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root_backdrop.add_child(bg_dim)
-
-	center_container = CenterContainer.new()
-	center_container.set_anchors_preset(Control.PRESET_FULL_RECT)
-	center_container.mouse_filter = Control.MOUSE_FILTER_PASS
-	root_backdrop.add_child(center_container)
-
-	root_panel = PanelContainer.new()
-	root_panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	center_container.add_child(root_panel)
 
 	var main_vbox: VBoxContainer = VBoxContainer.new()
 	main_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -147,10 +57,8 @@ func _build_ui() -> void:
 	btn_close.custom_minimum_size = Vector2(28.0 if is_mob else 22.0, 28.0 if is_mob else 22.0)
 	btn_close.focus_mode = Control.FOCUS_NONE
 	btn_close.add_theme_constant_override("icon_max_width", 12)
-	var close_icon: Texture2D = ThemeService.get_icon("icon_close")
-	if close_icon != null: btn_close.icon = close_icon
-	else: btn_close.text = "✕"
-	btn_close.pressed.connect(close_dialog)
+	apply_close_icon(btn_close)
+	btn_close.pressed.connect(_on_close_requested)
 	header_hbox.add_child(btn_close)
 
 	main_vbox.add_child(HSeparator.new())
@@ -236,6 +144,7 @@ func _build_ui() -> void:
 	result_name_edit = LineEdit.new()
 	result_name_edit.placeholder_text = "e.g. Hot Pizza, Berry Smoothie, Magic Potion..."
 	result_name_edit.custom_minimum_size = Vector2(0.0, row_h)
+	register_keyboard_dodge(result_name_edit)
 	form_vbox.add_child(result_name_edit)
 
 	main_vbox.add_child(HSeparator.new())
@@ -246,13 +155,9 @@ func _build_ui() -> void:
 	btn_save.focus_mode = Control.FOCUS_NONE
 	btn_save.add_theme_constant_override("icon_max_width", 16)
 	btn_save.add_theme_font_size_override("font_size", 12 if is_mob else 11)
-
-	var recipe_icon: Texture2D = ThemeService.get_icon("icon_recipes")
-	if recipe_icon == null: recipe_icon = ThemeService.get_icon("icon_save")
-	if recipe_icon != null: btn_save.icon = recipe_icon
+	apply_button_icon(btn_save, "icon_recipes")
 	btn_save.pressed.connect(_on_save_recipe_pressed)
 	main_vbox.add_child(btn_save)
-
 
 func _create_preview_slot(parent_vbox: VBoxContainer, dim: float) -> PanelContainer:
 	var panel: PanelContainer = PanelContainer.new()
@@ -270,7 +175,6 @@ func _create_preview_slot(parent_vbox: VBoxContainer, dim: float) -> PanelContai
 	_apply_preview_style(panel)
 	return panel
 
-
 func _apply_preview_style(panel: PanelContainer) -> void:
 	if panel == null: return
 	var style: StyleBoxFlat = StyleBoxFlat.new()
@@ -280,23 +184,20 @@ func _apply_preview_style(panel: PanelContainer) -> void:
 	style.set_corner_radius_all(4)
 	panel.add_theme_stylebox_override("panel", style)
 
-
-func _apply_preview_theme() -> void:
+func _on_theme_updated() -> void:
 	_apply_preview_style(slot_panel_a)
 	_apply_preview_style(slot_panel_b)
 	_apply_preview_style(slot_panel_res)
-
+	apply_button_icon(btn_save, "icon_recipes")
+	if root_panel == null: return
+	for node: Node in root_panel.find_children("*", "Button", true, false):
+		if node is Button and (node as Button).text == "✕":
+			apply_close_icon(node as Button)
 
 func open_studio() -> void:
 	art_library = UGCManager.scan_user_art_library()
-	_update_responsive_layout()
 	_populate_dropdowns()
-	visible = true
-
-
-func close_dialog() -> void:
-	visible = false
-
+	open_dialog()
 
 func _populate_dropdowns() -> void:
 	for opt: OptionButton in [opt_ingredient_a, opt_ingredient_b, opt_result_item]:
@@ -315,7 +216,6 @@ func _populate_dropdowns() -> void:
 	_update_preview_from_opt(preview_res, opt_result_item.selected)
 	result_name_edit.text = str(art_library[opt_result_item.selected].get("name", ""))
 
-
 func _update_preview_from_opt(preview: TextureRect, index: int) -> void:
 	if preview == null: return
 	if index >= 0 and index < art_library.size():
@@ -324,7 +224,6 @@ func _update_preview_from_opt(preview: TextureRect, index: int) -> void:
 		else:
 			var fpath: String = str(art_library[index].get("file_path", ""))
 			preview.texture = UGCManager.get_thumbnail(fpath)
-
 
 func _on_save_recipe_pressed() -> void:
 	if art_library.is_empty(): return
@@ -341,16 +240,4 @@ func _on_save_recipe_pressed() -> void:
 
 	RecipeCrafting.register_recipe(name_a, name_b, name_result, Types.EntityType.PROP, result_texture_path)
 	EventBus.notification_requested.emit("Saved Recipe: %s + %s -> %s" % [name_a, name_b, name_result], true)
-	visible = false
-
-
-func _on_backdrop_gui_input(event: InputEvent) -> void:
-	if (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT) or (event is InputEventScreenTouch and event.pressed):
-		close_dialog()
-
-
-func _apply_theme_icons() -> void:
-	if btn_save == null: return
-	var recipe_icon: Texture2D = ThemeService.get_icon("icon_recipes")
-	if recipe_icon == null: recipe_icon = ThemeService.get_icon("icon_save")
-	btn_save.icon = recipe_icon
+	_on_close_requested()

@@ -1,21 +1,12 @@
 # ==============================================================================
-# OWNWORLD — THEME STUDIO DIALOG (LANDSCAPE THREE-COLUMN COLOR DESIGNER)
+# OWNWORLD — THEME STUDIO DIALOG (HYPER OPTIMIZED)
 # File: res://UI/Dialogs/ThemeStudioDialog.gd
-# Base Class: CanvasLayer (class_name ThemeStudioDialog)
-#
-# Responsibility: Color palette and custom font designer modal. Features curated
-# palette presets, user palette libraries, live previewing, and custom TTF/OTF loaders.
+# Base Class: HyperUIDialog
 # ==============================================================================
 
 class_name ThemeStudioDialog
-extends CanvasLayer
+extends HyperUIDialog
 
-const MAX_PANEL_WIDTH: float = 680.0
-const MAX_PANEL_HEIGHT: float = 580.0
-
-var root_backdrop: Control = null
-var center_container: CenterContainer = null
-var root_panel: PanelContainer = null
 var font_file_dialog: FileDialog = null
 
 var custom_theme_name_input: LineEdit = null
@@ -47,99 +38,17 @@ var btn_save_theme: Button = null
 
 signal theme_applied(theme_data: Dictionary)
 
+func _init() -> void:
+	max_panel_width = 680.0
+	max_panel_height = 580.0
 
-func _ready() -> void:
+func _build_content() -> void:
 	name = "ThemeStudioDialog"
-	layer = 125
-	visible = false
-	add_to_group("modal_ui")
 	_ensure_theme_dir()
 	_load_custom_themes_library()
-	_build_ui()
-	_connect_system_signals()
-	_update_responsive_layout()
-	_build_font_file_dialog()
-	_setup_keyboard_dodging()
 
-
-func _is_mobile() -> bool:
-	return ThemeEngine.is_mobile_platform()
-
-
-func _connect_system_signals() -> void:
-	var tree: SceneTree = get_tree()
-	if tree and tree.root and not tree.root.size_changed.is_connected(_update_responsive_layout):
-		tree.root.size_changed.connect(_update_responsive_layout)
-	if not ThemeService.theme_changed.is_connected(_on_theme_changed):
-		ThemeService.theme_changed.connect(_on_theme_changed)
-
-
-func _setup_keyboard_dodging() -> void:
-	if custom_theme_name_input != null and _is_mobile():
-		custom_theme_name_input.focus_entered.connect(_on_input_focus_entered)
-		custom_theme_name_input.focus_exited.connect(_on_input_focus_exited)
-
-
-func _on_input_focus_entered() -> void:
-	if _is_mobile():
-		await get_tree().process_frame
-		await get_tree().process_frame
-		var kb_height: float = DisplayServer.virtual_keyboard_get_height()
-		if kb_height > 0:
-			var tween: Tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-			tween.tween_property(center_container, "position:y", -kb_height * 0.4, 0.25)
-
-
-func _on_input_focus_exited() -> void:
-	if _is_mobile():
-		var tween: Tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-		tween.tween_property(center_container, "position:y", 0.0, 0.25)
-
-
-func _on_theme_changed(_theme_data: Dictionary) -> void:
-	if visible: _sync_ui_from_theme_service()
-
-
-func _update_responsive_layout() -> void:
-	if not is_instance_valid(root_panel): return
-	var vp_size: Vector2 = get_viewport().get_visible_rect().size if get_viewport() else Vector2(1280.0, 720.0)
-	var is_mob: bool = _is_mobile()
-
-	var target_w: float = clampf(vp_size.x * 0.94, 320.0, MAX_PANEL_WIDTH)
-	var target_h: float = clampf(vp_size.y * (0.92 if is_mob else 0.88), 300.0, MAX_PANEL_HEIGHT)
-	root_panel.custom_minimum_size = Vector2(target_w, target_h)
-	root_panel.size = Vector2(target_w, target_h)
-
-
-func _ensure_theme_dir() -> void:
-	UGCManager.get_theme_root_directory()
-	UGCManager.get_font_root_directory()
-
-
-func _build_ui() -> void:
-	var is_mob: bool = _is_mobile()
+	var is_mob: bool = is_mobile()
 	var row_h: float = 34.0 if is_mob else 28.0
-
-	root_backdrop = Control.new()
-	root_backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
-	root_backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
-	root_backdrop.gui_input.connect(_on_backdrop_gui_input)
-	add_child(root_backdrop)
-
-	var bg_dim: ColorRect = ColorRect.new()
-	bg_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	bg_dim.color = Color(0.0, 0.0, 0.0, 0.55)
-	bg_dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root_backdrop.add_child(bg_dim)
-
-	center_container = CenterContainer.new()
-	center_container.set_anchors_preset(Control.PRESET_FULL_RECT)
-	center_container.mouse_filter = Control.MOUSE_FILTER_PASS
-	root_backdrop.add_child(center_container)
-
-	root_panel = PanelContainer.new()
-	root_panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	center_container.add_child(root_panel)
 
 	var outer_vbox: VBoxContainer = VBoxContainer.new()
 	outer_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -161,10 +70,8 @@ func _build_ui() -> void:
 	btn_close.custom_minimum_size = Vector2(28.0 if is_mob else 22.0, 28.0 if is_mob else 22.0)
 	btn_close.focus_mode = Control.FOCUS_NONE
 	btn_close.add_theme_constant_override("icon_max_width", 12)
-	var close_icon: Texture2D = ThemeService.get_icon("icon_close")
-	if close_icon: btn_close.icon = close_icon
-	else: btn_close.text = "✕"
-	btn_close.pressed.connect(close_studio)
+	apply_close_icon(btn_close)
+	btn_close.pressed.connect(_on_close_requested)
 	header_hbox.add_child(btn_close)
 
 	outer_vbox.add_child(HSeparator.new())
@@ -264,9 +171,7 @@ func _build_ui() -> void:
 	btn_browse_font.custom_minimum_size = Vector2(0.0, row_h)
 	btn_browse_font.add_theme_constant_override("icon_max_width", 14)
 	btn_browse_font.add_theme_font_size_override("font_size", 11 if is_mob else 10)
-	var font_icon: Texture2D = ThemeService.get_icon("icon_font")
-	if font_icon == null: font_icon = ThemeService.get_icon("icon_folder")
-	if font_icon: btn_browse_font.icon = font_icon
+	apply_button_icon(btn_browse_font, "icon_font")
 	btn_browse_font.pressed.connect(_on_browse_font_pressed)
 	font_btns_hbox.add_child(btn_browse_font)
 
@@ -276,9 +181,7 @@ func _build_ui() -> void:
 	btn_reset_font.custom_minimum_size = Vector2(0.0, row_h)
 	btn_reset_font.add_theme_constant_override("icon_max_width", 14)
 	btn_reset_font.add_theme_font_size_override("font_size", 11 if is_mob else 10)
-	var reset_icon: Texture2D = ThemeService.get_icon("icon_refresh")
-	if reset_icon == null: reset_icon = ThemeService.get_icon("icon_undo")
-	if reset_icon: btn_reset_font.icon = reset_icon
+	apply_button_icon(btn_reset_font, "icon_refresh")
 	btn_reset_font.pressed.connect(_on_reset_font_pressed)
 	font_btns_hbox.add_child(btn_reset_font)
 
@@ -290,6 +193,7 @@ func _build_ui() -> void:
 	custom_theme_name_input.placeholder_text = "Save Custom Palette As..."
 	custom_theme_name_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	custom_theme_name_input.custom_minimum_size = Vector2(0.0, row_h)
+	register_keyboard_dodge(custom_theme_name_input)
 	save_custom_row.add_child(custom_theme_name_input)
 
 	btn_save_custom = Button.new()
@@ -298,8 +202,7 @@ func _build_ui() -> void:
 	btn_save_custom.focus_mode = Control.FOCUS_NONE
 	btn_save_custom.add_theme_constant_override("icon_max_width", 14)
 	btn_save_custom.add_theme_font_size_override("font_size", 11 if is_mob else 10)
-	var save_icon: Texture2D = ThemeService.get_icon("icon_save")
-	if save_icon: btn_save_custom.icon = save_icon
+	apply_button_icon(btn_save_custom, "icon_save")
 	btn_save_custom.pressed.connect(_on_save_custom_theme_pressed)
 	save_custom_row.add_child(btn_save_custom)
 
@@ -309,11 +212,22 @@ func _build_ui() -> void:
 	btn_save_theme.focus_mode = Control.FOCUS_NONE
 	btn_save_theme.add_theme_constant_override("icon_max_width", 16)
 	btn_save_theme.add_theme_font_size_override("font_size", 12 if is_mob else 11)
-	var apply_icon: Texture2D = ThemeService.get_icon("icon_palette")
-	if apply_icon: btn_save_theme.icon = apply_icon
+	apply_button_icon(btn_save_theme, "icon_palette")
 	btn_save_theme.pressed.connect(func() -> void: _apply_and_persist_theme(true))
 	outer_vbox.add_child(btn_save_theme)
 
+	_build_font_file_dialog()
+
+func _on_theme_updated() -> void:
+	if visible: _sync_ui_from_theme_service()
+	if root_panel == null: return
+	for node: Node in root_panel.find_children("*", "Button", true, false):
+		if node is Button and (node as Button).text == "✕":
+			apply_close_icon(node as Button)
+
+func _ensure_theme_dir() -> void:
+	UGCManager.get_theme_root_directory()
+	UGCManager.get_font_root_directory()
 
 func _build_font_file_dialog() -> void:
 	font_file_dialog = FileDialog.new()
@@ -325,20 +239,13 @@ func _build_font_file_dialog() -> void:
 	font_file_dialog.file_selected.connect(_on_font_file_selected)
 	add_child(font_file_dialog)
 
-
 func open_studio() -> void:
 	_sync_ui_from_theme_service()
 	_render_user_themes_bar()
-	_update_responsive_layout()
-	visible = true
-
-
-func close_studio() -> void:
-	visible = false
-
+	open_dialog()
 
 func _create_color_picker_row(parent: GridContainer, label_text: String, default_color: Color, row_h: float) -> ColorPickerButton:
-	var is_mob: bool = _is_mobile()
+	var is_mob: bool = is_mobile()
 	var lbl: Label = Label.new()
 	lbl.text = label_text
 	lbl.add_theme_font_size_override("font_size", 11 if is_mob else 10)
@@ -350,14 +257,13 @@ func _create_color_picker_row(parent: GridContainer, label_text: String, default
 	parent.add_child(c_btn)
 	return c_btn
 
-
 func _add_preset_button(
 	parent: GridContainer, btn_name: String,
 	bg: String, border: String, sub_bg: String,
 	btn_n: String, btn_h: String, input_bg: String,
 	text_p: String, text_m: String, accent: String, danger: String
 ) -> void:
-	var is_mob: bool = _is_mobile()
+	var is_mob: bool = is_mobile()
 	var btn: Button = Button.new()
 	btn.text = btn_name
 	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -388,12 +294,11 @@ func _add_preset_button(
 	)
 	parent.add_child(btn)
 
-
 func _render_user_themes_bar() -> void:
 	for child: Node in saved_themes_container.get_children():
 		child.queue_free()
 
-	var is_mob: bool = _is_mobile()
+	var is_mob: bool = is_mobile()
 
 	if user_saved_themes.is_empty():
 		var empty_lbl: Label = Label.new()
@@ -413,8 +318,7 @@ func _render_user_themes_bar() -> void:
 		btn.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 		btn.add_theme_constant_override("icon_max_width", 14 if is_mob else 12)
 		btn.custom_minimum_size = Vector2(0.0, 30.0 if is_mob else 26.0)
-		var p_icon: Texture2D = ThemeService.get_icon("icon_palette")
-		if p_icon: btn.icon = p_icon
+		apply_button_icon(btn, "icon_palette")
 		var cap_name: String = theme_name
 		btn.pressed.connect(func() -> void: _load_named_custom_theme(cap_name))
 		hbox.add_child(btn)
@@ -424,14 +328,11 @@ func _render_user_themes_bar() -> void:
 		btn_del.theme_type_variation = "DangerButton"
 		btn_del.focus_mode = Control.FOCUS_NONE
 		btn_del.add_theme_constant_override("icon_max_width", 10)
-		var del_icon: Texture2D = ThemeService.get_icon("icon_close")
-		if del_icon: btn_del.icon = del_icon
-		else: btn_del.text = "✕"
+		apply_close_icon(btn_del)
 		btn_del.pressed.connect(func() -> void: _delete_named_custom_theme(cap_name))
 		hbox.add_child(btn_del)
 
 		saved_themes_container.add_child(hbox)
-
 
 func _on_save_custom_theme_pressed() -> void:
 	var t_name: String = custom_theme_name_input.text.strip_edges()
@@ -460,7 +361,6 @@ func _on_save_custom_theme_pressed() -> void:
 	_render_user_themes_bar()
 	_apply_and_persist_theme(true)
 
-
 func _load_named_custom_theme(t_name: String) -> void:
 	if user_saved_themes.has(t_name):
 		var t_data: Dictionary = (user_saved_themes[t_name] as Dictionary).duplicate(true)
@@ -477,12 +377,10 @@ func _load_named_custom_theme(t_name: String) -> void:
 		cp_accent_danger.color = Color(colors.get("accent_danger", "#f43f5e"))
 		_apply_and_persist_theme(true)
 
-
 func _delete_named_custom_theme(t_name: String) -> void:
 	user_saved_themes.erase(t_name)
 	_save_custom_themes_library()
 	_render_user_themes_bar()
-
 
 func _sync_ui_from_theme_service() -> void:
 	var cached: Dictionary = ThemeService.get_theme_data()
@@ -502,24 +400,20 @@ func _sync_ui_from_theme_service() -> void:
 	active_custom_font_path = str(cached.get("font_path", ""))
 	lbl_current_font.text = active_custom_font_path.get_file() if (not active_custom_font_path.is_empty() and FileAccess.file_exists(active_custom_font_path)) else "Default Font"
 
-
 func _on_browse_font_pressed() -> void:
 	font_file_dialog.theme = ThemeService.create_theme()
 	font_file_dialog.current_dir = UGCManager.get_font_root_directory()
 	font_file_dialog.popup_centered_ratio(0.6)
-
 
 func _on_font_file_selected(fpath: String) -> void:
 	active_custom_font_path = fpath.strip_edges()
 	lbl_current_font.text = fpath.get_file()
 	_apply_and_persist_theme(true)
 
-
 func _on_reset_font_pressed() -> void:
 	active_custom_font_path = ""
 	lbl_current_font.text = "Default Font"
 	_apply_and_persist_theme(true)
-
 
 func _apply_and_persist_theme(show_toast: bool) -> void:
 	var theme_payload: Dictionary = {
@@ -547,18 +441,11 @@ func _apply_and_persist_theme(show_toast: bool) -> void:
 	if show_toast:
 		EventBus.notification_requested.emit("Applied Palette Globally!", true)
 
-
 func _load_custom_themes_library() -> void:
 	var custom_path: String = UGCManager.get_custom_themes_file_path()
 	user_saved_themes = JsonFileStore.read_dictionary(custom_path)
-
 
 func _save_custom_themes_library() -> void:
 	_ensure_theme_dir()
 	var custom_path: String = UGCManager.get_custom_themes_file_path()
 	JsonFileStore.write_dictionary(custom_path, user_saved_themes)
-
-
-func _on_backdrop_gui_input(event: InputEvent) -> void:
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		close_studio()

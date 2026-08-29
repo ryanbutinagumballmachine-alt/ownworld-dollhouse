@@ -1,21 +1,11 @@
 # ==============================================================================
-# OWNWORLD — FOOD & DRINK STUDIO (LANDSCAPE DUAL-OS ADAPTIVE)
+# OWNWORLD — FOOD & DRINK STUDIO (HYPER OPTIMIZED)
 # File: res://UI/Dialogs/FoodStudioDialog.gd
-# Base Class: CanvasLayer (class_name FoodStudioDialog)
-#
-# Responsibility: Interactive consumable configuration modal. Manages beverage
-# modes, infinite snack toggles, and multi-stage bite / sip drawing progression.
+# Base Class: HyperUIDialog
 # ==============================================================================
 
 class_name FoodStudioDialog
-extends CanvasLayer
-
-const MAX_PANEL_WIDTH: float = 560.0
-const MAX_PANEL_HEIGHT: float = 540.0
-
-var root_backdrop: Control = null
-var center_container: CenterContainer = null
-var root_panel: PanelContainer = null
+extends HyperUIDialog
 
 var active_entity: OwnEntity = null
 var asset_picker: AssetPickerDialog = null
@@ -30,74 +20,14 @@ var btn_save: Button = null
 var custom_stage_paths: Array[String] = []
 var custom_stage_textures: Array[Texture2D] = []
 
+func _init() -> void:
+	max_panel_width = 560.0
+	max_panel_height = 540.0
 
-func _ready() -> void:
+func _build_content() -> void:
 	name = "FoodStudioDialog"
-	layer = 120
-	visible = false
-	add_to_group("modal_ui")
-	_build_ui()
-	_connect_system_signals()
-	_update_responsive_layout()
-
-	asset_picker = AssetPickerDialog.new()
-	add_child(asset_picker)
-
-
-func _is_mobile() -> bool:
-	return ThemeEngine.is_mobile_platform()
-
-
-func _connect_system_signals() -> void:
-	var tree: SceneTree = get_tree()
-	if tree and tree.root and not tree.root.size_changed.is_connected(_update_responsive_layout):
-		tree.root.size_changed.connect(_update_responsive_layout)
-	if not EventBus.theme_changed.is_connected(_on_theme_changed):
-		EventBus.theme_changed.connect(_on_theme_changed)
-
-
-func _on_theme_changed(_theme_data: Dictionary) -> void:
-	_refresh_theme_icons()
-	_update_responsive_layout()
-	_render_stages_list()
-
-
-func _update_responsive_layout() -> void:
-	if not is_instance_valid(root_panel): return
-	var viewport: Viewport = get_viewport()
-	var viewport_size: Vector2 = viewport.get_visible_rect().size if viewport != null else Vector2(1280.0, 720.0)
-	var is_mob: bool = _is_mobile()
-
-	var target_width: float = clampf(viewport_size.x * 0.92, 300.0, MAX_PANEL_WIDTH)
-	var target_height: float = clampf(viewport_size.y * (0.90 if is_mob else 0.84), 300.0, MAX_PANEL_HEIGHT)
-	root_panel.custom_minimum_size = Vector2(target_width, target_height)
-	root_panel.size = Vector2(target_width, target_height)
-
-
-func _build_ui() -> void:
-	var is_mob: bool = _is_mobile()
+	var is_mob: bool = is_mobile()
 	var row_h: float = 36.0 if is_mob else 28.0
-
-	root_backdrop = Control.new()
-	root_backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
-	root_backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
-	root_backdrop.gui_input.connect(_on_backdrop_gui_input)
-	add_child(root_backdrop)
-
-	var background_dim: ColorRect = ColorRect.new()
-	background_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	background_dim.color = Color(0.0, 0.0, 0.0, 0.65)
-	background_dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root_backdrop.add_child(background_dim)
-
-	center_container = CenterContainer.new()
-	center_container.set_anchors_preset(Control.PRESET_FULL_RECT)
-	center_container.mouse_filter = Control.MOUSE_FILTER_PASS
-	root_backdrop.add_child(center_container)
-
-	root_panel = PanelContainer.new()
-	root_panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	center_container.add_child(root_panel)
 
 	var main_vbox: VBoxContainer = VBoxContainer.new()
 	main_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -119,8 +49,8 @@ func _build_ui() -> void:
 	close_button.custom_minimum_size = Vector2(28.0 if is_mob else 22.0, 28.0 if is_mob else 22.0)
 	close_button.focus_mode = Control.FOCUS_NONE
 	close_button.add_theme_constant_override("icon_max_width", 12)
-	_apply_close_icon(close_button)
-	close_button.pressed.connect(close_dialog)
+	apply_close_icon(close_button)
+	close_button.pressed.connect(_on_close_requested)
 	header_hbox.add_child(close_button)
 
 	main_vbox.add_child(HSeparator.new())
@@ -187,11 +117,22 @@ func _build_ui() -> void:
 	btn_save.focus_mode = Control.FOCUS_NONE
 	btn_save.add_theme_constant_override("icon_max_width", 16)
 	btn_save.add_theme_font_size_override("font_size", 12 if is_mob else 11)
-	btn_save.pressed.connect(save_and_close)
+	btn_save.pressed.connect(_on_save_pressed)
 	main_vbox.add_child(btn_save)
 
-	_refresh_theme_icons()
+	asset_picker = AssetPickerDialog.new()
+	add_child(asset_picker)
 
+func _on_theme_updated() -> void:
+	if check_is_drink != null: apply_checkbox_icon(check_is_drink, "icon_drink")
+	if check_is_infinite != null: apply_checkbox_icon(check_is_infinite, "icon_infinite")
+	if btn_add_stage != null: apply_button_icon(btn_add_stage, "icon_plus")
+	if btn_save != null: apply_button_icon(btn_save, "icon_save")
+	if stages_vbox != null: _render_stages_list()
+	if root_panel == null: return
+	for node: Node in root_panel.find_children("*", "Button", true, false):
+		if node is Button and (node as Button).text == "✕":
+			apply_close_icon(node as Button)
 
 func _on_add_stage_pressed() -> void:
 	if asset_picker == null: return
@@ -201,7 +142,6 @@ func _on_add_stage_pressed() -> void:
 			custom_stage_textures.append(texture)
 			_render_stages_list()
 	)
-
 
 func open_for_entity(entity: OwnEntity) -> void:
 	if not is_instance_valid(entity): return
@@ -217,24 +157,21 @@ func open_for_entity(entity: OwnEntity) -> void:
 			custom_stage_paths.append(path)
 			custom_stage_textures.append(UGCManager.load_texture_from_file(path))
 
-	_update_responsive_layout()
 	_render_stages_list()
-	visible = true
+	open_dialog()
 
-
-func close_dialog() -> void:
-	visible = false
+func _on_close_requested() -> void:
 	active_entity = null
 	custom_stage_paths.clear()
 	custom_stage_textures.clear()
-
+	super._on_close_requested()
 
 func _render_stages_list() -> void:
 	if stages_vbox == null: return
 	for child: Node in stages_vbox.get_children():
 		child.queue_free()
 
-	var is_mob: bool = _is_mobile()
+	var is_mob: bool = is_mobile()
 	var border_color: Color = ThemeService.get_color("panel_border", "#f472b6")
 	var input_background: Color = ThemeService.get_color("input_background", "#ffffff")
 
@@ -285,13 +222,12 @@ func _render_stages_list() -> void:
 		delete_button.theme_type_variation = "DangerButton"
 		delete_button.focus_mode = Control.FOCUS_NONE
 		delete_button.add_theme_constant_override("icon_max_width", 10)
-		_apply_close_icon(delete_button)
+		apply_close_icon(delete_button)
 
 		var captured_index: int = index
 		delete_button.pressed.connect(func() -> void: _remove_stage(captured_index))
 		hbox.add_child(delete_button)
 		stages_vbox.add_child(card)
-
 
 func _remove_stage(index: int) -> void:
 	if index < 0 or index >= custom_stage_paths.size(): return
@@ -299,10 +235,9 @@ func _remove_stage(index: int) -> void:
 	if index < custom_stage_textures.size(): custom_stage_textures.remove_at(index)
 	_render_stages_list()
 
-
-func save_and_close() -> void:
+func _on_save_pressed() -> void:
 	if active_entity == null or not is_instance_valid(active_entity):
-		close_dialog()
+		_on_close_requested()
 		return
 
 	active_entity.configure_as_consumable()
@@ -317,33 +252,4 @@ func save_and_close() -> void:
 	SaveSystem.save_current_room_state()
 	EventBus.entity_state_changed.emit(active_entity.entity_id)
 	EventBus.notification_requested.emit("Saved Food State: " + active_entity.display_name, true)
-	close_dialog()
-
-
-func _refresh_theme_icons() -> void:
-	if check_is_drink != null:
-		var drink_icon: Texture2D = ThemeService.get_icon("icon_drink")
-		if drink_icon != null: check_is_drink.icon = drink_icon
-	if check_is_infinite != null:
-		var infinite_icon: Texture2D = ThemeService.get_icon("icon_infinite")
-		if infinite_icon != null: check_is_infinite.icon = infinite_icon
-	if btn_add_stage != null:
-		var plus_icon: Texture2D = ThemeService.get_icon("icon_plus")
-		if plus_icon != null: btn_add_stage.icon = plus_icon
-	if btn_save != null:
-		var save_icon: Texture2D = ThemeService.get_icon("icon_save")
-		if save_icon != null: btn_save.icon = save_icon
-	if stages_vbox != null:
-		_render_stages_list()
-
-
-func _apply_close_icon(button: Button) -> void:
-	if button == null: return
-	var close_icon: Texture2D = ThemeService.get_icon("icon_close")
-	if close_icon != null: button.icon = close_icon
-	else: button.text = "✕"
-
-
-func _on_backdrop_gui_input(event: InputEvent) -> void:
-	if (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT) or (event is InputEventScreenTouch and event.pressed):
-		close_dialog()
+	_on_close_requested()

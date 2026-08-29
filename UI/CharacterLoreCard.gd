@@ -1,25 +1,15 @@
 # ==============================================================================
-# OWNWORLD — CHARACTER LORE CARD & PROFILE STUDIO (LANDSCAPE DUAL-OS ADAPTIVE)
+# OWNWORLD — CHARACTER LORE CARD & PROFILE STUDIO (HYPER OPTIMIZED)
 # File: res://UI/CharacterLoreCard.gd
-# Base Class: CanvasLayer (class_name CharacterLoreCard)
-#
-# Responsibility: Comprehensive character profile management. Features 3-tab
-# identity editing (Bio/Status/Traits, Symmetrical Family Trees & Directional
-# Feelings, Story Notes), custom avatar picking, and mobile keyboard dodging.
+# Base Class: HyperUIDialog
 # ==============================================================================
 
 class_name CharacterLoreCard
-extends CanvasLayer
+extends HyperUIDialog
 
 enum CardTab { PROFILE, BONDS, NOTES }
 var current_tab: CardTab = CardTab.PROFILE
 
-const MAX_CARD_WIDTH: float = 760.0
-const MAX_CARD_HEIGHT: float = 580.0
-
-var root_backdrop: Control = null
-var center_container: CenterContainer = null
-var root_panel: PanelContainer = null
 var active_entity: OwnEntity = null
 var fallback_char_dict: Dictionary = {}
 var asset_picker: AssetPickerDialog = null
@@ -103,130 +93,15 @@ const FEELING_PRESETS: Array[String] = [
 	"Guarded / Suspicious Of"
 ]
 
+func _init() -> void:
+	max_panel_width = 760.0
+	max_panel_height = 580.0
 
-func _ready() -> void:
+func _build_content() -> void:
 	name = "CharacterLoreCard"
-	layer = 130
-	visible = false
-	add_to_group("modal_ui")
 	add_to_group("character_lore_card")
-	_build_ui()
-	_connect_system_signals()
-	_apply_theme_styling()
-	_update_responsive_layout()
-	_setup_keyboard_dodging()
-
-	asset_picker = AssetPickerDialog.new()
-	add_child(asset_picker)
-
-
-func _is_mobile() -> bool:
-	return ThemeEngine.is_mobile_platform()
-
-
-func _connect_system_signals() -> void:
-	if not ThemeService.theme_changed.is_connected(_on_theme_changed):
-		ThemeService.theme_changed.connect(_on_theme_changed)
-
-	var tree: SceneTree = get_tree()
-	if tree and tree.root and not tree.root.size_changed.is_connected(_update_responsive_layout):
-		tree.root.size_changed.connect(_update_responsive_layout)
-
-
-func _setup_keyboard_dodging() -> void:
-	if not _is_mobile(): return
-	var inputs: Array[Control] = [name_edit, pronouns_edit, role_edit, lore_text_edit]
-	for input in inputs:
-		if input != null:
-			input.focus_entered.connect(_on_input_focus_entered)
-			input.focus_exited.connect(_on_input_focus_exited)
-
-
-func _on_input_focus_entered() -> void:
-	if _is_mobile() and center_container != null:
-		await get_tree().process_frame
-		await get_tree().process_frame
-		var kb_height: float = DisplayServer.virtual_keyboard_get_height()
-		if kb_height > 0:
-			var tween: Tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-			tween.tween_property(center_container, "position:y", -kb_height * 0.45, 0.25)
-
-
-func _on_input_focus_exited() -> void:
-	if _is_mobile() and center_container != null:
-		var tween: Tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-		tween.tween_property(center_container, "position:y", 0.0, 0.25)
-
-
-func _update_responsive_layout() -> void:
-	if not is_instance_valid(root_panel): return
-	var vp_size: Vector2 = get_viewport().get_visible_rect().size if get_viewport() else Vector2(1280.0, 720.0)
-	var is_mob: bool = _is_mobile()
-
-	var target_w: float = clampf(vp_size.x * 0.94, 320.0, MAX_CARD_WIDTH)
-	var target_h: float = clampf(vp_size.y * (0.92 if is_mob else 0.88), 300.0, MAX_CARD_HEIGHT)
-	root_panel.custom_minimum_size = Vector2(target_w, target_h)
-	root_panel.size = Vector2(target_w, target_h)
-
-
-func _on_theme_changed(_theme_data: Dictionary) -> void:
-	_apply_theme_styling()
-	if visible: _switch_tab(current_tab)
-
-
-func _apply_theme_styling() -> void:
-	var c_bg: Color = ThemeService.get_color("panel_background", "#fff5f7")
-	var c_border: Color = ThemeService.get_color("panel_border", "#f9a8d4")
-	var c_accent: Color = ThemeService.get_color("accent_primary", "#ec4899")
-	var radius: int = ThemeService.get_corner_radius()
-
-	if root_panel:
-		var p_style: StyleBoxFlat = StyleBoxFlat.new()
-		p_style.bg_color = c_bg
-		p_style.border_color = c_border
-		p_style.set_border_width_all(2)
-		p_style.set_corner_radius_all(radius + 2)
-		p_style.content_margin_left = 14
-		p_style.content_margin_right = 14
-		p_style.content_margin_top = 10
-		p_style.content_margin_bottom = 10
-		root_panel.add_theme_stylebox_override("panel", p_style)
-
-	if header_lbl: header_lbl.add_theme_color_override("font_color", c_accent)
-
-	var save_icon: Texture2D = ThemeService.get_icon("icon_save")
-	if save_icon and btn_save: btn_save.icon = save_icon
-
-	var close_icon: Texture2D = ThemeService.get_icon("icon_close")
-	if close_icon and btn_close: btn_close.icon = close_icon
-
-	_switch_tab(current_tab)
-
-
-func _build_ui() -> void:
-	var is_mob: bool = _is_mobile()
+	var is_mob: bool = is_mobile()
 	var row_h: float = 34.0 if is_mob else 28.0
-
-	root_backdrop = Control.new()
-	root_backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
-	root_backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
-	root_backdrop.gui_input.connect(_on_backdrop_gui_input)
-
-	var bg_dim: ColorRect = ColorRect.new()
-	bg_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	bg_dim.color = Color(0.0, 0.0, 0.0, 0.65)
-	bg_dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root_backdrop.add_child(bg_dim)
-	add_child(root_backdrop)
-
-	center_container = CenterContainer.new()
-	center_container.set_anchors_preset(Control.PRESET_FULL_RECT)
-	center_container.mouse_filter = Control.MOUSE_FILTER_PASS
-	root_backdrop.add_child(center_container)
-
-	root_panel = PanelContainer.new()
-	root_panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	center_container.add_child(root_panel)
 
 	var main_vbox: VBoxContainer = VBoxContainer.new()
 	main_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -252,8 +127,7 @@ func _build_ui() -> void:
 	btn_journal.focus_mode = Control.FOCUS_NONE
 	btn_journal.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	btn_journal.add_theme_constant_override("icon_max_width", 12)
-	var book_icon: Texture2D = ThemeService.get_icon("icon_room")
-	if book_icon: btn_journal.icon = book_icon
+	apply_button_icon(btn_journal, "icon_room")
 	btn_journal.pressed.connect(_on_open_journal_from_card)
 	header_hbox.add_child(btn_journal)
 
@@ -261,10 +135,8 @@ func _build_ui() -> void:
 	btn_close.custom_minimum_size = Vector2(28.0 if is_mob else 22.0, 28.0 if is_mob else 22.0)
 	btn_close.focus_mode = Control.FOCUS_NONE
 	btn_close.add_theme_constant_override("icon_max_width", 12)
-	var close_icon: Texture2D = ThemeService.get_icon("icon_close")
-	if close_icon: btn_close.icon = close_icon
-	else: btn_close.text = "✕"
-	btn_close.pressed.connect(save_and_close)
+	apply_close_icon(btn_close)
+	btn_close.pressed.connect(_on_close_requested)
 	header_hbox.add_child(btn_close)
 
 	var tab_strip: HBoxContainer = HBoxContainer.new()
@@ -319,16 +191,24 @@ func _build_ui() -> void:
 	btn_save.focus_mode = Control.FOCUS_NONE
 	btn_save.add_theme_font_size_override("font_size", 12 if is_mob else 11)
 	btn_save.add_theme_constant_override("icon_max_width", 16)
-	var save_icon: Texture2D = ThemeService.get_icon("icon_save")
-	if save_icon: btn_save.icon = save_icon
-	btn_save.pressed.connect(save_and_close)
+	apply_button_icon(btn_save, "icon_save")
+	btn_save.pressed.connect(_on_close_requested)
 	main_vbox.add_child(btn_save)
 
 	_switch_tab(CardTab.PROFILE)
 
+	asset_picker = AssetPickerDialog.new()
+	add_child(asset_picker)
+
+func _on_theme_updated() -> void:
+	var c_accent: Color = ThemeService.get_color("accent_primary", "#ec4899")
+	if header_lbl: header_lbl.add_theme_color_override("font_color", c_accent)
+	apply_button_icon(btn_save, "icon_save")
+	apply_close_icon(btn_close)
+	if visible: _switch_tab(current_tab)
 
 func _create_tab_button(title: String, icon_key: String, tab_target: CardTab, row_h: float) -> Button:
-	var is_mob: bool = _is_mobile()
+	var is_mob: bool = is_mobile()
 	var btn: Button = Button.new()
 	btn.text = " " + title
 	btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -337,13 +217,9 @@ func _create_tab_button(title: String, icon_key: String, tab_target: CardTab, ro
 	btn.add_theme_constant_override("icon_max_width", 14)
 	btn.add_theme_constant_override("h_separation", 6)
 	btn.add_theme_font_size_override("font_size", 11 if is_mob else 10)
-
-	var icon_tex: Texture2D = ThemeService.get_icon(icon_key)
-	if icon_tex: btn.icon = icon_tex
-
+	apply_button_icon(btn, icon_key)
 	btn.pressed.connect(func() -> void: _switch_tab(tab_target))
 	return btn
-
 
 func _switch_tab(target: CardTab) -> void:
 	current_tab = target
@@ -389,9 +265,8 @@ func _switch_tab(target: CardTab) -> void:
 			btn.add_theme_color_override("font_color", Color.WHITE)
 			btn.add_theme_color_override("icon_normal_color", Color.WHITE)
 
-
 func _build_profile_tab(row_h: float) -> void:
-	var is_mob: bool = _is_mobile()
+	var is_mob: bool = is_mobile()
 
 	var scroll: ScrollContainer = ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -447,6 +322,7 @@ func _build_profile_tab(row_h: float) -> void:
 	name_edit = LineEdit.new()
 	name_edit.placeholder_text = "Name..."
 	name_edit.custom_minimum_size = Vector2(0.0, row_h)
+	register_keyboard_dodge(name_edit)
 	info_vbox.add_child(name_edit)
 
 	var row_grid: GridContainer = GridContainer.new()
@@ -468,6 +344,7 @@ func _build_profile_tab(row_h: float) -> void:
 	pronouns_edit = LineEdit.new()
 	pronouns_edit.placeholder_text = "e.g. She/Her, They/Them..."
 	pronouns_edit.custom_minimum_size = Vector2(0.0, row_h)
+	register_keyboard_dodge(pronouns_edit)
 	col_pronouns.add_child(pronouns_edit)
 
 	var col_role: VBoxContainer = VBoxContainer.new()
@@ -483,6 +360,7 @@ func _build_profile_tab(row_h: float) -> void:
 	role_edit = LineEdit.new()
 	role_edit.placeholder_text = "e.g. Baker, Knight..."
 	role_edit.custom_minimum_size = Vector2(0.0, row_h)
+	register_keyboard_dodge(role_edit)
 	col_role.add_child(role_edit)
 
 	var col_status: VBoxContainer = VBoxContainer.new()
@@ -528,7 +406,6 @@ func _build_profile_tab(row_h: float) -> void:
 	traits_vbox.add_theme_constant_override("separation", 6)
 	vbox.add_child(traits_vbox)
 
-
 func _add_trait_row(trait_key: String, trait_value: String, row_h: float) -> void:
 	var row: HBoxContainer = HBoxContainer.new()
 	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -538,9 +415,7 @@ func _add_trait_row(trait_key: String, trait_value: String, row_h: float) -> voi
 	key_input.text = trait_key.strip_edges()
 	key_input.placeholder_text = "Detail (e.g. Birthday, Species)"
 	key_input.custom_minimum_size = Vector2(140.0, row_h)
-	if _is_mobile():
-		key_input.focus_entered.connect(_on_input_focus_entered)
-		key_input.focus_exited.connect(_on_input_focus_exited)
+	register_keyboard_dodge(key_input)
 	row.add_child(key_input)
 
 	var val_input: LineEdit = LineEdit.new()
@@ -548,9 +423,7 @@ func _add_trait_row(trait_key: String, trait_value: String, row_h: float) -> voi
 	val_input.placeholder_text = "Value (e.g. May 14, Elf)"
 	val_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	val_input.custom_minimum_size = Vector2(0.0, row_h)
-	if _is_mobile():
-		val_input.focus_entered.connect(_on_input_focus_entered)
-		val_input.focus_exited.connect(_on_input_focus_exited)
+	register_keyboard_dodge(val_input)
 	row.add_child(val_input)
 
 	var btn_del: Button = Button.new()
@@ -563,18 +436,15 @@ func _add_trait_row(trait_key: String, trait_value: String, row_h: float) -> voi
 
 	traits_vbox.add_child(row)
 
-
 func _on_avatar_btn_pressed() -> void:
 	if asset_picker != null:
 		asset_picker.open_picker("Choose Character Portrait Drawing", "", func(_art_name: String, _tex: Texture2D, file_path: String) -> void:
 			_on_avatar_file_selected(file_path)
 		)
 
-
 func _on_avatar_file_selected(file_path: String) -> void:
 	avatar_path_stored = file_path.strip_edges()
 	_update_avatar_preview()
-
 
 func _update_avatar_preview() -> void:
 	if not avatar_texture_rect:
@@ -583,7 +453,6 @@ func _update_avatar_preview() -> void:
 		active_entity.to_dict() if is_instance_valid(active_entity) else fallback_char_dict,
 		avatar_path_stored
 	)
-
 
 func _resolve_character_portrait(char_dict: Dictionary, explicit_avatar_path: String = "") -> Texture2D:
 	if not explicit_avatar_path.is_empty() and FileAccess.file_exists(explicit_avatar_path):
@@ -601,9 +470,8 @@ func _resolve_character_portrait(char_dict: Dictionary, explicit_avatar_path: St
 
 	return null
 
-
 func _build_bonds_tab(row_h: float) -> void:
-	var is_mob: bool = _is_mobile()
+	var is_mob: bool = is_mobile()
 
 	var scroll: ScrollContainer = ScrollContainer.new()
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -685,9 +553,8 @@ func _build_bonds_tab(row_h: float) -> void:
 	feelings_vbox.add_theme_constant_override("separation", 6)
 	main_content.add_child(feelings_vbox)
 
-
 func _add_family_row(target_name: String, relation_type: String, notes: String, row_h: float) -> void:
-	var is_mob: bool = _is_mobile()
+	var is_mob: bool = is_mobile()
 	var card: PanelContainer = _create_card_container()
 	var vbox: VBoxContainer = VBoxContainer.new()
 	vbox.add_theme_constant_override("separation", 4)
@@ -736,16 +603,13 @@ func _add_family_row(target_name: String, relation_type: String, notes: String, 
 	notes_edit.text = notes.strip_edges()
 	notes_edit.placeholder_text = "Marriage date, adoption details, or family notes..."
 	notes_edit.custom_minimum_size = Vector2(0.0, row_h)
-	if is_mob:
-		notes_edit.focus_entered.connect(_on_input_focus_entered)
-		notes_edit.focus_exited.connect(_on_input_focus_exited)
+	register_keyboard_dodge(notes_edit)
 	vbox.add_child(notes_edit)
 
 	family_vbox.add_child(card)
 
-
 func _add_feeling_row(target_name: String, relation_type: String, notes: String, row_h: float) -> void:
-	var is_mob: bool = _is_mobile()
+	var is_mob: bool = is_mobile()
 	var card: PanelContainer = _create_card_container()
 	var vbox: VBoxContainer = VBoxContainer.new()
 	vbox.add_theme_constant_override("separation", 4)
@@ -794,20 +658,16 @@ func _add_feeling_row(target_name: String, relation_type: String, notes: String,
 	notes_edit.text = notes.strip_edges()
 	notes_edit.placeholder_text = "Why they feel this way, history of rivalries, or secret feelings..."
 	notes_edit.custom_minimum_size = Vector2(0.0, row_h)
-	if is_mob:
-		notes_edit.focus_entered.connect(_on_input_focus_entered)
-		notes_edit.focus_exited.connect(_on_input_focus_exited)
+	register_keyboard_dodge(notes_edit)
 	vbox.add_child(notes_edit)
 
 	feelings_vbox.add_child(card)
-
 
 func _create_card_container() -> PanelContainer:
 	var card: PanelContainer = PanelContainer.new()
 	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	card.theme_type_variation = "SubPanel"
 	return card
-
 
 func _enforce_dropdown_popup_limits(opt_btn: OptionButton, max_height: int = 200) -> void:
 	if not is_instance_valid(opt_btn): return
@@ -816,12 +676,11 @@ func _enforce_dropdown_popup_limits(opt_btn: OptionButton, max_height: int = 200
 		pop.max_size = Vector2i(4000, max_height)
 		pop.about_to_popup.connect(func() -> void: pop.max_size = Vector2i(4000, max_height))
 
-
 func _build_notes_tab() -> void:
 	var lbl_lore: Label = Label.new()
 	lbl_lore.text = "Backstory, Personality & Story Notes:"
 	lbl_lore.theme_type_variation = "HintLabel"
-	lbl_lore.add_theme_font_size_override("font_size", 11 if _is_mobile() else 10)
+	lbl_lore.add_theme_font_size_override("font_size", 11 if is_mobile() else 10)
 	tab_notes_container.add_child(lbl_lore)
 
 	lore_text_edit = TextEdit.new()
@@ -830,28 +689,24 @@ func _build_notes_tab() -> void:
 	lore_text_edit.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	lore_text_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	lore_text_edit.custom_minimum_size = Vector2(0.0, 160.0)
+	register_keyboard_dodge(lore_text_edit)
 	tab_notes_container.add_child(lore_text_edit)
-
 
 func open_card(entity: OwnEntity) -> void:
 	if not is_instance_valid(entity): return
 	active_entity = entity
 	fallback_char_dict = {}
-	_update_responsive_layout()
-	_apply_theme_styling()
 	_populate_from_data(entity.display_name, entity.custom_fields)
-
+	open_dialog()
 
 func open_card_for_character_dict(char_dict: Dictionary) -> void:
 	active_entity = null
 	fallback_char_dict = char_dict.duplicate(true)
-	_update_responsive_layout()
-	_apply_theme_styling()
 	_populate_from_data(str(char_dict.get("display_name", "Character")), char_dict.get("custom_fields", {}))
-
+	open_dialog()
 
 func _populate_from_data(char_name: String, fields: Dictionary) -> void:
-	var row_h: float = 34.0 if _is_mobile() else 28.0
+	var row_h: float = 34.0 if is_mobile() else 28.0
 
 	name_edit.text = char_name.strip_edges()
 	pronouns_edit.text = str(fields.get("pronouns", "")).strip_edges()
@@ -889,8 +744,9 @@ func _populate_from_data(char_name: String, fields: Dictionary) -> void:
 			_add_feeling_row(str(e_dict.get("target_name", "")), str(e_dict.get("relation_type", "Friend / Ally")), str(e_dict.get("notes", "")), row_h)
 
 	_switch_tab(CardTab.PROFILE)
-	visible = true
 
+func _on_close_requested() -> void:
+	save_and_close()
 
 func save_and_close() -> void:
 	var new_char_name: String = name_edit.text.strip_edges()
@@ -947,7 +803,6 @@ func save_and_close() -> void:
 	active_entity = null
 	fallback_char_dict = {}
 
-
 func _scrape_bond_cards(vbox_container: VBoxContainer, fallback_rel: String) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for card: Node in vbox_container.get_children():
@@ -965,7 +820,6 @@ func _scrape_bond_cards(vbox_container: VBoxContainer, fallback_rel: String) -> 
 					var b_notes: String = notes_edit_node.text.strip_edges() if notes_edit_node else ""
 					result.append({"target_name": tgt_name, "relation_type": rel_name, "notes": b_notes})
 	return result
-
 
 func _enforce_symmetrical_family(source_name: String, current_family: Array[Dictionary], old_family: Array[Dictionary]) -> void:
 	var all_chars: Array[Dictionary] = GameManager.get_all_universe_character_data()
@@ -1020,7 +874,6 @@ func _enforce_symmetrical_family(source_name: String, current_family: Array[Dict
 			tgt["custom_fields"] = c_fields
 			SaveSystem.update_character_data_in_cast(tgt)
 
-
 func _get_reciprocal_family_role(rel_type: String) -> String:
 	match rel_type:
 		"Parent (Biological)": return "Child (Biological)"
@@ -1034,7 +887,6 @@ func _get_reciprocal_family_role(rel_type: String) -> String:
 		"Ex-Partner / Divorced": return "Ex-Partner / Divorced"
 		"Separated": return "Separated"
 	return "Sibling"
-
 
 func _sync_directional_feelings(source_name: String, current_feelings: Array[Dictionary], old_feelings: Array[Dictionary]) -> void:
 	var all_chars: Array[Dictionary] = GameManager.get_all_universe_character_data()
@@ -1087,7 +939,6 @@ func _sync_directional_feelings(source_name: String, current_feelings: Array[Dic
 				tgt["custom_fields"] = c_fields
 				SaveSystem.update_character_data_in_cast(tgt)
 
-
 func _on_open_journal_from_card() -> void:
 	save_and_close()
 	var main_loop: MainLoop = Engine.get_main_loop()
@@ -1097,7 +948,6 @@ func _on_open_journal_from_card() -> void:
 			var existing: CanvasLayer = root.find_child("UniverseJournalDialog", true, false) as CanvasLayer
 			if existing and is_instance_valid(existing) and existing.has_method("open_journal"):
 				existing.call("open_journal")
-
 
 func _get_universe_character_names() -> Array[String]:
 	var result: Array[String] = []
@@ -1111,8 +961,3 @@ func _get_universe_character_names() -> Array[String]:
 
 	result.sort()
 	return result
-
-
-func _on_backdrop_gui_input(event: InputEvent) -> void:
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		save_and_close()

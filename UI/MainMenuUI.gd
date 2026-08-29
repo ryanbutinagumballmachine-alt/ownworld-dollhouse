@@ -1,22 +1,11 @@
 # ==============================================================================
-# OWNWORLD — MAIN MENU UI (LANDSCAPE TWO-COLUMN DUAL-OS LAYOUT)
+# OWNWORLD — MAIN MENU UI (HYPER OPTIMIZED)
 # File: res://UI/MainMenuUI.gd
-# Base Class: CanvasLayer (class_name MainMenuUI)
-#
-# Responsibility: Master application launcher. Features a landscape-optimized
-# two-column grid layout, touch-friendly 44px buttons, version polling, and PC Esc handling.
+# Base Class: HyperUIDialog
 # ==============================================================================
 
 class_name MainMenuUI
-extends CanvasLayer
-
-const MAX_PANEL_WIDTH: float = 620.0
-const MAX_PANEL_HEIGHT: float = 560.0
-
-var root_backdrop: Control = null
-var bg_dim: ColorRect = null
-var center_container: CenterContainer = null
-var root_panel: PanelContainer = null
+extends HyperUIDialog
 
 var title_lbl: Label = null
 var sub_lbl: Label = null
@@ -37,83 +26,14 @@ signal open_theme_studio_requested()
 signal open_settings_requested()
 signal open_tutorial_requested()
 
+func _init() -> void:
+	max_panel_width = 620.0
+	max_panel_height = 560.0
 
-func _ready() -> void:
+func _build_content() -> void:
 	name = "MainMenuUI"
-	layer = 115
-	visible = false
-	add_to_group("modal_ui")
-	_build_ui()
-	_connect_system_signals()
-	_update_responsive_layout()
-	_apply_theme()
-
-
-func _is_mobile() -> bool:
-	return ThemeEngine.is_mobile_platform()
-
-
-func _connect_system_signals() -> void:
-	var tree: SceneTree = get_tree()
-	if tree != null and tree.root != null and not tree.root.size_changed.is_connected(_update_responsive_layout):
-		tree.root.size_changed.connect(_update_responsive_layout)
-	if not EventBus.theme_changed.is_connected(_on_theme_changed):
-		EventBus.theme_changed.connect(_on_theme_changed)
-
-
-func _on_theme_changed(_theme_data: Dictionary) -> void:
-	_apply_theme()
-
-
-func _unhandled_input(event: InputEvent) -> void:
-	if not visible:
-		return
-	if event is InputEventKey and event.pressed and not event.echo:
-		if event.keycode == KEY_ESCAPE:
-			close_menu()
-			get_viewport().set_input_as_handled()
-
-
-func _update_responsive_layout() -> void:
-	if not is_instance_valid(root_panel): return
-	var viewport: Viewport = get_viewport()
-	var viewport_size: Vector2 = viewport.get_visible_rect().size if viewport != null else Vector2(1280.0, 720.0)
-	var is_mob: bool = _is_mobile()
-
-	var target_width: float = clampf(viewport_size.x * 0.92, 320.0, MAX_PANEL_WIDTH)
-	var target_height: float = clampf(viewport_size.y * (0.92 if is_mob else 0.86), 300.0, MAX_PANEL_HEIGHT)
-	root_panel.custom_minimum_size = Vector2(target_width, target_height)
-	root_panel.size = Vector2(target_width, target_height)
-
-	# In landscape, 2 columns keeps menu items within easy reach of both thumbs
-	if menu_grid != null:
-		menu_grid.columns = 2 if target_width >= 420.0 else 1
-
-
-func _build_ui() -> void:
-	var is_mob: bool = _is_mobile()
+	var is_mob: bool = is_mobile()
 	var btn_h: float = 42.0 if is_mob else 34.0
-
-	root_backdrop = Control.new()
-	root_backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
-	root_backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
-	root_backdrop.gui_input.connect(_on_backdrop_gui_input)
-	add_child(root_backdrop)
-
-	bg_dim = ColorRect.new()
-	bg_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	bg_dim.color = Color(0.0, 0.0, 0.0, 0.65)
-	bg_dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root_backdrop.add_child(bg_dim)
-
-	center_container = CenterContainer.new()
-	center_container.set_anchors_preset(Control.PRESET_FULL_RECT)
-	center_container.mouse_filter = Control.MOUSE_FILTER_PASS
-	root_backdrop.add_child(center_container)
-
-	root_panel = PanelContainer.new()
-	root_panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	center_container.add_child(root_panel)
 
 	var main_vbox: VBoxContainer = VBoxContainer.new()
 	main_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -242,23 +162,29 @@ func _build_ui() -> void:
 	btn_quit.focus_mode = Control.FOCUS_NONE
 	btn_quit.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	btn_quit.add_theme_constant_override("icon_max_width", 18 if is_mob else 16)
-	var quit_icon: Texture2D = ThemeService.get_icon("icon_quit")
-	if quit_icon != null: 
-		btn_quit.icon = quit_icon
+	apply_button_icon(btn_quit, "icon_quit")
 	btn_quit.pressed.connect(_on_quit_pressed)
 	main_vbox.add_child(btn_quit)
 
+func _unhandled_input(event: InputEvent) -> void:
+	if not visible:
+		return
+	if event is InputEventKey and event.pressed and not event.echo:
+		if event.keycode == KEY_ESCAPE:
+			close_menu()
+			get_viewport().set_input_as_handled()
+
+func _update_responsive_layout() -> void:
+	super._update_responsive_layout()
+	if menu_grid != null and root_panel != null:
+		menu_grid.columns = 2 if root_panel.size.x >= 420.0 else 1
 
 func open_menu() -> void:
-	_apply_theme()
 	_update_story_info_display()
-	_update_responsive_layout()
-	visible = true
-
+	open_dialog()
 
 func close_menu() -> void:
-	visible = false
-
+	close_dialog()
 
 func _update_story_info_display() -> void:
 	if universe_info_lbl == null: 
@@ -268,9 +194,8 @@ func _update_story_info_display() -> void:
 		AppState.room_id
 	]
 
-
 func _add_menu_btn(parent: GridContainer, btn_text: String, icon_key: String, btn_h: float, on_pressed: Callable) -> void:
-	var is_mob: bool = _is_mobile()
+	var is_mob: bool = is_mobile()
 	var btn: Button = Button.new()
 	btn.text = " " + btn_text
 	btn.custom_minimum_size = Vector2(0.0, btn_h)
@@ -279,23 +204,12 @@ func _add_menu_btn(parent: GridContainer, btn_text: String, icon_key: String, bt
 	btn.alignment = HORIZONTAL_ALIGNMENT_LEFT
 	btn.add_theme_constant_override("icon_max_width", 18 if is_mob else 14)
 	btn.add_theme_font_size_override("font_size", 12 if is_mob else 11)
-
-	var icon_texture: Texture2D = ThemeService.get_icon(icon_key)
-	if icon_texture != null:
-		btn.icon = icon_texture
-		btn.expand_icon = false
-
+	apply_button_icon(btn, icon_key)
 	btn.pressed.connect(on_pressed)
 	parent.add_child(btn)
 
-
-func _apply_theme() -> void:
-	if root_backdrop:
-		root_backdrop.theme = ThemeService.create_theme()
-
-	if btn_quit != null:
-		btn_quit.icon = ThemeService.get_icon("icon_quit")
-
+func _on_theme_updated() -> void:
+	apply_button_icon(btn_quit, "icon_quit")
 	if menu_grid == null: 
 		return
 	var buttons: Array[Button] = []
@@ -309,8 +223,7 @@ func _apply_theme() -> void:
 	]
 	var count: int = mini(buttons.size(), icon_keys.size())
 	for index: int in range(count):
-		buttons[index].icon = ThemeService.get_icon(icon_keys[index])
-
+		apply_button_icon(buttons[index], icon_keys[index])
 
 func _on_quit_pressed() -> void:
 	var tree: SceneTree = get_tree()
@@ -318,8 +231,3 @@ func _on_quit_pressed() -> void:
 		return
 	tree.root.propagate_notification(NOTIFICATION_WM_CLOSE_REQUEST)
 	tree.quit()
-
-
-func _on_backdrop_gui_input(event: InputEvent) -> void:
-	if (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT) or (event is InputEventScreenTouch and event.pressed):
-		close_menu()

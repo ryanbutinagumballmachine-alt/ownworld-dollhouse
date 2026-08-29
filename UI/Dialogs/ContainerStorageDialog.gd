@@ -1,21 +1,11 @@
 # ==============================================================================
-# OWNWORLD — CONTAINER STORAGE DIALOG (RESPONSIVE TOUCH UNPACKING)
+# OWNWORLD — CONTAINER STORAGE DIALOG (HYPER OPTIMIZED)
 # File: res://UI/Dialogs/ContainerStorageDialog.gd
-# Base Class: CanvasLayer (class_name ContainerStorageDialog)
-#
-# Responsibility: Inventory storage popup. Displays stored props inside bags,
-# chests, and drawers, allowing single-tap unpacking into the active room.
+# Base Class: HyperUIDialog
 # ==============================================================================
 
 class_name ContainerStorageDialog
-extends CanvasLayer
-
-const MAX_PANEL_WIDTH: float = 520.0
-const MAX_PANEL_HEIGHT: float = 280.0
-
-var root_backdrop: Control = null
-var center_container: CenterContainer = null
-var root_panel: PanelContainer = null
+extends HyperUIDialog
 
 var active_container_entity: OwnEntity = null
 var title_lbl: Label = null
@@ -25,63 +15,13 @@ var items_grid: HBoxContainer = null
 
 signal item_unpacked_requested(item_data: Dictionary, container_ent: OwnEntity)
 
+func _init() -> void:
+	max_panel_width = 520.0
+	max_panel_height = 280.0
 
-func _ready() -> void:
+func _build_content() -> void:
 	name = "ContainerStorageDialog"
-	layer = 120
-	visible = false
-	add_to_group("modal_ui")
-	_build_ui()
-	_connect_system_signals()
-	_apply_theme_styling()
-	_update_responsive_layout()
-
-
-func _is_mobile() -> bool:
-	return ThemeEngine.is_mobile_platform()
-
-
-func _connect_system_signals() -> void:
-	var tree: SceneTree = get_tree()
-	if tree != null and tree.root != null and not tree.root.size_changed.is_connected(_update_responsive_layout):
-		tree.root.size_changed.connect(_update_responsive_layout)
-	if not EventBus.theme_changed.is_connected(_on_theme_changed):
-		EventBus.theme_changed.connect(_on_theme_changed)
-
-
-func _update_responsive_layout() -> void:
-	if not is_instance_valid(root_panel): return
-	var viewport_size: Vector2 = get_viewport().get_visible_rect().size if get_viewport() else Vector2(1280.0, 720.0)
-	var is_mob: bool = _is_mobile()
-
-	var target_width: float = clampf(viewport_size.x * 0.92, 300.0, MAX_PANEL_WIDTH)
-	var target_height: float = clampf(viewport_size.y * (0.50 if is_mob else 0.42), 220.0, MAX_PANEL_HEIGHT)
-	root_panel.custom_minimum_size = Vector2(target_width, target_height)
-	root_panel.size = Vector2(target_width, target_height)
-
-
-func _build_ui() -> void:
-	root_backdrop = Control.new()
-	root_backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
-	root_backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
-	root_backdrop.gui_input.connect(_on_backdrop_gui_input)
-	add_child(root_backdrop)
-
-	var background_dim: ColorRect = ColorRect.new()
-	background_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	background_dim.color = Color(0.0, 0.0, 0.0, 0.65)
-	background_dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root_backdrop.add_child(background_dim)
-
-	center_container = CenterContainer.new()
-	center_container.set_anchors_preset(Control.PRESET_FULL_RECT)
-	center_container.mouse_filter = Control.MOUSE_FILTER_PASS
-	root_backdrop.add_child(center_container)
-
-	root_panel = PanelContainer.new()
-	root_panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	center_container.add_child(root_panel)
-
+	
 	var vbox: VBoxContainer = VBoxContainer.new()
 	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -95,15 +35,15 @@ func _build_ui() -> void:
 	title_lbl.text = "Storage Inventory"
 	title_lbl.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	title_lbl.theme_type_variation = "HeaderLabel"
-	title_lbl.add_theme_font_size_override("font_size", 14 if _is_mobile() else 12)
+	title_lbl.add_theme_font_size_override("font_size", 14 if is_mobile() else 12)
 	header_hbox.add_child(title_lbl)
 
 	btn_close = Button.new()
-	btn_close.custom_minimum_size = Vector2(28.0 if _is_mobile() else 22.0, 28.0 if _is_mobile() else 22.0)
+	btn_close.custom_minimum_size = Vector2(28.0 if is_mobile() else 22.0, 28.0 if is_mobile() else 22.0)
 	btn_close.focus_mode = Control.FOCUS_NONE
 	btn_close.add_theme_constant_override("icon_max_width", 12)
-	_apply_close_icon(btn_close)
-	btn_close.pressed.connect(close_dialog)
+	apply_close_icon(btn_close)
+	btn_close.pressed.connect(_on_close_requested)
 	header_hbox.add_child(btn_close)
 
 	vbox.add_child(HSeparator.new())
@@ -111,7 +51,7 @@ func _build_ui() -> void:
 	hint_lbl = Label.new()
 	hint_lbl.text = "Tap any item below to unpack it into the room:"
 	hint_lbl.theme_type_variation = "HintLabel"
-	hint_lbl.add_theme_font_size_override("font_size", 11 if _is_mobile() else 10)
+	hint_lbl.add_theme_font_size_override("font_size", 11 if is_mobile() else 10)
 	vbox.add_child(hint_lbl)
 
 	var scroll: ScrollContainer = ScrollContainer.new()
@@ -127,12 +67,10 @@ func _build_ui() -> void:
 	items_grid.add_theme_constant_override("separation", 10)
 	scroll.add_child(items_grid)
 
-
-func _on_theme_changed(_theme_data: Dictionary) -> void:
+func _on_theme_updated() -> void:
 	_apply_theme_styling()
 	if active_container_entity != null and is_instance_valid(active_container_entity):
 		_render_stored_items()
-
 
 func _apply_theme_styling() -> void:
 	if root_panel == null: return
@@ -174,32 +112,28 @@ func _apply_theme_styling() -> void:
 		button_hover_style.border_color = accent_color
 		btn_close.add_theme_stylebox_override("hover", button_hover_style)
 		btn_close.add_theme_color_override("font_color", text_primary)
-		_apply_close_icon(btn_close)
-
+		apply_close_icon(btn_close)
 
 func open_for_container(container_ent: OwnEntity) -> void:
 	if not is_instance_valid(container_ent) or not container_ent.is_container:
 		return
 	active_container_entity = container_ent
 	title_lbl.text = "Storage: " + container_ent.display_name
-	_update_responsive_layout()
 	_render_stored_items()
 	_apply_theme_styling()
-	visible = true
+	open_dialog()
 	AudioManager.play_pop_grab()
 
-
-func close_dialog() -> void:
-	visible = false
+func _on_close_requested() -> void:
 	active_container_entity = null
-
+	super._on_close_requested()
 
 func _render_stored_items() -> void:
 	if items_grid == null: return
 	for child: Node in items_grid.get_children():
 		child.queue_free()
 
-	var is_mob: bool = _is_mobile()
+	var is_mob: bool = is_mobile()
 	var btn_size: float = 84.0 if is_mob else 70.0
 
 	var container_background: Color = ThemeService.get_color("container_sub_bg", "#fdf2f4")
@@ -261,7 +195,6 @@ func _render_stored_items() -> void:
 		button.pressed.connect(func() -> void: _unpack_item(captured_index, captured_data))
 		items_grid.add_child(button)
 
-
 func _unpack_item(index: int, item_data: Dictionary) -> void:
 	if active_container_entity == null or not is_instance_valid(active_container_entity):
 		return
@@ -272,15 +205,3 @@ func _unpack_item(index: int, item_data: Dictionary) -> void:
 	item_unpacked_requested.emit(item_data, active_container_entity)
 	EventBus.entity_state_changed.emit(active_container_entity.entity_id)
 	_render_stored_items()
-
-
-func _on_backdrop_gui_input(event: InputEvent) -> void:
-	if (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT) or (event is InputEventScreenTouch and event.pressed):
-		close_dialog()
-
-
-func _apply_close_icon(button: Button) -> void:
-	if button == null: return
-	var close_icon: Texture2D = ThemeService.get_icon("icon_close")
-	if close_icon != null: button.icon = close_icon
-	else: button.text = "✕"

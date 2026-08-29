@@ -1,29 +1,27 @@
 # ==============================================================================
-# OWNWORLD — MAIN APPLICATION ORCHESTRATOR (CROSS-PLATFORM GESTURE & LIFECYCLE)
+# OWNWORLD — MAIN APPLICATION ORCHESTRATOR (HYPER OPTIMIZED)
 # File: res://Core/Main.gd
 # Base Class: Node2D
 #
 # Responsibility: Master runtime scene orchestrator. Coordinates multi-slice
-# room rendering, touch/mouse gesture isolation, live physics solver ticks,
-# smooth room transitions, safe area layout insets, and OS back gestures.
+# room rendering, smooth room transitions, safe area layout insets, and OS back gestures.
+# Input handling is fully delegated to HyperInputRouter.
 # ==============================================================================
 
 extends Node2D
 
 const BASE_ROOM_SIZE: Vector2 = Vector2(1280.0, 720.0)
 
-var TAP_PIXEL_THRESHOLD: float = 24.0 if (OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios")) else 12.0
-
 var room_slices: Array[Dictionary] = [{
 	"wallpaper_path": "", "fill_mode": "cover", "is_outdoor": false,
 	"wall_color": "", "floor_color": "", "baseboard_color": ""
 }]
 var room_bounds: Rect2 = Rect2(Vector2.ZERO, BASE_ROOM_SIZE)
+var current_room_floor_y: float = 580.0
+var current_room_title: String = "Main Room"
+var current_room_floor_level: String = "1F"
 var current_building_id: String = "building_main"
 var current_building_name: String = "Main Building"
-var current_room_floor_level: String = "1F"
-var current_room_title: String = "Main Room"
-var current_room_floor_y: float = 580.0
 
 var world_canvas: Node2D = null
 var room_default_bg: ColorRect = null
@@ -64,25 +62,11 @@ var diagnostic_overlay: DiagnosticOverlay = null
 var drawer_tray_ui: DrawerTray = null
 var top_nav_bar: TopNavBar = null
 
+var interaction_router: EntityInteractionRouter = null
+var interaction_controller: WorldInteractionController = null
+
 var all_entities: Array[OwnEntity] = []
-var pressed_target_entity: OwnEntity = null
-var active_dragged_entity: OwnEntity = null
-
-var drag_offset: Vector2 = Vector2.ZERO
-var press_start_world_pos: Vector2 = Vector2.ZERO
-var press_start_screen_pos: Vector2 = Vector2.ZERO
-var current_pointer_screen_pos: Vector2 = Vector2.ZERO
-var current_pointer_world_pos: Vector2 = Vector2.ZERO
-
-var press_start_time: float = 0.0
-var is_pointer_down: bool = false
-var long_press_triggered: bool = false
-var has_drag_moved_past_threshold: bool = false
 var is_room_loaded: bool = false
-
-var _active_touches: Dictionary = {}
-var _ui_touch_indices: Dictionary = {}
-var active_touch_index: int = -1
 
 
 func _ready() -> void:
@@ -119,8 +103,7 @@ func _ensure_ugc_directories() -> void:
 
 func _enforce_cross_platform_viewport() -> void:
 	var win: Window = get_window()
-	if win == null:
-		return
+	if win == null: return
 	win.content_scale_mode = Window.CONTENT_SCALE_MODE_CANVAS_ITEMS
 	win.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_EXPAND
 	win.content_scale_stretch = Window.CONTENT_SCALE_STRETCH_FRACTIONAL
@@ -167,17 +150,11 @@ func _notification(what: int) -> void:
 	elif what == NOTIFICATION_WM_CLOSE_REQUEST:
 		SaveSystem.save_current_room_state()
 		AppState.save_session_to_disk()
-		if drawer_tray_ui != null: 
-			drawer_tray_ui.save_cast_tray_for_current_universe()
-		if world_map_screen != null: 
-			world_map_screen.save_map_for_current_universe()
+		if drawer_tray_ui != null: drawer_tray_ui.save_cast_tray_for_current_universe()
+		if world_map_screen != null: world_map_screen.save_map_for_current_universe()
 	elif what == NOTIFICATION_APPLICATION_PAUSED or what == NOTIFICATION_WM_WINDOW_FOCUS_OUT or what == NOTIFICATION_APPLICATION_FOCUS_OUT:
-		_cancel_active_drag()
-		_active_touches.clear()
-		_ui_touch_indices.clear()
-		active_touch_index = -1
-		if main_camera != null and is_instance_valid(main_camera):
-			main_camera.reset_touch_state()
+		if HyperInputRouter.has_method("_cancel_drag"):
+			HyperInputRouter.call("_cancel_drag")
 		if is_room_loaded:
 			SaveSystem.save_current_room_state()
 		AppState.save_session_to_disk()
@@ -243,7 +220,13 @@ func _mount_subsystems() -> void:
 	main_camera = TouchCameraController.new()
 	add_child(main_camera)
 
-	# Dedicated Cross-Fade Overlay
+	interaction_router = EntityInteractionRouter.new()
+	add_child(interaction_router)
+
+	interaction_controller = WorldInteractionController.new()
+	interaction_controller.setup(world_canvas, interaction_router, all_entities)
+	add_child(interaction_controller)
+
 	transition_layer = CanvasLayer.new()
 	transition_layer.name = "RoomTransitionCanvas"
 	transition_layer.layer = 127
@@ -358,10 +341,12 @@ func _mount_subsystems() -> void:
 			if tutorial_dialog != null: tutorial_dialog.open_handbook()
 		)
 
+	if HyperInputRouter.has_method("register_controllers"):
+		HyperInputRouter.register_controllers(interaction_controller, main_camera, magic_wheel_ui, drawer_tray_ui, top_nav_bar)
+
 
 func _toggle_camera_zoom_mode() -> void:
-	if main_camera == null: 
-		return
+	if main_camera == null: return
 	var is_active: bool = main_camera.toggle_zoom_mode()
 	if top_nav_bar != null:
 		top_nav_bar.set_zoom_button_state(is_active)
@@ -429,8 +414,7 @@ func _apply_room_slices(slices_data: Array[Dictionary]) -> void:
 
 	room_bounds = Rect2(0.0, 0.0, total_width, slice_h)
 
-	if room_slices_container == null: 
-		return
+	if room_slices_container == null: return
 	for child: Node in room_slices_container.get_children():
 		child.queue_free()
 
@@ -468,7 +452,6 @@ func _apply_room_slices(slices_data: Array[Dictionary]) -> void:
 			var slice_floor_color: Color = Color(custom_floor_str) if not custom_floor_str.is_empty() else (default_sub.darkened(0.20) if is_odd_slice else default_sub.darkened(0.12))
 			var slice_trim_color: Color = Color(custom_trim_str) if not custom_trim_str.is_empty() else (default_border.darkened(0.15) if is_odd_slice else default_border.darkened(0.08))
 
-			# 1. Upper Wall
 			var wall_rect: ColorRect = ColorRect.new()
 			wall_rect.name = "Wall"
 			wall_rect.color = slice_wall_color
@@ -477,7 +460,6 @@ func _apply_room_slices(slices_data: Array[Dictionary]) -> void:
 			wall_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			slice_node.add_child(wall_rect)
 
-			# 2. Baseboard Trim
 			var baseboard_rect: ColorRect = ColorRect.new()
 			baseboard_rect.name = "Baseboard"
 			baseboard_rect.color = slice_trim_color
@@ -486,7 +468,6 @@ func _apply_room_slices(slices_data: Array[Dictionary]) -> void:
 			baseboard_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			slice_node.add_child(baseboard_rect)
 
-			# 3. Lower Floor
 			var floor_rect: ColorRect = ColorRect.new()
 			floor_rect.name = "Floor"
 			floor_rect.color = slice_floor_color
@@ -495,7 +476,6 @@ func _apply_room_slices(slices_data: Array[Dictionary]) -> void:
 			floor_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
 			slice_node.add_child(floor_rect)
 
-		# 4. Vertical Divider Seam
 		if i > 0:
 			var seam_line: ColorRect = ColorRect.new()
 			seam_line.name = "SliceDividerSeam"
@@ -509,6 +489,8 @@ func _apply_room_slices(slices_data: Array[Dictionary]) -> void:
 
 	if main_camera != null:
 		main_camera.update_room_bounds(room_bounds)
+	if interaction_controller != null:
+		interaction_controller.room_bounds = room_bounds
 
 	if atmosphere != null:
 		atmosphere.configure_weather_slices(room_slices, slice_w)
@@ -517,8 +499,7 @@ func _apply_room_slices(slices_data: Array[Dictionary]) -> void:
 func _apply_slice_sprite_scaling(sprite: Sprite2D, texture: Texture2D, fill_mode: String, slice_w: float, slice_h: float) -> void:
 	var tw: float = float(texture.get_width())
 	var th: float = float(texture.get_height())
-	if tw <= 0.0 or th <= 0.0: 
-		return
+	if tw <= 0.0 or th <= 0.0: return
 
 	match fill_mode:
 		"cover":
@@ -556,606 +537,6 @@ func _apply_slice_sprite_scaling(sprite: Sprite2D, texture: Texture2D, fill_mode
 			sprite.scale = Vector2.ONE
 
 
-func _screen_to_world(screen_pos: Vector2) -> Vector2:
-	if main_camera != null and is_instance_valid(main_camera):
-		var viewport_size: Vector2 = get_viewport_rect().size
-		var cam_zoom: float = maxf(main_camera.zoom.x, 0.001)
-		return main_camera.position + (screen_pos - (viewport_size * 0.5)) / cam_zoom
-	return get_viewport().get_canvas_transform().affine_inverse() * screen_pos
-
-
-func _is_any_modal_open() -> bool:
-	for ui: Node in get_tree().get_nodes_in_group("modal_ui"):
-		if not is_instance_valid(ui): 
-			continue
-		if ui is CanvasLayer and (ui as CanvasLayer).visible: 
-			return true
-		elif ui is Control and (ui as Control).visible: 
-			return true
-		elif ui is Window and (ui as Window).visible: 
-			return true
-	return false
-
-
-# --- INPUT HANDLING WITH TOUCH/MOUSE ISOLATION ---
-
-func _input(event: InputEvent) -> void:
-	if is_transitioning_room:
-		return
-
-	if event is InputEventScreenTouch:
-		var screen_touch: InputEventScreenTouch = event as InputEventScreenTouch
-		var touch_idx: int = screen_touch.index
-		var touch_screen_pos: Vector2 = screen_touch.position
-		var touch_world_pos: Vector2 = _screen_to_world(touch_screen_pos)
-
-		current_pointer_screen_pos = touch_screen_pos
-		current_pointer_world_pos = touch_world_pos
-
-		if screen_touch.pressed:
-			_active_touches[touch_idx] = touch_screen_pos
-			var is_ui_touch: bool = _is_any_modal_open()
-			if not is_ui_touch:
-				if drawer_tray_ui != null and drawer_tray_ui.is_point_inside_drawer(touch_screen_pos):
-					is_ui_touch = true
-				elif top_nav_bar != null and top_nav_bar.is_point_inside_nav(touch_screen_pos):
-					is_ui_touch = true
-
-			if is_ui_touch:
-				_ui_touch_indices[touch_idx] = true
-				if _active_touches.size() >= 2: 
-					_cancel_active_drag()
-			else:
-				_ui_touch_indices.erase(touch_idx)
-				if _active_touches.size() == 1:
-					active_touch_index = touch_idx
-					_handle_press_begin(touch_world_pos, touch_screen_pos)
-				elif _active_touches.size() >= 2:
-					_cancel_active_drag()
-
-		else:
-			_active_touches.erase(touch_idx)
-			var was_ui_touch: bool = _ui_touch_indices.has(touch_idx)
-			_ui_touch_indices.erase(touch_idx)
-
-			if not was_ui_touch:
-				if touch_idx == active_touch_index or _active_touches.is_empty():
-					_handle_press_end(touch_world_pos)
-					active_touch_index = -1
-
-		if main_camera != null and is_instance_valid(main_camera):
-			main_camera.handle_external_touch(screen_touch)
-
-	elif event is InputEventScreenDrag:
-		var screen_drag: InputEventScreenDrag = event as InputEventScreenDrag
-		var touch_idx: int = screen_drag.index
-		_active_touches[touch_idx] = screen_drag.position
-
-		if not _ui_touch_indices.has(touch_idx) and _active_touches.size() == 1 and touch_idx == active_touch_index:
-			current_pointer_screen_pos = screen_drag.position
-			current_pointer_world_pos = _screen_to_world(screen_drag.position)
-
-			if press_start_screen_pos.distance_to(current_pointer_screen_pos) > TAP_PIXEL_THRESHOLD:
-				has_drag_moved_past_threshold = true
-
-			if active_dragged_entity != null:
-				_update_active_drag_position(current_pointer_world_pos)
-			elif main_camera != null and main_camera.is_panning:
-				main_camera.update_drag_pan(screen_drag.position)
-
-		if main_camera != null and is_instance_valid(main_camera) and _active_touches.size() >= 2:
-			main_camera.handle_external_drag(screen_drag)
-
-	elif event is InputEventMouseButton:
-		if not _active_touches.is_empty():
-			return
-
-		var mouse_button: InputEventMouseButton = event as InputEventMouseButton
-		var mouse_screen_pos: Vector2 = mouse_button.position
-		var mouse_world_pos: Vector2 = _screen_to_world(mouse_screen_pos)
-
-		current_pointer_screen_pos = mouse_screen_pos
-		current_pointer_world_pos = mouse_world_pos
-
-		if mouse_button.button_index == MOUSE_BUTTON_LEFT:
-			if mouse_button.pressed:
-				var is_ui: bool = _is_any_modal_open()
-				if not is_ui:
-					if drawer_tray_ui != null and drawer_tray_ui.is_point_inside_drawer(mouse_screen_pos): is_ui = true
-					elif top_nav_bar != null and top_nav_bar.is_point_inside_nav(mouse_screen_pos): is_ui = true
-
-				if not is_ui and not is_pointer_down:
-					_handle_press_begin(mouse_world_pos, mouse_screen_pos)
-			else:
-				if is_pointer_down:
-					_handle_press_end(mouse_world_pos)
-
-		elif mouse_button.button_index == MOUSE_BUTTON_RIGHT and mouse_button.pressed:
-			if not _is_any_modal_open():
-				var clicked: OwnEntity = _get_topmost_at(mouse_world_pos)
-				if clicked != null:
-					_trigger_haptic(40)
-					if magic_wheel_ui != null:
-						magic_wheel_ui.open_wheel_for_entity(clicked, mouse_screen_pos)
-
-		elif mouse_button.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN, MOUSE_BUTTON_MIDDLE]:
-			if main_camera != null and is_instance_valid(main_camera):
-				main_camera.handle_unhandled_mouse(mouse_button)
-
-	elif event is InputEventMouseMotion:
-		if not _active_touches.is_empty():
-			return
-
-		var mouse_motion: InputEventMouseMotion = event as InputEventMouseMotion
-		current_pointer_screen_pos = mouse_motion.position
-		current_pointer_world_pos = _screen_to_world(mouse_motion.position)
-
-		if press_start_screen_pos.distance_to(current_pointer_screen_pos) > TAP_PIXEL_THRESHOLD:
-			has_drag_moved_past_threshold = true
-
-		if active_dragged_entity != null:
-			_update_active_drag_position(current_pointer_world_pos)
-		elif is_pointer_down and pressed_target_entity == null and main_camera != null and main_camera.is_panning:
-			main_camera.update_drag_pan(mouse_motion.position)
-
-	elif event is InputEventKey and event.pressed and not event.echo:
-		if event.keycode == KEY_Z and event.ctrl_pressed:
-			_on_undo_requested()
-			get_viewport().set_input_as_handled()
-		elif event.keycode == KEY_ESCAPE:
-			if not _is_any_modal_open() and main_menu_ui != null and not main_menu_ui.visible:
-				main_menu_ui.open_menu()
-				get_viewport().set_input_as_handled()
-
-
-func _process(delta: float) -> void:
-	if is_pointer_down and not long_press_triggered and pressed_target_entity != null and is_instance_valid(pressed_target_entity):
-		var elapsed: float = (Time.get_ticks_msec() / 1000.0) - press_start_time
-		var drag_dist: float = press_start_screen_pos.distance_to(current_pointer_screen_pos)
-		var long_press_threshold: float = SettingsManager.get_long_press_duration()
-
-		if not has_drag_moved_past_threshold and elapsed >= long_press_threshold and drag_dist <= TAP_PIXEL_THRESHOLD:
-			long_press_triggered = true
-			var target_to_open: OwnEntity = pressed_target_entity
-			_trigger_haptic(60)
-			if magic_wheel_ui != null:
-				magic_wheel_ui.open_wheel_for_entity(target_to_open, current_pointer_screen_pos)
-			_cancel_active_drag()
-			return
-
-	if active_dragged_entity != null and is_instance_valid(active_dragged_entity):
-		InteractionSolver.process_live_interactions(delta, active_dragged_entity, all_entities)
-
-
-func _update_active_drag_position(world_pointer_pos: Vector2) -> void:
-	if active_dragged_entity == null or not is_instance_valid(active_dragged_entity):
-		return
-
-	var target_pos: Vector2 = world_pointer_pos + drag_offset
-	if SettingsManager.is_grid_snap_enabled():
-		var grid_size: float = float(SettingsManager.get_grid_size())
-		target_pos = target_pos.snapped(Vector2(grid_size, grid_size))
-
-	var half_width: float = active_dragged_entity.get_visual_half_width()
-	var bottom_offset: float = active_dragged_entity.get_visual_bottom_offset()
-	var top_offset: float = active_dragged_entity.texture_size.y * 0.5 * active_dragged_entity.entity_scale
-
-	target_pos.x = clampf(target_pos.x, room_bounds.position.x + half_width, room_bounds.end.x - half_width)
-
-	if active_dragged_entity.is_wall_mounted:
-		var max_wall_y: float = current_room_floor_y - bottom_offset - 4.0
-		target_pos.y = clampf(target_pos.y, room_bounds.position.y + top_offset, maxf(room_bounds.position.y + top_offset, max_wall_y))
-	else:
-		target_pos.y = clampf(target_pos.y, room_bounds.position.y + top_offset, room_bounds.end.y - bottom_offset)
-
-	active_dragged_entity.global_position = target_pos
-
-
-func _update_active_process_state() -> void:
-	set_process(is_pointer_down or active_dragged_entity != null)
-
-
-func _handle_press_begin(world_pos: Vector2, screen_pos: Vector2) -> void:
-	if is_pointer_down: 
-		return
-
-	is_pointer_down = true
-	long_press_triggered = false
-	has_drag_moved_past_threshold = false
-	press_start_world_pos = world_pos
-	press_start_screen_pos = screen_pos
-	current_pointer_screen_pos = screen_pos
-	current_pointer_world_pos = world_pos
-	press_start_time = Time.get_ticks_msec() / 1000.0
-
-	var touch_padding: float = SettingsManager.get_touch_padding(not _active_touches.is_empty())
-	var topmost: OwnEntity = _get_topmost_at(world_pos, touch_padding)
-	pressed_target_entity = topmost
-
-	if topmost != null and not topmost.is_locked:
-		if topmost.parent_socket_entity != null:
-			topmost.detach_from_socket(world_canvas)
-
-		var root_ent: OwnEntity = _get_ysort_root_entity(topmost)
-		if root_ent.get_parent() == world_canvas:
-			world_canvas.move_child(root_ent, -1)
-
-		active_dragged_entity = topmost
-		drag_offset = active_dragged_entity.global_position - world_pos
-		active_dragged_entity.on_grab()
-		_trigger_haptic(25)
-		LogicEngine.evaluate_trigger(Types.TriggerEvent.ON_DRAG_STARTED, active_dragged_entity)
-		AudioManager.play_pop_grab()
-
-	elif topmost == null and main_camera != null:
-		main_camera.start_drag_pan(screen_pos)
-
-	_update_active_process_state()
-
-
-func _handle_press_end(_world_pos: Vector2) -> void:
-	if not is_pointer_down: 
-		return
-
-	is_pointer_down = false
-	if main_camera != null:
-		main_camera.end_drag_pan()
-
-	var released_target: OwnEntity = pressed_target_entity
-	pressed_target_entity = null
-
-	if long_press_triggered:
-		_update_active_process_state()
-		return
-
-	var elapsed_time: float = (Time.get_ticks_msec() / 1000.0) - press_start_time
-	var drag_dist: float = press_start_screen_pos.distance_to(current_pointer_screen_pos)
-	var hold_duration: float = SettingsManager.get_long_press_duration()
-	var is_quick_tap: bool = (drag_dist <= TAP_PIXEL_THRESHOLD) and (elapsed_time < hold_duration)
-
-	if active_dragged_entity == null:
-		if released_target != null and is_instance_valid(released_target) and is_quick_tap:
-			_handle_layer1_tap(released_target)
-		_update_active_process_state()
-		return
-
-	if is_instance_valid(active_dragged_entity):
-		var released: OwnEntity = active_dragged_entity
-		active_dragged_entity = null
-		released.on_drop()
-		LogicEngine.evaluate_trigger(Types.TriggerEvent.ON_DRAG_ENDED, released)
-		AudioManager.play_drop_cushion()
-
-		if is_quick_tap:
-			_handle_layer1_tap(released)
-		else:
-			# Portal / Stairs / Elevator Routing
-			if released.entity_type == Types.EntityType.CHARACTER:
-				for portal_ent: OwnEntity in all_entities:
-					if not is_instance_valid(portal_ent): 
-						continue
-					if portal_ent != released and portal_ent.is_portal and portal_ent.contains_point(released.global_position):
-						if portal_ent.is_stairs:
-							_handle_stairs_travel(portal_ent, released)
-							_update_active_process_state()
-							return
-						elif portal_ent.is_elevator:
-							_handle_elevator_interaction(portal_ent, released)
-							_update_active_process_state()
-							return
-						else:
-							var target_room: String = portal_ent.target_room_id
-							if not target_room.is_empty() and target_room != AppState.room_id:
-								var bundle: Array[Dictionary] = released.get_full_hierarchy_bundle()
-								_remove_hierarchy(released)
-								released.queue_free()
-								SaveSystem.save_current_room_state()
-								_transition_to_room(target_room, {"bundle": bundle, "source": "portal"})
-								_update_active_process_state()
-								return
-
-			if released.entity_type == Types.EntityType.PROP:
-				for container_ent: OwnEntity in all_entities:
-					if not is_instance_valid(container_ent): 
-						continue
-					if container_ent != released and container_ent.is_container and container_ent.contains_point(released.global_position):
-						all_entities.erase(released)
-						container_ent.pack_item_inside(released)
-						_trigger_haptic(45)
-						_record_history()
-						SaveSystem.save_current_room_state()
-						EventBus.notification_requested.emit("Packed into: " + container_ent.display_name, true)
-						_update_active_process_state()
-						return
-
-			if InteractionSolver.check_and_execute_crafting(released, all_entities, world_canvas):
-				_trigger_haptic(50)
-				_record_history()
-				SaveSystem.save_current_room_state()
-				_update_active_process_state()
-				return
-
-			var is_snapped: bool = SocketManager.evaluate_and_snap(released, all_entities)
-			if is_snapped and released.parent_socket_entity != null:
-				_trigger_haptic(35)
-				LogicEngine.evaluate_trigger(Types.TriggerEvent.ON_ITEM_RECEIVED, released.parent_socket_entity, {"item": released})
-			else:
-				_apply_physical_gravity_settle(released)
-
-			_record_history()
-			SaveSystem.save_current_room_state()
-
-	_update_active_process_state()
-
-
-func _cancel_active_drag() -> void:
-	if active_dragged_entity != null and is_instance_valid(active_dragged_entity):
-		active_dragged_entity.on_drop()
-		active_dragged_entity = null
-	if main_camera != null and is_instance_valid(main_camera):
-		main_camera.end_drag_pan()
-	pressed_target_entity = null
-	is_pointer_down = false
-	has_drag_moved_past_threshold = false
-	_update_active_process_state()
-
-
-func _handle_layer1_tap(entity: OwnEntity) -> void:
-	if not is_instance_valid(entity):
-		return
-
-	_trigger_haptic(20)
-	LogicEngine.evaluate_trigger(Types.TriggerEvent.ON_TAPPED, entity)
-
-	if entity.is_stairs:
-		_handle_stairs_tap(entity)
-	elif entity.is_elevator:
-		_handle_elevator_tap(entity)
-	elif entity.is_container:
-		entity.toggle_container()
-	elif entity.has_method("toggle_active_state"):
-		entity.toggle_active_state()
-
-	_record_history()
-	SaveSystem.save_current_room_state()
-
-
-# --- STAIRS ROUTING LOGIC ---
-
-func _handle_stairs_travel(_stairs: OwnEntity, traveler: OwnEntity) -> void:
-	var current_room: String = AppState.room_id
-	var bldg_floors: Array[Dictionary] = SaveSystem.get_building_floors(current_building_id)
-
-	if bldg_floors.size() <= 1:
-		_trigger_haptic(40)
-		EventBus.notification_requested.emit("There are no other floors in this building.", true)
-		_apply_physical_gravity_settle(traveler)
-		return
-
-	var next_floor: Dictionary = SaveSystem.get_next_floor_above(current_building_id, current_room)
-	if next_floor.is_empty():
-		_trigger_haptic(40)
-		EventBus.notification_requested.emit("There are no other floors above in this building.", true)
-		_apply_physical_gravity_settle(traveler)
-		return
-
-	var target_room_id: String = str(next_floor.get("room_id", "")).strip_edges()
-	var target_floor_label: String = str(next_floor.get("label", next_floor.get("floor_level", "Floor Above")))
-
-	var bundle: Array[Dictionary] = traveler.get_full_hierarchy_bundle()
-	_remove_hierarchy(traveler)
-	traveler.queue_free()
-
-	for item: Dictionary in bundle:
-		var c_id: String = str(item.get("id", ""))
-		var c_name: String = str(item.get("display_name", ""))
-		if not c_id.is_empty():
-			DrawerMetadataService.scrub_character_from_universe_rooms(c_id, c_name)
-
-	AudioManager.play_snap_chime()
-	EventBus.notification_requested.emit("Climbing to: " + target_floor_label, true)
-	_transition_to_room(target_room_id, {
-		"bundle": bundle,
-		"arrival_stairs": true,
-		"floor_name": target_floor_label,
-		"building_id": current_building_id,
-		"building_name": current_building_name,
-		"source": "stairs"
-	})
-
-
-func _handle_stairs_tap(stairs: OwnEntity) -> void:
-	var current_room: String = AppState.room_id
-	var bldg_floors: Array[Dictionary] = SaveSystem.get_building_floors(current_building_id)
-
-	if bldg_floors.size() <= 1:
-		_trigger_haptic(40)
-		EventBus.notification_requested.emit("There are no other floors in this building.", true)
-		return
-
-	var next_floor: Dictionary = SaveSystem.get_next_floor_above(current_building_id, current_room)
-	if next_floor.is_empty():
-		_trigger_haptic(40)
-		EventBus.notification_requested.emit("There are no other floors above in this building.", true)
-		return
-
-	var target_room_id: String = str(next_floor.get("room_id", "")).strip_edges()
-	var target_floor_label: String = str(next_floor.get("label", next_floor.get("floor_level", "Floor Above")))
-
-	var passengers: Array[OwnEntity] = stairs.get_passengers_in_cab(all_entities)
-	var bundle: Array[Dictionary] = []
-	for p: OwnEntity in passengers:
-		if is_instance_valid(p):
-			bundle.append_array(p.get_full_hierarchy_bundle())
-			_remove_hierarchy(p)
-			p.queue_free()
-
-	AudioManager.play_snap_chime()
-	EventBus.notification_requested.emit("Climbing to: " + target_floor_label, true)
-	_transition_to_room(target_room_id, {
-		"bundle": bundle,
-		"arrival_stairs": true,
-		"floor_name": target_floor_label,
-		"building_id": current_building_id,
-		"building_name": current_building_name,
-		"source": "stairs"
-	})
-
-
-# --- ELEVATOR ROUTING LOGIC ---
-
-func _handle_elevator_tap(elevator: OwnEntity) -> void:
-	var bldg_floors: Array[Dictionary] = SaveSystem.get_building_floors(current_building_id)
-	if bldg_floors.size() <= 1:
-		_trigger_haptic(40)
-		EventBus.notification_requested.emit("There are no other floors in this building.", true)
-		return
-	elevator_dialog.open_keypad(elevator)
-
-
-func _handle_elevator_interaction(elevator: OwnEntity, traveler: OwnEntity) -> void:
-	var bldg_floors: Array[Dictionary] = SaveSystem.get_building_floors(current_building_id)
-	if bldg_floors.size() <= 1:
-		_trigger_haptic(40)
-		EventBus.notification_requested.emit("There are no other floors in this building.", true)
-		_apply_physical_gravity_settle(traveler)
-		return
-	elevator_dialog.open_keypad(elevator)
-	_apply_physical_gravity_settle(traveler)
-
-
-func _trigger_haptic(duration_ms: int = 30) -> void:
-	if SettingsManager.are_haptics_enabled() and (OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios")):
-		if Input.has_method("vibrate_handheld"):
-			Input.vibrate_handheld(duration_ms)
-
-
-func _on_elevator_floor_travel_requested(elevator: OwnEntity, target_room_id: String, floor_name: String) -> void:
-	if not is_instance_valid(elevator): 
-		return
-
-	var passengers: Array[OwnEntity] = elevator.get_passengers_in_cab(all_entities)
-	var bundle: Array[Dictionary] = []
-	for passenger: OwnEntity in passengers:
-		if is_instance_valid(passenger):
-			bundle.append_array(passenger.get_full_hierarchy_bundle())
-			_remove_hierarchy(passenger)
-			passenger.queue_free()
-
-	SaveSystem.save_current_room_state()
-	elevator.close_door_animated(func() -> void:
-		AudioManager.play_snap_chime()
-		EventBus.notification_requested.emit("Floor Arrival: " + floor_name, true)
-		_transition_to_room(target_room_id, {
-			"bundle": bundle,
-			"arrival_elevator": true,
-			"floor_name": floor_name,
-			"building_id": current_building_id,
-			"building_name": current_building_name,
-			"source": "elevator"
-		})
-	)
-
-
-func _on_item_unpacked_from_container(item_data: Dictionary, container_ent: OwnEntity) -> void:
-	var spawn_pos: Vector2 = container_ent.global_position + Vector2(randf_range(-40.0, 40.0), 20.0)
-	RoomManager.reconstruct_traveler_bundle([item_data], spawn_pos, world_canvas, all_entities)
-	_trigger_haptic(30)
-	_record_history()
-	SaveSystem.save_current_room_state()
-	EventBus.notification_requested.emit("Unpacked: " + str(item_data.get("display_name", "Item")), true)
-
-
-func _apply_physical_gravity_settle(entity: OwnEntity) -> void:
-	if entity.is_wall_mounted or entity.can_float or entity.is_floor_decor or entity.parent_socket_entity != null:
-		return
-
-	var bottom_offset: float = entity.get_visual_bottom_offset()
-	var floor_baseline: float = current_room_floor_y - bottom_offset
-	if entity.global_position.y < floor_baseline - 15.0:
-		var drop_dist: float = floor_baseline - entity.global_position.y
-		var fall_duration: float = clampf(drop_dist * 0.0008, 0.2, 0.4)
-
-		if SettingsManager.is_juice_squash_stretch_enabled():
-			var tween: Tween = create_tween().set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
-			tween.tween_property(entity, "global_position:y", floor_baseline, fall_duration)
-		else:
-			entity.global_position.y = floor_baseline
-
-
-func _remove_hierarchy(root_ent: OwnEntity) -> void:
-	all_entities.erase(root_ent)
-	for child: OwnEntity in root_ent.attached_children:
-		if is_instance_valid(child): 
-			_remove_hierarchy(child)
-
-
-func _get_topmost_at(world_pos: Vector2, touch_padding: float = 0.0) -> OwnEntity:
-	var exact_hits: Array[OwnEntity] = []
-	var padded_hits: Array[OwnEntity] = []
-
-	for entity: OwnEntity in all_entities:
-		if is_instance_valid(entity) and entity.is_visible_in_tree():
-			if entity.has_point_exact(world_pos):
-				exact_hits.append(entity)
-			elif entity.contains_point(world_pos, touch_padding):
-				padded_hits.append(entity)
-
-	var candidates: Array[OwnEntity] = exact_hits if not exact_hits.is_empty() else padded_hits
-
-	var best: OwnEntity = null
-	for entity: OwnEntity in candidates:
-		if best == null or _is_entity_in_front_of(entity, best):
-			best = entity
-	return best
-
-
-func _is_entity_in_front_of(a: OwnEntity, b: OwnEntity) -> bool:
-	if a == b: return false
-	if not is_instance_valid(a): return false
-	if not is_instance_valid(b): return true
-
-	if a.parent_socket_entity == b:
-		return a.z_index >= 0
-	if b.parent_socket_entity == a:
-		return b.z_index < 0
-
-	var z_a: int = _calculate_effective_z(a)
-	var z_b: int = _calculate_effective_z(b)
-	if z_a != z_b:
-		return z_a > z_b
-
-	var root_a: OwnEntity = _get_ysort_root_entity(a)
-	var root_b: OwnEntity = _get_ysort_root_entity(b)
-
-	if root_a != root_b:
-		var y_a: float = root_a.global_position.y
-		var y_b: float = root_b.global_position.y
-		if not is_equal_approx(y_a, y_b) and absf(y_a - y_b) > 0.5:
-			return y_a > y_b
-		return root_a.get_index() > root_b.get_index()
-
-	return a.get_index() > b.get_index()
-
-
-func _get_ysort_root_entity(entity: OwnEntity) -> OwnEntity:
-	var current: OwnEntity = entity
-	while current.parent_socket_entity != null and is_instance_valid(current.parent_socket_entity):
-		current = current.parent_socket_entity
-	return current
-
-
-func _calculate_effective_z(entity: OwnEntity) -> int:
-	if not is_instance_valid(entity): 
-		return 0
-	if entity.z_as_relative and entity.get_parent() is Node2D:
-		var parent_node: Node2D = entity.get_parent() as Node2D
-		if parent_node is OwnEntity:
-			return _calculate_effective_z(parent_node as OwnEntity) + entity.z_index
-		return parent_node.z_index + entity.z_index
-	return entity.z_index
-
-
 func _on_atmosphere_changed(time_preset: String, weather_preset: String) -> void:
 	if atmosphere != null:
 		atmosphere.set_preset(time_preset)
@@ -1174,18 +555,15 @@ func _transition_to_room(target_room_id: String, traveler_data: Dictionary = {})
 	is_transitioning_room = true
 	SaveSystem.save_current_room_state()
 
-	# 1. Smooth Fade-Out
 	if transition_rect != null:
 		transition_rect.mouse_filter = Control.MOUSE_FILTER_STOP
 		var tw_out: Tween = create_tween().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN)
 		tw_out.tween_property(transition_rect, "color:a", 1.0, 0.18)
 		await tw_out.finished
 
-	# 2. Update session & stream target room
 	AppState.set_active_room(target_room_id)
 	_load_active_room(target_room_id, traveler_data)
 
-	# 3. Smooth Fade-In
 	if transition_rect != null:
 		var tw_in: Tween = create_tween().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 		tw_in.tween_property(transition_rect, "color:a", 0.0, 0.22)
@@ -1221,6 +599,7 @@ func _on_open_room_studio() -> void:
 
 func _on_floor_preview_changed(preview_y: float, preview_visible: bool) -> void:
 	current_room_floor_y = preview_y
+	if interaction_controller: interaction_controller.current_floor_y = preview_y
 	_apply_room_slices(room_slices)
 	_update_floor_guide_visuals(preview_y, preview_visible)
 
@@ -1228,13 +607,18 @@ func _on_floor_preview_changed(preview_y: float, preview_visible: bool) -> void:
 func _on_room_configured(slices_data: Array[Dictionary], floor_y: float, room_name: String, floor_level: String, bldg_name: String = "", bldg_id: String = "") -> void:
 	current_room_floor_y = floor_y
 	current_room_title = room_name if not room_name.is_empty() else AppState.room_id
-	current_room_floor_level = floor_level if not floor_level.is_empty() else "1F"
-	if not bldg_name.is_empty(): 
-		current_building_name = bldg_name
-	if not bldg_id.is_empty(): 
-		current_building_id = bldg_id
+	if interaction_controller: 
+		interaction_controller.current_floor_y = floor_y
+	
+	var b_id: String = bldg_id if not bldg_id.is_empty() else AppState.building_id
+	var b_name: String = bldg_name if not bldg_name.is_empty() else AppState.building_name
+	var f_lvl: String = floor_level if not floor_level.is_empty() else "1F"
 
-	AppState.set_active_room(AppState.room_id, current_room_floor_level, current_building_id, current_building_name)
+	current_building_id = b_id
+	current_building_name = b_name
+	current_room_floor_level = f_lvl
+
+	AppState.set_active_room(AppState.room_id, f_lvl, b_id, b_name)
 
 	_apply_room_slices(slices_data)
 	_update_floor_guide_visuals(floor_y, false)
@@ -1243,8 +627,7 @@ func _on_room_configured(slices_data: Array[Dictionary], floor_y: float, room_na
 
 
 func _update_floor_guide_visuals(floor_y: float, preview_visible: bool) -> void:
-	if floor_guide_line == null: 
-		return
+	if floor_guide_line == null: return
 	if preview_visible:
 		floor_guide_line.clear_points()
 		floor_guide_line.add_point(Vector2(0.0, floor_y))
@@ -1256,12 +639,10 @@ func _update_floor_guide_visuals(floor_y: float, preview_visible: bool) -> void:
 
 static func parse_floor_info(raw_label: String) -> Dictionary:
 	var text: String = raw_label.strip_edges()
-	if text.is_empty(): 
-		return {"floor_level": "1F", "title": "Main Room"}
+	if text.is_empty(): return {"floor_level": "1F", "title": "Main Room"}
 
 	var words: PackedStringArray = text.split(" ", false)
-	if words.is_empty(): 
-		return {"floor_level": "1F", "title": text}
+	if words.is_empty(): return {"floor_level": "1F", "title": text}
 
 	var first_word: String = words[0].strip_edges()
 	var upper_first: String = first_word.to_upper()
@@ -1296,6 +677,7 @@ func _load_active_room(room_id: String, traveler_data: Dictionary = {}) -> void:
 
 	var saved_state: Dictionary = SaveSystem.load_room_state(room_id)
 	current_room_floor_y = float(saved_state.get("floor_y", 580.0))
+	if interaction_controller: interaction_controller.current_floor_y = current_room_floor_y
 
 	var target_bldg_id: String = str(saved_state.get("building_id", "")).strip_edges()
 	var target_bldg_name: String = str(saved_state.get("building_name", "")).strip_edges()
@@ -1340,12 +722,10 @@ func _load_active_room(room_id: String, traveler_data: Dictionary = {}) -> void:
 	var loaded_slices: Array[Dictionary] = []
 	if raw_slices is Array and not (raw_slices as Array).is_empty():
 		for item: Variant in (raw_slices as Array):
-			if item is Dictionary: 
-				loaded_slices.append((item as Dictionary).duplicate(true))
+			if item is Dictionary: loaded_slices.append((item as Dictionary).duplicate(true))
 	elif saved_state.has("sections") and saved_state["sections"] is Array:
 		for item: Variant in (saved_state["sections"] as Array):
-			if item is Dictionary: 
-				loaded_slices.append((item as Dictionary).duplicate(true))
+			if item is Dictionary: loaded_slices.append((item as Dictionary).duplicate(true))
 	else:
 		var wall_path: String = str(saved_state.get("wallpaper_path", ""))
 		var fill_mode: String = str(saved_state.get("fill_mode", "cover"))
@@ -1370,8 +750,7 @@ func _load_active_room(room_id: String, traveler_data: Dictionary = {}) -> void:
 		if top_nav_bar != null:
 			top_nav_bar.set_zoom_button_state(false)
 
-	if drawer_tray_ui != null: 
-		drawer_tray_ui.refresh_tray()
+	if drawer_tray_ui != null: drawer_tray_ui.refresh_tray()
 	is_room_loaded = true
 
 	SaveSystem.save_current_room_state()
@@ -1391,10 +770,8 @@ func _on_universe_switched(new_u_id: String, new_u_name: String) -> void:
 	AppState.switch_universe(new_u_id, new_u_name, "room_main")
 	RecipeCrafting.load_recipes_for_universe(new_u_id)
 
-	if world_map_screen != null: 
-		world_map_screen.load_map_for_current_universe()
-	if drawer_tray_ui != null: 
-		drawer_tray_ui.load_cast_tray_for_current_universe()
+	if world_map_screen != null: world_map_screen.load_map_for_current_universe()
+	if drawer_tray_ui != null: drawer_tray_ui.load_cast_tray_for_current_universe()
 	_load_active_room("room_main")
 
 
@@ -1407,11 +784,9 @@ func _on_reset_all_rooms_requested() -> void:
 			characters_to_rescue.append(entity)
 
 	for character: OwnEntity in characters_to_rescue:
-		if not is_instance_valid(character): 
-			continue
+		if not is_instance_valid(character): continue
 		all_entities.erase(character)
-		if drawer_tray_ui != null: 
-			drawer_tray_ui.store_character_in_tray(character)
+		if drawer_tray_ui != null: drawer_tray_ui.store_character_in_tray(character)
 		rescued_count += 1
 
 	RoomRepository.clear_universe(AppState.universe_id)
@@ -1458,15 +833,15 @@ func _serialize_state() -> Dictionary:
 func _on_history_state_restored(snapshot: Dictionary) -> void:
 	if snapshot.has("floor_y"): 
 		current_room_floor_y = float(snapshot["floor_y"])
-	if snapshot.has("room_title"): 
+		if interaction_controller: interaction_controller.current_floor_y = current_room_floor_y
+	if snapshot.has("room_title"):
 		current_room_title = str(snapshot["room_title"])
-	if snapshot.has("floor_level"): 
+	if snapshot.has("floor_level"):
 		current_room_floor_level = str(snapshot["floor_level"])
 	if snapshot.has("slices") and snapshot["slices"] is Array:
 		var restored_slices: Array[Dictionary] = []
 		for s: Variant in (snapshot["slices"] as Array):
-			if s is Dictionary: 
-				restored_slices.append((s as Dictionary).duplicate(true))
+			if s is Dictionary: restored_slices.append((s as Dictionary).duplicate(true))
 		_apply_room_slices(restored_slices)
 	RoomManager.deserialize_room_into_canvas(snapshot, world_canvas, all_entities)
 	_update_floor_guide_visuals(current_room_floor_y, false)
@@ -1533,8 +908,7 @@ func _on_entity_spawn_requested(request: Dictionary) -> void:
 
 
 func _on_magic_wheel_action(action_name: String, target: OwnEntity) -> void:
-	if not is_instance_valid(target):
-		return
+	if not is_instance_valid(target): return
 
 	match action_name:
 		"flip":
@@ -1542,36 +916,27 @@ func _on_magic_wheel_action(action_name: String, target: OwnEntity) -> void:
 			_record_history()
 			SaveSystem.save_current_room_state()
 		"character_studio", "wardrobe", "frames", "states":
-			if pose_anim_studio_ui != null: 
-				pose_anim_studio_ui.open_for_entity(target)
+			if pose_anim_studio_ui != null: pose_anim_studio_ui.open_for_entity(target)
 		"anchors":
-			if snap_studio_ui != null: 
-				snap_studio_ui.open_for_entity(target)
+			if snap_studio_ui != null: snap_studio_ui.open_for_entity(target)
 		"lighting":
-			if light_studio_ui != null: 
-				light_studio_ui.open_for_entity(target)
+			if light_studio_ui != null: light_studio_ui.open_for_entity(target)
 		"food_studio":
-			if food_studio_ui != null: 
-				food_studio_ui.open_for_entity(target)
+			if food_studio_ui != null: food_studio_ui.open_for_entity(target)
 		"lore", "profile":
-			if lore_card_ui != null and lore_card_ui.has_method("open_card"): 
-				lore_card_ui.call("open_card", target)
+			if lore_card_ui != null and lore_card_ui.has_method("open_card"): lore_card_ui.call("open_card", target)
 		"config":
-			if entity_config_dialog != null: 
-				entity_config_dialog.open_for_entity(target)
+			if entity_config_dialog != null: entity_config_dialog.open_for_entity(target)
 		"logic":
-			if logic_rule_dialog != null: 
-				logic_rule_dialog.open_for_entity(target)
+			if logic_rule_dialog != null: logic_rule_dialog.open_for_entity(target)
 		"edit_door":
-			if door_editor_dialog != null: 
-				door_editor_dialog.open_for_door(target)
+			if door_editor_dialog != null: door_editor_dialog.open_for_door(target)
 		"climb_stairs":
-			_handle_stairs_tap(target)
+			if interaction_router: interaction_router._handle_stairs_tap(target, all_entities)
 		"elevator":
-			_handle_elevator_tap(target)
+			if elevator_dialog: elevator_dialog.open_keypad(target)
 		"save_template":
-			if drawer_tray_ui != null: 
-				drawer_tray_ui.store_entity_as_template(target)
+			if drawer_tray_ui != null: drawer_tray_ui.store_entity_as_template(target)
 		"lock":
 			target.is_locked = not target.is_locked
 			_record_history()
@@ -1591,12 +956,10 @@ func _on_magic_wheel_action(action_name: String, target: OwnEntity) -> void:
 			SaveSystem.save_current_room_state()
 		"store":
 			_remove_hierarchy(target)
-			if drawer_tray_ui != null: 
-				drawer_tray_ui.store_character_in_tray(target)
+			if drawer_tray_ui != null: drawer_tray_ui.store_character_in_tray(target)
 			_trigger_haptic(45)
 			_record_history()
 			SaveSystem.save_current_room_state()
-
 		"delete":
 			_remove_hierarchy(target)
 			target.queue_free()
@@ -1649,3 +1012,49 @@ func _on_top_nav_floor_switcher_requested() -> void:
 	var btn_rect: Rect2 = top_nav_bar.btn_floors.get_global_rect() if top_nav_bar.btn_floors else Rect2(Vector2(640, 50), Vector2.ZERO)
 	popup.position = Vector2i(int(btn_rect.position.x - 20.0), int(btn_rect.end.y + 6.0))
 	popup.popup()
+
+
+func _on_elevator_floor_travel_requested(elevator: OwnEntity, target_room_id: String, floor_name: String) -> void:
+	if not is_instance_valid(elevator): return
+	var passengers: Array[OwnEntity] = elevator.get_passengers_in_cab(all_entities)
+	var bundle: Array[Dictionary] = []
+	for p: OwnEntity in passengers:
+		if is_instance_valid(p):
+			bundle.append_array(p.get_full_hierarchy_bundle())
+			_remove_hierarchy(p)
+			p.queue_free()
+
+	SaveSystem.save_current_room_state()
+	elevator.close_door_animated(func() -> void:
+		AudioManager.play_snap_chime()
+		EventBus.notification_requested.emit("Floor Arrival: " + floor_name, true)
+		_transition_to_room(target_room_id, {
+			"bundle": bundle,
+			"arrival_elevator": true,
+			"floor_name": floor_name,
+			"building_id": current_building_id,
+			"building_name": current_building_name,
+			"source": "elevator"
+		})
+	)
+
+
+func _remove_hierarchy(root_ent: OwnEntity) -> void:
+	all_entities.erase(root_ent)
+	for child: OwnEntity in root_ent.attached_children:
+		if is_instance_valid(child): _remove_hierarchy(child)
+
+
+func _on_item_unpacked_from_container(item_data: Dictionary, container_ent: OwnEntity) -> void:
+	var spawn_pos: Vector2 = container_ent.global_position + Vector2(randf_range(-40.0, 40.0), 20.0)
+	RoomManager.reconstruct_traveler_bundle([item_data], spawn_pos, world_canvas, all_entities)
+	_trigger_haptic(30)
+	_record_history()
+	SaveSystem.save_current_room_state()
+	EventBus.notification_requested.emit("Unpacked: " + str(item_data.get("display_name", "Item")), true)
+
+
+func _trigger_haptic(duration_ms: int = 30) -> void:
+	if SettingsManager.are_haptics_enabled() and (OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios")):
+		if Input.has_method("vibrate_handheld"):
+			Input.vibrate_handheld(duration_ms)

@@ -1,21 +1,16 @@
 # ==============================================================================
-# OWNWORLD — UNIVERSE HUB / STORY LIBRARY (LANDSCAPE SAFE & ADAPTIVE)
+# OWNWORLD — UNIVERSE HUB / STORY LIBRARY (HYPER OPTIMIZED)
 # File: res://UI/UniverseHubUI.gd
-# Base Class: CanvasLayer (class_name UniverseHubUI)
-#
-# Responsibility: Story universe management modal. Handles universe creation,
-# active world switching, .ownpack archive imports, exports, and safe universe deletion.
+# Base Class: HyperUIDialog
 # ==============================================================================
 
 class_name UniverseHubUI
-extends CanvasLayer
+extends HyperUIDialog
 
 const UNIVERSES_DIR: String = "user://universes/"
 const DEFAULT_UNIVERSE_ID: String = "default_universe"
 const DEFAULT_UNIVERSE_NAME: String = "Default Universe"
 
-var root_panel: PanelContainer = null
-var main_vbox: VBoxContainer = null
 var header_title_lbl: Label = null
 var name_input: LineEdit = null
 var universe_list_vbox: VBoxContainer = null
@@ -30,56 +25,22 @@ var universe_registry: Array[Dictionary] = []
 
 signal universe_selected(universe_id: String, universe_name: String)
 
+func _init() -> void:
+	max_panel_width = 720.0
+	max_panel_height = 560.0
 
-func _ready() -> void:
+func _build_content() -> void:
 	name = "UniverseHubUI"
-	layer = 112
-	visible = false
-	add_to_group("modal_ui")
 	_load_universe_manifests()
-	_build_hub_ui()
-	_build_import_file_dialog()
-	_connect_system_signals()
 
-
-func _is_mobile() -> bool:
-	return ThemeEngine.is_mobile_platform()
-
-
-func _connect_system_signals() -> void:
-	if not ThemeService.theme_changed.is_connected(_on_theme_changed):
-		ThemeService.theme_changed.connect(_on_theme_changed)
-
-
-func _on_theme_changed(_theme_data: Dictionary) -> void:
-	_refresh_theme_icons()
-	_render_universe_cards()
-
-
-func _build_hub_ui() -> void:
-	var is_mob: bool = _is_mobile()
+	var is_mob: bool = is_mobile()
 	var btn_h: float = 38.0 if is_mob else 32.0
 
-	root_panel = PanelContainer.new()
-	root_panel.set_anchors_preset(Control.PRESET_FULL_RECT)
-	root_panel.mouse_filter = Control.MOUSE_FILTER_PASS
-	add_child(root_panel)
-
-	var safe_area: Rect2i = DisplayServer.get_display_safe_area()
-	var margin_left: int = maxi(24, safe_area.position.x + 8) if is_mob else 24
-	var margin_right: int = maxi(24, int(DisplayServer.screen_get_size().x - (safe_area.position.x + safe_area.size.x)) + 8) if is_mob else 24
-
-	var margin: MarginContainer = MarginContainer.new()
-	margin.set_anchors_preset(Control.PRESET_FULL_RECT)
-	margin.add_theme_constant_override("margin_left", margin_left)
-	margin.add_theme_constant_override("margin_right", margin_right)
-	margin.add_theme_constant_override("margin_top", 16)
-	margin.add_theme_constant_override("margin_bottom", 16)
-	root_panel.add_child(margin)
-
-	main_vbox = VBoxContainer.new()
+	var main_vbox: VBoxContainer = VBoxContainer.new()
+	main_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	main_vbox.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	main_vbox.add_theme_constant_override("separation", 8)
-	margin.add_child(main_vbox)
+	root_panel.add_child(main_vbox)
 
 	var header_hbox: HBoxContainer = HBoxContainer.new()
 	main_vbox.add_child(header_hbox)
@@ -100,7 +61,7 @@ func _build_hub_ui() -> void:
 	btn_import.focus_mode = Control.FOCUS_NONE
 	btn_import.add_theme_constant_override("icon_max_width", 14)
 	btn_import.add_theme_font_size_override("font_size", 11 if is_mob else 10)
-	_apply_button_icon(btn_import, "icon_import")
+	apply_button_icon(btn_import, "icon_import")
 	btn_import.pressed.connect(_on_open_import_dialog)
 	header_hbox.add_child(btn_import)
 
@@ -120,7 +81,7 @@ func _build_hub_ui() -> void:
 	btn_close.focus_mode = Control.FOCUS_NONE
 	btn_close.add_theme_constant_override("icon_max_width", 12)
 	btn_close.add_theme_font_size_override("font_size", 11 if is_mob else 10)
-	_apply_button_icon(btn_close, "icon_close")
+	apply_close_icon(btn_close)
 	btn_close.pressed.connect(close_hub)
 	header_hbox.add_child(btn_close)
 
@@ -134,6 +95,7 @@ func _build_hub_ui() -> void:
 	name_input.placeholder_text = "Enter new Story Universe name..."
 	name_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	name_input.custom_minimum_size = Vector2(0.0, btn_h)
+	register_keyboard_dodge(name_input)
 	create_hbox.add_child(name_input)
 
 	btn_create = Button.new()
@@ -157,6 +119,14 @@ func _build_hub_ui() -> void:
 	universe_list_vbox.add_theme_constant_override("separation", 8)
 	scroll.add_child(universe_list_vbox)
 
+	_build_import_file_dialog()
+
+func _on_theme_updated() -> void:
+	apply_button_icon(btn_import, "icon_import")
+	_apply_export_icon(btn_export)
+	apply_close_icon(btn_close)
+	_apply_create_icon(btn_create)
+	if visible: _render_universe_cards()
 
 func _build_import_file_dialog() -> void:
 	file_dialog = FileDialog.new()
@@ -167,16 +137,13 @@ func _build_import_file_dialog() -> void:
 	file_dialog.file_selected.connect(_on_pack_file_selected)
 	add_child(file_dialog)
 
-
 func open_hub() -> void:
 	_load_universe_manifests()
 	_render_universe_cards()
-	visible = true
-
+	open_dialog()
 
 func close_hub() -> void:
-	visible = false
-
+	close_dialog()
 
 func _render_universe_cards() -> void:
 	if universe_list_vbox == null: 
@@ -184,7 +151,7 @@ func _render_universe_cards() -> void:
 	for child: Node in universe_list_vbox.get_children():
 		child.queue_free()
 
-	var is_mob: bool = _is_mobile()
+	var is_mob: bool = is_mobile()
 	var c_sub_bg: Color = ThemeService.get_color("container_sub_bg", "#fdf2f4")
 	var c_border: Color = ThemeService.get_color("panel_border", "#f472b6")
 	var c_accent: Color = ThemeService.get_color("accent_primary", "#db2777")
@@ -239,7 +206,7 @@ func _render_universe_cards() -> void:
 		btn_play.custom_minimum_size = Vector2(100.0 if is_mob else 85.0, btn_h)
 		btn_play.add_theme_constant_override("icon_max_width", 14)
 		btn_play.add_theme_font_size_override("font_size", 11 if is_mob else 10)
-		_apply_button_icon(btn_play, "icon_star" if is_active else "icon_play")
+		apply_button_icon(btn_play, "icon_star" if is_active else "icon_play")
 
 		if is_active:
 			var s_active_btn: StyleBoxFlat = StyleBoxFlat.new()
@@ -269,19 +236,17 @@ func _render_universe_cards() -> void:
 			btn_del.theme_type_variation = "DangerButton"
 			btn_del.focus_mode = Control.FOCUS_NONE
 			btn_del.add_theme_constant_override("icon_max_width", 12)
-			_apply_button_icon(btn_del, "icon_close")
+			apply_close_icon(btn_del)
 			btn_del.pressed.connect(func() -> void: _delete_universe(captured_delete_id, captured_delete_name))
 			card_hbox.add_child(btn_del)
 
 		universe_list_vbox.add_child(card)
-
 
 func _on_open_import_dialog() -> void:
 	if file_dialog == null: 
 		return
 	file_dialog.theme = ThemeService.create_theme()
 	file_dialog.popup_centered_ratio(0.7)
-
 
 func _on_pack_file_selected(file_path: String) -> void:
 	var success: bool = OwnPackManager.import_pack_file(file_path)
@@ -291,7 +256,6 @@ func _on_pack_file_selected(file_path: String) -> void:
 		EventBus.notification_requested.emit("Imported .ownpack Successfully!", true)
 	else:
 		EventBus.notification_requested.emit("Pack Import Failed", false)
-
 
 func _delete_universe(u_id: String, u_name: String) -> void:
 	if u_id == AppState.universe_id:
@@ -322,7 +286,6 @@ func _delete_universe(u_id: String, u_name: String) -> void:
 	_render_universe_cards()
 	EventBus.notification_requested.emit("Deleted Universe: " + u_name, true)
 
-
 func _delete_directory_contents(directory_path: String) -> void:
 	var dir: DirAccess = DirAccess.open(directory_path)
 	if dir == null: 
@@ -338,7 +301,6 @@ func _delete_directory_contents(directory_path: String) -> void:
 			DirAccess.remove_absolute(full_path)
 		file_name = dir.get_next()
 	dir.list_dir_end()
-
 
 func _on_create_universe_pressed() -> void:
 	var u_name: String = name_input.text.strip_edges()
@@ -357,11 +319,9 @@ func _on_create_universe_pressed() -> void:
 	_render_universe_cards()
 	EventBus.notification_requested.emit("Created Universe: " + u_name, true)
 
-
 func _on_switch_universe_pressed(new_u_id: String, new_u_name: String) -> void:
 	close_hub()
 	universe_selected.emit(new_u_id, new_u_name)
-
 
 func _on_export_pack_pressed() -> void:
 	var success: bool = OwnPackManager.export_universe_pack(AppState.universe_name, "@Creator", AppState.universe_id, AppState.universe_id + "_export")
@@ -370,13 +330,11 @@ func _on_export_pack_pressed() -> void:
 	else: 
 		EventBus.notification_requested.emit("Export Failed", false)
 
-
 func _save_universe_manifest(u_data: Dictionary) -> void:
 	var universe_id: String = str(u_data.get("id", ""))
 	if universe_id.is_empty(): 
 		return
 	JsonFileStore.write_dictionary(UNIVERSES_DIR + universe_id + ".json", u_data)
-
 
 func _load_universe_manifests() -> void:
 	universe_registry.clear()
@@ -402,26 +360,8 @@ func _load_universe_manifests() -> void:
 		universe_registry.append(default_universe)
 		_save_universe_manifest(default_universe)
 
-
 func _get_universe_map_path(universe_id: String) -> String:
 	return "user://maps/" + universe_id + "_map.json"
-
-
-func _refresh_theme_icons() -> void:
-	_apply_button_icon(btn_import, "icon_import")
-	_apply_export_icon(btn_export)
-	_apply_button_icon(btn_close, "icon_close")
-	_apply_create_icon(btn_create)
-	_render_universe_cards()
-
-
-func _apply_button_icon(button: Button, icon_key: String) -> void:
-	if button == null: 
-		return
-	var icon_texture: Texture2D = ThemeService.get_icon(icon_key)
-	if icon_texture != null: 
-		button.icon = icon_texture
-
 
 func _apply_export_icon(button: Button) -> void:
 	if button == null: 
@@ -432,7 +372,6 @@ func _apply_export_icon(button: Button) -> void:
 	if icon_texture != null: 
 		button.icon = icon_texture
 
-
 func _apply_create_icon(button: Button) -> void:
 	if button == null: 
 		return
@@ -441,8 +380,3 @@ func _apply_create_icon(button: Button) -> void:
 		icon_texture = ThemeService.get_icon("icon_plus")
 	if icon_texture != null: 
 		button.icon = icon_texture
-
-
-func _on_backdrop_gui_input(event: InputEvent) -> void:
-	if (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT) or (event is InputEventScreenTouch and event.pressed):
-		close_hub()

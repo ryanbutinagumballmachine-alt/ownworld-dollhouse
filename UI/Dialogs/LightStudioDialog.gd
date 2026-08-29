@@ -1,21 +1,12 @@
 # ==============================================================================
-# OWNWORLD — LIGHT & GLOW STUDIO (LANDSCAPE TOUCH & SLIDER ADAPTIVE)
+# OWNWORLD — LIGHT & GLOW STUDIO (HYPER OPTIMIZED)
 # File: res://UI/Dialogs/LightStudioDialog.gd
-# Base Class: CanvasLayer (class_name LightStudioDialog)
-#
-# Responsibility: 2D dynamic glow & lighting studio modal. Controls silhouette
-# aura spread, breathing pulse frequencies, ambient radial room lighting, and color swatches.
+# Base Class: HyperUIDialog
 # ==============================================================================
 
 class_name LightStudioDialog
-extends CanvasLayer
+extends HyperUIDialog
 
-const MAX_PANEL_WIDTH: float = 620.0
-const MAX_PANEL_HEIGHT: float = 580.0
-
-var root_backdrop: Control = null
-var center_container: CenterContainer = null
-var root_panel: PanelContainer = null
 var active_entity: OwnEntity = null
 
 var header_lbl: Label = null
@@ -51,70 +42,14 @@ const PRESET_SWATCHES: Array[Dictionary] = [
 	{"name": "Sunlight", "color": Color("#fffbeb"), "icon": "icon_sun"}
 ]
 
+func _init() -> void:
+	max_panel_width = 620.0
+	max_panel_height = 580.0
 
-func _ready() -> void:
+func _build_content() -> void:
 	name = "LightStudioDialog"
-	layer = 120
-	visible = false
-	add_to_group("modal_ui")
-	_build_ui()
-	_connect_system_signals()
-	_update_responsive_layout()
-
-
-func _is_mobile() -> bool:
-	return ThemeEngine.is_mobile_platform()
-
-
-func _connect_system_signals() -> void:
-	var tree: SceneTree = get_tree()
-	if tree and tree.root and not tree.root.size_changed.is_connected(_update_responsive_layout):
-		tree.root.size_changed.connect(_update_responsive_layout)
-	if not EventBus.theme_changed.is_connected(_on_theme_changed):
-		EventBus.theme_changed.connect(_on_theme_changed)
-
-
-func _on_theme_changed(_theme_data: Dictionary) -> void:
-	_refresh_theme_icons()
-	_update_responsive_layout()
-
-
-func _update_responsive_layout() -> void:
-	if not is_instance_valid(root_panel): return
-	var viewport: Viewport = get_viewport()
-	var viewport_size: Vector2 = viewport.get_visible_rect().size if viewport != null else Vector2(1280.0, 720.0)
-	var is_mob: bool = _is_mobile()
-
-	var target_width: float = clampf(viewport_size.x * 0.92, 320.0, MAX_PANEL_WIDTH)
-	var target_height: float = clampf(viewport_size.y * (0.92 if is_mob else 0.88), 300.0, MAX_PANEL_HEIGHT)
-	root_panel.custom_minimum_size = Vector2(target_width, target_height)
-	root_panel.size = Vector2(target_width, target_height)
-
-
-func _build_ui() -> void:
-	var is_mob: bool = _is_mobile()
+	var is_mob: bool = is_mobile()
 	var row_h: float = 34.0 if is_mob else 28.0
-
-	root_backdrop = Control.new()
-	root_backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
-	root_backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
-	root_backdrop.gui_input.connect(_on_backdrop_gui_input)
-	add_child(root_backdrop)
-
-	var background_dim: ColorRect = ColorRect.new()
-	background_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	background_dim.color = Color(0.0, 0.0, 0.0, 0.65)
-	background_dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root_backdrop.add_child(background_dim)
-
-	center_container = CenterContainer.new()
-	center_container.set_anchors_preset(Control.PRESET_FULL_RECT)
-	center_container.mouse_filter = Control.MOUSE_FILTER_PASS
-	root_backdrop.add_child(center_container)
-
-	root_panel = PanelContainer.new()
-	root_panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	center_container.add_child(root_panel)
 
 	var main_vbox: VBoxContainer = VBoxContainer.new()
 	main_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -136,8 +71,8 @@ func _build_ui() -> void:
 	close_button.custom_minimum_size = Vector2(28.0 if is_mob else 22.0, 28.0 if is_mob else 22.0)
 	close_button.focus_mode = Control.FOCUS_NONE
 	close_button.add_theme_constant_override("icon_max_width", 12)
-	_apply_close_icon(close_button)
-	close_button.pressed.connect(close_dialog)
+	apply_close_icon(close_button)
+	close_button.pressed.connect(_on_close_requested)
 	header_hbox.add_child(close_button)
 
 	main_vbox.add_child(HSeparator.new())
@@ -163,7 +98,7 @@ func _build_ui() -> void:
 	chk_light_enabled.custom_minimum_size = Vector2(0.0, row_h)
 	chk_light_enabled.add_theme_constant_override("icon_max_width", 18 if is_mob else 16)
 	chk_light_enabled.add_theme_font_size_override("font_size", 12 if is_mob else 10)
-	_apply_checkbox_icon(chk_light_enabled, "icon_lighting")
+	apply_checkbox_icon(chk_light_enabled, "icon_lighting")
 	chk_light_enabled.toggled.connect(_on_light_toggled)
 	toggle_card.add_child(chk_light_enabled)
 
@@ -224,7 +159,7 @@ func _build_ui() -> void:
 	color_picker_btn.custom_minimum_size = Vector2(140.0 if is_mob else 120.0, row_h)
 	color_picker_btn.focus_mode = Control.FOCUS_NONE
 	color_picker_btn.add_theme_constant_override("icon_max_width", 14)
-	_apply_button_icon(color_picker_btn, "icon_palette")
+	apply_button_icon(color_picker_btn, "icon_palette")
 	color_picker_btn.color_changed.connect(_on_color_changed)
 	color_top_hbox.add_child(color_picker_btn)
 
@@ -324,17 +259,26 @@ func _build_ui() -> void:
 	btn_save.focus_mode = Control.FOCUS_NONE
 	btn_save.add_theme_constant_override("icon_max_width", 16)
 	btn_save.add_theme_font_size_override("font_size", 12 if is_mob else 11)
-	_apply_button_icon(btn_save, "icon_save")
-	btn_save.pressed.connect(close_dialog)
+	apply_button_icon(btn_save, "icon_save")
+	btn_save.pressed.connect(_on_close_requested)
 	main_vbox.add_child(btn_save)
 
+func _on_theme_updated() -> void:
+	if chk_light_enabled != null: apply_checkbox_icon(chk_light_enabled, "icon_lighting")
+	if color_picker_btn != null: apply_button_icon(color_picker_btn, "icon_palette")
+	if btn_save != null: apply_button_icon(btn_save, "icon_save")
+	_build_preset_swatches()
+	if root_panel == null: return
+	for node: Node in root_panel.find_children("*", "Button", true, false):
+		if node is Button and (node as Button).text == "✕":
+			apply_close_icon(node as Button)
 
 func _build_preset_swatches() -> void:
 	if swatches_hbox == null: return
 	for child: Node in swatches_hbox.get_children():
 		child.queue_free()
 
-	var is_mob: bool = _is_mobile()
+	var is_mob: bool = is_mobile()
 
 	for preset: Dictionary in PRESET_SWATCHES:
 		var swatch_button: Button = Button.new()
@@ -343,7 +287,7 @@ func _build_preset_swatches() -> void:
 		swatch_button.custom_minimum_size = Vector2(0.0, 32.0 if is_mob else 26.0)
 		swatch_button.add_theme_constant_override("icon_max_width", 14 if is_mob else 12)
 		swatch_button.add_theme_font_size_override("font_size", 10 if is_mob else 9)
-		_apply_button_icon(swatch_button, str(preset.get("icon", "icon_star")))
+		apply_button_icon(swatch_button, str(preset.get("icon", "icon_star")))
 
 		var preset_color: Color = preset.get("color", Color.WHITE) as Color
 		swatch_button.pressed.connect(func() -> void:
@@ -353,31 +297,10 @@ func _build_preset_swatches() -> void:
 		)
 		swatches_hbox.add_child(swatch_button)
 
-
 func _add_icon_option(option_button: OptionButton, icon_key: String, text_label: String, item_id: int) -> void:
 	var icon_texture: Texture2D = ThemeService.get_popup_icon(icon_key)
 	if icon_texture != null: option_button.add_icon_item(icon_texture, " " + text_label, item_id)
 	else: option_button.add_item(text_label, item_id)
-
-
-func _apply_button_icon(button: Button, icon_key: String) -> void:
-	if button == null: return
-	var icon_texture: Texture2D = ThemeService.get_icon(icon_key)
-	if icon_texture != null: button.icon = icon_texture
-
-
-func _apply_close_icon(button: Button) -> void:
-	if button == null: return
-	var icon_texture: Texture2D = ThemeService.get_icon("icon_close")
-	if icon_texture != null: button.icon = icon_texture
-	else: button.text = "✕"
-
-
-func _apply_checkbox_icon(checkbox: CheckBox, icon_key: String) -> void:
-	if checkbox == null: return
-	var icon_texture: Texture2D = ThemeService.get_icon(icon_key)
-	if icon_texture != null: checkbox.icon = icon_texture
-
 
 func open_for_entity(entity: OwnEntity) -> void:
 	if not is_instance_valid(entity): return
@@ -404,9 +327,7 @@ func open_for_entity(entity: OwnEntity) -> void:
 
 	_update_mode_hint_text()
 	_update_control_interactivity(entity.is_light_source)
-	_update_responsive_layout()
-	visible = true
-
+	open_dialog()
 
 func _find_option_index_by_id(option_button: OptionButton, value: int) -> int:
 	if option_button == null: return -1
@@ -414,14 +335,12 @@ func _find_option_index_by_id(option_button: OptionButton, value: int) -> int:
 		if option_button.get_item_id(index) == value: return index
 	return -1
 
-
-func close_dialog() -> void:
+func _on_close_requested() -> void:
 	if active_entity != null and is_instance_valid(active_entity):
 		_persist_entity_changes(active_entity)
 		EventBus.notification_requested.emit("Saved Lighting: " + active_entity.display_name, true)
-	visible = false
 	active_entity = null
-
+	super._on_close_requested()
 
 func _on_light_toggled(enabled: bool) -> void:
 	if active_entity == null or not is_instance_valid(active_entity): return
@@ -434,14 +353,12 @@ func _on_light_toggled(enabled: bool) -> void:
 	_update_control_interactivity(enabled)
 	_persist_entity_changes(active_entity)
 
-
 func _on_mode_selected(index: int) -> void:
 	if active_entity == null or not is_instance_valid(active_entity): return
 	active_entity.light_shape_mode = opt_light_mode.get_item_id(index)
 	_update_mode_hint_text()
 	_apply_live_lighting_updates()
 	_persist_entity_changes(active_entity)
-
 
 func _update_mode_hint_text() -> void:
 	if opt_light_mode == null: return
@@ -454,13 +371,11 @@ func _update_mode_hint_text() -> void:
 			mode_hint_lbl.text = "Light Anchors: Emits light points directly from your placed light pins."
 		_: mode_hint_lbl.text = ""
 
-
 func _on_color_changed(new_color: Color) -> void:
 	if active_entity == null or not is_instance_valid(active_entity): return
 	active_entity.light_color = new_color
 	_apply_live_lighting_updates()
 	_persist_entity_changes(active_entity)
-
 
 func _on_intensity_changed(value: float) -> void:
 	val_intensity_lbl.text = "%.1fx" % value
@@ -469,7 +384,6 @@ func _on_intensity_changed(value: float) -> void:
 	_apply_live_lighting_updates()
 	_persist_entity_changes(active_entity)
 
-
 func _on_radius_changed(value: float) -> void:
 	val_radius_lbl.text = "%d px" % int(value)
 	if active_entity == null or not is_instance_valid(active_entity): return
@@ -477,14 +391,12 @@ func _on_radius_changed(value: float) -> void:
 	_apply_live_lighting_updates()
 	_persist_entity_changes(active_entity)
 
-
 func _on_pulse_changed(value: float) -> void:
 	val_pulse_lbl.text = "%.1f Hz" % value if value > 0.0 else "Steady"
 	if active_entity == null or not is_instance_valid(active_entity): return
 	active_entity.light_pulse_speed = value
 	_apply_live_lighting_updates()
 	_persist_entity_changes(active_entity)
-
 
 func _apply_live_lighting_updates() -> void:
 	if active_entity == null or not is_instance_valid(active_entity) or not active_entity.is_light_source:
@@ -497,7 +409,6 @@ func _apply_live_lighting_updates() -> void:
 		sld_pulse.value
 	)
 
-
 func _update_control_interactivity(is_enabled: bool) -> void:
 	if opt_light_mode != null: opt_light_mode.disabled = not is_enabled
 	if color_picker_btn != null: color_picker_btn.disabled = not is_enabled
@@ -508,30 +419,9 @@ func _update_control_interactivity(is_enabled: bool) -> void:
 		for child: Node in swatches_hbox.get_children():
 			if child is Button: (child as Button).disabled = not is_enabled
 
-
 func _persist_entity_changes(entity: OwnEntity) -> void:
 	if not is_instance_valid(entity): return
 	CapabilitySynchronizer.synchronize(entity)
 	SaveSystem.update_character_in_cast(entity)
 	SaveSystem.save_current_room_state()
 	EventBus.entity_state_changed.emit(entity.entity_id)
-
-
-func _refresh_theme_icons() -> void:
-	_apply_close_icon_from_tree()
-	if chk_light_enabled != null: _apply_checkbox_icon(chk_light_enabled, "icon_lighting")
-	if color_picker_btn != null: _apply_button_icon(color_picker_btn, "icon_palette")
-	if btn_save != null: _apply_button_icon(btn_save, "icon_save")
-	_build_preset_swatches()
-
-
-func _apply_close_icon_from_tree() -> void:
-	if root_panel == null: return
-	for child: Node in root_panel.find_children("*", "Button", true, false):
-		if child is Button and (child as Button).text == "✕":
-			_apply_close_icon(child as Button)
-
-
-func _on_backdrop_gui_input(event: InputEvent) -> void:
-	if (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT) or (event is InputEventScreenTouch and event.pressed):
-		close_dialog()

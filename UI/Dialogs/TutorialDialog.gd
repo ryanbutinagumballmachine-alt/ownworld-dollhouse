@@ -1,25 +1,11 @@
 # ==============================================================================
-# OWNWORLD — IN-GAME CREATOR HANDBOOK (LANDSCAPE MASTER-DETAIL DUAL-OS)
+# OWNWORLD — IN-GAME CREATOR HANDBOOK (HYPER OPTIMIZED)
 # File: res://UI/Dialogs/TutorialDialog.gd
-# Base Class: CanvasLayer (class_name TutorialDialog)
-#
-# Responsibility: Comprehensive master creator handbook and player guide.
-# 14 clear, beginner-proof chapters covering every system in the game:
-# controls, drawers, custom art, characters, animations, anchors, food,
-# crafting, lighting, rooms, elevators, story magic, lore, and settings.
+# Base Class: HyperUIDialog
 # ==============================================================================
 
 class_name TutorialDialog
-extends CanvasLayer
-
-signal dialog_closed()
-
-const MAX_PANEL_WIDTH: float = 780.0
-const MAX_PANEL_HEIGHT: float = 580.0
-
-var root_backdrop: Control = null
-var center_container: CenterContainer = null
-var root_panel: PanelContainer = null
+extends HyperUIDialog
 
 var header_title_lbl: Label = null
 var search_input: LineEdit = null
@@ -392,86 +378,13 @@ var tutorial_chapters: Array[Dictionary] = [
 	}
 ]
 
+func _init() -> void:
+	max_panel_width = 780.0
+	max_panel_height = 580.0
 
-func _ready() -> void:
-	layer = 125
-	visible = false
-	add_to_group("modal_ui")
-	_build_ui()
-	_connect_system_signals()
-	_update_responsive_layout()
-	_apply_theme_styling()
-
-
-func _is_mobile() -> bool:
-	return ThemeEngine.is_mobile_platform()
-
-
-func _connect_system_signals() -> void:
-	if not ThemeService.theme_changed.is_connected(_on_theme_changed):
-		ThemeService.theme_changed.connect(_on_theme_changed)
-	var tree: SceneTree = get_tree()
-	if tree and tree.root and not tree.root.size_changed.is_connected(_update_responsive_layout):
-		tree.root.size_changed.connect(_update_responsive_layout)
-
-
-func _update_responsive_layout() -> void:
-	if not is_instance_valid(root_panel): return
-	var vp_size: Vector2 = get_viewport().get_visible_rect().size if get_viewport() else Vector2(1280.0, 720.0)
-	var is_mob: bool = _is_mobile()
-
-	var target_w: float = clampf(vp_size.x * 0.94, 320.0, MAX_PANEL_WIDTH)
-	var target_h: float = clampf(vp_size.y * (0.92 if is_mob else 0.88), 300.0, MAX_PANEL_HEIGHT)
-	root_panel.custom_minimum_size = Vector2(target_w, target_h)
-	root_panel.size = Vector2(target_w, target_h)
-
-
-func _on_theme_changed(_theme_data: Dictionary) -> void:
-	_apply_theme_styling()
-	if visible:
-		_render_topics_sidebar()
-		_render_active_topic_content()
-
-
-func open_handbook(starting_topic_index: int = 0) -> void:
-	active_topic_index = clampi(starting_topic_index, 0, tutorial_chapters.size() - 1)
-	active_filter_query = ""
-	if search_input: search_input.text = ""
-	_update_responsive_layout()
-	_apply_theme_styling()
-	_render_topics_sidebar()
-	_render_active_topic_content()
-	visible = true
-
-
-func close_handbook() -> void:
-	visible = false
-	dialog_closed.emit()
-
-
-func _build_ui() -> void:
-	var is_mob: bool = _is_mobile()
-
-	root_backdrop = Control.new()
-	root_backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
-	root_backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
-	root_backdrop.gui_input.connect(_on_backdrop_gui_input)
-	add_child(root_backdrop)
-
-	var bg_dim: ColorRect = ColorRect.new()
-	bg_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	bg_dim.color = Color(0.0, 0.0, 0.0, 0.65)
-	bg_dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root_backdrop.add_child(bg_dim)
-
-	center_container = CenterContainer.new()
-	center_container.set_anchors_preset(Control.PRESET_FULL_RECT)
-	center_container.mouse_filter = Control.MOUSE_FILTER_PASS
-	root_backdrop.add_child(center_container)
-
-	root_panel = PanelContainer.new()
-	root_panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	center_container.add_child(root_panel)
+func _build_content() -> void:
+	name = "TutorialDialog"
+	var is_mob: bool = is_mobile()
 
 	var main_vbox: VBoxContainer = VBoxContainer.new()
 	main_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -495,16 +408,15 @@ func _build_ui() -> void:
 	search_input.placeholder_text = "Search topics (drawings, outfits, food, rules)..."
 	search_input.custom_minimum_size = Vector2(260.0 if is_mob else 200.0, 32.0 if is_mob else 26.0)
 	search_input.text_changed.connect(_on_search_query_changed)
+	register_keyboard_dodge(search_input)
 	header_hbox.add_child(search_input)
 
 	btn_close = Button.new()
 	btn_close.custom_minimum_size = Vector2(28.0 if is_mob else 22.0, 28.0 if is_mob else 22.0)
 	btn_close.focus_mode = Control.FOCUS_NONE
 	btn_close.add_theme_constant_override("icon_max_width", 12)
-	var close_icon: Texture2D = ThemeService.get_icon("icon_close")
-	if close_icon: btn_close.icon = close_icon
-	else: btn_close.text = "✕"
-	btn_close.pressed.connect(close_handbook)
+	apply_close_icon(btn_close)
+	btn_close.pressed.connect(_on_close_requested)
 	header_hbox.add_child(btn_close)
 
 	main_vbox.add_child(HSeparator.new())
@@ -546,12 +458,26 @@ func _build_ui() -> void:
 	content_vbox.add_theme_constant_override("separation", 10)
 	content_scroll.add_child(content_vbox)
 
+func _on_theme_updated() -> void:
+	if header_title_lbl: header_title_lbl.add_theme_color_override("font_color", ThemeService.get_color("accent_primary", "#ec4899"))
+	if btn_close: apply_close_icon(btn_close)
+	if visible:
+		_render_topics_sidebar()
+		_render_active_topic_content()
+
+func open_handbook(starting_topic_index: int = 0) -> void:
+	active_topic_index = clampi(starting_topic_index, 0, tutorial_chapters.size() - 1)
+	active_filter_query = ""
+	if search_input: search_input.text = ""
+	_render_topics_sidebar()
+	_render_active_topic_content()
+	open_dialog()
 
 func _render_topics_sidebar() -> void:
 	if not topics_list_vbox: return
 	for child: Node in topics_list_vbox.get_children(): child.queue_free()
 
-	var is_mob: bool = _is_mobile()
+	var is_mob: bool = is_mobile()
 	var c_accent: Color = ThemeService.get_color("accent_primary", "#ec4899")
 	var rad: int = ThemeService.get_corner_radius()
 
@@ -578,8 +504,7 @@ func _render_topics_sidebar() -> void:
 		btn.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 		btn.add_theme_constant_override("icon_max_width", 14)
 
-		var icon_tex: Texture2D = ThemeService.get_icon(str(chapter.get("icon", "icon_room")))
-		if icon_tex: btn.icon = icon_tex
+		apply_button_icon(btn, str(chapter.get("icon", "icon_room")))
 
 		if is_active:
 			var s_act: StyleBoxFlat = StyleBoxFlat.new()
@@ -604,7 +529,6 @@ func _render_topics_sidebar() -> void:
 		)
 		topics_list_vbox.add_child(btn)
 
-
 func _render_active_topic_content() -> void:
 	if not content_vbox: return
 	for child: Node in content_vbox.get_children(): child.queue_free()
@@ -612,7 +536,7 @@ func _render_active_topic_content() -> void:
 	if active_topic_index < 0 or active_topic_index >= tutorial_chapters.size():
 		return
 
-	var is_mob: bool = _is_mobile()
+	var is_mob: bool = is_mobile()
 	var chapter: Dictionary = tutorial_chapters[active_topic_index]
 	var c_title: String = str(chapter["title"])
 	var c_badge: String = str(chapter.get("badge", ""))
@@ -713,35 +637,6 @@ func _render_active_topic_content() -> void:
 		)
 		nav_row.add_child(btn_next)
 
-
 func _on_search_query_changed(new_text: String) -> void:
 	active_filter_query = new_text.strip_edges().to_lower()
 	_render_topics_sidebar()
-
-
-func _apply_theme_styling() -> void:
-	var c_bg: Color = ThemeService.get_color("panel_background", "#fff5f7")
-	var c_border: Color = ThemeService.get_color("panel_border", "#f9a8d4")
-	var c_accent: Color = ThemeService.get_color("accent_primary", "#ec4899")
-	var radius: int = ThemeService.get_corner_radius()
-
-	if root_panel:
-		var p_style: StyleBoxFlat = StyleBoxFlat.new()
-		p_style.bg_color = c_bg
-		p_style.border_color = c_border
-		p_style.set_border_width_all(2)
-		p_style.set_corner_radius_all(radius + 2)
-		p_style.content_margin_left = 14
-		p_style.content_margin_right = 14
-		p_style.content_margin_top = 10
-		p_style.content_margin_bottom = 10
-		root_panel.add_theme_stylebox_override("panel", p_style)
-
-	if header_title_lbl: header_title_lbl.add_theme_color_override("font_color", c_accent)
-	var close_icon: Texture2D = ThemeService.get_icon("icon_close")
-	if close_icon and btn_close: btn_close.icon = close_icon
-
-
-func _on_backdrop_gui_input(event: InputEvent) -> void:
-	if (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT) or (event is InputEventScreenTouch and event.pressed):
-		close_handbook()

@@ -1,21 +1,11 @@
 # ==============================================================================
-# OWNWORLD — ASSET PICKER DIALOG (LANDSCAPE RESPONSIVE DUAL-OS)
+# OWNWORLD — ASSET PICKER DIALOG (HYPER OPTIMIZED)
 # File: res://UI/Dialogs/AssetPickerDialog.gd
-# Base Class: CanvasLayer (class_name AssetPickerDialog)
-#
-# Responsibility: In-app drawing picker modal with folder breadcrumbs navigation,
-# asynchronous thumbnail previews, search filtering, tag pills, and keyboard dodging.
+# Base Class: HyperUIDialog
 # ==============================================================================
 
 class_name AssetPickerDialog
-extends CanvasLayer
-
-const MAX_PANEL_WIDTH: float = 640.0
-const MAX_PANEL_HEIGHT: float = 560.0
-
-var root_backdrop: Control = null
-var center_container: CenterContainer = null
-var root_panel: PanelContainer = null
+extends HyperUIDialog
 
 var header_title_lbl: Label = null
 var breadcrumbs_hbox: HBoxContainer = null
@@ -39,91 +29,16 @@ var user_available_tags: Array[String] = []
 signal asset_selected(asset_name: String, texture: Texture2D, file_path: String)
 signal picker_closed()
 
+func _init() -> void:
+	max_panel_width = 640.0
+	max_panel_height = 560.0
 
-func _ready() -> void:
+func _build_content() -> void:
 	name = "AssetPickerDialog"
-	layer = 130
-	visible = false
-	add_to_group("modal_ui")
 	_load_tag_registry()
-	_build_ui()
-	_connect_system_signals()
-	_update_responsive_layout()
-	_setup_keyboard_dodging()
 
-
-func _is_mobile() -> bool:
-	return ThemeEngine.is_mobile_platform()
-
-
-func _connect_system_signals() -> void:
-	var tree: SceneTree = get_tree()
-	if tree and tree.root and not tree.root.size_changed.is_connected(_update_responsive_layout):
-		tree.root.size_changed.connect(_update_responsive_layout)
-
-
-func _update_responsive_layout() -> void:
-	if not is_instance_valid(root_panel): return
-	var vp_size: Vector2 = get_viewport().get_visible_rect().size if get_viewport() else Vector2(1280.0, 720.0)
-	var is_mob: bool = _is_mobile()
-
-	var target_w: float = clampf(vp_size.x * 0.94, 300.0, MAX_PANEL_WIDTH)
-	var target_h: float = clampf(vp_size.y * (0.92 if is_mob else 0.88), 300.0, MAX_PANEL_HEIGHT)
-	root_panel.custom_minimum_size = Vector2(target_w, target_h)
-	root_panel.size = Vector2(target_w, target_h)
-
-	if items_grid:
-		var usable_w: float = target_w - 28.0
-		var card_w: float = 88.0 if is_mob else 72.0
-		items_grid.columns = clampi(int(usable_w / (card_w + 6.0)), 3, 10)
-
-
-func _setup_keyboard_dodging() -> void:
-	if search_input and _is_mobile():
-		search_input.focus_entered.connect(_on_input_focus_entered)
-		search_input.focus_exited.connect(_on_input_focus_exited)
-
-
-func _on_input_focus_entered() -> void:
-	if _is_mobile():
-		await get_tree().process_frame
-		await get_tree().process_frame
-		var kb_height: float = DisplayServer.virtual_keyboard_get_height()
-		if kb_height > 0:
-			var tween: Tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-			tween.tween_property(center_container, "position:y", -kb_height * 0.45, 0.25)
-
-
-func _on_input_focus_exited() -> void:
-	if _is_mobile():
-		var tween: Tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-		tween.tween_property(center_container, "position:y", 0.0, 0.25)
-
-
-func _build_ui() -> void:
-	var is_mob: bool = _is_mobile()
+	var is_mob: bool = is_mobile()
 	var row_h: float = 34.0 if is_mob else 28.0
-
-	root_backdrop = Control.new()
-	root_backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
-	root_backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
-	root_backdrop.gui_input.connect(_on_backdrop_gui_input)
-	add_child(root_backdrop)
-
-	var bg_dim: ColorRect = ColorRect.new()
-	bg_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	bg_dim.color = Color(0.0, 0.0, 0.0, 0.6)
-	bg_dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root_backdrop.add_child(bg_dim)
-
-	center_container = CenterContainer.new()
-	center_container.set_anchors_preset(Control.PRESET_FULL_RECT)
-	center_container.mouse_filter = Control.MOUSE_FILTER_PASS
-	root_backdrop.add_child(center_container)
-
-	root_panel = PanelContainer.new()
-	root_panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	center_container.add_child(root_panel)
 
 	var vbox: VBoxContainer = VBoxContainer.new()
 	vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -145,10 +60,8 @@ func _build_ui() -> void:
 	btn_close.custom_minimum_size = Vector2(28.0 if is_mob else 22.0, 28.0 if is_mob else 22.0)
 	btn_close.focus_mode = Control.FOCUS_NONE
 	btn_close.add_theme_constant_override("icon_max_width", 12)
-	var close_icon: Texture2D = ThemeService.get_icon("icon_close")
-	if close_icon: btn_close.icon = close_icon
-	else: btn_close.text = "✕"
-	btn_close.pressed.connect(close_picker)
+	apply_close_icon(btn_close)
+	btn_close.pressed.connect(_on_close_requested)
 	header_hbox.add_child(btn_close)
 
 	vbox.add_child(HSeparator.new())
@@ -163,8 +76,7 @@ func _build_ui() -> void:
 	btn_back_up.focus_mode = Control.FOCUS_NONE
 	btn_back_up.add_theme_constant_override("icon_max_width", 14)
 	btn_back_up.add_theme_font_size_override("font_size", 11 if is_mob else 10)
-	var up_icon: Texture2D = ThemeService.get_icon("icon_up")
-	if up_icon: btn_back_up.icon = up_icon
+	apply_button_icon(btn_back_up, "icon_up")
 	btn_back_up.pressed.connect(_navigate_up_one_folder)
 	nav_row.add_child(btn_back_up)
 
@@ -189,6 +101,7 @@ func _build_ui() -> void:
 	search_input.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	search_input.custom_minimum_size = Vector2(100.0, row_h)
 	search_input.text_changed.connect(_on_search_text_changed)
+	register_keyboard_dodge(search_input)
 	search_row.add_child(search_input)
 
 	var filter_scroll: ScrollContainer = ScrollContainer.new()
@@ -216,6 +129,23 @@ func _build_ui() -> void:
 	items_grid.add_theme_constant_override("v_separation", 6)
 	scroll_container.add_child(items_grid)
 
+func _on_theme_updated() -> void:
+	apply_button_icon(btn_back_up, "icon_up")
+	if root_panel == null: return
+	for node: Node in root_panel.find_children("*", "Button", true, false):
+		if node is Button and (node as Button).text == "✕":
+			apply_close_icon(node as Button)
+	if visible:
+		_build_tag_filter_pills()
+		_render_breadcrumbs()
+		_render_grid_view()
+
+func _update_responsive_layout() -> void:
+	super._update_responsive_layout()
+	if items_grid and root_panel:
+		var usable_w: float = root_panel.size.x - 28.0
+		var card_w: float = 88.0 if is_mobile() else 72.0
+		items_grid.columns = clampi(int(usable_w / (card_w + 6.0)), 3, 10)
 
 func open_picker(prompt_title: String = "Select Artwork", default_folder: String = "", on_selected_callback: Callable = Callable()) -> void:
 	header_title_lbl.text = prompt_title
@@ -228,18 +158,15 @@ func open_picker(prompt_title: String = "Select Artwork", default_folder: String
 	_load_tag_registry()
 	all_art_files = UGCManager.scan_user_art_library()
 
-	_update_responsive_layout()
 	_build_tag_filter_pills()
 	_render_breadcrumbs()
 	_render_grid_view()
-	visible = true
+	open_dialog()
 
-
-func close_picker() -> void:
+func _on_close_requested() -> void:
 	current_select_callback = Callable()
-	visible = false
 	picker_closed.emit()
-
+	super._on_close_requested()
 
 func _render_breadcrumbs() -> void:
 	for child: Node in breadcrumbs_hbox.get_children():
@@ -274,9 +201,8 @@ func _render_breadcrumbs() -> void:
 			)
 			breadcrumbs_hbox.add_child(btn_part)
 
-
 func _create_breadcrumb_pill(label_text: String, icon_key: String, is_active: bool) -> Button:
-	var is_mob: bool = _is_mobile()
+	var is_mob: bool = is_mobile()
 	var btn: Button = Button.new()
 	btn.text = " " + label_text
 	btn.focus_mode = Control.FOCUS_NONE
@@ -285,10 +211,8 @@ func _create_breadcrumb_pill(label_text: String, icon_key: String, is_active: bo
 	btn.theme_type_variation = "Breadcrumb"
 	btn.add_theme_constant_override("icon_max_width", 14 if is_mob else 12)
 	btn.add_theme_font_size_override("font_size", 10 if is_mob else 9)
-	var icon_tex: Texture2D = ThemeService.get_icon(icon_key)
-	if icon_tex: btn.icon = icon_tex
+	apply_button_icon(btn, icon_key)
 	return btn
-
 
 func _navigate_up_one_folder() -> void:
 	if current_virtual_folder.is_empty() or current_virtual_folder == "Root":
@@ -301,7 +225,6 @@ func _navigate_up_one_folder() -> void:
 		current_virtual_folder = ""
 	_render_breadcrumbs()
 	_render_grid_view()
-
 
 func _render_grid_view() -> void:
 	for child: Node in items_grid.get_children():
@@ -345,12 +268,11 @@ func _render_grid_view() -> void:
 		var empty_lbl: Label = Label.new()
 		empty_lbl.text = "(No drawings found in this folder)"
 		empty_lbl.theme_type_variation = "HintLabel"
-		empty_lbl.add_theme_font_size_override("font_size", 11 if _is_mobile() else 10)
+		empty_lbl.add_theme_font_size_override("font_size", 11 if is_mobile() else 10)
 		items_grid.add_child(empty_lbl)
 
-
 func _create_folder_card(folder_name: String) -> void:
-	var is_mob: bool = _is_mobile()
+	var is_mob: bool = is_mobile()
 	var card_w: float = 88.0 if is_mob else 72.0
 	var card_h: float = 100.0 if is_mob else 80.0
 
@@ -404,9 +326,8 @@ func _create_folder_card(folder_name: String) -> void:
 	)
 	items_grid.add_child(card)
 
-
 func _create_image_card(art_data: Dictionary) -> void:
-	var is_mob: bool = _is_mobile()
+	var is_mob: bool = is_mobile()
 	var card_w: float = 88.0 if is_mob else 72.0
 	var card_h: float = 100.0 if is_mob else 80.0
 
@@ -470,10 +391,9 @@ func _create_image_card(art_data: Dictionary) -> void:
 			current_select_callback.call(fname, chosen_tex, fpath)
 			current_select_callback = Callable()
 		asset_selected.emit(fname, chosen_tex, fpath)
-		visible = false
+		close_dialog()
 	)
 	items_grid.add_child(card)
-
 
 func _build_tag_filter_pills() -> void:
 	for child: Node in filter_scroll_container.get_children():
@@ -482,9 +402,8 @@ func _build_tag_filter_pills() -> void:
 	for tag: String in user_available_tags:
 		_add_filter_pill(tag, active_tag_filter == tag)
 
-
 func _add_filter_pill(label_text: String, is_active: bool) -> void:
-	var is_mob: bool = _is_mobile()
+	var is_mob: bool = is_mobile()
 	var btn: Button = Button.new()
 	btn.text = label_text
 	btn.focus_mode = Control.FOCUS_NONE
@@ -520,17 +439,10 @@ func _add_filter_pill(label_text: String, is_active: bool) -> void:
 	)
 	filter_scroll_container.add_child(btn)
 
-
 func _on_search_text_changed(new_text: String) -> void:
 	active_search_query = new_text.strip_edges().to_lower()
 	_render_grid_view()
 
-
 func _load_tag_registry() -> void:
 	user_available_tags = DrawerMetadataService.load_tags_list()
 	asset_tags_registry = DrawerMetadataService.load_asset_tags()
-
-
-func _on_backdrop_gui_input(event: InputEvent) -> void:
-	if (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT) or (event is InputEventScreenTouch and event.pressed):
-		close_picker()

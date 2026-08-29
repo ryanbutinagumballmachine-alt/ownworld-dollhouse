@@ -1,22 +1,12 @@
 # ==============================================================================
-# OWNWORLD — MOBILE-FIRST ANCHOR & SNAP POINT STUDIO (TOUCH & MOUSE ADAPTIVE)
+# OWNWORLD — MOBILE-FIRST ANCHOR & SNAP POINT STUDIO (HYPER OPTIMIZED)
 # File: res://UI/Dialogs/SnapPointStudioDialog.gd
-# Base Class: CanvasLayer (class_name SnapPointStudioDialog)
-#
-# Responsibility: Interactive visual anchor socket editor. Allows placing and
-# dragging connection points (hands, seats, hats, glasses, surfaces, food mouths,
-# liquid emitters) directly on illustrations with coordinate precision spinners.
+# Base Class: HyperUIDialog
 # ==============================================================================
 
 class_name SnapPointStudioDialog
-extends CanvasLayer
+extends HyperUIDialog
 
-const MAX_PANEL_WIDTH: float = 680.0
-const MAX_PANEL_HEIGHT: float = 580.0
-
-var root_backdrop: Control = null
-var center_container: CenterContainer = null
-var root_panel: PanelContainer = null
 var active_entity: OwnEntity = null
 
 var header_lbl: Label = null
@@ -52,7 +42,7 @@ var _is_updating_ui: bool = false
 
 var PIN_TOUCH_RADIUS: float:
 	get:
-		return 38.0 if _is_mobile() else 24.0
+		return 38.0 if is_mobile() else 24.0
 
 var family_definitions: Array[Dictionary] = [
 	{"family": "hand", "label": "Hand Sockets (Hold Props)", "icon": "icon_hand", "is_snap": true, "color": Color("#0284c7")},
@@ -71,94 +61,14 @@ var family_definitions: Array[Dictionary] = [
 	{"family": "custom", "label": "Custom Socket Key...", "icon": "icon_pin", "is_snap": true, "color": Color("#ec4899")}
 ]
 
+func _init() -> void:
+	max_panel_width = 680.0
+	max_panel_height = 580.0
 
-func _ready() -> void:
+func _build_content() -> void:
 	name = "SnapPointStudioDialog"
-	layer = 120
-	visible = false
-	add_to_group("modal_ui")
-	_build_ui()
-	_connect_system_signals()
-	_update_responsive_layout()
-	_setup_keyboard_dodging()
-
-
-func _is_mobile() -> bool:
-	return ThemeEngine.is_mobile_platform()
-
-
-func _connect_system_signals() -> void:
-	var tree: SceneTree = get_tree()
-	if tree != null and tree.root != null and not tree.root.size_changed.is_connected(_update_responsive_layout):
-		tree.root.size_changed.connect(_update_responsive_layout)
-	if not EventBus.theme_changed.is_connected(_on_theme_changed):
-		EventBus.theme_changed.connect(_on_theme_changed)
-
-
-func _setup_keyboard_dodging() -> void:
-	if custom_name_input != null and _is_mobile():
-		custom_name_input.focus_entered.connect(_on_input_focus_entered)
-		custom_name_input.focus_exited.connect(_on_input_focus_exited)
-
-
-func _on_input_focus_entered() -> void:
-	if _is_mobile():
-		await get_tree().process_frame
-		await get_tree().process_frame
-		var kb_height: float = DisplayServer.virtual_keyboard_get_height()
-		if kb_height > 0:
-			var tween: Tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-			tween.tween_property(center_container, "position:y", -kb_height * 0.45, 0.25)
-
-
-func _on_input_focus_exited() -> void:
-	if _is_mobile():
-		var tween: Tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-		tween.tween_property(center_container, "position:y", 0.0, 0.25)
-
-
-func _on_theme_changed(_theme_data: Dictionary) -> void:
-	if not is_instance_valid(root_panel): return
-	_populate_family_dropdown()
-	_update_responsive_layout()
-	_refresh_all()
-
-
-func _update_responsive_layout() -> void:
-	if not is_instance_valid(root_panel): return
-	var viewport_size: Vector2 = get_viewport().get_visible_rect().size if get_viewport() else Vector2(1280.0, 720.0)
-	var is_mob: bool = _is_mobile()
-
-	var target_width: float = clampf(viewport_size.x * 0.94, 320.0, MAX_PANEL_WIDTH)
-	var target_height: float = clampf(viewport_size.y * (0.92 if is_mob else 0.88), 300.0, MAX_PANEL_HEIGHT)
-	root_panel.custom_minimum_size = Vector2(target_width, target_height)
-	root_panel.size = Vector2(target_width, target_height)
-
-
-func _build_ui() -> void:
-	var is_mob: bool = _is_mobile()
+	var is_mob: bool = is_mobile()
 	var row_h: float = 34.0 if is_mob else 28.0
-
-	root_backdrop = Control.new()
-	root_backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
-	root_backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
-	root_backdrop.gui_input.connect(_on_backdrop_gui_input)
-	add_child(root_backdrop)
-
-	var background_dim: ColorRect = ColorRect.new()
-	background_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	background_dim.color = Color(0.0, 0.0, 0.0, 0.65)
-	background_dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root_backdrop.add_child(background_dim)
-
-	center_container = CenterContainer.new()
-	center_container.set_anchors_preset(Control.PRESET_FULL_RECT)
-	center_container.mouse_filter = Control.MOUSE_FILTER_PASS
-	root_backdrop.add_child(center_container)
-
-	root_panel = PanelContainer.new()
-	root_panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	center_container.add_child(root_panel)
 
 	var main_vbox: VBoxContainer = VBoxContainer.new()
 	main_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -181,8 +91,8 @@ func _build_ui() -> void:
 	close_button.custom_minimum_size = Vector2(28.0 if is_mob else 22.0, 28.0 if is_mob else 22.0)
 	close_button.focus_mode = Control.FOCUS_NONE
 	close_button.add_theme_constant_override("icon_max_width", 12)
-	_apply_close_icon(close_button)
-	close_button.pressed.connect(close_dialog)
+	apply_close_icon(close_button)
+	close_button.pressed.connect(_on_close_requested)
 	header_hbox.add_child(close_button)
 
 	main_vbox.add_child(HSeparator.new())
@@ -202,6 +112,7 @@ func _build_ui() -> void:
 	custom_name_input.placeholder_text = "Key (e.g. tail_1)..."
 	custom_name_input.custom_minimum_size = Vector2(120.0 if is_mob else 100.0, row_h)
 	custom_name_input.visible = false
+	register_keyboard_dodge(custom_name_input)
 	creator_hbox.add_child(custom_name_input)
 
 	btn_add_anchor = Button.new()
@@ -210,7 +121,7 @@ func _build_ui() -> void:
 	btn_add_anchor.focus_mode = Control.FOCUS_NONE
 	btn_add_anchor.add_theme_constant_override("icon_max_width", 14)
 	btn_add_anchor.add_theme_font_size_override("font_size", 11 if is_mob else 10)
-	_apply_button_icon(btn_add_anchor, "icon_plus")
+	apply_button_icon(btn_add_anchor, "icon_plus")
 	btn_add_anchor.pressed.connect(_on_add_anchor_pressed)
 	creator_hbox.add_child(btn_add_anchor)
 
@@ -335,10 +246,17 @@ func _build_ui() -> void:
 	btn_save.focus_mode = Control.FOCUS_NONE
 	btn_save.add_theme_constant_override("icon_max_width", 16)
 	btn_save.add_theme_font_size_override("font_size", 12 if is_mob else 11)
-	_apply_button_icon(btn_save, "icon_save")
-	btn_save.pressed.connect(close_dialog)
+	apply_button_icon(btn_save, "icon_save")
+	btn_save.pressed.connect(_on_close_requested)
 	main_vbox.add_child(btn_save)
 
+func _on_theme_updated() -> void:
+	_populate_family_dropdown()
+	_refresh_all()
+	if root_panel == null: return
+	for node: Node in root_panel.find_children("*", "Button", true, false):
+		if node is Button and (node as Button).text == "✕":
+			apply_close_icon(node as Button)
 
 func _populate_family_dropdown() -> void:
 	if opt_family_category == null: return
@@ -356,7 +274,6 @@ func _populate_family_dropdown() -> void:
 	if not family_definitions.is_empty():
 		opt_family_category.selected = clampi(prev_idx, 0, family_definitions.size() - 1)
 
-
 func open_for_entity(entity: OwnEntity) -> void:
 	if not is_instance_valid(entity): return
 	active_entity = entity
@@ -364,7 +281,6 @@ func open_for_entity(entity: OwnEntity) -> void:
 	_populate_family_dropdown()
 	opt_family_category.selected = 0
 	_on_family_selected(0)
-	_update_responsive_layout()
 
 	selected_anchor_key = ""
 	if not entity.snap_points.is_empty():
@@ -374,22 +290,20 @@ func open_for_entity(entity: OwnEntity) -> void:
 		selected_anchor_key = entity.interaction_points.keys()[0]
 		is_selected_snap = false
 
-	visible = true
+	open_dialog()
 	await get_tree().process_frame
 	_refresh_all()
 
-
-func close_dialog() -> void:
+func _on_close_requested() -> void:
 	if active_entity != null and is_instance_valid(active_entity):
 		active_entity.rebuild_gizmos()
 		CapabilitySynchronizer.synchronize(active_entity)
 		SaveSystem.update_character_in_cast(active_entity)
 		SaveSystem.save_current_room_state()
 		EventBus.notification_requested.emit("Anchors Saved!", true)
-	visible = false
 	active_entity = null
 	selected_anchor_key = ""
-
+	super._on_close_requested()
 
 func _on_family_selected(index: int) -> void:
 	if index < 0 or index >= family_definitions.size(): return
@@ -400,7 +314,6 @@ func _on_family_selected(index: int) -> void:
 
 	var next_key: String = _find_next_incremental_key(family, bool(definition["is_snap"]))
 	btn_add_anchor.text = " + Add " + next_key
-
 
 func _on_add_anchor_pressed() -> void:
 	if active_entity == null or opt_family_category.selected < 0 or opt_family_category.selected >= family_definitions.size():
@@ -445,7 +358,6 @@ func _on_add_anchor_pressed() -> void:
 	_on_family_selected(opt_family_category.selected)
 	EventBus.notification_requested.emit("Added %s. Drag on canvas to position." % new_key, true)
 
-
 func _find_next_incremental_key(family_prefix: String, is_snap: bool) -> String:
 	if active_entity == null: return family_prefix + "_1"
 	if family_prefix == "sit_point": return "sit_point"
@@ -461,7 +373,6 @@ func _find_next_incremental_key(family_prefix: String, is_snap: bool) -> String:
 
 	return "%s_%d" % [family_prefix, max_index + 1]
 
-
 func _count_family_instances(family_prefix: String, is_snap: bool) -> int:
 	if active_entity == null: return 0
 	var pool: Dictionary = active_entity.snap_points if is_snap else active_entity.interaction_points
@@ -469,7 +380,6 @@ func _count_family_instances(family_prefix: String, is_snap: bool) -> int:
 	for k: String in pool.keys():
 		if k.begins_with(family_prefix): count += 1
 	return count
-
 
 func _on_canvas_gui_input(event: InputEvent) -> void:
 	if active_entity == null: return
@@ -499,7 +409,6 @@ func _on_canvas_gui_input(event: InputEvent) -> void:
 		var sd: InputEventScreenDrag = event as InputEventScreenDrag
 		if sd.index == active_touch_index and is_dragging_anchor:
 			_handle_pointer_move(sd.position)
-
 
 func _handle_pointer_down(ui_pos: Vector2) -> void:
 	if active_entity == null: return
@@ -540,7 +449,6 @@ func _handle_pointer_down(ui_pos: Vector2) -> void:
 		else:
 			EventBus.notification_requested.emit("Tap '+ Add Slot' to create an anchor, or select an existing one below.", true)
 
-
 func _handle_pointer_move(ui_pos: Vector2) -> void:
 	if not is_dragging_anchor or selected_anchor_key.is_empty() or active_entity == null:
 		return
@@ -548,7 +456,6 @@ func _handle_pointer_move(ui_pos: Vector2) -> void:
 	var local_offset: Vector2 = _ui_to_sprite_offset(ui_pos)
 	local_offset = Vector2(roundf(local_offset.x), roundf(local_offset.y))
 	_set_anchor_local_pos(selected_anchor_key, is_selected_snap, local_offset)
-
 
 func _handle_pointer_up(_ui_pos: Vector2) -> void:
 	if is_dragging_anchor:
@@ -558,7 +465,6 @@ func _handle_pointer_up(_ui_pos: Vector2) -> void:
 			EventBus.entity_state_changed.emit(active_entity.entity_id)
 		_sync_coordinate_inputs()
 		if marker_overlay != null: marker_overlay.queue_redraw()
-
 
 func _set_anchor_local_pos(key: String, is_snap: bool, local_pos: Vector2) -> void:
 	if active_entity == null: return
@@ -584,7 +490,6 @@ func _set_anchor_local_pos(key: String, is_snap: bool, local_pos: Vector2) -> vo
 	if marker_overlay != null: marker_overlay.queue_redraw()
 	_render_anchors_list()
 
-
 func _select_anchor(key: String, is_snap: bool) -> void:
 	selected_anchor_key = key
 	is_selected_snap = is_snap
@@ -592,7 +497,6 @@ func _select_anchor(key: String, is_snap: bool) -> void:
 	_sync_coordinate_inputs()
 	if marker_overlay != null: marker_overlay.queue_redraw()
 	_render_anchors_list()
-
 
 func _match_category_dropdown(key: String) -> void:
 	if opt_family_category == null: return
@@ -607,7 +511,6 @@ func _match_category_dropdown(key: String) -> void:
 	opt_family_category.selected = family_definitions.size() - 1
 	custom_name_input.visible = true
 	custom_name_input.text = key
-
 
 func _sync_coordinate_inputs() -> void:
 	if _is_updating_ui or spin_x == null or spin_y == null: return
@@ -636,19 +539,16 @@ func _sync_coordinate_inputs() -> void:
 
 	_is_updating_ui = false
 
-
 func _on_coordinate_spin_changed(_val: float) -> void:
 	if _is_updating_ui or selected_anchor_key.is_empty() or active_entity == null:
 		return
 	var new_local_pos: Vector2 = Vector2(roundf(spin_x.value), roundf(spin_y.value))
 	_set_anchor_local_pos(selected_anchor_key, is_selected_snap, new_local_pos)
 
-
 func _on_center_selected_pressed() -> void:
 	if selected_anchor_key.is_empty() or active_entity == null: return
 	_set_anchor_local_pos(selected_anchor_key, is_selected_snap, Vector2.ZERO)
 	_trigger_haptic(15)
-
 
 func _on_delete_selected_pressed() -> void:
 	if selected_anchor_key.is_empty() or active_entity == null: return
@@ -665,7 +565,6 @@ func _on_delete_selected_pressed() -> void:
 	_refresh_all()
 	EventBus.notification_requested.emit("Deleted: " + key_to_del, true)
 
-
 func _get_texture_render_rect() -> Rect2:
 	if active_entity == null or active_entity.texture_size == Vector2.ZERO or sprite_canvas.size == Vector2.ZERO:
 		return Rect2(Vector2.ZERO, sprite_canvas.size)
@@ -676,7 +575,6 @@ func _get_texture_render_rect() -> Rect2:
 	var drawn_position: Vector2 = (canvas_size - drawn_size) * 0.5
 	return Rect2(drawn_position, drawn_size)
 
-
 func _sprite_offset_to_ui(sprite_offset: Vector2) -> Vector2:
 	var render_rect: Rect2 = _get_texture_render_rect()
 	var center: Vector2 = render_rect.position + (render_rect.size * 0.5)
@@ -684,14 +582,12 @@ func _sprite_offset_to_ui(sprite_offset: Vector2) -> Vector2:
 	var scale_factor: float = render_rect.size.x / active_entity.texture_size.x
 	return center + (sprite_offset * scale_factor)
 
-
 func _ui_to_sprite_offset(ui_position: Vector2) -> Vector2:
 	var render_rect: Rect2 = _get_texture_render_rect()
 	var center: Vector2 = render_rect.position + (render_rect.size * 0.5)
 	if active_entity == null or active_entity.texture_size.x == 0.0: return Vector2.ZERO
 	var scale_factor: float = render_rect.size.x / active_entity.texture_size.x
 	return (ui_position - center) / (scale_factor if scale_factor != 0.0 else 1.0)
-
 
 func _get_color_for_key(key_name: String, is_snap: bool) -> Color:
 	var lowercase_key: String = key_name.to_lower()
@@ -701,7 +597,6 @@ func _get_color_for_key(key_name: String, is_snap: bool) -> Color:
 			return definition["color"] as Color
 	return Color("#ec4899") if is_snap else Color("#d97706")
 
-
 func _get_icon_for_key(key_name: String, is_snap: bool) -> String:
 	var lowercase_key: String = key_name.to_lower()
 	for definition: Dictionary in family_definitions:
@@ -710,12 +605,10 @@ func _get_icon_for_key(key_name: String, is_snap: bool) -> String:
 			return str(definition.get("icon", "icon_anchors"))
 	return "icon_anchors" if is_snap else "icon_food"
 
-
 func _refresh_all() -> void:
 	_sync_coordinate_inputs()
 	if marker_overlay != null: marker_overlay.queue_redraw()
 	_render_anchors_list()
-
 
 func _render_anchors_list() -> void:
 	if anchors_list_vbox == null: return
@@ -730,7 +623,7 @@ func _render_anchors_list() -> void:
 		var empty_lbl: Label = Label.new()
 		empty_lbl.text = "No anchors placed yet. Select a category and tap '+ Add Slot'."
 		empty_lbl.theme_type_variation = "HintLabel"
-		empty_lbl.add_theme_font_size_override("font_size", 11 if _is_mobile() else 10)
+		empty_lbl.add_theme_font_size_override("font_size", 11 if is_mobile() else 10)
 		anchors_list_vbox.add_child(empty_lbl)
 		return
 
@@ -747,9 +640,8 @@ func _render_anchors_list() -> void:
 		var icon_key: String = _get_icon_for_key(inter_name, false)
 		_create_anchor_list_row(inter_name, pos, false, icon_key, is_sel)
 
-
 func _create_anchor_list_row(anchor_key: String, pos: Vector2, is_snap: bool, icon_key: String, is_selected: bool) -> void:
-	var is_mob: bool = _is_mobile()
+	var is_mob: bool = is_mobile()
 	var card: PanelContainer = PanelContainer.new()
 	card.theme_type_variation = "SubPanel"
 	card.custom_minimum_size = Vector2(0.0, 36.0 if is_mob else 30.0)
@@ -799,7 +691,7 @@ func _create_anchor_list_row(anchor_key: String, pos: Vector2, is_snap: bool, ic
 	delete_btn.theme_type_variation = "DangerButton"
 	delete_btn.focus_mode = Control.FOCUS_NONE
 	delete_btn.add_theme_constant_override("icon_max_width", 10)
-	_apply_close_icon(delete_btn)
+	apply_close_icon(delete_btn)
 	delete_btn.pressed.connect(func() -> void:
 		if is_snap: active_entity.snap_points.erase(anchor_key)
 		else: active_entity.interaction_points.erase(anchor_key)
@@ -811,36 +703,10 @@ func _create_anchor_list_row(anchor_key: String, pos: Vector2, is_snap: bool, ic
 	hbox.add_child(delete_btn)
 	anchors_list_vbox.add_child(card)
 
-
 func _trigger_haptic(duration_ms: int = 25) -> void:
 	if SettingsManager.are_haptics_enabled() and (OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios")):
 		if Input.has_method("vibrate_handheld"):
 			Input.vibrate_handheld(duration_ms)
-
-
-func _btn_add_theme_constant_override(button: Button, property: StringName, value: int) -> void:
-	button.add_theme_constant_override(property, value)
-
-
-func _apply_button_icon(button: Button, icon_key: String) -> void:
-	if button == null: return
-	var icon_texture: Texture2D = ThemeService.get_icon(icon_key)
-	if icon_texture != null: button.icon = icon_texture
-
-
-func _apply_close_icon(button: Button) -> void:
-	if button == null: return
-	var icon_texture: Texture2D = ThemeService.get_icon("icon_close")
-	if icon_texture != null: button.icon = icon_texture
-	else: button.text = "✕"
-
-
-func _on_backdrop_gui_input(event: InputEvent) -> void:
-	if (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT) or (event is InputEventScreenTouch and event.pressed):
-		close_dialog()
-
-
-# --- DYNAMIC OVERLAY DRAWING ---
 
 class AnchorOverlayDraw extends Control:
 	var studio_ref: SnapPointStudioDialog = null
@@ -905,7 +771,7 @@ class AnchorOverlayDraw extends Control:
 			draw_circle(ui_pos, 2.5, Color.WHITE)
 
 			var text_str: String = key
-			var font_sz: int = 10 if studio_ref._is_mobile() else 9
+			var font_sz: int = 10 if studio_ref.is_mobile() else 9
 			var text_w: float = font.get_string_size(text_str, HORIZONTAL_ALIGNMENT_LEFT, -1, font_sz).x
 			var badge_rect: Rect2 = Rect2(ui_pos.x + 10.0, ui_pos.y - 8.0, text_w + 8.0, 16.0)
 

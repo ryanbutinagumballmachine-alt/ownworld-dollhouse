@@ -1,11 +1,10 @@
 # ==============================================================================
-# OWNWORLD — UGC MANAGER & DOCUMENTS HUB (GIF & SLICER ENABLED)
+# OWNWORLD — UGC MANAGER & DOCUMENTS HUB (HYPER OPTIMIZED)
 # File: res://Core/UGCManager.gd
-# Base Class: RefCounted (class_name UGCManager)
+# Base Class: RefCounted
 #
-# Responsibility: Centralized user-generated content file system manager,
-# multithreaded asynchronous thumbnail generation, full-resolution mipmapped
-# texture loading, pure GDScript GIF decoding, and alpha collision polygon generation.
+# Responsibility: Centralized user-generated content file system manager.
+# Features strict LRU cache limits to prevent memory leaks on mobile devices.
 # ==============================================================================
 
 class_name UGCManager
@@ -17,6 +16,7 @@ const DEFAULT_ALPHA_CUTOFF: float = 0.05
 const DEFAULT_ALPHA_EPSILON: float = 4.0
 const COLLISION_PROXY_MAX_SIZE: int = 256
 const THUMB_CACHE_DIR: String = "user://.thumb_cache/"
+const MAX_THUMB_CACHE_SIZE: int = 150 # Strict memory limit
 
 const SUPPORTED_ART_EXTENSIONS: Array[String] = ["png", "jpg", "jpeg", "webp", "gif"]
 const SUPPORTED_FONT_EXTENSIONS: Array[String] = ["ttf", "otf", "woff", "woff2"]
@@ -35,7 +35,6 @@ static var _library_metadata_cache: Array[Dictionary] = []
 static var _cached_folders: Array[String] = []
 static var _library_dirty: bool = true
 
-
 # --- DOCUMENTS HUB PATH DIRECTORIES ---
 
 static func get_documents_hub_dir() -> String:
@@ -49,54 +48,42 @@ static func get_documents_hub_dir() -> String:
 	JsonFileStore.ensure_directory(hub_dir)
 	return hub_dir
 
-
 static func get_dollhouse_dir() -> String:
 	var dollhouse_dir: String = get_documents_hub_dir().path_join("Dollhouse").replace("\\", "/")
 	JsonFileStore.ensure_directory(dollhouse_dir)
 	return dollhouse_dir
 
-
 static func get_art_root_directory() -> String:
 	return _get_or_create_dollhouse_subdir("Art")
-
 
 static func get_exports_dir() -> String:
 	return _get_or_create_dollhouse_subdir("Exports")
 
-
 static func get_packs_dir() -> String:
 	return _get_or_create_dollhouse_subdir("Packs")
-
 
 static func get_font_root_directory() -> String:
 	return _get_or_create_dollhouse_subdir("Font")
 
-
 static func get_theme_root_directory() -> String:
 	return _get_or_create_dollhouse_subdir("Themes")
-
 
 static func get_theme_icons_directory() -> String:
 	var icons_dir: String = get_theme_root_directory().path_join("Icons").replace("\\", "/")
 	JsonFileStore.ensure_directory(icons_dir)
 	return icons_dir
 
-
 static func get_theme_file_path() -> String:
 	return get_theme_root_directory().path_join("theme.json").replace("\\", "/")
-
 
 static func get_custom_themes_file_path() -> String:
 	return get_theme_root_directory().path_join("custom_themes.json").replace("\\", "/")
 
-
 static func get_templates_directory() -> String:
 	return _get_or_create_dollhouse_subdir("Templates")
 
-
 static func get_audio_root_directory() -> String:
 	return _get_or_create_dollhouse_subdir("Audio")
-
 
 static func ensure_all_directories() -> void:
 	get_art_root_directory()
@@ -109,16 +96,13 @@ static func ensure_all_directories() -> void:
 	get_audio_root_directory()
 	_ensure_thumb_cache_directory()
 
-
 static func _ensure_thumb_cache_directory() -> void:
 	JsonFileStore.ensure_directory(THUMB_CACHE_DIR)
-
 
 static func _get_or_create_dollhouse_subdir(subdir_name: String) -> String:
 	var target_dir: String = get_dollhouse_dir().path_join(subdir_name).replace("\\", "/")
 	JsonFileStore.ensure_directory(target_dir)
 	return target_dir
-
 
 static func get_default_import_directory() -> String:
 	var pictures_dir: String = OS.get_system_dir(OS.SYSTEM_DIR_PICTURES)
@@ -135,7 +119,6 @@ static func get_default_import_directory() -> String:
 
 	return get_art_root_directory()
 
-
 static func resolve_art_directory(relative_folder: String = "") -> String:
 	var normalized_folder: String = _normalize_relative_folder(relative_folder)
 	var art_root: String = get_art_root_directory()
@@ -143,14 +126,12 @@ static func resolve_art_directory(relative_folder: String = "") -> String:
 	JsonFileStore.ensure_directory(target_directory)
 	return target_directory
 
-
 # --- METADATA & ZERO-LAG IN-MEMORY LIBRARY INDEXING ---
 
 static func mark_library_dirty() -> void:
 	_library_dirty = true
 	_library_metadata_cache.clear()
 	_cached_folders.clear()
-
 
 static func scan_user_art_library(force_refresh: bool = false) -> Array[Dictionary]:
 	if not _library_dirty and not force_refresh and not _library_metadata_cache.is_empty():
@@ -167,7 +148,6 @@ static func scan_user_art_library(force_refresh: bool = false) -> Array[Dictiona
 
 	_library_dirty = false
 	return _library_metadata_cache
-
 
 static func _scan_dir_metadata_recursive(disk_path: String, relative_folder: String, results: Array[Dictionary], folders_set: Dictionary) -> void:
 	if not DirAccess.dir_exists_absolute(disk_path):
@@ -194,7 +174,6 @@ static func _scan_dir_metadata_recursive(disk_path: String, relative_folder: Str
 		folders_set[sub_relative_path] = true
 		_scan_dir_metadata_recursive(sub_directory, sub_relative_path, results, folders_set)
 
-
 static func get_files_in_art_folder(relative_folder_path: String) -> Array[Dictionary]:
 	var all_files: Array[Dictionary] = scan_user_art_library()
 	var target_norm: String = _normalize_relative_folder(relative_folder_path)
@@ -208,7 +187,6 @@ static func get_files_in_art_folder(relative_folder_path: String) -> Array[Dicti
 			filtered_results.append(art_data)
 
 	return filtered_results
-
 
 static func get_subfolders_in_art_folder(relative_folder_path: String) -> Array[String]:
 	scan_user_art_library()
@@ -239,11 +217,9 @@ static func get_subfolders_in_art_folder(relative_folder_path: String) -> Array[
 	direct_subfolders.sort()
 	return direct_subfolders
 
-
 static func get_all_art_folders() -> Array[String]:
 	scan_user_art_library()
 	return _cached_folders.duplicate()
-
 
 static func create_art_folder(nested_folder_path: String) -> bool:
 	var normalized_path: String = _normalize_relative_folder(nested_folder_path)
@@ -257,7 +233,6 @@ static func create_art_folder(nested_folder_path: String) -> bool:
 		mark_library_dirty()
 	return ok
 
-
 static func delete_art_folder(relative_folder_path: String) -> bool:
 	var normalized_relative: String = _normalize_relative_folder(relative_folder_path)
 	if normalized_relative.is_empty() or normalized_relative == "Root":
@@ -269,7 +244,6 @@ static func delete_art_folder(relative_folder_path: String) -> bool:
 	if ok: 
 		mark_library_dirty()
 	return ok
-
 
 static func import_art_files(source_paths: PackedStringArray, relative_target_folder: String = "") -> Array[Dictionary]:
 	var imported_results: Array[Dictionary] = []
@@ -303,7 +277,6 @@ static func import_art_files(source_paths: PackedStringArray, relative_target_fo
 	mark_library_dirty()
 	return imported_results
 
-
 static func delete_art_file(file_path: String) -> bool:
 	var clean_path: String = _normalize_file_path(file_path)
 	if not FileAccess.file_exists(clean_path): 
@@ -313,7 +286,6 @@ static func delete_art_file(file_path: String) -> bool:
 	if ok: 
 		mark_library_dirty()
 	return ok
-
 
 static func move_art_file(source_path: String, target_folder: String) -> String:
 	var clean_source: String = _normalize_file_path(source_path)
@@ -337,7 +309,6 @@ static func move_art_file(source_path: String, target_folder: String) -> String:
 	mark_library_dirty()
 	return new_path
 
-
 static func _wipe_dir_recursive(disk_path: String) -> bool:
 	if not DirAccess.dir_exists_absolute(disk_path): 
 		return true
@@ -354,8 +325,14 @@ static func _wipe_dir_recursive(disk_path: String) -> bool:
 
 	return DirAccess.remove_absolute(disk_path) == OK
 
-
 # --- NON-BLOCKING ASYNCHRONOUS THUMBNAIL PIPELINE ---
+
+static func _enforce_cache_limit() -> void:
+	if thumb_cache.size() > MAX_THUMB_CACHE_SIZE:
+		var keys: Array = thumb_cache.keys()
+		var keys_to_remove: Array = keys.slice(0, thumb_cache.size() - MAX_THUMB_CACHE_SIZE)
+		for k: Variant in keys_to_remove:
+			thumb_cache.erase(k)
 
 static func get_thumbnail_async(file_path: String, max_dimension: int = THUMBNAIL_MAX_DIMENSION) -> Texture2D:
 	var clean_path: String = _normalize_file_path(file_path)
@@ -379,6 +356,7 @@ static func get_thumbnail_async(file_path: String, max_dimension: int = THUMBNAI
 
 	thumb_mutex.lock()
 	thumb_cache[cache_key] = async_texture
+	_enforce_cache_limit()
 	thumb_mutex.unlock()
 
 	WorkerThreadPool.add_task(func():
@@ -389,18 +367,16 @@ static func get_thumbnail_async(file_path: String, max_dimension: int = THUMBNAI
 
 	return async_texture
 
-
 static func _set_texture_image_safe(tex: ImageTexture, img: Image, cache_key: String) -> void:
 	if is_instance_valid(tex) and img != null and not img.is_empty():
 		tex.set_image(img)
 		thumb_mutex.lock()
 		thumb_cache[cache_key] = tex
+		_enforce_cache_limit()
 		thumb_mutex.unlock()
-
 
 static func get_thumbnail(file_path: String, max_dimension: int = THUMBNAIL_MAX_DIMENSION) -> Texture2D:
 	return get_thumbnail_async(file_path, max_dimension)
-
 
 static func _get_or_create_thumbnail_image(clean_path: String, max_dimension: int) -> Image:
 	if not FileAccess.file_exists(clean_path): 
@@ -420,7 +396,6 @@ static func _get_or_create_thumbnail_image(clean_path: String, max_dimension: in
 
 	var source_image: Image = null
 
-	# Handle animated GIF thumbnail extraction
 	if clean_path.get_extension().to_lower() == "gif":
 		var gif_data: Dictionary = GifDecoder.decode_file(clean_path, true)
 		if bool(gif_data.get("valid", false)):
@@ -445,7 +420,6 @@ static func _get_or_create_thumbnail_image(clean_path: String, max_dimension: in
 	source_image.save_png(thumb_disk_path)
 	return source_image
 
-
 # --- FULL-RESOLUTION TEXTURE & GIF LOADER ---
 
 static func load_texture_from_file(file_path: String, max_dimension: int = DEFAULT_MAX_TEXTURE_DIMENSION) -> Texture2D:
@@ -459,7 +433,6 @@ static func load_texture_from_file(file_path: String, max_dimension: int = DEFAU
 			return cached_value as Texture2D
 		texture_cache.erase(clean_path)
 
-	# Handle GIF format by extracting base frame
 	if clean_path.get_extension().to_lower() == "gif":
 		var gif_data: Dictionary = load_gif(clean_path)
 		if bool(gif_data.get("valid", false)):
@@ -507,8 +480,6 @@ static func load_texture_from_file(file_path: String, max_dimension: int = DEFAU
 	texture_cache[clean_path] = texture
 	return texture
 
-
-## Loads and decodes an entire animated GIF file with in-memory caching.
 static func load_gif(file_path: String) -> Dictionary:
 	var clean_path: String = _normalize_file_path(file_path)
 	if clean_path.is_empty() or not FileAccess.file_exists(clean_path):
@@ -525,11 +496,8 @@ static func load_gif(file_path: String) -> Dictionary:
 
 	return decoded
 
-
-## Slices a spritesheet image into in-memory frame textures.
 static func slice_sprite_sheet(source_tex: Texture2D, columns: int, rows: int) -> Array[ImageTexture]:
 	return SpriteSheetSlicer.slice_by_grid(source_tex, columns, rows)
-
 
 static func clear_cache_for_path(file_path: String) -> void:
 	var clean_path: String = _normalize_file_path(file_path)
@@ -546,11 +514,13 @@ static func clear_cache_for_path(file_path: String) -> void:
 		gif_cache.erase(clean_path)
 
 	thumb_mutex.lock()
+	var keys_to_erase: Array = []
 	for key: String in thumb_cache.keys():
 		if key.begins_with(clean_path):
-			thumb_cache.erase(key)
+			keys_to_erase.append(key)
+	for k: String in keys_to_erase:
+		thumb_cache.erase(k)
 	thumb_mutex.unlock()
-
 
 static func clear_texture_cache() -> void:
 	texture_cache.clear()
@@ -562,13 +532,11 @@ static func clear_texture_cache() -> void:
 	thumb_cache.clear()
 	thumb_mutex.unlock()
 
-
 static func get_texture_cache_size() -> int: 
 	return texture_cache.size()
 
 static func get_polygon_cache_size() -> int: 
 	return polygon_cache.size()
-
 
 # --- ALPHA GEOMETRY & COLLISION GENERATION ---
 
@@ -599,7 +567,6 @@ static func generate_alpha_bitmap(tex: Texture2D, alpha_cutoff: float = DEFAULT_
 	bitmap.create_from_image_alpha(proxy_img, clampf(alpha_cutoff, 0.0, 1.0))
 	bitmap_cache[texture_rid] = bitmap
 	return bitmap
-
 
 static func generate_alpha_collision_polygons(tex: Texture2D, alpha_cutoff: float = DEFAULT_ALPHA_CUTOFF, epsilon: float = DEFAULT_ALPHA_EPSILON) -> Array[PackedVector2Array]:
 	if tex == null: 
@@ -656,7 +623,6 @@ static func generate_alpha_collision_polygons(tex: Texture2D, alpha_cutoff: floa
 	all_polygons_cache[texture_rid] = centered_polygons
 	return centered_polygons
 
-
 static func generate_alpha_collision_polygon(tex: Texture2D, alpha_cutoff: float = DEFAULT_ALPHA_CUTOFF, epsilon: float = DEFAULT_ALPHA_EPSILON) -> PackedVector2Array:
 	if tex == null: 
 		return PackedVector2Array()
@@ -683,14 +649,12 @@ static func generate_alpha_collision_polygon(tex: Texture2D, alpha_cutoff: float
 	polygon_cache[texture_rid] = empty_polygon
 	return empty_polygon
 
-
 static func create_blank_starter_graphic(dimensions: Vector2, tint: Color) -> ImageTexture:
 	var width: int = maxi(int(dimensions.x), 1)
 	var height: int = maxi(int(dimensions.y), 1)
 	var image: Image = Image.create(width, height, true, Image.FORMAT_RGBA8)
 	image.fill(tint)
 	return ImageTexture.create_from_image(image)
-
 
 static func create_door_frame_texture(dimensions: Vector2 = Vector2(96.0, 160.0)) -> ImageTexture:
 	var width: int = maxi(int(dimensions.x), 1)
@@ -706,10 +670,8 @@ static func create_door_frame_texture(dimensions: Vector2 = Vector2(96.0, 160.0)
 
 	return ImageTexture.create_from_image(image)
 
-
 static func _normalize_file_path(file_path: String) -> String:
 	return file_path.replace("\\", "/").strip_edges()
-
 
 static func _normalize_relative_folder(relative_folder: String) -> String:
 	var normalized: String = relative_folder.replace("\\", "/").strip_edges().trim_prefix("/").trim_suffix("/")

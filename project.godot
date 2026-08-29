@@ -26,9 +26,9 @@ ThemeService="*res://AutoLoads/ThemeService.gd"
 AudioManager="*res://AutoLoads/AudioManager.gd"
 HistoryManager="*res://AutoLoads/HistoryManager.gd"
 NotificationService="*res://AutoLoads/NotificationService.gd"
-ToastManager="*res://AutoLoads/ToastManager.gd"
 SaveSystem="*res://AutoLoads/SaveSystem.gd"
 GameManager="*res://AutoLoads/GameManager.gd"
+HyperInputRouter="*uid://c6r66yg6ohxbe"
 
 [display]
 

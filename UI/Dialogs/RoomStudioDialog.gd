@@ -1,23 +1,13 @@
 # ==============================================================================
-# OWNWORLD — ROOM & MULTI-SLICE EXPANSION STUDIO (LANDSCAPE DUAL-OS ADAPTIVE)
+# OWNWORLD — ROOM & MULTI-SLICE EXPANSION STUDIO (HYPER OPTIMIZED)
 # File: res://UI/Dialogs/RoomStudioDialog.gd
-# Base Class: CanvasLayer (class_name RoomStudioDialog)
-#
-# Responsibility: Multi-slice room expansion modal (up to 10 screens wide).
-# Configures per-slice wallpapers, fill modes, indoor/outdoor weather masks,
-# procedural wall/floor color palettes, floor baseline heights, and building IDs.
+# Base Class: HyperUIDialog
 # ==============================================================================
 
 class_name RoomStudioDialog
-extends CanvasLayer
+extends HyperUIDialog
 
 const MAX_SLICES: int = 10
-const MAX_PANEL_WIDTH: float = 760.0
-const MAX_PANEL_HEIGHT: float = 600.0
-
-var root_backdrop: Control = null
-var center_container: CenterContainer = null
-var root_panel: PanelContainer = null
 
 var header_lbl: Label = null
 var room_name_edit: LineEdit = null
@@ -75,96 +65,14 @@ const FILL_MODES: Array[Dictionary] = [
 signal room_configured(slices_data: Array[Dictionary], floor_y: float, room_title: String, floor_level: String, bldg_name: String, bldg_id: String)
 signal floor_preview_changed(floor_y: float, p_visible: bool)
 
+func _init() -> void:
+	max_panel_width = 760.0
+	max_panel_height = 600.0
 
-func _ready() -> void:
+func _build_content() -> void:
 	name = "RoomStudioDialog"
-	layer = 120
-	visible = false
-	add_to_group("modal_ui")
-	_build_ui()
-	_connect_system_signals()
-	_update_responsive_layout()
-	_setup_keyboard_dodging()
-
-
-func _is_mobile() -> bool:
-	return ThemeEngine.is_mobile_platform()
-
-
-func _connect_system_signals() -> void:
-	var tree: SceneTree = get_tree()
-	if tree != null and tree.root != null and not tree.root.size_changed.is_connected(_update_responsive_layout):
-		tree.root.size_changed.connect(_update_responsive_layout)
-	if not EventBus.theme_changed.is_connected(_on_theme_changed):
-		EventBus.theme_changed.connect(_on_theme_changed)
-
-
-func _setup_keyboard_dodging() -> void:
-	if not _is_mobile(): return
-	var edits: Array[LineEdit] = [room_name_edit, room_id_edit, floor_level_edit]
-	for edit in edits:
-		if edit != null:
-			edit.focus_entered.connect(_on_input_focus_entered)
-			edit.focus_exited.connect(_on_input_focus_exited)
-
-
-func _on_input_focus_entered() -> void:
-	if _is_mobile():
-		await get_tree().process_frame
-		await get_tree().process_frame
-		var kb_height: float = DisplayServer.virtual_keyboard_get_height()
-		if kb_height > 0:
-			var tween: Tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-			tween.tween_property(center_container, "position:y", -kb_height * 0.4, 0.25)
-
-
-func _on_input_focus_exited() -> void:
-	if _is_mobile():
-		var tween: Tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-		tween.tween_property(center_container, "position:y", 0.0, 0.25)
-
-
-func _on_theme_changed(_theme_data: Dictionary) -> void:
-	_refresh_theme_icons()
-	_update_responsive_layout()
-	_render_slice_tabs()
-
-
-func _update_responsive_layout() -> void:
-	if not is_instance_valid(root_panel): return
-	var viewport_size: Vector2 = get_viewport().get_visible_rect().size if get_viewport() else Vector2(1280.0, 720.0)
-	var is_mob: bool = _is_mobile()
-
-	var target_width: float = clampf(viewport_size.x * 0.94, 320.0, MAX_PANEL_WIDTH)
-	var target_height: float = clampf(viewport_size.y * (0.92 if is_mob else 0.88), 300.0, MAX_PANEL_HEIGHT)
-	root_panel.custom_minimum_size = Vector2(target_width, target_height)
-	root_panel.size = Vector2(target_width, target_height)
-
-
-func _build_ui() -> void:
-	var is_mob: bool = _is_mobile()
+	var is_mob: bool = is_mobile()
 	var row_h: float = 34.0 if is_mob else 28.0
-
-	root_backdrop = Control.new()
-	root_backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
-	root_backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
-	root_backdrop.gui_input.connect(_on_backdrop_gui_input)
-	add_child(root_backdrop)
-
-	var background_dim: ColorRect = ColorRect.new()
-	background_dim.set_anchors_preset(Control.PRESET_FULL_RECT)
-	background_dim.color = Color(0.0, 0.0, 0.0, 0.65)
-	background_dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	root_backdrop.add_child(background_dim)
-
-	center_container = CenterContainer.new()
-	center_container.set_anchors_preset(Control.PRESET_FULL_RECT)
-	center_container.mouse_filter = Control.MOUSE_FILTER_PASS
-	root_backdrop.add_child(center_container)
-
-	root_panel = PanelContainer.new()
-	root_panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	center_container.add_child(root_panel)
 
 	var main_vbox: VBoxContainer = VBoxContainer.new()
 	main_vbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -187,8 +95,8 @@ func _build_ui() -> void:
 	close_button.custom_minimum_size = Vector2(28.0 if is_mob else 22.0, 28.0 if is_mob else 22.0)
 	close_button.focus_mode = Control.FOCUS_NONE
 	close_button.add_theme_constant_override("icon_max_width", 12)
-	_apply_close_icon(close_button)
-	close_button.pressed.connect(close_dialog)
+	apply_close_icon(close_button)
+	close_button.pressed.connect(_on_close_requested)
 	header_hbox.add_child(close_button)
 
 	main_vbox.add_child(HSeparator.new())
@@ -223,6 +131,7 @@ func _build_ui() -> void:
 	room_name_edit = LineEdit.new()
 	room_name_edit.placeholder_text = "e.g. Living Room, Library..."
 	room_name_edit.custom_minimum_size = Vector2(0.0, row_h)
+	register_keyboard_dodge(room_name_edit)
 	name_box.add_child(room_name_edit)
 
 	var floor_box: VBoxContainer = VBoxContainer.new()
@@ -240,6 +149,7 @@ func _build_ui() -> void:
 	floor_level_edit.placeholder_text = "e.g. 1F, 2F, B1..."
 	floor_level_edit.text = "1F"
 	floor_level_edit.custom_minimum_size = Vector2(0.0, row_h)
+	register_keyboard_dodge(floor_level_edit)
 	floor_box.add_child(floor_level_edit)
 
 	var id_box: VBoxContainer = VBoxContainer.new()
@@ -262,6 +172,7 @@ func _build_ui() -> void:
 	room_id_edit.editable = false
 	room_id_edit.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	room_id_edit.custom_minimum_size = Vector2(0.0, row_h)
+	register_keyboard_dodge(room_id_edit)
 	id_input_row.add_child(room_id_edit)
 
 	btn_copy_room_id = Button.new()
@@ -322,7 +233,7 @@ func _build_ui() -> void:
 	btn_add_slice.focus_mode = Control.FOCUS_NONE
 	btn_add_slice.add_theme_constant_override("icon_max_width", 14)
 	btn_add_slice.add_theme_font_size_override("font_size", 11 if is_mob else 10)
-	_apply_button_icon(btn_add_slice, "icon_plus")
+	apply_button_icon(btn_add_slice, "icon_plus")
 	btn_add_slice.pressed.connect(_on_add_slice_pressed)
 	slice_actions_hbox.add_child(btn_add_slice)
 
@@ -470,7 +381,7 @@ func _build_ui() -> void:
 	check_show_floor_line.button_pressed = true
 	check_show_floor_line.custom_minimum_size = Vector2(0.0, row_h)
 	check_show_floor_line.add_theme_font_size_override("font_size", 11 if is_mob else 10)
-	_apply_checkbox_icon(check_show_floor_line, "icon_floor")
+	apply_checkbox_icon(check_show_floor_line, "icon_floor")
 	check_show_floor_line.toggled.connect(func(is_toggled: bool) -> void: floor_preview_changed.emit(floor_slider.value, is_toggled))
 	floor_box_c.add_child(check_show_floor_line)
 
@@ -534,7 +445,7 @@ func _build_ui() -> void:
 	btn_apply.focus_mode = Control.FOCUS_NONE
 	btn_apply.add_theme_constant_override("icon_max_width", 16)
 	btn_apply.add_theme_font_size_override("font_size", 12 if is_mob else 11)
-	_apply_button_icon(btn_apply, "icon_save")
+	apply_button_icon(btn_apply, "icon_save")
 	btn_apply.pressed.connect(_on_save_pressed)
 	button_row.add_child(btn_apply)
 
@@ -545,10 +456,19 @@ func _build_ui() -> void:
 	btn_clear_slice.focus_mode = Control.FOCUS_NONE
 	btn_clear_slice.add_theme_constant_override("icon_max_width", 16)
 	btn_clear_slice.add_theme_font_size_override("font_size", 11 if is_mob else 10)
-	_apply_button_icon(btn_clear_slice, "icon_delete")
+	apply_button_icon(btn_clear_slice, "icon_delete")
 	btn_clear_slice.pressed.connect(_on_clear_slice_wallpaper_pressed)
 	button_row.add_child(btn_clear_slice)
 
+func _on_theme_updated() -> void:
+	apply_button_icon(btn_apply, "icon_save")
+	apply_button_icon(btn_clear_slice, "icon_delete")
+	apply_checkbox_icon(check_show_floor_line, "icon_floor")
+	_render_slice_tabs()
+	if root_panel == null: return
+	for node: Node in root_panel.find_children("*", "Button", true, false):
+		if node is Button and (node as Button).text == "✕":
+			apply_close_icon(node as Button)
 
 func _enforce_dropdown_popup_limits(option_button: OptionButton, max_height: int = 200) -> void:
 	if option_button == null: return
@@ -556,7 +476,6 @@ func _enforce_dropdown_popup_limits(option_button: OptionButton, max_height: int
 	if popup == null: return
 	popup.max_size = Vector2i(4000, max_height)
 	popup.about_to_popup.connect(func() -> void: popup.max_size = Vector2i(4000, max_height))
-
 
 func open_studio(
 	p_room_title: String,
@@ -592,30 +511,26 @@ func open_studio(
 		})
 
 	current_selected_slice_idx = 0
-	_update_responsive_layout()
 	_render_slice_tabs()
 	_sync_active_slice_controls()
 
 	floor_preview_changed.emit(current_floor_y, true)
-	visible = true
+	open_dialog()
 
-
-func close_dialog() -> void:
+func _on_close_requested() -> void:
 	if floor_slider != null: floor_preview_changed.emit(floor_slider.value, false)
-	visible = false
-
+	super._on_close_requested()
 
 func _on_copy_room_id_pressed() -> void:
 	DisplayServer.clipboard_set(current_room_id)
 	EventBus.notification_requested.emit("Copied Room ID: " + current_room_id, true)
-
 
 func _render_slice_tabs() -> void:
 	if slices_tab_container == null: return
 	for child: Node in slices_tab_container.get_children():
 		child.queue_free()
 
-	var is_mob: bool = _is_mobile()
+	var is_mob: bool = is_mobile()
 	var c_accent: Color = ThemeService.get_color("accent_primary", "#db2777")
 	var rad: int = ThemeService.get_corner_radius()
 
@@ -655,7 +570,6 @@ func _render_slice_tabs() -> void:
 
 	btn_remove_slice.disabled = (room_slices.size() <= 1)
 
-
 func _on_add_slice_pressed() -> void:
 	if room_slices.size() >= MAX_SLICES:
 		EventBus.notification_requested.emit("Max room length reached (%d slices)" % MAX_SLICES, true)
@@ -669,7 +583,6 @@ func _on_add_slice_pressed() -> void:
 	_sync_active_slice_controls()
 	EventBus.notification_requested.emit("Added Slice %d" % room_slices.size(), true)
 
-
 func _on_remove_slice_pressed() -> void:
 	if room_slices.size() <= 1:
 		return
@@ -678,7 +591,6 @@ func _on_remove_slice_pressed() -> void:
 	_render_slice_tabs()
 	_sync_active_slice_controls()
 	EventBus.notification_requested.emit("Removed slice.", true)
-
 
 func _sync_active_slice_controls() -> void:
 	if current_selected_slice_idx < 0 or current_selected_slice_idx >= room_slices.size():
@@ -708,21 +620,17 @@ func _sync_active_slice_controls() -> void:
 	_select_fill_mode(current_fill_mode)
 	_populate_art_dropdown(current_wall_path)
 
-
 func _on_procedural_wall_color_changed(new_color: Color) -> void:
 	if current_selected_slice_idx < 0 or current_selected_slice_idx >= room_slices.size(): return
 	room_slices[current_selected_slice_idx]["wall_color"] = "#" + new_color.to_html(false)
-
 
 func _on_procedural_floor_color_changed(new_color: Color) -> void:
 	if current_selected_slice_idx < 0 or current_selected_slice_idx >= room_slices.size(): return
 	room_slices[current_selected_slice_idx]["floor_color"] = "#" + new_color.to_html(false)
 
-
 func _on_procedural_trim_color_changed(new_color: Color) -> void:
 	if current_selected_slice_idx < 0 or current_selected_slice_idx >= room_slices.size(): return
 	room_slices[current_selected_slice_idx]["baseboard_color"] = "#" + new_color.to_html(false)
-
 
 func _on_reset_slice_colors_pressed() -> void:
 	if current_selected_slice_idx < 0 or current_selected_slice_idx >= room_slices.size(): return
@@ -732,7 +640,6 @@ func _on_reset_slice_colors_pressed() -> void:
 	_sync_active_slice_controls()
 	EventBus.notification_requested.emit("Reset slice colors to theme palette.", true)
 
-
 func _on_slice_environment_selected(index: int) -> void:
 	if current_selected_slice_idx < 0 or current_selected_slice_idx >= room_slices.size():
 		return
@@ -741,14 +648,12 @@ func _on_slice_environment_selected(index: int) -> void:
 	_update_environment_hint(is_outdoor)
 	_render_slice_tabs()
 
-
 func _update_environment_hint(is_outdoor: bool) -> void:
 	if slice_env_hint != null:
 		if is_outdoor:
 			slice_env_hint.text = "Outdoors: Weather precipitation (rain, snow, leaves) will fall across this slice."
 		else:
 			slice_env_hint.text = "Indoors: Weather precipitation is blocked inside this slice."
-
 
 func _select_fill_mode(mode_id: String) -> void:
 	for index: int in range(FILL_MODES.size()):
@@ -758,7 +663,6 @@ func _select_fill_mode(mode_id: String) -> void:
 			return
 	fill_mode_option.selected = 0
 	_update_preview_stretch_mode(int(FILL_MODES[0]["stretch"]))
-
 
 func _populate_art_dropdown(current_wall_path: String) -> void:
 	if art_option == null: return
@@ -784,7 +688,6 @@ func _populate_art_dropdown(current_wall_path: String) -> void:
 	else:
 		preview_rect.texture = null
 
-
 func _on_art_selected(index: int) -> void:
 	if current_selected_slice_idx < 0 or current_selected_slice_idx >= room_slices.size():
 		return
@@ -799,7 +702,6 @@ func _on_art_selected(index: int) -> void:
 
 	_render_slice_tabs()
 
-
 func _on_fill_mode_selected(index: int) -> void:
 	if current_selected_slice_idx < 0 or current_selected_slice_idx >= room_slices.size():
 		return
@@ -809,20 +711,16 @@ func _on_fill_mode_selected(index: int) -> void:
 		room_slices[current_selected_slice_idx]["fill_mode"] = mode_id
 		_update_preview_stretch_mode(int(FILL_MODES[index]["stretch"]))
 
-
 func _update_preview_texture(texture: Texture2D) -> void:
 	if preview_rect != null: preview_rect.texture = texture
 
-
 func _update_preview_stretch_mode(stretch_mode: int) -> void:
 	if preview_rect != null: preview_rect.stretch_mode = stretch_mode as TextureRect.StretchMode
-
 
 func _on_floor_slider_changed(value: float) -> void:
 	if floor_val_lbl != null: floor_val_lbl.text = "%d px" % int(value)
 	if check_show_floor_line != null:
 		floor_preview_changed.emit(value, check_show_floor_line.button_pressed)
-
 
 func _on_save_pressed() -> void:
 	var room_title: String = room_name_edit.text.strip_edges()
@@ -834,8 +732,7 @@ func _on_save_pressed() -> void:
 		current_building_name,
 		(floor_level if not floor_level.is_empty() else "1F")
 	], true)
-	visible = false
-
+	_on_close_requested()
 
 func _on_clear_slice_wallpaper_pressed() -> void:
 	if current_selected_slice_idx >= 0 and current_selected_slice_idx < room_slices.size():
@@ -843,47 +740,7 @@ func _on_clear_slice_wallpaper_pressed() -> void:
 		_render_slice_tabs()
 		_sync_active_slice_controls()
 
-
 func _add_icon_option(option_button: OptionButton, icon_key: String, text_label: String, item_id: int) -> void:
 	var icon_texture: Texture2D = ThemeService.get_popup_icon(icon_key)
 	if icon_texture != null: option_button.add_icon_item(icon_texture, " " + text_label, item_id)
 	else: option_button.add_item(text_label, item_id)
-
-
-func _refresh_theme_icons() -> void:
-	_apply_close_icon_to_header()
-	_apply_button_icon(btn_apply, "icon_save")
-	_apply_button_icon(btn_clear_slice, "icon_delete")
-	_apply_checkbox_icon(check_show_floor_line, "icon_floor")
-
-
-func _apply_button_icon(button: Button, icon_key: String) -> void:
-	if button == null: return
-	var icon_texture: Texture2D = ThemeService.get_icon(icon_key)
-	if icon_texture != null: button.icon = icon_texture
-
-
-func _apply_close_icon(button: Button) -> void:
-	if button == null: return
-	var icon_texture: Texture2D = ThemeService.get_icon("icon_close")
-	if icon_texture != null: button.icon = icon_texture
-	else: button.text = "✕"
-
-
-func _apply_checkbox_icon(checkbox: CheckBox, icon_key: String) -> void:
-	if checkbox == null: return
-	var icon_texture: Texture2D = ThemeService.get_icon(icon_key)
-	if icon_texture != null: checkbox.icon = icon_texture
-
-
-func _apply_close_icon_to_header() -> void:
-	if root_panel == null: return
-	for node: Node in root_panel.find_children("*", "Button", true, false):
-		if node is Button and (node as Button).text == "✕":
-			_apply_close_icon(node as Button)
-			return
-
-
-func _on_backdrop_gui_input(event: InputEvent) -> void:
-	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-		close_dialog()
