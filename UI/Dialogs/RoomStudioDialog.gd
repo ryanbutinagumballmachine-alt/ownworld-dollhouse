@@ -1,7 +1,10 @@
 # ==============================================================================
-# OWNWORLD — ROOM & MULTI-SLICE EXPANSION STUDIO (HYPER OPTIMIZED)
+# OWNWORLD — ROOM & MULTI-SLICE EXPANSION STUDIO (HYPER OPTIMIZED & LAYER 120)
 # File: res://UI/Dialogs/RoomStudioDialog.gd
 # Base Class: HyperUIDialog
+#
+# Responsibility: Multi-screen slice expansion manager. Configured at Layer 120
+# with outdoor weather switches, procedural wall/floor colors, and floor line previews.
 # ==============================================================================
 
 class_name RoomStudioDialog
@@ -20,29 +23,24 @@ var current_building_id: String = "building_main"
 var current_building_name: String = "Main Building"
 var building_lbl: Label = null
 
-# Slice Expansion Controls
 var slices_tab_container: HBoxContainer = null
 var btn_add_slice: Button = null
 var btn_remove_slice: Button = null
 var current_selected_slice_idx: int = 0
 var room_slices: Array[Dictionary] = []
 
-# Active Slice Environment
 var opt_slice_environment: OptionButton = null
 var slice_env_hint: Label = null
 
-# Procedural Wall & Floor Custom Colors
 var cp_wall_color: ColorPickerButton = null
 var cp_floor_color: ColorPickerButton = null
 var cp_trim_color: ColorPickerButton = null
 var btn_reset_slice_colors: Button = null
 
-# Floor Baseline
 var floor_slider: HSlider = null
 var floor_val_lbl: Label = null
 var check_show_floor_line: CheckBox = null
 
-# Per-slice Wallpaper Controls
 var art_option: OptionButton = null
 var fill_mode_option: OptionButton = null
 var preview_panel: PanelContainer = null
@@ -65,9 +63,11 @@ const FILL_MODES: Array[Dictionary] = [
 signal room_configured(slices_data: Array[Dictionary], floor_y: float, room_title: String, floor_level: String, bldg_name: String, bldg_id: String)
 signal floor_preview_changed(floor_y: float, p_visible: bool)
 
+
 func _init() -> void:
 	max_panel_width = 760.0
 	max_panel_height = 600.0
+
 
 func _build_content() -> void:
 	name = "RoomStudioDialog"
@@ -460,22 +460,28 @@ func _build_content() -> void:
 	btn_clear_slice.pressed.connect(_on_clear_slice_wallpaper_pressed)
 	button_row.add_child(btn_clear_slice)
 
+
 func _on_theme_updated() -> void:
 	apply_button_icon(btn_apply, "icon_save")
 	apply_button_icon(btn_clear_slice, "icon_delete")
 	apply_checkbox_icon(check_show_floor_line, "icon_floor")
 	_render_slice_tabs()
-	if root_panel == null: return
+	if root_panel == null: 
+		return
 	for node: Node in root_panel.find_children("*", "Button", true, false):
 		if node is Button and (node as Button).text == "✕":
 			apply_close_icon(node as Button)
 
+
 func _enforce_dropdown_popup_limits(option_button: OptionButton, max_height: int = 200) -> void:
-	if option_button == null: return
+	if option_button == null: 
+		return
 	var popup: PopupMenu = option_button.get_popup()
-	if popup == null: return
+	if popup == null: 
+		return
 	popup.max_size = Vector2i(4000, max_height)
 	popup.about_to_popup.connect(func() -> void: popup.max_size = Vector2i(4000, max_height))
+
 
 func open_studio(
 	p_room_title: String,
@@ -517,16 +523,21 @@ func open_studio(
 	floor_preview_changed.emit(current_floor_y, true)
 	open_dialog()
 
+
 func _on_close_requested() -> void:
-	if floor_slider != null: floor_preview_changed.emit(floor_slider.value, false)
+	if floor_slider != null: 
+		floor_preview_changed.emit(floor_slider.value, false)
 	super._on_close_requested()
+
 
 func _on_copy_room_id_pressed() -> void:
 	DisplayServer.clipboard_set(current_room_id)
 	EventBus.notification_requested.emit("Copied Room ID: " + current_room_id, true)
 
+
 func _render_slice_tabs() -> void:
-	if slices_tab_container == null: return
+	if slices_tab_container == null: 
+		return
 	for child: Node in slices_tab_container.get_children():
 		child.queue_free()
 
@@ -570,6 +581,7 @@ func _render_slice_tabs() -> void:
 
 	btn_remove_slice.disabled = (room_slices.size() <= 1)
 
+
 func _on_add_slice_pressed() -> void:
 	if room_slices.size() >= MAX_SLICES:
 		EventBus.notification_requested.emit("Max room length reached (%d slices)" % MAX_SLICES, true)
@@ -583,6 +595,7 @@ func _on_add_slice_pressed() -> void:
 	_sync_active_slice_controls()
 	EventBus.notification_requested.emit("Added Slice %d" % room_slices.size(), true)
 
+
 func _on_remove_slice_pressed() -> void:
 	if room_slices.size() <= 1:
 		return
@@ -591,6 +604,7 @@ func _on_remove_slice_pressed() -> void:
 	_render_slice_tabs()
 	_sync_active_slice_controls()
 	EventBus.notification_requested.emit("Removed slice.", true)
+
 
 func _sync_active_slice_controls() -> void:
 	if current_selected_slice_idx < 0 or current_selected_slice_idx >= room_slices.size():
@@ -620,25 +634,34 @@ func _sync_active_slice_controls() -> void:
 	_select_fill_mode(current_fill_mode)
 	_populate_art_dropdown(current_wall_path)
 
+
 func _on_procedural_wall_color_changed(new_color: Color) -> void:
-	if current_selected_slice_idx < 0 or current_selected_slice_idx >= room_slices.size(): return
+	if current_selected_slice_idx < 0 or current_selected_slice_idx >= room_slices.size(): 
+		return
 	room_slices[current_selected_slice_idx]["wall_color"] = "#" + new_color.to_html(false)
 
+
 func _on_procedural_floor_color_changed(new_color: Color) -> void:
-	if current_selected_slice_idx < 0 or current_selected_slice_idx >= room_slices.size(): return
+	if current_selected_slice_idx < 0 or current_selected_slice_idx >= room_slices.size(): 
+		return
 	room_slices[current_selected_slice_idx]["floor_color"] = "#" + new_color.to_html(false)
 
+
 func _on_procedural_trim_color_changed(new_color: Color) -> void:
-	if current_selected_slice_idx < 0 or current_selected_slice_idx >= room_slices.size(): return
+	if current_selected_slice_idx < 0 or current_selected_slice_idx >= room_slices.size(): 
+		return
 	room_slices[current_selected_slice_idx]["baseboard_color"] = "#" + new_color.to_html(false)
 
+
 func _on_reset_slice_colors_pressed() -> void:
-	if current_selected_slice_idx < 0 or current_selected_slice_idx >= room_slices.size(): return
+	if current_selected_slice_idx < 0 or current_selected_slice_idx >= room_slices.size(): 
+		return
 	room_slices[current_selected_slice_idx]["wall_color"] = ""
 	room_slices[current_selected_slice_idx]["floor_color"] = ""
 	room_slices[current_selected_slice_idx]["baseboard_color"] = ""
 	_sync_active_slice_controls()
 	EventBus.notification_requested.emit("Reset slice colors to theme palette.", true)
+
 
 func _on_slice_environment_selected(index: int) -> void:
 	if current_selected_slice_idx < 0 or current_selected_slice_idx >= room_slices.size():
@@ -648,12 +671,14 @@ func _on_slice_environment_selected(index: int) -> void:
 	_update_environment_hint(is_outdoor)
 	_render_slice_tabs()
 
+
 func _update_environment_hint(is_outdoor: bool) -> void:
 	if slice_env_hint != null:
 		if is_outdoor:
 			slice_env_hint.text = "Outdoors: Weather precipitation (rain, snow, leaves) will fall across this slice."
 		else:
 			slice_env_hint.text = "Indoors: Weather precipitation is blocked inside this slice."
+
 
 func _select_fill_mode(mode_id: String) -> void:
 	for index: int in range(FILL_MODES.size()):
@@ -664,8 +689,10 @@ func _select_fill_mode(mode_id: String) -> void:
 	fill_mode_option.selected = 0
 	_update_preview_stretch_mode(int(FILL_MODES[0]["stretch"]))
 
+
 func _populate_art_dropdown(current_wall_path: String) -> void:
-	if art_option == null: return
+	if art_option == null: 
+		return
 	art_option.clear()
 	art_option.add_item("(Procedural Wall & Floor / No Custom Art)", 0)
 
@@ -675,18 +702,21 @@ func _populate_art_dropdown(current_wall_path: String) -> void:
 		var art_name: String = str(art.get("name", "Art")).strip_edges()
 		var art_path: String = str(art.get("file_path", "")).strip_edges()
 		art_option.add_item(art_name, index + 1)
-		if art_path == current_wall_path: selected_index = index + 1
+		if art_path == current_wall_path: 
+			selected_index = index + 1
 
 	art_option.selected = selected_index
 	if selected_index > 0:
 		var chosen_texture: Variant = art_library[selected_index - 1].get("texture", null)
-		if chosen_texture is Texture2D: _update_preview_texture(chosen_texture as Texture2D)
+		if chosen_texture is Texture2D: 
+			_update_preview_texture(chosen_texture as Texture2D)
 		elif FileAccess.file_exists(current_wall_path):
 			_update_preview_texture(UGCManager.load_texture_from_file(current_wall_path))
 		else:
 			preview_rect.texture = null
 	else:
 		preview_rect.texture = null
+
 
 func _on_art_selected(index: int) -> void:
 	if current_selected_slice_idx < 0 or current_selected_slice_idx >= room_slices.size():
@@ -702,6 +732,7 @@ func _on_art_selected(index: int) -> void:
 
 	_render_slice_tabs()
 
+
 func _on_fill_mode_selected(index: int) -> void:
 	if current_selected_slice_idx < 0 or current_selected_slice_idx >= room_slices.size():
 		return
@@ -711,16 +742,23 @@ func _on_fill_mode_selected(index: int) -> void:
 		room_slices[current_selected_slice_idx]["fill_mode"] = mode_id
 		_update_preview_stretch_mode(int(FILL_MODES[index]["stretch"]))
 
+
 func _update_preview_texture(texture: Texture2D) -> void:
-	if preview_rect != null: preview_rect.texture = texture
+	if preview_rect != null: 
+		preview_rect.texture = texture
+
 
 func _update_preview_stretch_mode(stretch_mode: int) -> void:
-	if preview_rect != null: preview_rect.stretch_mode = stretch_mode as TextureRect.StretchMode
+	if preview_rect != null: 
+		preview_rect.stretch_mode = stretch_mode as TextureRect.StretchMode
+
 
 func _on_floor_slider_changed(value: float) -> void:
-	if floor_val_lbl != null: floor_val_lbl.text = "%d px" % int(value)
+	if floor_val_lbl != null: 
+		floor_val_lbl.text = "%d px" % int(value)
 	if check_show_floor_line != null:
 		floor_preview_changed.emit(value, check_show_floor_line.button_pressed)
+
 
 func _on_save_pressed() -> void:
 	var room_title: String = room_name_edit.text.strip_edges()
@@ -734,13 +772,17 @@ func _on_save_pressed() -> void:
 	], true)
 	_on_close_requested()
 
+
 func _on_clear_slice_wallpaper_pressed() -> void:
 	if current_selected_slice_idx >= 0 and current_selected_slice_idx < room_slices.size():
 		room_slices[current_selected_slice_idx]["wallpaper_path"] = ""
 		_render_slice_tabs()
 		_sync_active_slice_controls()
 
+
 func _add_icon_option(option_button: OptionButton, icon_key: String, text_label: String, item_id: int) -> void:
 	var icon_texture: Texture2D = ThemeService.get_popup_icon(icon_key)
-	if icon_texture != null: option_button.add_icon_item(icon_texture, " " + text_label, item_id)
-	else: option_button.add_item(text_label, item_id)
+	if icon_texture != null: 
+		option_button.add_icon_item(icon_texture, " " + text_label, item_id)
+	else: 
+		option_button.add_item(text_label, item_id)

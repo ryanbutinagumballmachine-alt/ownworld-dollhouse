@@ -1,5 +1,9 @@
+# ============================================================
+# File: res://UI/Dialogs/ContainerStorageDialog.gd
+# ============================================================
+
 # ==============================================================================
-# OWNWORLD — CONTAINER STORAGE DIALOG (HYPER OPTIMIZED)
+# OWNWORLD — CONTAINER STORAGE DIALOG (HYPER OPTIMIZED & LAYER 120)
 # File: res://UI/Dialogs/ContainerStorageDialog.gd
 # Base Class: HyperUIDialog
 # ==============================================================================
@@ -15,9 +19,11 @@ var items_grid: HBoxContainer = null
 
 signal item_unpacked_requested(item_data: Dictionary, container_ent: OwnEntity)
 
+
 func _init() -> void:
 	max_panel_width = 520.0
 	max_panel_height = 280.0
+
 
 func _build_content() -> void:
 	name = "ContainerStorageDialog"
@@ -67,52 +73,11 @@ func _build_content() -> void:
 	items_grid.add_theme_constant_override("separation", 10)
 	scroll.add_child(items_grid)
 
+
 func _on_theme_updated() -> void:
-	_apply_theme_styling()
 	if active_container_entity != null and is_instance_valid(active_container_entity):
 		_render_stored_items()
 
-func _apply_theme_styling() -> void:
-	if root_panel == null: return
-	var background_color: Color = ThemeService.get_color("panel_background", "#fff0f5")
-	var border_color: Color = ThemeService.get_color("panel_border", "#f472b6")
-	var button_normal: Color = ThemeService.get_color("button_normal", "#fce7f3")
-	var button_hover: Color = ThemeService.get_color("button_hover", "#fbcfe8")
-	var text_primary: Color = ThemeService.get_color("text_primary", "#4a1525")
-	var text_muted: Color = ThemeService.get_color("text_muted", "#884d5e")
-	var accent_color: Color = ThemeService.get_color("accent_primary", "#db2777")
-	var corner_radius: int = ThemeService.get_corner_radius()
-
-	var panel_style: StyleBoxFlat = StyleBoxFlat.new()
-	panel_style.bg_color = background_color
-	panel_style.border_color = border_color
-	panel_style.set_border_width_all(2)
-	panel_style.set_corner_radius_all(corner_radius)
-	panel_style.content_margin_left = 14
-	panel_style.content_margin_right = 14
-	panel_style.content_margin_top = 10
-	panel_style.content_margin_bottom = 10
-	root_panel.add_theme_stylebox_override("panel", panel_style)
-
-	title_lbl.add_theme_color_override("font_color", accent_color)
-	hint_lbl.add_theme_color_override("font_color", text_muted)
-
-	if btn_close != null:
-		var button_normal_style: StyleBoxFlat = StyleBoxFlat.new()
-		button_normal_style.bg_color = button_normal
-		button_normal_style.border_color = border_color
-		button_normal_style.set_border_width_all(1)
-		button_normal_style.set_corner_radius_all(corner_radius)
-		button_normal_style.content_margin_left = 6
-		button_normal_style.content_margin_right = 6
-		btn_close.add_theme_stylebox_override("normal", button_normal_style)
-
-		var button_hover_style: StyleBoxFlat = button_normal_style.duplicate() as StyleBoxFlat
-		button_hover_style.bg_color = button_hover
-		button_hover_style.border_color = accent_color
-		btn_close.add_theme_stylebox_override("hover", button_hover_style)
-		btn_close.add_theme_color_override("font_color", text_primary)
-		apply_close_icon(btn_close)
 
 func open_for_container(container_ent: OwnEntity) -> void:
 	if not is_instance_valid(container_ent) or not container_ent.is_container:
@@ -120,16 +85,18 @@ func open_for_container(container_ent: OwnEntity) -> void:
 	active_container_entity = container_ent
 	title_lbl.text = "Storage: " + container_ent.display_name
 	_render_stored_items()
-	_apply_theme_styling()
 	open_dialog()
 	AudioManager.play_pop_grab()
+
 
 func _on_close_requested() -> void:
 	active_container_entity = null
 	super._on_close_requested()
 
+
 func _render_stored_items() -> void:
-	if items_grid == null: return
+	if items_grid == null: 
+		return
 	for child: Node in items_grid.get_children():
 		child.queue_free()
 
@@ -194,6 +161,7 @@ func _render_stored_items() -> void:
 		var captured_index: int = index
 		button.pressed.connect(func() -> void: _unpack_item(captured_index, captured_data))
 		items_grid.add_child(button)
+
 
 func _unpack_item(index: int, item_data: Dictionary) -> void:
 	if active_container_entity == null or not is_instance_valid(active_container_entity):

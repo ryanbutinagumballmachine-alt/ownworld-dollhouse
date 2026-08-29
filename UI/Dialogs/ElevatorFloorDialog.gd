@@ -1,5 +1,9 @@
+# ============================================================
+# File: res://UI/Dialogs/ElevatorFloorDialog.gd
+# ============================================================
+
 # ==============================================================================
-# OWNWORLD — ELEVATOR FLOOR ROUTING DIALOG (HYPER OPTIMIZED)
+# OWNWORLD — ELEVATOR FLOOR ROUTING DIALOG (HYPER OPTIMIZED & LAYER 120)
 # File: res://UI/Dialogs/ElevatorFloorDialog.gd
 # Base Class: HyperUIDialog
 # ==============================================================================
@@ -14,9 +18,11 @@ var keypad_grid: GridContainer = null
 
 signal floor_travel_requested(elevator: OwnEntity, target_room_id: String, floor_name: String)
 
+
 func _init() -> void:
 	max_panel_width = 520.0
 	max_panel_height = 460.0
+
 
 func _build_content() -> void:
 	name = "ElevatorFloorDialog"
@@ -69,26 +75,33 @@ func _build_content() -> void:
 	keypad_grid.add_theme_constant_override("v_separation", 8)
 	keypad_scroll.add_child(keypad_grid)
 
+
 func _on_theme_updated() -> void:
 	if active_elevator != null and is_instance_valid(active_elevator):
 		_render_keypad_buttons()
-	if root_panel == null: return
+	if root_panel == null: 
+		return
 	for node: Node in root_panel.find_children("*", "Button", true, false):
 		if node is Button and (node as Button).text == "✕":
 			apply_close_icon(node as Button)
 
+
 func open_keypad(elevator_ent: OwnEntity) -> void:
-	if not is_instance_valid(elevator_ent): return
+	if not is_instance_valid(elevator_ent): 
+		return
 	active_elevator = elevator_ent
 	_render_keypad_buttons()
 	open_dialog()
+
 
 func _on_close_requested() -> void:
 	active_elevator = null
 	super._on_close_requested()
 
+
 func _render_keypad_buttons() -> void:
-	if keypad_grid == null: return
+	if keypad_grid == null: 
+		return
 	for child: Node in keypad_grid.get_children():
 		child.queue_free()
 
@@ -170,6 +183,7 @@ func _render_keypad_buttons() -> void:
 		var captured_floor_name: String = floor_label
 		button.pressed.connect(func() -> void: _on_floor_selected(captured_room_id, captured_floor_name))
 		keypad_grid.add_child(button)
+
 
 func _on_floor_selected(target_room_id: String, floor_name: String) -> void:
 	var current_room_id: String = AppState.room_id

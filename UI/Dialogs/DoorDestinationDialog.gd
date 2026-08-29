@@ -1,5 +1,9 @@
+# ============================================================
+# File: res://UI/Dialogs/DoorDestinationDialog.gd
+# ============================================================
+
 # ==============================================================================
-# OWNWORLD — DOOR DESTINATION DIALOG (HYPER OPTIMIZED)
+# OWNWORLD — DOOR DESTINATION DIALOG (HYPER OPTIMIZED & LAYER 120)
 # File: res://UI/Dialogs/DoorDestinationDialog.gd
 # Base Class: HyperUIDialog
 # ==============================================================================
@@ -22,9 +26,11 @@ var btn_save: Button = null
 
 var location_ids: Array[String] = []
 
+
 func _init() -> void:
 	max_panel_width = 500.0
 	max_panel_height = 440.0
+
 
 func _build_content() -> void:
 	name = "DoorDestinationDialog"
@@ -105,13 +111,17 @@ func _build_content() -> void:
 	btn_save.pressed.connect(_on_save_pressed)
 	vbox.add_child(btn_save)
 
+
 func _on_theme_updated() -> void:
 	apply_button_icon(btn_save, "icon_save")
-	if root_panel == null: return
+	if root_panel == null: 
+		return
 	for node: Node in root_panel.find_children("*", "Button", true, false):
 		if node is Button and (node as Button).text == "✕":
 			apply_close_icon(node as Button)
-	if visible: _populate_map_locations()
+	if visible: 
+		_populate_map_locations()
+
 
 func open_for_door(door_ent: OwnEntity) -> void:
 	if not is_instance_valid(door_ent):
@@ -122,48 +132,60 @@ func open_for_door(door_ent: OwnEntity) -> void:
 	_populate_map_locations()
 	open_dialog()
 
+
 func _on_close_requested() -> void:
 	active_door_entity = null
 	location_ids.clear()
 	super._on_close_requested()
 
+
 func _populate_map_locations() -> void:
-	if destination_option == null: return
+	if destination_option == null: 
+		return
 	destination_option.clear()
 	location_ids.clear()
 
 	destination_option.add_item("(Use Custom Room ID Below)", 0)
 	location_ids.append("")
-	if active_door_entity == null: return
+	if active_door_entity == null: 
+		return
 
 	var current_universe_id: String = AppState.universe_id
 	var current_room_id: String = AppState.room_id
 
 	var pin_icon: Texture2D = ThemeService.get_icon("icon_pin")
-	if pin_icon == null: pin_icon = ThemeService.get_icon("icon_map")
+	if pin_icon == null: 
+		pin_icon = ThemeService.get_icon("icon_map")
 
 	var map_path: String = MAP_DIRECTORY + current_universe_id + "_map.json"
-	if not FileAccess.file_exists(map_path): return
+	if not FileAccess.file_exists(map_path): 
+		return
 
 	var parsed: Dictionary = JsonFileStore.read_dictionary(map_path)
-	if parsed.is_empty(): return
+	if parsed.is_empty(): 
+		return
 
 	var pins: Variant = parsed.get("pins", [])
-	if not pins is Array: return
+	if not pins is Array: 
+		return
 
 	var selected_index: int = 0
 	for pin_variant: Variant in (pins as Array):
-		if not pin_variant is Dictionary: continue
+		if not pin_variant is Dictionary: 
+			continue
 		var pin_data: Dictionary = pin_variant as Dictionary
 		var pin_name: String = str(pin_data.get("name", "Location")).strip_edges()
 		var room_id: String = str(pin_data.get("room_id", "room_main")).strip_edges()
-		if room_id.is_empty() or room_id == current_room_id: continue
+		if room_id.is_empty() or room_id == current_room_id: 
+			continue
 
 		var entry_label: String = "%s (%s)" % [pin_name, room_id]
 		var item_id: int = location_ids.size()
 
-		if pin_icon != null: destination_option.add_icon_item(pin_icon, entry_label, item_id)
-		else: destination_option.add_item(entry_label, item_id)
+		if pin_icon != null: 
+			destination_option.add_icon_item(pin_icon, entry_label, item_id)
+		else: 
+			destination_option.add_item(entry_label, item_id)
 
 		location_ids.append(room_id)
 		if room_id == active_door_entity.target_room_id:
@@ -171,9 +193,11 @@ func _populate_map_locations() -> void:
 
 	destination_option.selected = selected_index
 
+
 func _on_location_selected(index: int) -> void:
 	if index > 0 and index < location_ids.size():
 		custom_room_edit.text = location_ids[index]
+
 
 func _on_save_pressed() -> void:
 	if active_door_entity == null or not is_instance_valid(active_door_entity):
@@ -200,9 +224,12 @@ func _on_save_pressed() -> void:
 	EventBus.notification_requested.emit("Door Leads to: " + active_door_entity.target_room_id, true)
 	_on_close_requested()
 
+
 func _enforce_dropdown_popup_limits(option_button: OptionButton, max_height: int = 200) -> void:
-	if option_button == null: return
+	if option_button == null: 
+		return
 	var popup: PopupMenu = option_button.get_popup()
-	if popup == null: return
+	if popup == null: 
+		return
 	popup.max_size = Vector2i(4000, max_height)
 	popup.about_to_popup.connect(func() -> void: popup.max_size = Vector2i(4000, max_height))

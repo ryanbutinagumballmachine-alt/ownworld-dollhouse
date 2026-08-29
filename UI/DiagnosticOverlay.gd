@@ -1,3 +1,7 @@
+# ============================================================
+# File: res://UI/DiagnosticOverlay.gd
+# ============================================================
+
 # ==============================================================================
 # OWNWORLD — DIAGNOSTIC OVERLAY & INTEGRATED MOBILE SIMULATOR
 # File: res://UI/DiagnosticOverlay.gd
@@ -5,13 +9,14 @@
 #
 # Responsibility: Developer diagnostics heads-up display. Renders real-time FPS,
 # coordinate metrics, collision polylines, socket links, and system state JSON dumps.
-# Features a built-in Mobile View & Hardware Notch Simulator for desktop developers.
+# Configured at Layer 130 to sit above modal dialogs.
 # ==============================================================================
 
 class_name DiagnosticOverlay
 extends CanvasLayer
 
 const SESSION_FILE: String = "user://session.json"
+const DIAGNOSTIC_LAYER: int = 130
 
 const RESOLUTION_PRESETS: Array[Dictionary] = [
 	{
@@ -57,7 +62,6 @@ var btn_copy_state: Button = null
 var debug_canvas: Control = null
 var dev_pill_btn: Button = null
 
-# Mobile Simulator Controls embedded in Dev HUD
 var sim_box: VBoxContainer = null
 var preset_opt: OptionButton = null
 var btn_toggle_notch: Button = null
@@ -69,7 +73,7 @@ var _update_timer: float = 0.0
 
 func _ready() -> void:
 	name = "DiagnosticOverlay"
-	layer = 126
+	layer = DIAGNOSTIC_LAYER
 	visible = false
 	set_process(false)
 	_build_diagnostic_hud()
@@ -83,23 +87,27 @@ func _is_mobile() -> bool:
 
 func setup(p_main: Node2D) -> void:
 	main_ref = p_main
-	if is_inside_tree(): _sync_with_settings()
+	if is_inside_tree(): 
+		_sync_with_settings()
 
 
 func _connect_settings_signal() -> void:
-	if not is_inside_tree(): return
+	if not is_inside_tree(): 
+		return
 	if SettingsManager.has_signal("developer_mode_changed"):
 		if not SettingsManager.is_connected("developer_mode_changed", Callable(self, "_on_dev_mode_changed")):
 			SettingsManager.developer_mode_changed.connect(_on_dev_mode_changed)
 
 
 func _sync_with_settings() -> void:
-	if not is_inside_tree(): return
+	if not is_inside_tree(): 
+		return
 	_on_dev_mode_changed(SettingsManager.is_developer_mode_enabled())
 
 
 func _on_dev_mode_changed(enabled: bool) -> void:
-	if dev_pill_btn: dev_pill_btn.visible = enabled
+	if dev_pill_btn: 
+		dev_pill_btn.visible = enabled
 	set_diagnostic_active(enabled)
 
 
@@ -150,7 +158,8 @@ func set_diagnostic_active(active: bool) -> void:
 
 	if debug_canvas:
 		debug_canvas.visible = active
-		if active: debug_canvas.queue_redraw()
+		if active: 
+			debug_canvas.queue_redraw()
 
 	if is_instance_valid(main_ref):
 		var raw_ents: Variant = main_ref.get("all_entities")
@@ -169,7 +178,8 @@ func cycle_resolution_preset() -> void:
 
 func toggle_simulated_notch() -> void:
 	is_notch_visible = not is_notch_visible
-	if debug_canvas: debug_canvas.queue_redraw()
+	if debug_canvas: 
+		debug_canvas.queue_redraw()
 	EventBus.notification_requested.emit("Camera Notch Overlay: " + ("ON (F4)" if is_notch_visible else "OFF"), true)
 
 
@@ -181,12 +191,12 @@ func toggle_mobile_ui_mode() -> void:
 
 
 func _apply_resolution_preset(index: int) -> void:
-	if index < 0 or index >= RESOLUTION_PRESETS.size(): return
+	if index < 0 or index >= RESOLUTION_PRESETS.size(): 
+		return
 	active_preset_index = index
 	var preset: Dictionary = RESOLUTION_PRESETS[active_preset_index]
 	var target_size: Vector2i = preset["size"] as Vector2i
 
-	# Resize desktop window
 	DisplayServer.window_set_size(target_size)
 	_center_window_on_screen()
 
@@ -234,7 +244,8 @@ func _build_diagnostic_hud() -> void:
 	dev_pill_btn.add_theme_constant_override("icon_max_width", 14)
 
 	var dev_icon: Texture2D = ThemeService.get_icon("icon_dev")
-	if dev_icon: dev_pill_btn.icon = dev_icon
+	if dev_icon: 
+		dev_pill_btn.icon = dev_icon
 	dev_pill_btn.pressed.connect(toggle_diagnostic_hud)
 	add_child(dev_pill_btn)
 
@@ -273,8 +284,10 @@ func _build_diagnostic_hud() -> void:
 	btn_copy_state.add_theme_font_size_override("font_size", 10)
 
 	var copy_icon: Texture2D = ThemeService.get_icon("icon_clone")
-	if not copy_icon: copy_icon = ThemeService.get_icon("icon_save")
-	if copy_icon: btn_copy_state.icon = copy_icon
+	if not copy_icon: 
+		copy_icon = ThemeService.get_icon("icon_save")
+	if copy_icon: 
+		btn_copy_state.icon = copy_icon
 	btn_copy_state.pressed.connect(_on_copy_state_json_pressed)
 
 	var btn_s: StyleBoxFlat = StyleBoxFlat.new()
@@ -291,7 +304,6 @@ func _build_diagnostic_hud() -> void:
 	btn_copy_state.add_theme_color_override("font_color", Color.WHITE)
 	vbox.add_child(btn_copy_state)
 
-	# --- Integrated Mobile View Simulator Section ---
 	vbox.add_child(HSeparator.new())
 
 	sim_box = VBoxContainer.new()
@@ -357,7 +369,8 @@ func _on_dropdown_preset_selected(index: int) -> void:
 
 
 func _update_stats_display() -> void:
-	if not main_ref: return
+	if not main_ref: 
+		return
 
 	var raw_ents: Variant = main_ref.get("all_entities")
 	var entity_count: int = (raw_ents as Array).size() if raw_ents is Array else 0
@@ -376,13 +389,15 @@ func _update_stats_display() -> void:
 
 
 func main_camera_valid() -> bool:
-	if main_ref == null: return false
+	if main_ref == null: 
+		return false
 	var cam: Variant = main_ref.get("main_camera")
 	return cam != null and is_instance_valid(cam as Node)
 
 
 func _on_copy_state_json_pressed() -> void:
-	if not is_instance_valid(main_ref): return
+	if not is_instance_valid(main_ref): 
+		return
 
 	var cam_node: Camera2D = main_ref.get("main_camera") as Camera2D if main_camera_valid() else null
 	var r_bounds: Rect2 = main_ref.get("room_bounds") as Rect2 if "room_bounds" in main_ref else Rect2(0.0, 0.0, 1920.0, 1080.0)
@@ -451,15 +466,19 @@ class DebugCanvasDraw extends Control:
 				draw_rect(Rect2(pill_pos, Vector2(pill_w, pill_h)), Color(1.0, 1.0, 1.0, 0.65), true)
 
 		# 2. Entity Gizmos & Collision Outlines
-		if not is_instance_valid(overlay_ref.main_ref): return
+		if not is_instance_valid(overlay_ref.main_ref): 
+			return
 		var cam: Camera2D = overlay_ref.main_ref.get("main_camera") as Camera2D
-		if not cam or not is_instance_valid(cam): return
+		if not cam or not is_instance_valid(cam): 
+			return
 
 		var raw_ents: Variant = overlay_ref.main_ref.get("all_entities")
-		if not (raw_ents is Array): return
+		if not (raw_ents is Array): 
+			return
 
 		for ent_var: Variant in (raw_ents as Array):
-			if not ent_var is OwnEntity or not is_instance_valid(ent_var): continue
+			if not ent_var is OwnEntity or not is_instance_valid(ent_var): 
+				continue
 			var ent: OwnEntity = ent_var as OwnEntity
 			var ent_screen_pos: Vector2 = _world_to_screen(ent.global_position, cam)
 

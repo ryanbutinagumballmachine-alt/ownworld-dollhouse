@@ -1,5 +1,9 @@
+# ============================================================
+# File: res://UI/Dialogs/ThemeStudioDialog.gd
+# ============================================================
+
 # ==============================================================================
-# OWNWORLD — THEME STUDIO DIALOG (HYPER OPTIMIZED)
+# OWNWORLD — THEME STUDIO DIALOG (HYPER OPTIMIZED & LAYER 120)
 # File: res://UI/Dialogs/ThemeStudioDialog.gd
 # Base Class: HyperUIDialog
 # ==============================================================================
@@ -38,9 +42,11 @@ var btn_save_theme: Button = null
 
 signal theme_applied(theme_data: Dictionary)
 
+
 func _init() -> void:
 	max_panel_width = 680.0
 	max_panel_height = 580.0
+
 
 func _build_content() -> void:
 	name = "ThemeStudioDialog"
@@ -218,16 +224,21 @@ func _build_content() -> void:
 
 	_build_font_file_dialog()
 
+
 func _on_theme_updated() -> void:
-	if visible: _sync_ui_from_theme_service()
-	if root_panel == null: return
+	if visible: 
+		_sync_ui_from_theme_service()
+	if root_panel == null: 
+		return
 	for node: Node in root_panel.find_children("*", "Button", true, false):
 		if node is Button and (node as Button).text == "✕":
 			apply_close_icon(node as Button)
 
+
 func _ensure_theme_dir() -> void:
 	UGCManager.get_theme_root_directory()
 	UGCManager.get_font_root_directory()
+
 
 func _build_font_file_dialog() -> void:
 	font_file_dialog = FileDialog.new()
@@ -239,10 +250,12 @@ func _build_font_file_dialog() -> void:
 	font_file_dialog.file_selected.connect(_on_font_file_selected)
 	add_child(font_file_dialog)
 
+
 func open_studio() -> void:
 	_sync_ui_from_theme_service()
 	_render_user_themes_bar()
 	open_dialog()
+
 
 func _create_color_picker_row(parent: GridContainer, label_text: String, default_color: Color, row_h: float) -> ColorPickerButton:
 	var is_mob: bool = is_mobile()
@@ -256,6 +269,7 @@ func _create_color_picker_row(parent: GridContainer, label_text: String, default
 	c_btn.custom_minimum_size = Vector2(70.0 if is_mob else 60.0, row_h)
 	parent.add_child(c_btn)
 	return c_btn
+
 
 func _add_preset_button(
 	parent: GridContainer, btn_name: String,
@@ -293,6 +307,7 @@ func _add_preset_button(
 		_apply_and_persist_theme(false)
 	)
 	parent.add_child(btn)
+
 
 func _render_user_themes_bar() -> void:
 	for child: Node in saved_themes_container.get_children():
@@ -334,9 +349,11 @@ func _render_user_themes_bar() -> void:
 
 		saved_themes_container.add_child(hbox)
 
+
 func _on_save_custom_theme_pressed() -> void:
 	var t_name: String = custom_theme_name_input.text.strip_edges()
-	if t_name.is_empty(): return
+	if t_name.is_empty(): 
+		return
 
 	user_saved_themes[t_name] = {
 		"colors": {
@@ -361,6 +378,7 @@ func _on_save_custom_theme_pressed() -> void:
 	_render_user_themes_bar()
 	_apply_and_persist_theme(true)
 
+
 func _load_named_custom_theme(t_name: String) -> void:
 	if user_saved_themes.has(t_name):
 		var t_data: Dictionary = (user_saved_themes[t_name] as Dictionary).duplicate(true)
@@ -377,10 +395,12 @@ func _load_named_custom_theme(t_name: String) -> void:
 		cp_accent_danger.color = Color(colors.get("accent_danger", "#f43f5e"))
 		_apply_and_persist_theme(true)
 
+
 func _delete_named_custom_theme(t_name: String) -> void:
 	user_saved_themes.erase(t_name)
 	_save_custom_themes_library()
 	_render_user_themes_bar()
+
 
 func _sync_ui_from_theme_service() -> void:
 	var cached: Dictionary = ThemeService.get_theme_data()
@@ -400,20 +420,24 @@ func _sync_ui_from_theme_service() -> void:
 	active_custom_font_path = str(cached.get("font_path", ""))
 	lbl_current_font.text = active_custom_font_path.get_file() if (not active_custom_font_path.is_empty() and FileAccess.file_exists(active_custom_font_path)) else "Default Font"
 
+
 func _on_browse_font_pressed() -> void:
 	font_file_dialog.theme = ThemeService.create_theme()
 	font_file_dialog.current_dir = UGCManager.get_font_root_directory()
 	font_file_dialog.popup_centered_ratio(0.6)
+
 
 func _on_font_file_selected(fpath: String) -> void:
 	active_custom_font_path = fpath.strip_edges()
 	lbl_current_font.text = fpath.get_file()
 	_apply_and_persist_theme(true)
 
+
 func _on_reset_font_pressed() -> void:
 	active_custom_font_path = ""
 	lbl_current_font.text = "Default Font"
 	_apply_and_persist_theme(true)
+
 
 func _apply_and_persist_theme(show_toast: bool) -> void:
 	var theme_payload: Dictionary = {
@@ -441,9 +465,11 @@ func _apply_and_persist_theme(show_toast: bool) -> void:
 	if show_toast:
 		EventBus.notification_requested.emit("Applied Palette Globally!", true)
 
+
 func _load_custom_themes_library() -> void:
 	var custom_path: String = UGCManager.get_custom_themes_file_path()
 	user_saved_themes = JsonFileStore.read_dictionary(custom_path)
+
 
 func _save_custom_themes_library() -> void:
 	_ensure_theme_dir()

@@ -1,5 +1,9 @@
+# ============================================================
+# File: res://UI/Dialogs/SettingsDialog.gd
+# ============================================================
+
 # ==============================================================================
-# OWNWORLD — SETTINGS DIALOG (HYPER OPTIMIZED)
+# OWNWORLD — SETTINGS DIALOG (HYPER OPTIMIZED & LAYER 120)
 # File: res://UI/Dialogs/SettingsDialog.gd
 # Base Class: HyperUIDialog
 # ==============================================================================
@@ -11,12 +15,10 @@ const FACTORY_RESET_MARKER: String = "user://.ownworld_factory_reset"
 
 var header_lbl: Label = null
 
-# Audio Controls
 var master_slider: HSlider = null
 var sfx_slider: HSlider = null
 var music_slider: HSlider = null
 
-# Interface & Touch Controls
 var ui_scale_val_lbl: Label = null
 var ui_scale_slider: HSlider = null
 var touch_padding_val_lbl: Label = null
@@ -29,7 +31,6 @@ var toasts_check: CheckBox = null
 var dev_mode_check: CheckBox = null
 var dev_simulate_mobile_check: CheckBox = null
 
-# Master & Granular Juice Controls
 var check_juice_master: CheckBox = null
 var juice_sub_container: VBoxContainer = null
 var check_juice_idle: CheckBox = null
@@ -39,16 +40,17 @@ var check_juice_tilts: CheckBox = null
 var check_juice_squash: CheckBox = null
 var check_juice_springs: CheckBox = null
 
-# Action & Danger Buttons
 var btn_factory: Button = null
 var btn_save: Button = null
 
 var reset_modal_backdrop: Control = null
 var reset_panel: PanelContainer = null
 
+
 func _init() -> void:
 	max_panel_width = 680.0
 	max_panel_height = 580.0
+
 
 func _build_content() -> void:
 	name = "SettingsDialog"
@@ -94,7 +96,6 @@ func _build_content() -> void:
 	categories_grid.add_theme_constant_override("v_separation", 10)
 	scroll.add_child(categories_grid)
 
-	# --- Column 1: Audio & Display Settings ---
 	var col_left: VBoxContainer = VBoxContainer.new()
 	col_left.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	col_left.add_theme_constant_override("separation", 8)
@@ -103,7 +104,6 @@ func _build_content() -> void:
 	_build_audio_section(col_left, is_mob)
 	_build_display_section(col_left, is_mob, row_h)
 
-	# --- Column 2: Motion FX & Danger Zone ---
 	var col_right: VBoxContainer = VBoxContainer.new()
 	col_right.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	col_right.add_theme_constant_override("separation", 8)
@@ -126,6 +126,7 @@ func _build_content() -> void:
 
 	_build_reset_confirmation_modal()
 
+
 func _build_audio_section(parent: VBoxContainer, is_mob: bool) -> void:
 	var audio_card: PanelContainer = PanelContainer.new()
 	audio_card.theme_type_variation = "SubPanel"
@@ -145,6 +146,7 @@ func _build_audio_section(parent: VBoxContainer, is_mob: bool) -> void:
 	sfx_slider = _create_slider_row(audio_inner, "Sound Effects:", SettingsManager.get_sfx_volume(), is_mob, _on_sfx_volume_changed)
 	music_slider = _create_slider_row(audio_inner, "Music Volume:", SettingsManager.get_music_volume(), is_mob, _on_music_volume_changed)
 
+
 func _create_slider_row(parent: VBoxContainer, label_text: String, val: float, is_mob: bool, callback: Callable) -> HSlider:
 	var lbl: Label = Label.new()
 	lbl.text = label_text
@@ -162,6 +164,7 @@ func _create_slider_row(parent: VBoxContainer, label_text: String, val: float, i
 	parent.add_child(slider)
 	return slider
 
+
 func _build_display_section(parent: VBoxContainer, is_mob: bool, row_h: float) -> void:
 	var display_card: PanelContainer = PanelContainer.new()
 	display_card.theme_type_variation = "SubPanel"
@@ -177,7 +180,6 @@ func _build_display_section(parent: VBoxContainer, is_mob: bool, row_h: float) -
 	display_title.add_theme_font_size_override("font_size", 12 if is_mob else 11)
 	display_inner.add_child(display_title)
 
-	# UI Scale
 	var ui_scale_hdr: HBoxContainer = HBoxContainer.new()
 	display_inner.add_child(ui_scale_hdr)
 	var lbl_ui_scale: Label = Label.new()
@@ -202,7 +204,6 @@ func _build_display_section(parent: VBoxContainer, is_mob: bool, row_h: float) -
 	ui_scale_slider.value_changed.connect(_on_ui_scale_changed)
 	display_inner.add_child(ui_scale_slider)
 
-	# Touch Padding
 	var touch_padding_hdr: HBoxContainer = HBoxContainer.new()
 	display_inner.add_child(touch_padding_hdr)
 	var lbl_touch_padding: Label = Label.new()
@@ -228,7 +229,6 @@ func _build_display_section(parent: VBoxContainer, is_mob: bool, row_h: float) -
 	touch_padding_slider.value_changed.connect(_on_touch_padding_changed)
 	display_inner.add_child(touch_padding_slider)
 
-	# Long Press
 	var long_press_hdr: HBoxContainer = HBoxContainer.new()
 	display_inner.add_child(long_press_hdr)
 	var lbl_long_press: Label = Label.new()
@@ -274,6 +274,7 @@ func _build_display_section(parent: VBoxContainer, is_mob: bool, row_h: float) -
 		dev_simulate_mobile_check.button_pressed = SettingsManager.is_simulating_mobile_layout()
 		dev_simulate_mobile_check.toggled.connect(func(v: bool) -> void: SettingsManager.set_simulating_mobile_layout(v))
 		display_inner.add_child(dev_simulate_mobile_check)
+
 
 func _build_juice_section(parent: VBoxContainer, is_mob: bool, row_h: float) -> void:
 	var juice_card: PanelContainer = PanelContainer.new()
@@ -346,6 +347,7 @@ func _build_juice_section(parent: VBoxContainer, is_mob: bool, row_h: float) -> 
 	check_juice_springs.toggled.connect(func(v: bool) -> void: SettingsManager.set_juice_spawn_springs_enabled(v))
 	juice_sub_container.add_child(check_juice_springs)
 
+
 func _build_danger_section(parent: VBoxContainer, is_mob: bool) -> void:
 	var danger_card: PanelContainer = PanelContainer.new()
 	danger_card.theme_type_variation = "SubPanel"
@@ -371,6 +373,7 @@ func _build_danger_section(parent: VBoxContainer, is_mob: bool) -> void:
 	apply_button_icon(btn_factory, "icon_warning")
 	btn_factory.pressed.connect(func() -> void: reset_modal_backdrop.visible = true)
 	danger_inner.add_child(btn_factory)
+
 
 func _build_reset_confirmation_modal() -> void:
 	var is_mob: bool = is_mobile()
@@ -445,6 +448,7 @@ func _build_reset_confirmation_modal() -> void:
 	confirm_button.pressed.connect(_execute_factory_reset)
 	button_hbox.add_child(confirm_button)
 
+
 func _create_icon_check(icon_key: String, title: String, row_h: float) -> CheckBox:
 	var is_mob: bool = is_mobile()
 	var checkbox: CheckBox = CheckBox.new()
@@ -455,6 +459,7 @@ func _create_icon_check(icon_key: String, title: String, row_h: float) -> CheckB
 	apply_checkbox_icon(checkbox, icon_key)
 	return checkbox
 
+
 func _update_responsive_layout() -> void:
 	super._update_responsive_layout()
 	if reset_panel != null:
@@ -462,23 +467,31 @@ func _update_responsive_layout() -> void:
 		var reset_width: float = clampf(viewport_size.x * 0.85, 280.0, 420.0)
 		reset_panel.custom_minimum_size = Vector2(reset_width, 220.0)
 
+
 func _on_theme_updated() -> void:
 	apply_button_icon(btn_factory, "icon_warning")
 	apply_button_icon(btn_save, "icon_save")
 	apply_checkbox_icon(grid_check, "icon_grid")
 	apply_checkbox_icon(toasts_check, "icon_toast")
 	apply_checkbox_icon(dev_mode_check, "icon_dev")
-	if dev_simulate_mobile_check: apply_checkbox_icon(dev_simulate_mobile_check, "icon_states")
-	if check_juice_master: apply_checkbox_icon(check_juice_master, "icon_states")
-	if check_juice_idle: apply_checkbox_icon(check_juice_idle, "icon_sun")
-	if check_juice_tilts: apply_checkbox_icon(check_juice_tilts, "icon_drink")
-	if check_juice_squash: apply_checkbox_icon(check_juice_squash, "icon_food")
-	if check_juice_springs: apply_checkbox_icon(check_juice_springs, "icon_plus")
+	if dev_simulate_mobile_check: 
+		apply_checkbox_icon(dev_simulate_mobile_check, "icon_states")
+	if check_juice_master: 
+		apply_checkbox_icon(check_juice_master, "icon_states")
+	if check_juice_idle: 
+		apply_checkbox_icon(check_juice_idle, "icon_sun")
+	if check_juice_tilts: 
+		apply_checkbox_icon(check_juice_tilts, "icon_drink")
+	if check_juice_squash: 
+		apply_checkbox_icon(check_juice_squash, "icon_food")
+	if check_juice_springs: 
+		apply_checkbox_icon(check_juice_springs, "icon_plus")
 
 	if root_panel != null:
 		for node: Node in root_panel.find_children("*", "Button", true, false):
 			if node is Button and (node as Button).text == "✕":
 				apply_close_icon(node as Button)
+
 
 func open_settings() -> void:
 	master_slider.value = SettingsManager.get_master_volume()
@@ -493,7 +506,8 @@ func open_settings() -> void:
 
 	var is_juice: bool = SettingsManager.is_juice_enabled()
 	check_juice_master.button_pressed = is_juice
-	if juice_sub_container != null: juice_sub_container.visible = is_juice
+	if juice_sub_container != null: 
+		juice_sub_container.visible = is_juice
 	check_juice_idle.button_pressed = SettingsManager.is_juice_idle_motion_enabled()
 	sld_juice_idle_intensity.value = SettingsManager.get_juice_idle_intensity()
 	val_juice_intensity_lbl.text = "%.1fx" % sld_juice_idle_intensity.value
@@ -515,20 +529,30 @@ func open_settings() -> void:
 
 	open_dialog()
 
+
 func _on_close_requested() -> void:
 	SettingsManager.save_settings()
 	EventBus.notification_requested.emit("Settings saved.", true)
 	close_dialog()
 
-func _on_master_volume_changed(value: float) -> void: SettingsManager.set_master_volume(value)
-func _on_sfx_volume_changed(value: float) -> void: SettingsManager.set_sfx_volume(value)
-func _on_music_volume_changed(value: float) -> void: SettingsManager.set_music_volume(value)
+
+func _on_master_volume_changed(value: float) -> void: 
+	SettingsManager.set_master_volume(value)
+
+func _on_sfx_volume_changed(value: float) -> void: 
+	SettingsManager.set_sfx_volume(value)
+
+func _on_music_volume_changed(value: float) -> void: 
+	SettingsManager.set_music_volume(value)
+
 func _on_ui_scale_changed(value: float) -> void:
 	ui_scale_val_lbl.text = "%d%%" % int(value * 100.0)
 	SettingsManager.set_ui_scale(value)
+
 func _on_touch_padding_changed(value: float) -> void:
 	touch_padding_val_lbl.text = "0 px" if int(value) == 0 else "%d px" % int(value)
 	SettingsManager.set_mobile_touch_padding(value)
+
 func _on_long_press_duration_changed(value: float) -> void:
 	long_press_val_lbl.text = "%.2fs" % value
 	SettingsManager.set_long_press_duration(value)

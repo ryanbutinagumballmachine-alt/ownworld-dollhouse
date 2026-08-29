@@ -1,5 +1,9 @@
+# ============================================================
+# File: res://UI/Dialogs/LightStudioDialog.gd
+# ============================================================
+
 # ==============================================================================
-# OWNWORLD — LIGHT & GLOW STUDIO (HYPER OPTIMIZED)
+# OWNWORLD — LIGHT & GLOW STUDIO (HYPER OPTIMIZED & LAYER 120)
 # File: res://UI/Dialogs/LightStudioDialog.gd
 # Base Class: HyperUIDialog
 # ==============================================================================
@@ -42,9 +46,11 @@ const PRESET_SWATCHES: Array[Dictionary] = [
 	{"name": "Sunlight", "color": Color("#fffbeb"), "icon": "icon_sun"}
 ]
 
+
 func _init() -> void:
 	max_panel_width = 620.0
 	max_panel_height = 580.0
+
 
 func _build_content() -> void:
 	name = "LightStudioDialog"
@@ -263,18 +269,25 @@ func _build_content() -> void:
 	btn_save.pressed.connect(_on_close_requested)
 	main_vbox.add_child(btn_save)
 
+
 func _on_theme_updated() -> void:
-	if chk_light_enabled != null: apply_checkbox_icon(chk_light_enabled, "icon_lighting")
-	if color_picker_btn != null: apply_button_icon(color_picker_btn, "icon_palette")
-	if btn_save != null: apply_button_icon(btn_save, "icon_save")
+	if chk_light_enabled != null: 
+		apply_checkbox_icon(chk_light_enabled, "icon_lighting")
+	if color_picker_btn != null: 
+		apply_button_icon(color_picker_btn, "icon_palette")
+	if btn_save != null: 
+		apply_button_icon(btn_save, "icon_save")
 	_build_preset_swatches()
-	if root_panel == null: return
+	if root_panel == null: 
+		return
 	for node: Node in root_panel.find_children("*", "Button", true, false):
 		if node is Button and (node as Button).text == "✕":
 			apply_close_icon(node as Button)
 
+
 func _build_preset_swatches() -> void:
-	if swatches_hbox == null: return
+	if swatches_hbox == null: 
+		return
 	for child: Node in swatches_hbox.get_children():
 		child.queue_free()
 
@@ -297,13 +310,18 @@ func _build_preset_swatches() -> void:
 		)
 		swatches_hbox.add_child(swatch_button)
 
+
 func _add_icon_option(option_button: OptionButton, icon_key: String, text_label: String, item_id: int) -> void:
 	var icon_texture: Texture2D = ThemeService.get_popup_icon(icon_key)
-	if icon_texture != null: option_button.add_icon_item(icon_texture, " " + text_label, item_id)
-	else: option_button.add_item(text_label, item_id)
+	if icon_texture != null: 
+		option_button.add_icon_item(icon_texture, " " + text_label, item_id)
+	else: 
+		option_button.add_item(text_label, item_id)
+
 
 func open_for_entity(entity: OwnEntity) -> void:
-	if not is_instance_valid(entity): return
+	if not is_instance_valid(entity): 
+		return
 	active_entity = entity
 	chk_light_enabled.button_pressed = entity.is_light_source
 
@@ -329,11 +347,15 @@ func open_for_entity(entity: OwnEntity) -> void:
 	_update_control_interactivity(entity.is_light_source)
 	open_dialog()
 
+
 func _find_option_index_by_id(option_button: OptionButton, value: int) -> int:
-	if option_button == null: return -1
+	if option_button == null: 
+		return -1
 	for index: int in range(option_button.item_count):
-		if option_button.get_item_id(index) == value: return index
+		if option_button.get_item_id(index) == value: 
+			return index
 	return -1
+
 
 func _on_close_requested() -> void:
 	if active_entity != null and is_instance_valid(active_entity):
@@ -342,26 +364,34 @@ func _on_close_requested() -> void:
 	active_entity = null
 	super._on_close_requested()
 
+
 func _on_light_toggled(enabled: bool) -> void:
-	if active_entity == null or not is_instance_valid(active_entity): return
+	if active_entity == null or not is_instance_valid(active_entity): 
+		return
 	active_entity.is_light_source = enabled
 	active_entity.is_active = enabled
 
-	if enabled: _apply_live_lighting_updates()
-	else: active_entity.unconfigure_light_source()
+	if enabled: 
+		_apply_live_lighting_updates()
+	else: 
+		active_entity.unconfigure_light_source()
 
 	_update_control_interactivity(enabled)
 	_persist_entity_changes(active_entity)
 
+
 func _on_mode_selected(index: int) -> void:
-	if active_entity == null or not is_instance_valid(active_entity): return
+	if active_entity == null or not is_instance_valid(active_entity): 
+		return
 	active_entity.light_shape_mode = opt_light_mode.get_item_id(index)
 	_update_mode_hint_text()
 	_apply_live_lighting_updates()
 	_persist_entity_changes(active_entity)
 
+
 func _update_mode_hint_text() -> void:
-	if opt_light_mode == null: return
+	if opt_light_mode == null: 
+		return
 	match opt_light_mode.get_selected_id():
 		int(Types.LightShapeMode.SILHOUETTE_CONTOUR):
 			mode_hint_lbl.text = "Silhouette Glow: Illuminates the entire drawing and casts a soft outer aura."
@@ -369,34 +399,44 @@ func _update_mode_hint_text() -> void:
 			mode_hint_lbl.text = "Ambient Room: Fills the surrounding space with soft ambient light."
 		int(Types.LightShapeMode.ANCHOR_POINTS):
 			mode_hint_lbl.text = "Light Anchors: Emits light points directly from your placed light pins."
-		_: mode_hint_lbl.text = ""
+		_: 
+			mode_hint_lbl.text = ""
+
 
 func _on_color_changed(new_color: Color) -> void:
-	if active_entity == null or not is_instance_valid(active_entity): return
+	if active_entity == null or not is_instance_valid(active_entity): 
+		return
 	active_entity.light_color = new_color
 	_apply_live_lighting_updates()
 	_persist_entity_changes(active_entity)
 
+
 func _on_intensity_changed(value: float) -> void:
 	val_intensity_lbl.text = "%.1fx" % value
-	if active_entity == null or not is_instance_valid(active_entity): return
+	if active_entity == null or not is_instance_valid(active_entity): 
+		return
 	active_entity.light_intensity = value
 	_apply_live_lighting_updates()
 	_persist_entity_changes(active_entity)
 
+
 func _on_radius_changed(value: float) -> void:
 	val_radius_lbl.text = "%d px" % int(value)
-	if active_entity == null or not is_instance_valid(active_entity): return
+	if active_entity == null or not is_instance_valid(active_entity): 
+		return
 	active_entity.light_radius = value
 	_apply_live_lighting_updates()
 	_persist_entity_changes(active_entity)
 
+
 func _on_pulse_changed(value: float) -> void:
 	val_pulse_lbl.text = "%.1f Hz" % value if value > 0.0 else "Steady"
-	if active_entity == null or not is_instance_valid(active_entity): return
+	if active_entity == null or not is_instance_valid(active_entity): 
+		return
 	active_entity.light_pulse_speed = value
 	_apply_live_lighting_updates()
 	_persist_entity_changes(active_entity)
+
 
 func _apply_live_lighting_updates() -> void:
 	if active_entity == null or not is_instance_valid(active_entity) or not active_entity.is_light_source:
@@ -409,18 +449,27 @@ func _apply_live_lighting_updates() -> void:
 		sld_pulse.value
 	)
 
+
 func _update_control_interactivity(is_enabled: bool) -> void:
-	if opt_light_mode != null: opt_light_mode.disabled = not is_enabled
-	if color_picker_btn != null: color_picker_btn.disabled = not is_enabled
-	if sld_intensity != null: sld_intensity.editable = is_enabled
-	if sld_radius != null: sld_radius.editable = is_enabled
-	if sld_pulse != null: sld_pulse.editable = is_enabled
+	if opt_light_mode != null: 
+		opt_light_mode.disabled = not is_enabled
+	if color_picker_btn != null: 
+		color_picker_btn.disabled = not is_enabled
+	if sld_intensity != null: 
+		sld_intensity.editable = is_enabled
+	if sld_radius != null: 
+		sld_radius.editable = is_enabled
+	if sld_pulse != null: 
+		sld_pulse.editable = is_enabled
 	if swatches_hbox != null:
 		for child: Node in swatches_hbox.get_children():
-			if child is Button: (child as Button).disabled = not is_enabled
+			if child is Button: 
+				(child as Button).disabled = not is_enabled
+
 
 func _persist_entity_changes(entity: OwnEntity) -> void:
-	if not is_instance_valid(entity): return
+	if not is_instance_valid(entity): 
+		return
 	CapabilitySynchronizer.synchronize(entity)
 	SaveSystem.update_character_in_cast(entity)
 	SaveSystem.save_current_room_state()

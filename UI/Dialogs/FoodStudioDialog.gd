@@ -1,5 +1,9 @@
+# ============================================================
+# File: res://UI/Dialogs/FoodStudioDialog.gd
+# ============================================================
+
 # ==============================================================================
-# OWNWORLD — FOOD & DRINK STUDIO (HYPER OPTIMIZED)
+# OWNWORLD — FOOD & DRINK STUDIO (LAYER 120 & SUB-MODAL PICKER)
 # File: res://UI/Dialogs/FoodStudioDialog.gd
 # Base Class: HyperUIDialog
 # ==============================================================================
@@ -20,9 +24,11 @@ var btn_save: Button = null
 var custom_stage_paths: Array[String] = []
 var custom_stage_textures: Array[Texture2D] = []
 
+
 func _init() -> void:
 	max_panel_width = 560.0
 	max_panel_height = 540.0
+
 
 func _build_content() -> void:
 	name = "FoodStudioDialog"
@@ -120,22 +126,33 @@ func _build_content() -> void:
 	btn_save.pressed.connect(_on_save_pressed)
 	main_vbox.add_child(btn_save)
 
+	# Configure nested picker to float at Layer 125 above this dialog (Layer 120)
 	asset_picker = AssetPickerDialog.new()
+	asset_picker.set_sub_modal_priority(true)
 	add_child(asset_picker)
 
+
 func _on_theme_updated() -> void:
-	if check_is_drink != null: apply_checkbox_icon(check_is_drink, "icon_drink")
-	if check_is_infinite != null: apply_checkbox_icon(check_is_infinite, "icon_infinite")
-	if btn_add_stage != null: apply_button_icon(btn_add_stage, "icon_plus")
-	if btn_save != null: apply_button_icon(btn_save, "icon_save")
-	if stages_vbox != null: _render_stages_list()
-	if root_panel == null: return
+	if check_is_drink != null: 
+		apply_checkbox_icon(check_is_drink, "icon_drink")
+	if check_is_infinite != null: 
+		apply_checkbox_icon(check_is_infinite, "icon_infinite")
+	if btn_add_stage != null: 
+		apply_button_icon(btn_add_stage, "icon_plus")
+	if btn_save != null: 
+		apply_button_icon(btn_save, "icon_save")
+	if stages_vbox != null: 
+		_render_stages_list()
+	if root_panel == null: 
+		return
 	for node: Node in root_panel.find_children("*", "Button", true, false):
 		if node is Button and (node as Button).text == "✕":
 			apply_close_icon(node as Button)
 
+
 func _on_add_stage_pressed() -> void:
-	if asset_picker == null: return
+	if asset_picker == null: 
+		return
 	asset_picker.open_picker("Choose Next Bite Stage Drawing", "", func(_art_name: String, texture: Texture2D, file_path: String) -> void:
 		if not file_path.is_empty():
 			custom_stage_paths.append(file_path)
@@ -143,8 +160,10 @@ func _on_add_stage_pressed() -> void:
 			_render_stages_list()
 	)
 
+
 func open_for_entity(entity: OwnEntity) -> void:
-	if not is_instance_valid(entity): return
+	if not is_instance_valid(entity): 
+		return
 	active_entity = entity
 	check_is_drink.button_pressed = entity.is_drink
 	check_is_infinite.button_pressed = entity.is_infinite
@@ -160,14 +179,17 @@ func open_for_entity(entity: OwnEntity) -> void:
 	_render_stages_list()
 	open_dialog()
 
+
 func _on_close_requested() -> void:
 	active_entity = null
 	custom_stage_paths.clear()
 	custom_stage_textures.clear()
 	super._on_close_requested()
 
+
 func _render_stages_list() -> void:
-	if stages_vbox == null: return
+	if stages_vbox == null: 
+		return
 	for child: Node in stages_vbox.get_children():
 		child.queue_free()
 
@@ -229,11 +251,15 @@ func _render_stages_list() -> void:
 		hbox.add_child(delete_button)
 		stages_vbox.add_child(card)
 
+
 func _remove_stage(index: int) -> void:
-	if index < 0 or index >= custom_stage_paths.size(): return
+	if index < 0 or index >= custom_stage_paths.size(): 
+		return
 	custom_stage_paths.remove_at(index)
-	if index < custom_stage_textures.size(): custom_stage_textures.remove_at(index)
+	if index < custom_stage_textures.size(): 
+		custom_stage_textures.remove_at(index)
 	_render_stages_list()
+
 
 func _on_save_pressed() -> void:
 	if active_entity == null or not is_instance_valid(active_entity):

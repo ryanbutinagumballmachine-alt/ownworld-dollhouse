@@ -1,3 +1,7 @@
+# ============================================================
+# File: res://AutoLoads/HyperInputRouter.gd
+# ============================================================
+
 # ==============================================================================
 # OWNWORLD — HYPER INPUT ROUTER (SINGLE SOURCE OF TRUTH)
 # File: res://AutoLoads/HyperInputRouter.gd
@@ -5,8 +9,8 @@
 # Base Class: Node
 #
 # Responsibility: Absolute single source of truth for all input events.
-# Catches touches/clicks, determines UI vs World context, handles long-press
-# timers, and cleanly delegates to the Camera or Interaction Controller.
+# Filters synthetic mobile mouse emulation, defers dragging until threshold
+# breach, and cleanly delegates pure taps vs. physical drops.
 # ==============================================================================
 
 extends Node
@@ -18,6 +22,7 @@ var drawer_tray: DrawerTray = null
 var top_nav: TopNavBar = null
 
 var is_pointer_down: bool = false
+var is_active_dragging: bool = false
 var long_press_triggered: bool = false
 var has_drag_moved: bool = false
 var press_start_time: float = 0.0
@@ -28,12 +33,16 @@ var active_touches: Dictionary = {}
 var ui_touches: Dictionary = {}
 var primary_touch_idx: int = -1
 
-var TAP_THRESHOLD: float = 24.0
+var TAP_THRESHOLD: float = 20.0
+var _last_touch_msec: int = 0
+const MOUSE_EMULATION_COOLDOWN_MSEC: int = 350
+
 
 func _ready() -> void:
 	process_mode = Node.PROCESS_MODE_ALWAYS
 	if OS.has_feature("pc") or OS.has_feature("windows") or OS.has_feature("mac") or OS.has_feature("linux"):
 		TAP_THRESHOLD = 12.0
+
 
 func register_controllers(ic: WorldInteractionController, cam: TouchCameraController, mw: MagicWheel, dt: DrawerTray, tn: TopNavBar) -> void:
 	interaction_controller = ic
@@ -42,19 +51,28 @@ func register_controllers(ic: WorldInteractionController, cam: TouchCameraContro
 	drawer_tray = dt
 	top_nav = tn
 
+
 func _is_any_modal_open() -> bool:
 	for ui: Node in get_tree().get_nodes_in_group("modal_ui"):
 		if is_instance_valid(ui):
-			if ui is CanvasLayer and (ui as CanvasLayer).visible: return true
-			elif ui is Control and (ui as Control).visible: return true
-			elif ui is Window and (ui as Window).visible: return true
+			if ui is CanvasLayer and (ui as CanvasLayer).visible: 
+				return true
+			elif ui is Control and (ui as Control).visible: 
+				return true
+			elif ui is Window and (ui as Window).visible: 
+				return true
 	return false
 
+
 func _is_ui_touch(screen_pos: Vector2) -> bool:
-	if _is_any_modal_open(): return true
-	if drawer_tray != null and drawer_tray.is_point_inside_drawer(screen_pos): return true
-	if top_nav != null and top_nav.is_point_inside_nav(screen_pos): return true
+	if _is_any_modal_open(): 
+		return true
+	if drawer_tray != null and drawer_tray.is_point_inside_drawer(screen_pos): 
+		return true
+	if top_nav != null and top_nav.is_point_inside_nav(screen_pos): 
+		return true
 	return false
+
 
 func _screen_to_world(screen_pos: Vector2) -> Vector2:
 	if camera_controller != null and is_instance_valid(camera_controller):
@@ -64,6 +82,7 @@ func _screen_to_world(screen_pos: Vector2) -> Vector2:
 	var vp: Viewport = get_viewport()
 	return vp.get_canvas_transform().affine_inverse() * screen_pos if vp else screen_pos
 
+
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch:
 		var st: InputEventScreenTouch = event as InputEventScreenTouch
@@ -71,6 +90,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		var screen_pos: Vector2 = st.position
 		var world_pos: Vector2 = _screen_to_world(screen_pos)
 
+		_last_touch_msec = Time.get_ticks_msec()
 		current_screen_pos = screen_pos
 
 		if st.pressed:
@@ -78,7 +98,8 @@ func _unhandled_input(event: InputEvent) -> void:
 			var is_ui: bool = _is_ui_touch(screen_pos)
 			if is_ui:
 				ui_touches[touch_idx] = true
-				if active_touches.size() >= 2: _cancel_drag()
+				if active_touches.size() >= 2: 
+					_cancel_drag()
 			else:
 				ui_touches.erase(touch_idx)
 				if active_touches.size() == 1:
@@ -96,30 +117,32 @@ func _unhandled_input(event: InputEvent) -> void:
 					_end_press(world_pos)
 					primary_touch_idx = -1
 
-		if camera_controller: camera_controller.handle_external_touch(st)
+		if camera_controller: 
+			camera_controller.handle_external_touch(st)
 
 	elif event is InputEventScreenDrag:
 		var sd: InputEventScreenDrag = event as InputEventScreenDrag
 		var touch_idx: int = sd.index
+		_last_touch_msec = Time.get_ticks_msec()
 		active_touches[touch_idx] = sd.position
 
 		if not ui_touches.has(touch_idx) and active_touches.size() == 1 and touch_idx == primary_touch_idx:
 			current_screen_pos = sd.position
 			var world_pos: Vector2 = _screen_to_world(sd.position)
-
-			if press_start_screen_pos.distance_to(current_screen_pos) > TAP_THRESHOLD:
-				has_drag_moved = true
-
-			if interaction_controller and interaction_controller.active_dragged_entity:
-				interaction_controller.update_interaction(world_pos)
-			elif camera_controller and camera_controller.is_panning:
-				camera_controller.update_drag_pan(sd.position)
+			_process_drag_movement(world_pos, sd.position)
 
 		if camera_controller and active_touches.size() >= 2:
 			camera_controller.handle_external_drag(sd)
 
 	elif event is InputEventMouseButton:
-		if not active_touches.is_empty(): return
+		# Discard synthetic mouse events on mobile and during/after touch gestures
+		if not active_touches.is_empty(): 
+			return
+		if Time.get_ticks_msec() - _last_touch_msec < MOUSE_EMULATION_COOLDOWN_MSEC:
+			return
+		if (OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios")) and not OS.has_feature("pc"):
+			return
+
 		var mb: InputEventMouseButton = event as InputEventMouseButton
 		var screen_pos: Vector2 = mb.position
 		var world_pos: Vector2 = _screen_to_world(screen_pos)
@@ -139,67 +162,99 @@ func _unhandled_input(event: InputEvent) -> void:
 					_trigger_haptic(40)
 					magic_wheel.open_wheel_for_entity(clicked, screen_pos)
 		elif mb.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN, MOUSE_BUTTON_MIDDLE]:
-			if camera_controller: camera_controller.handle_unhandled_mouse(mb)
+			if camera_controller: 
+				camera_controller.handle_unhandled_mouse(mb)
 
 	elif event is InputEventMouseMotion:
-		if not active_touches.is_empty(): return
+		if not active_touches.is_empty(): 
+			return
+		if Time.get_ticks_msec() - _last_touch_msec < MOUSE_EMULATION_COOLDOWN_MSEC:
+			return
+		if (OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios")) and not OS.has_feature("pc"):
+			return
+
 		var mm: InputEventMouseMotion = event as InputEventMouseMotion
 		current_screen_pos = mm.position
 		var world_pos: Vector2 = _screen_to_world(mm.position)
 
-		if press_start_screen_pos.distance_to(current_screen_pos) > TAP_THRESHOLD:
-			has_drag_moved = true
+		if is_pointer_down:
+			_process_drag_movement(world_pos, mm.position)
 
-		if interaction_controller and interaction_controller.active_dragged_entity:
-			interaction_controller.update_interaction(world_pos)
-		elif is_pointer_down and (not interaction_controller or not interaction_controller.pressed_target_entity) and camera_controller and camera_controller.is_panning:
-			camera_controller.update_drag_pan(mm.position)
+
+func _process_drag_movement(world_pos: Vector2, screen_pos: Vector2) -> void:
+	if not has_drag_moved and press_start_screen_pos.distance_to(screen_pos) > TAP_THRESHOLD:
+		has_drag_moved = true
+		if interaction_controller and interaction_controller.has_pressed_target() and not is_active_dragging:
+			is_active_dragging = true
+			interaction_controller.start_dragging(world_pos)
+
+	if is_active_dragging and interaction_controller:
+		interaction_controller.update_interaction(world_pos)
+	elif is_pointer_down and camera_controller and camera_controller.is_panning:
+		camera_controller.update_drag_pan(screen_pos)
+
 
 func _begin_press(world_pos: Vector2, screen_pos: Vector2) -> void:
 	is_pointer_down = true
+	is_active_dragging = false
 	long_press_triggered = false
 	has_drag_moved = false
 	press_start_time = Time.get_ticks_msec() / 1000.0
 	press_start_screen_pos = screen_pos
 
 	if interaction_controller:
-		var is_multi: bool = active_touches.size() > 0
-		if not interaction_controller.begin_interaction(world_pos, is_multi):
-			if camera_controller: camera_controller.start_drag_pan(screen_pos)
+		var is_multi: bool = active_touches.size() > 1
+		if not interaction_controller.begin_press(world_pos, is_multi):
+			if camera_controller: 
+				camera_controller.start_drag_pan(screen_pos)
+
 
 func _end_press(world_pos: Vector2) -> void:
 	is_pointer_down = false
-	if camera_controller: camera_controller.end_drag_pan()
+	if camera_controller: 
+		camera_controller.end_drag_pan()
 
-	if long_press_triggered: return
+	if long_press_triggered:
+		is_active_dragging = false
+		if interaction_controller:
+			interaction_controller.cancel_press()
+		return
 
 	var elapsed: float = (Time.get_ticks_msec() / 1000.0) - press_start_time
 	var drag_dist: float = press_start_screen_pos.distance_to(current_screen_pos)
 	var hold_dur: float = SettingsManager.get_long_press_duration()
-	var is_quick_tap: bool = (drag_dist <= TAP_THRESHOLD) and (elapsed < hold_dur)
+	var is_quick_tap: bool = (not has_drag_moved) and (drag_dist <= TAP_THRESHOLD) and (elapsed < hold_dur)
 
 	if interaction_controller:
 		interaction_controller.end_interaction(world_pos, is_quick_tap)
 
+	is_active_dragging = false
+
+
 func _cancel_drag() -> void:
-	if interaction_controller and interaction_controller.active_dragged_entity:
-		interaction_controller.end_interaction(interaction_controller.active_dragged_entity.global_position, false)
-	if camera_controller: camera_controller.end_drag_pan()
+	if interaction_controller:
+		interaction_controller.cancel_press()
+	if camera_controller: 
+		camera_controller.end_drag_pan()
 	is_pointer_down = false
+	is_active_dragging = false
 	has_drag_moved = false
 
+
 func _process(_delta: float) -> void:
-	if is_pointer_down and not long_press_triggered and interaction_controller and interaction_controller.pressed_target_entity:
+	if is_pointer_down and not long_press_triggered and not has_drag_moved and interaction_controller and interaction_controller.has_pressed_target():
 		var elapsed: float = (Time.get_ticks_msec() / 1000.0) - press_start_time
 		var drag_dist: float = press_start_screen_pos.distance_to(current_screen_pos)
 		var lp_thresh: float = SettingsManager.get_long_press_duration()
 
-		if not has_drag_moved and elapsed >= lp_thresh and drag_dist <= TAP_THRESHOLD:
+		if elapsed >= lp_thresh and drag_dist <= TAP_THRESHOLD:
 			long_press_triggered = true
 			var target: OwnEntity = interaction_controller.pressed_target_entity
 			_trigger_haptic(60)
-			if magic_wheel: magic_wheel.open_wheel_for_entity(target, current_screen_pos)
+			if magic_wheel: 
+				magic_wheel.open_wheel_for_entity(target, current_screen_pos)
 			_cancel_drag()
+
 
 func _trigger_haptic(duration_ms: int = 30) -> void:
 	if SettingsManager.are_haptics_enabled() and (OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios")):

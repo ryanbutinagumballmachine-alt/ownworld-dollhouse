@@ -1,5 +1,9 @@
+# ============================================================
+# File: res://UI/Dialogs/LogicRuleEditorDialog.gd
+# ============================================================
+
 # ==============================================================================
-# OWNWORLD — LOGIC RULE EDITOR (HYPER OPTIMIZED)
+# OWNWORLD — LOGIC RULE EDITOR (LAYER 120 & SUB-MODAL PICKER)
 # File: res://UI/Dialogs/LogicRuleEditorDialog.gd
 # Base Class: HyperUIDialog
 # ==============================================================================
@@ -36,9 +40,11 @@ var selected_spawn_art_name: String = ""
 var btn_add_rule: Button = null
 var rules_list_vbox: VBoxContainer = null
 
+
 func _init() -> void:
 	max_panel_width = 680.0
 	max_panel_height = 580.0
+
 
 func _build_content() -> void:
 	name = "LogicRuleEditorDialog"
@@ -108,8 +114,11 @@ func _build_content() -> void:
 	rules_list_vbox.add_theme_constant_override("separation", 4)
 	rules_scroll.add_child(rules_list_vbox)
 
+	# Configure nested picker to float at Layer 125 above this dialog (Layer 120)
 	asset_picker = AssetPickerDialog.new()
+	asset_picker.set_sub_modal_priority(true)
 	add_child(asset_picker)
+
 
 func _build_when_section(parent: VBoxContainer, row_h: float, is_mob: bool) -> void:
 	when_box = PanelContainer.new()
@@ -142,6 +151,7 @@ func _build_when_section(parent: VBoxContainer, row_h: float, is_mob: bool) -> v
 	register_keyboard_dodge(item_filter_edit)
 	when_vbox.add_child(item_filter_edit)
 
+
 func _build_target_section(parent: VBoxContainer, row_h: float, is_mob: bool) -> void:
 	target_box = PanelContainer.new()
 	target_box.theme_type_variation = "SubPanel"
@@ -164,6 +174,7 @@ func _build_target_section(parent: VBoxContainer, row_h: float, is_mob: bool) ->
 	opt_target.add_item("All Characters in Room", int(Types.ActionTarget.ROOM_ALL_CHARACTERS))
 	opt_target.add_item("Room Environment (Mood / Weather)", int(Types.ActionTarget.ENVIRONMENT))
 	target_vbox.add_child(opt_target)
+
 
 func _build_action_section(parent: VBoxContainer, row_h: float, is_mob: bool) -> void:
 	then_box = PanelContainer.new()
@@ -236,45 +247,58 @@ func _build_action_section(parent: VBoxContainer, row_h: float, is_mob: bool) ->
 	btn_browse_spawn.pressed.connect(_on_browse_spawn_pressed)
 	param_container.add_child(btn_browse_spawn)
 
+
 func _on_theme_updated() -> void:
 	if btn_add_rule != null:
 		var logic_icon: Texture2D = ThemeService.get_icon("icon_logic")
-		if logic_icon == null: logic_icon = ThemeService.get_icon("icon_plus")
-		if logic_icon != null: btn_add_rule.icon = logic_icon
+		if logic_icon == null: 
+			logic_icon = ThemeService.get_icon("icon_plus")
+		if logic_icon != null: 
+			btn_add_rule.icon = logic_icon
 
 	if btn_browse_spawn != null:
 		var folder_icon: Texture2D = ThemeService.get_icon("icon_folder")
-		if folder_icon != null: btn_browse_spawn.icon = folder_icon
+		if folder_icon != null: 
+			btn_browse_spawn.icon = folder_icon
 
 	_render_rules_list()
-	if root_panel == null: return
+	if root_panel == null: 
+		return
 	for node: Node in root_panel.find_children("*", "Button", true, false):
 		if node is Button and (node as Button).text == "✕":
 			apply_close_icon(node as Button)
 
+
 func open_for_entity(entity: OwnEntity) -> void:
-	if not is_instance_valid(entity): return
+	if not is_instance_valid(entity): 
+		return
 	active_entity = entity
 	selected_spawn_art_name = ""
-	if btn_browse_spawn != null: btn_browse_spawn.text = " Browse Art to Spawn..."
+	if btn_browse_spawn != null: 
+		btn_browse_spawn.text = " Browse Art to Spawn..."
 	_on_when_trigger_changed(0)
 	_on_then_action_changed(0)
 	_render_rules_list()
 	open_dialog()
+
 
 func _on_close_requested() -> void:
 	active_entity = null
 	selected_spawn_art_name = ""
 	super._on_close_requested()
 
+
 func _on_when_trigger_changed(index: int) -> void:
-	if opt_when == null: return
+	if opt_when == null: 
+		return
 	var trigger_id: int = opt_when.get_item_id(index)
 	if item_filter_edit != null:
 		item_filter_edit.visible = (trigger_id == int(Types.TriggerEvent.ON_ITEM_RECEIVED))
 
+
 func _on_then_action_changed(index: int) -> void:
-	if opt_then == null: return
+	if opt_then == null: 
+		return
 	var action_id: int = opt_then.get_item_id(index)
 
 	dynamic_opt_param.visible = false
@@ -339,12 +363,15 @@ func _on_then_action_changed(index: int) -> void:
 			dynamic_line_param.text = "room_main"
 			dynamic_line_param.placeholder_text = "Target Room ID (e.g. room_garden)..."
 
+
 func _on_browse_spawn_pressed() -> void:
-	if asset_picker == null: return
+	if asset_picker == null: 
+		return
 	asset_picker.open_picker("Choose Item to Spawn", "", func(art_name: String, _tex: Texture2D, _file_path: String) -> void:
 		selected_spawn_art_name = art_name
 		btn_browse_spawn.text = " Spawn: " + art_name
 	)
+
 
 func _on_add_rule_pressed() -> void:
 	if active_entity == null or not is_instance_valid(active_entity):
@@ -375,6 +402,7 @@ func _on_add_rule_pressed() -> void:
 	_persist_active_entity()
 	EventBus.notification_requested.emit("Logic Rule Added!", true)
 
+
 func _persist_active_entity() -> void:
 	if active_entity == null or not is_instance_valid(active_entity):
 		return
@@ -383,8 +411,10 @@ func _persist_active_entity() -> void:
 	SaveSystem.save_current_room_state()
 	EventBus.entity_state_changed.emit(active_entity.entity_id)
 
+
 func _render_rules_list() -> void:
-	if rules_list_vbox == null: return
+	if rules_list_vbox == null: 
+		return
 	for child: Node in rules_list_vbox.get_children():
 		child.queue_free()
 
@@ -410,7 +440,8 @@ func _render_rules_list() -> void:
 
 		var when_text: String = _get_when_label(int(rule.get("when", 0)))
 		var filter_text: String = str(rule.get("item_filter", "")).strip_edges()
-		if not filter_text.is_empty(): when_text += " (" + filter_text + ")"
+		if not filter_text.is_empty(): 
+			when_text += " (" + filter_text + ")"
 
 		var target_text: String = _get_target_label(int(rule.get("target", 0)))
 		var action_text: String = _get_then_label(int(rule.get("then", 0)))
@@ -439,13 +470,17 @@ func _render_rules_list() -> void:
 		hbox.add_child(delete_button)
 		rules_list_vbox.add_child(card)
 
+
 func _remove_rule(rule_index: int) -> void:
-	if active_entity == null or not is_instance_valid(active_entity): return
-	if rule_index < 0 or rule_index >= active_entity.logic_rules.size(): return
+	if active_entity == null or not is_instance_valid(active_entity): 
+		return
+	if rule_index < 0 or rule_index >= active_entity.logic_rules.size(): 
+		return
 	active_entity.logic_rules.remove_at(rule_index)
 	_render_rules_list()
 	_persist_active_entity()
 	EventBus.notification_requested.emit("Logic Rule Removed.", true)
+
 
 func _get_when_label(id: int) -> String:
 	match id:
@@ -455,6 +490,7 @@ func _get_when_label(id: int) -> String:
 		int(Types.TriggerEvent.ON_DRAG_ENDED): return "Released"
 	return "Event"
 
+
 func _get_target_label(id: int) -> String:
 	match id:
 		int(Types.ActionTarget.SELF): return "Self"
@@ -462,6 +498,7 @@ func _get_target_label(id: int) -> String:
 		int(Types.ActionTarget.ROOM_ALL_CHARACTERS): return "All Characters"
 		int(Types.ActionTarget.ENVIRONMENT): return "Environment"
 	return "Target"
+
 
 func _get_then_label(id: int) -> String:
 	match id:

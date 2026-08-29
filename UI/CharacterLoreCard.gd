@@ -1,5 +1,9 @@
+# ============================================================
+# File: res://UI/CharacterLoreCard.gd
+# ============================================================
+
 # ==============================================================================
-# OWNWORLD — CHARACTER LORE CARD & PROFILE STUDIO (HYPER OPTIMIZED)
+# OWNWORLD — CHARACTER LORE CARD & PROFILE STUDIO (LAYER 120 & SUB-MODAL PICKER)
 # File: res://UI/CharacterLoreCard.gd
 # Base Class: HyperUIDialog
 # ==============================================================================
@@ -14,22 +18,18 @@ var active_entity: OwnEntity = null
 var fallback_char_dict: Dictionary = {}
 var asset_picker: AssetPickerDialog = null
 
-# Header Controls
 var header_lbl: Label = null
 var btn_journal: Button = null
 var btn_close: Button = null
 
-# Tab Navigation Buttons
 var btn_tab_profile: Button = null
 var btn_tab_bonds: Button = null
 var btn_tab_notes: Button = null
 
-# Tab Content Containers
 var tab_profile_container: VBoxContainer = null
 var tab_bonds_container: VBoxContainer = null
 var tab_notes_container: VBoxContainer = null
 
-# Tab 1: Profile & Identity Controls
 var avatar_btn: Button = null
 var avatar_texture_rect: TextureRect = null
 var avatar_path_stored: String = ""
@@ -41,16 +41,12 @@ var status_opt: OptionButton = null
 var traits_vbox: VBoxContainer = null
 var btn_add_trait: Button = null
 
-# Tab 2: Family & Relationships Controls
 var family_vbox: VBoxContainer = null
 var btn_add_family: Button = null
 var feelings_vbox: VBoxContainer = null
 var btn_add_feeling: Button = null
 
-# Tab 3: Backstory & Notes Controls
 var lore_text_edit: TextEdit = null
-
-# Action Buttons
 var btn_save: Button = null
 
 var initial_family_snapshot: Array[Dictionary] = []
@@ -93,9 +89,11 @@ const FEELING_PRESETS: Array[String] = [
 	"Guarded / Suspicious Of"
 ]
 
+
 func _init() -> void:
 	max_panel_width = 760.0
 	max_panel_height = 580.0
+
 
 func _build_content() -> void:
 	name = "CharacterLoreCard"
@@ -197,15 +195,21 @@ func _build_content() -> void:
 
 	_switch_tab(CardTab.PROFILE)
 
+	# Configure nested picker to float at Layer 125 above this dialog (Layer 120)
 	asset_picker = AssetPickerDialog.new()
+	asset_picker.set_sub_modal_priority(true)
 	add_child(asset_picker)
+
 
 func _on_theme_updated() -> void:
 	var c_accent: Color = ThemeService.get_color("accent_primary", "#ec4899")
-	if header_lbl: header_lbl.add_theme_color_override("font_color", c_accent)
+	if header_lbl: 
+		header_lbl.add_theme_color_override("font_color", c_accent)
 	apply_button_icon(btn_save, "icon_save")
 	apply_close_icon(btn_close)
-	if visible: _switch_tab(current_tab)
+	if visible: 
+		_switch_tab(current_tab)
+
 
 func _create_tab_button(title: String, icon_key: String, tab_target: CardTab, row_h: float) -> Button:
 	var is_mob: bool = is_mobile()
@@ -220,6 +224,7 @@ func _create_tab_button(title: String, icon_key: String, tab_target: CardTab, ro
 	apply_button_icon(btn, icon_key)
 	btn.pressed.connect(func() -> void: _switch_tab(tab_target))
 	return btn
+
 
 func _switch_tab(target: CardTab) -> void:
 	current_tab = target
@@ -264,6 +269,7 @@ func _switch_tab(target: CardTab) -> void:
 			btn.add_theme_stylebox_override("focus", s_act)
 			btn.add_theme_color_override("font_color", Color.WHITE)
 			btn.add_theme_color_override("icon_normal_color", Color.WHITE)
+
 
 func _build_profile_tab(row_h: float) -> void:
 	var is_mob: bool = is_mobile()
@@ -406,6 +412,7 @@ func _build_profile_tab(row_h: float) -> void:
 	traits_vbox.add_theme_constant_override("separation", 6)
 	vbox.add_child(traits_vbox)
 
+
 func _add_trait_row(trait_key: String, trait_value: String, row_h: float) -> void:
 	var row: HBoxContainer = HBoxContainer.new()
 	row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
@@ -436,15 +443,18 @@ func _add_trait_row(trait_key: String, trait_value: String, row_h: float) -> voi
 
 	traits_vbox.add_child(row)
 
+
 func _on_avatar_btn_pressed() -> void:
 	if asset_picker != null:
 		asset_picker.open_picker("Choose Character Portrait Drawing", "", func(_art_name: String, _tex: Texture2D, file_path: String) -> void:
 			_on_avatar_file_selected(file_path)
 		)
 
+
 func _on_avatar_file_selected(file_path: String) -> void:
 	avatar_path_stored = file_path.strip_edges()
 	_update_avatar_preview()
+
 
 func _update_avatar_preview() -> void:
 	if not avatar_texture_rect:
@@ -453,6 +463,7 @@ func _update_avatar_preview() -> void:
 		active_entity.to_dict() if is_instance_valid(active_entity) else fallback_char_dict,
 		avatar_path_stored
 	)
+
 
 func _resolve_character_portrait(char_dict: Dictionary, explicit_avatar_path: String = "") -> Texture2D:
 	if not explicit_avatar_path.is_empty() and FileAccess.file_exists(explicit_avatar_path):
@@ -469,6 +480,7 @@ func _resolve_character_portrait(char_dict: Dictionary, explicit_avatar_path: St
 			return UGCManager.get_thumbnail_async(path_str, 128)
 
 	return null
+
 
 func _build_bonds_tab(row_h: float) -> void:
 	var is_mob: bool = is_mobile()
@@ -553,6 +565,7 @@ func _build_bonds_tab(row_h: float) -> void:
 	feelings_vbox.add_theme_constant_override("separation", 6)
 	main_content.add_child(feelings_vbox)
 
+
 func _add_family_row(target_name: String, relation_type: String, notes: String, row_h: float) -> void:
 	var is_mob: bool = is_mobile()
 	var card: PanelContainer = _create_card_container()
@@ -576,7 +589,8 @@ func _add_family_row(target_name: String, relation_type: String, notes: String, 
 	for i: int in range(all_chars.size()):
 		var c_name: String = all_chars[i]
 		target_option.add_item(c_name, i + 1)
-		if c_name == target_name: sel_idx = i + 1
+		if c_name == target_name: 
+			sel_idx = i + 1
 	target_option.selected = sel_idx
 
 	var rel_option: OptionButton = OptionButton.new()
@@ -588,7 +602,8 @@ func _add_family_row(target_name: String, relation_type: String, notes: String, 
 	for i: int in range(FAMILY_PRESETS.size()):
 		var p_rel: String = FAMILY_PRESETS[i]
 		rel_option.add_item(p_rel, i)
-		if p_rel.to_lower() == relation_type.to_lower(): rel_sel = i
+		if p_rel.to_lower() == relation_type.to_lower(): 
+			rel_sel = i
 	rel_option.selected = rel_sel
 
 	var btn_del: Button = Button.new()
@@ -607,6 +622,7 @@ func _add_family_row(target_name: String, relation_type: String, notes: String, 
 	vbox.add_child(notes_edit)
 
 	family_vbox.add_child(card)
+
 
 func _add_feeling_row(target_name: String, relation_type: String, notes: String, row_h: float) -> void:
 	var is_mob: bool = is_mobile()
@@ -631,7 +647,8 @@ func _add_feeling_row(target_name: String, relation_type: String, notes: String,
 	for i: int in range(all_chars.size()):
 		var c_name: String = all_chars[i]
 		target_option.add_item(c_name, i + 1)
-		if c_name == target_name: sel_idx = i + 1
+		if c_name == target_name: 
+			sel_idx = i + 1
 	target_option.selected = sel_idx
 
 	var rel_option: OptionButton = OptionButton.new()
@@ -643,7 +660,8 @@ func _add_feeling_row(target_name: String, relation_type: String, notes: String,
 	for i: int in range(FEELING_PRESETS.size()):
 		var p_rel: String = FEELING_PRESETS[i]
 		rel_option.add_item(p_rel, i)
-		if p_rel.to_lower() == relation_type.to_lower(): rel_sel = i
+		if p_rel.to_lower() == relation_type.to_lower(): 
+			rel_sel = i
 	rel_option.selected = rel_sel
 
 	var btn_del: Button = Button.new()
@@ -663,18 +681,22 @@ func _add_feeling_row(target_name: String, relation_type: String, notes: String,
 
 	feelings_vbox.add_child(card)
 
+
 func _create_card_container() -> PanelContainer:
 	var card: PanelContainer = PanelContainer.new()
 	card.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	card.theme_type_variation = "SubPanel"
 	return card
 
+
 func _enforce_dropdown_popup_limits(opt_btn: OptionButton, max_height: int = 200) -> void:
-	if not is_instance_valid(opt_btn): return
+	if not is_instance_valid(opt_btn): 
+		return
 	var pop: PopupMenu = opt_btn.get_popup()
 	if pop:
 		pop.max_size = Vector2i(4000, max_height)
 		pop.about_to_popup.connect(func() -> void: pop.max_size = Vector2i(4000, max_height))
+
 
 func _build_notes_tab() -> void:
 	var lbl_lore: Label = Label.new()
@@ -692,18 +714,22 @@ func _build_notes_tab() -> void:
 	register_keyboard_dodge(lore_text_edit)
 	tab_notes_container.add_child(lore_text_edit)
 
+
 func open_card(entity: OwnEntity) -> void:
-	if not is_instance_valid(entity): return
+	if not is_instance_valid(entity): 
+		return
 	active_entity = entity
 	fallback_char_dict = {}
 	_populate_from_data(entity.display_name, entity.custom_fields)
 	open_dialog()
+
 
 func open_card_for_character_dict(char_dict: Dictionary) -> void:
 	active_entity = null
 	fallback_char_dict = char_dict.duplicate(true)
 	_populate_from_data(str(char_dict.get("display_name", "Character")), char_dict.get("custom_fields", {}))
 	open_dialog()
+
 
 func _populate_from_data(char_name: String, fields: Dictionary) -> void:
 	var row_h: float = 34.0 if is_mobile() else 28.0
@@ -720,12 +746,14 @@ func _populate_from_data(char_name: String, fields: Dictionary) -> void:
 
 	_update_avatar_preview()
 
-	for c: Node in traits_vbox.get_children(): c.queue_free()
+	for c: Node in traits_vbox.get_children(): 
+		c.queue_free()
 	var traits_dict: Dictionary = fields.get("traits", {})
 	for k: Variant in traits_dict.keys():
 		_add_trait_row(str(k), str(traits_dict[k]), row_h)
 
-	for c: Node in family_vbox.get_children(): c.queue_free()
+	for c: Node in family_vbox.get_children(): 
+		c.queue_free()
 	var raw_family: Array = fields.get("family_ties", [])
 	initial_family_snapshot.clear()
 	for f_var: Variant in raw_family:
@@ -734,7 +762,8 @@ func _populate_from_data(char_name: String, fields: Dictionary) -> void:
 			initial_family_snapshot.append(f_dict)
 			_add_family_row(str(f_dict.get("target_name", "")), str(f_dict.get("relation_type", "Sibling")), str(f_dict.get("notes", "")), row_h)
 
-	for c: Node in feelings_vbox.get_children(): c.queue_free()
+	for c: Node in feelings_vbox.get_children(): 
+		c.queue_free()
 	var raw_feelings: Array = fields.get("relationships", [])
 	initial_feelings_snapshot.clear()
 	for e_var: Variant in raw_feelings:
@@ -745,8 +774,10 @@ func _populate_from_data(char_name: String, fields: Dictionary) -> void:
 
 	_switch_tab(CardTab.PROFILE)
 
+
 func _on_close_requested() -> void:
 	save_and_close()
+
 
 func save_and_close() -> void:
 	var new_char_name: String = name_edit.text.strip_edges()
@@ -803,6 +834,7 @@ func save_and_close() -> void:
 	active_entity = null
 	fallback_char_dict = {}
 
+
 func _scrape_bond_cards(vbox_container: VBoxContainer, fallback_rel: String) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for card: Node in vbox_container.get_children():
@@ -821,15 +853,18 @@ func _scrape_bond_cards(vbox_container: VBoxContainer, fallback_rel: String) -> 
 					result.append({"target_name": tgt_name, "relation_type": rel_name, "notes": b_notes})
 	return result
 
+
 func _enforce_symmetrical_family(source_name: String, current_family: Array[Dictionary], old_family: Array[Dictionary]) -> void:
 	var all_chars: Array[Dictionary] = GameManager.get_all_universe_character_data()
-	if all_chars.is_empty(): return
+	if all_chars.is_empty(): 
+		return
 	var char_map: Dictionary = {}
 	for c_var: Variant in all_chars:
 		if c_var is Dictionary:
 			var d: Dictionary = (c_var as Dictionary).duplicate(true)
 			var c_name: String = str(d.get("display_name", "")).strip_edges()
-			if not c_name.is_empty(): char_map[c_name] = d
+			if not c_name.is_empty(): 
+				char_map[c_name] = d
 
 	for old_f: Dictionary in old_family:
 		var old_target: String = str(old_f.get("target_name", "")).strip_edges()
@@ -874,6 +909,7 @@ func _enforce_symmetrical_family(source_name: String, current_family: Array[Dict
 			tgt["custom_fields"] = c_fields
 			SaveSystem.update_character_data_in_cast(tgt)
 
+
 func _get_reciprocal_family_role(rel_type: String) -> String:
 	match rel_type:
 		"Parent (Biological)": return "Child (Biological)"
@@ -888,15 +924,18 @@ func _get_reciprocal_family_role(rel_type: String) -> String:
 		"Separated": return "Separated"
 	return "Sibling"
 
+
 func _sync_directional_feelings(source_name: String, current_feelings: Array[Dictionary], old_feelings: Array[Dictionary]) -> void:
 	var all_chars: Array[Dictionary] = GameManager.get_all_universe_character_data()
-	if all_chars.is_empty(): return
+	if all_chars.is_empty(): 
+		return
 	var char_map: Dictionary = {}
 	for c_var: Variant in all_chars:
 		if c_var is Dictionary:
 			var d: Dictionary = (c_var as Dictionary).duplicate(true)
 			var c_name: String = str(d.get("display_name", "")).strip_edges()
-			if not c_name.is_empty(): char_map[c_name] = d
+			if not c_name.is_empty(): 
+				char_map[c_name] = d
 
 	for old_b: Dictionary in old_feelings:
 		var old_target: String = str(old_b.get("target_name", "")).strip_edges()
@@ -939,6 +978,7 @@ func _sync_directional_feelings(source_name: String, current_feelings: Array[Dic
 				tgt["custom_fields"] = c_fields
 				SaveSystem.update_character_data_in_cast(tgt)
 
+
 func _on_open_journal_from_card() -> void:
 	save_and_close()
 	var main_loop: MainLoop = Engine.get_main_loop()
@@ -948,6 +988,7 @@ func _on_open_journal_from_card() -> void:
 			var existing: CanvasLayer = root.find_child("UniverseJournalDialog", true, false) as CanvasLayer
 			if existing and is_instance_valid(existing) and existing.has_method("open_journal"):
 				existing.call("open_journal")
+
 
 func _get_universe_character_names() -> Array[String]:
 	var result: Array[String] = []

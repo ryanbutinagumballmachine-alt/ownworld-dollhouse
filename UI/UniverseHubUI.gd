@@ -1,5 +1,9 @@
+# ============================================================
+# File: res://UI/UniverseHubUI.gd
+# ============================================================
+
 # ==============================================================================
-# OWNWORLD — UNIVERSE HUB / STORY LIBRARY (HYPER OPTIMIZED)
+# OWNWORLD — UNIVERSE HUB / STORY LIBRARY (HYPER OPTIMIZED & LAYER 120)
 # File: res://UI/UniverseHubUI.gd
 # Base Class: HyperUIDialog
 # ==============================================================================
@@ -25,9 +29,11 @@ var universe_registry: Array[Dictionary] = []
 
 signal universe_selected(universe_id: String, universe_name: String)
 
+
 func _init() -> void:
 	max_panel_width = 720.0
 	max_panel_height = 560.0
+
 
 func _build_content() -> void:
 	name = "UniverseHubUI"
@@ -121,12 +127,15 @@ func _build_content() -> void:
 
 	_build_import_file_dialog()
 
+
 func _on_theme_updated() -> void:
 	apply_button_icon(btn_import, "icon_import")
 	_apply_export_icon(btn_export)
 	apply_close_icon(btn_close)
 	_apply_create_icon(btn_create)
-	if visible: _render_universe_cards()
+	if visible: 
+		_render_universe_cards()
+
 
 func _build_import_file_dialog() -> void:
 	file_dialog = FileDialog.new()
@@ -137,13 +146,16 @@ func _build_import_file_dialog() -> void:
 	file_dialog.file_selected.connect(_on_pack_file_selected)
 	add_child(file_dialog)
 
+
 func open_hub() -> void:
 	_load_universe_manifests()
 	_render_universe_cards()
 	open_dialog()
 
+
 func close_hub() -> void:
 	close_dialog()
+
 
 func _render_universe_cards() -> void:
 	if universe_list_vbox == null: 
@@ -242,11 +254,13 @@ func _render_universe_cards() -> void:
 
 		universe_list_vbox.add_child(card)
 
+
 func _on_open_import_dialog() -> void:
 	if file_dialog == null: 
 		return
 	file_dialog.theme = ThemeService.create_theme()
 	file_dialog.popup_centered_ratio(0.7)
+
 
 func _on_pack_file_selected(file_path: String) -> void:
 	var success: bool = OwnPackManager.import_pack_file(file_path)
@@ -256,6 +270,7 @@ func _on_pack_file_selected(file_path: String) -> void:
 		EventBus.notification_requested.emit("Imported .ownpack Successfully!", true)
 	else:
 		EventBus.notification_requested.emit("Pack Import Failed", false)
+
 
 func _delete_universe(u_id: String, u_name: String) -> void:
 	if u_id == AppState.universe_id:
@@ -286,6 +301,7 @@ func _delete_universe(u_id: String, u_name: String) -> void:
 	_render_universe_cards()
 	EventBus.notification_requested.emit("Deleted Universe: " + u_name, true)
 
+
 func _delete_directory_contents(directory_path: String) -> void:
 	var dir: DirAccess = DirAccess.open(directory_path)
 	if dir == null: 
@@ -301,6 +317,7 @@ func _delete_directory_contents(directory_path: String) -> void:
 			DirAccess.remove_absolute(full_path)
 		file_name = dir.get_next()
 	dir.list_dir_end()
+
 
 func _on_create_universe_pressed() -> void:
 	var u_name: String = name_input.text.strip_edges()
@@ -319,9 +336,11 @@ func _on_create_universe_pressed() -> void:
 	_render_universe_cards()
 	EventBus.notification_requested.emit("Created Universe: " + u_name, true)
 
+
 func _on_switch_universe_pressed(new_u_id: String, new_u_name: String) -> void:
 	close_hub()
 	universe_selected.emit(new_u_id, new_u_name)
+
 
 func _on_export_pack_pressed() -> void:
 	var success: bool = OwnPackManager.export_universe_pack(AppState.universe_name, "@Creator", AppState.universe_id, AppState.universe_id + "_export")
@@ -330,11 +349,13 @@ func _on_export_pack_pressed() -> void:
 	else: 
 		EventBus.notification_requested.emit("Export Failed", false)
 
+
 func _save_universe_manifest(u_data: Dictionary) -> void:
 	var universe_id: String = str(u_data.get("id", ""))
 	if universe_id.is_empty(): 
 		return
 	JsonFileStore.write_dictionary(UNIVERSES_DIR + universe_id + ".json", u_data)
+
 
 func _load_universe_manifests() -> void:
 	universe_registry.clear()
@@ -360,8 +381,10 @@ func _load_universe_manifests() -> void:
 		universe_registry.append(default_universe)
 		_save_universe_manifest(default_universe)
 
+
 func _get_universe_map_path(universe_id: String) -> String:
 	return "user://maps/" + universe_id + "_map.json"
+
 
 func _apply_export_icon(button: Button) -> void:
 	if button == null: 
@@ -371,6 +394,7 @@ func _apply_export_icon(button: Button) -> void:
 		icon_texture = ThemeService.get_icon("icon_save")
 	if icon_texture != null: 
 		button.icon = icon_texture
+
 
 func _apply_create_icon(button: Button) -> void:
 	if button == null: 

@@ -1,5 +1,5 @@
 # ==============================================================================
-# OWNWORLD — UNIFIED POSE & ANIMATION STUDIO (HYPER OPTIMIZED)
+# OWNWORLD — UNIFIED POSE & ANIMATION STUDIO (LAYER 120 & SUB-MODAL PICKER)
 # File: res://UI/Dialogs/PoseAnimationStudioDialog.gd
 # Base Class: HyperUIDialog
 # ==============================================================================
@@ -13,7 +13,6 @@ var asset_picker: AssetPickerDialog = null
 var header_lbl: Label = null
 var tab_container: TabContainer = null
 
-# Wardrobe Outfit Strip
 var forms_hbox_container: HBoxContainer = null
 var form_name_input: LineEdit = null
 var selected_form_tex: Texture2D = null
@@ -71,9 +70,11 @@ const CORE_HOOK_DEFINITIONS: Array[Dictionary] = [
 	{"key": Types.STATE_SLEEPING, "label": "Sleeping (Bed Resting)", "icon": "icon_bed", "hint": "Horizontal sleeping on beds"}
 ]
 
+
 func _init() -> void:
 	max_panel_width = 760.0
 	max_panel_height = 580.0
+
 
 func _build_content() -> void:
 	name = "PoseAnimationStudioDialog"
@@ -86,7 +87,6 @@ func _build_content() -> void:
 	main_vbox.add_theme_constant_override("separation", 6)
 	root_panel.add_child(main_vbox)
 
-	# --- Header ---
 	var header_hbox: HBoxContainer = HBoxContainer.new()
 	main_vbox.add_child(header_hbox)
 
@@ -107,7 +107,6 @@ func _build_content() -> void:
 
 	main_vbox.add_child(HSeparator.new())
 
-	# --- Wardrobe Forms & Outfits Bar ---
 	var forms_scroll: ScrollContainer = ScrollContainer.new()
 	forms_scroll.custom_minimum_size = Vector2(0.0, 36.0 if is_mob else 30.0)
 	forms_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
@@ -152,7 +151,6 @@ func _build_content() -> void:
 
 	main_vbox.add_child(HSeparator.new())
 
-	# --- 3-Tab Main Studio Container ---
 	tab_container = TabContainer.new()
 	tab_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	tab_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -162,8 +160,11 @@ func _build_content() -> void:
 	_build_timeline_tab(row_h, is_mob)
 	_build_slicer_tab(row_h, is_mob)
 
+	# Configure nested picker to float at Layer 125 above this dialog (Layer 120)
 	asset_picker = AssetPickerDialog.new()
+	asset_picker.set_sub_modal_priority(true)
 	add_child(asset_picker)
+
 
 func _build_states_and_mannequin_tab(row_h: float, is_mob: bool) -> void:
 	var tab_vbox: VBoxContainer = VBoxContainer.new()
@@ -173,7 +174,6 @@ func _build_states_and_mannequin_tab(row_h: float, is_mob: bool) -> void:
 	tab_vbox.add_theme_constant_override("separation", 6)
 	tab_container.add_child(tab_vbox)
 
-	# Mannequin Test Station Bar
 	mannequin_card = PanelContainer.new()
 	mannequin_card.theme_type_variation = "SubPanel"
 	tab_vbox.add_child(mannequin_card)
@@ -216,7 +216,6 @@ func _build_states_and_mannequin_tab(row_h: float, is_mob: bool) -> void:
 	_add_mannequin_test_btn(test_btn_grid, "Sit", func() -> void: if active_entity: active_entity.set_actor_state(Types.STATE_SITTING, 2.5), is_mob)
 	_add_mannequin_test_btn(test_btn_grid, "Sleep", func() -> void: if active_entity: active_entity.set_actor_state(Types.STATE_SLEEPING, 2.5), is_mob)
 
-	# Custom State Adder
 	var add_custom_row: HBoxContainer = HBoxContainer.new()
 	add_custom_row.add_theme_constant_override("separation", 6)
 	tab_vbox.add_child(add_custom_row)
@@ -250,6 +249,7 @@ func _build_states_and_mannequin_tab(row_h: float, is_mob: bool) -> void:
 	states_list_vbox.add_theme_constant_override("separation", 4)
 	scroll.add_child(states_list_vbox)
 
+
 func _add_mannequin_test_btn(parent: GridContainer, label_text: String, callback: Callable, is_mob: bool) -> void:
 	var btn: Button = Button.new()
 	btn.text = label_text
@@ -259,6 +259,7 @@ func _add_mannequin_test_btn(parent: GridContainer, label_text: String, callback
 	btn.add_theme_font_size_override("font_size", 10 if is_mob else 9)
 	btn.pressed.connect(callback)
 	parent.add_child(btn)
+
 
 func _build_timeline_tab(row_h: float, is_mob: bool) -> void:
 	var tab_vbox: VBoxContainer = VBoxContainer.new()
@@ -327,7 +328,6 @@ func _build_timeline_tab(row_h: float, is_mob: bool) -> void:
 	fps_box.add_child(clip_fps_slider)
 	top_controls_grid.add_child(fps_box)
 
-	# Live Timeline Preview Box with Onion Skinning
 	var preview_row: HBoxContainer = HBoxContainer.new()
 	preview_row.add_theme_constant_override("separation", 10)
 	tab_vbox.add_child(preview_row)
@@ -409,6 +409,7 @@ func _build_timeline_tab(row_h: float, is_mob: bool) -> void:
 	btn_save_timeline.pressed.connect(_on_save_timeline_to_state_pressed)
 	tab_vbox.add_child(btn_save_timeline)
 
+
 func _build_slicer_tab(row_h: float, is_mob: bool) -> void:
 	var tab_vbox: VBoxContainer = VBoxContainer.new()
 	tab_vbox.name = "Sprite Sheet Slicer"
@@ -475,7 +476,6 @@ func _build_slicer_tab(row_h: float, is_mob: bool) -> void:
 	opt_slicer_dest_state.custom_minimum_size = Vector2(0.0, row_h)
 	grid_params_row.add_child(opt_slicer_dest_state)
 
-	# Slicer Grid Canvas
 	slicer_preview_box = PanelContainer.new()
 	slicer_preview_box.theme_type_variation = "SubPanel"
 	slicer_preview_box.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -509,10 +509,11 @@ func _build_slicer_tab(row_h: float, is_mob: bool) -> void:
 	btn_extract_slices.pressed.connect(_on_extract_slices_pressed)
 	tab_vbox.add_child(btn_extract_slices)
 
-func _process(delta: float) -> void:
-	if not visible: return
 
-	# Process Timeline Tab Animation Preview
+func _process(delta: float) -> void:
+	if not visible: 
+		return
+
 	if tab_container != null and tab_container.current_tab == 1 and not working_timeline_frames.is_empty():
 		timeline_preview_timer += delta
 		var fps_val: float = clip_fps_slider.value if clip_fps_slider != null else 6.0
@@ -542,18 +543,22 @@ func _process(delta: float) -> void:
 
 			_update_timeline_preview_display()
 
+
 func _on_theme_updated() -> void:
 	if visible:
 		_render_forms_bar()
 		_render_states_list()
 		_render_timeline_frames()
-	if root_panel == null: return
+	if root_panel == null: 
+		return
 	for node: Node in root_panel.find_children("*", "Button", true, false):
 		if node is Button and (node as Button).text == "✕":
 			apply_close_icon(node as Button)
 
+
 func open_for_entity(entity: OwnEntity) -> void:
-	if not is_instance_valid(entity): return
+	if not is_instance_valid(entity): 
+		return
 	active_entity = entity
 	selected_form_tex = null
 	selected_form_path = ""
@@ -567,6 +572,7 @@ func open_for_entity(entity: OwnEntity) -> void:
 	tab_container.current_tab = 0
 	open_dialog()
 
+
 func _on_close_requested() -> void:
 	if active_entity != null and is_instance_valid(active_entity):
 		SaveSystem.update_character_in_cast(active_entity)
@@ -574,9 +580,12 @@ func _on_close_requested() -> void:
 	active_entity = null
 	super._on_close_requested()
 
+
 func _render_forms_bar() -> void:
-	if forms_hbox_container == null or active_entity == null: return
-	for child: Node in forms_hbox_container.get_children(): child.queue_free()
+	if forms_hbox_container == null or active_entity == null: 
+		return
+	for child: Node in forms_hbox_container.get_children(): 
+		child.queue_free()
 
 	var is_mob: bool = is_mobile()
 	var c_accent: Color = ThemeService.get_color("accent_primary", "#ec4899")
@@ -630,12 +639,15 @@ func _render_forms_bar() -> void:
 			)
 			forms_hbox_container.add_child(del_btn)
 
+
 func _populate_state_dropdowns() -> void:
-	if active_entity == null: return
+	if active_entity == null: 
+		return
 	var states: Dictionary = active_entity.wardrobe_forms.get(active_entity.active_form_key, {}).get("states", {})
 
 	for opt: OptionButton in [opt_edit_state_target, opt_slicer_dest_state]:
-		if opt == null: continue
+		if opt == null: 
+			continue
 		opt.clear()
 		for definition: Dictionary in CORE_HOOK_DEFINITIONS:
 			var k: String = str(definition["key"])
@@ -645,14 +657,19 @@ func _populate_state_dropdowns() -> void:
 		for s_name: String in states.keys():
 			var is_core: bool = false
 			for def: Dictionary in CORE_HOOK_DEFINITIONS:
-				if str(def["key"]) == s_name: is_core = true; break
+				if str(def["key"]) == s_name: 
+					is_core = true
+					break
 			if not is_core:
 				opt.add_item(s_name.capitalize(), opt.item_count)
 				opt.set_item_metadata(opt.item_count - 1, s_name)
 
+
 func _render_states_list() -> void:
-	if states_list_vbox == null or active_entity == null: return
-	for child: Node in states_list_vbox.get_children(): child.queue_free()
+	if states_list_vbox == null or active_entity == null: 
+		return
+	for child: Node in states_list_vbox.get_children(): 
+		child.queue_free()
 
 	var form_dict: Dictionary = active_entity.wardrobe_forms.get(active_entity.active_form_key, {})
 	var states_dict: Dictionary = form_dict.get("states", {})
@@ -671,9 +688,12 @@ func _render_states_list() -> void:
 	for custom_state_name: String in states_dict.keys():
 		var is_core: bool = false
 		for def: Dictionary in CORE_HOOK_DEFINITIONS:
-			if str(def["key"]) == custom_state_name: is_core = true; break
+			if str(def["key"]) == custom_state_name: 
+				is_core = true
+				break
 		if not is_core:
 			_create_state_row(custom_state_name, custom_state_name.capitalize(), "icon_states", true, states_dict[custom_state_name], true)
+
 
 func _create_state_row(state_key: String, label_text: String, icon_key: String, is_customized: bool, data: Dictionary, can_delete: bool) -> void:
 	var is_mob: bool = is_mobile()
@@ -762,13 +782,16 @@ func _create_state_row(state_key: String, label_text: String, icon_key: String, 
 
 	states_list_vbox.add_child(card)
 
+
 func _on_add_custom_state_pressed() -> void:
 	var state_name: String = new_state_name_input.text.strip_edges().to_lower().replace(" ", "_")
-	if state_name.is_empty() or active_entity == null: return
+	if state_name.is_empty() or active_entity == null: 
+		return
 	active_entity.register_state(active_entity.active_form_key, state_name, [active_entity.main_texture], [active_entity.texture_path])
 	new_state_name_input.text = ""
 	_populate_state_dropdowns()
 	_render_states_list()
+
 
 func _on_pick_form_art_pressed() -> void:
 	asset_picker.open_picker("Choose Outfit Base Drawing", "", func(art_name: String, tex: Texture2D, path: String) -> void:
@@ -777,9 +800,11 @@ func _on_pick_form_art_pressed() -> void:
 		btn_choose_form_art.text = " " + art_name
 	)
 
+
 func _on_add_form_pressed() -> void:
 	var form_name: String = form_name_input.text.strip_edges()
-	if form_name.is_empty() or selected_form_tex == null or active_entity == null: return
+	if form_name.is_empty() or selected_form_tex == null or active_entity == null: 
+		return
 	active_entity.add_wardrobe_form(form_name, selected_form_tex, selected_form_path)
 	form_name_input.text = ""
 	selected_form_tex = null
@@ -789,8 +814,10 @@ func _on_add_form_pressed() -> void:
 	_populate_state_dropdowns()
 	_render_states_list()
 
+
 func _load_state_into_timeline(state_key: String) -> void:
-	if active_entity == null: return
+	if active_entity == null: 
+		return
 	var form_dict: Dictionary = active_entity.wardrobe_forms.get(active_entity.active_form_key, {})
 	var states: Dictionary = form_dict.get("states", {})
 	var data: Dictionary = states.get(state_key, {})
@@ -799,7 +826,8 @@ func _load_state_into_timeline(state_key: String) -> void:
 	working_timeline_paths.clear()
 
 	for f: Variant in data.get("frames", []):
-		if f is Texture2D: working_timeline_frames.append(f as Texture2D)
+		if f is Texture2D: 
+			working_timeline_frames.append(f as Texture2D)
 	for p: Variant in data.get("paths", []):
 		working_timeline_paths.append(str(p))
 
@@ -826,9 +854,11 @@ func _load_state_into_timeline(state_key: String) -> void:
 	_update_timeline_preview_display()
 	_render_timeline_frames()
 
+
 func _on_timeline_target_state_selected(index: int) -> void:
 	var state_key: String = str(opt_edit_state_target.get_item_metadata(index))
 	_load_state_into_timeline(state_key)
+
 
 func _on_import_gif_pressed() -> void:
 	asset_picker.open_picker("Choose Animated GIF to Import", "", func(_a_name: String, _tex: Texture2D, file_path: String) -> void:
@@ -860,6 +890,7 @@ func _on_import_gif_pressed() -> void:
 		EventBus.notification_requested.emit("Imported GIF (%d frames @ %d FPS)" % [working_timeline_frames.size(), int(detected_fps)], true)
 	)
 
+
 func _on_add_timeline_frame_pressed() -> void:
 	asset_picker.open_picker("Choose Frame Drawing", "", func(_a_name: String, tex: Texture2D, path: String) -> void:
 		working_timeline_frames.append(tex)
@@ -867,6 +898,7 @@ func _on_add_timeline_frame_pressed() -> void:
 		_update_timeline_preview_display()
 		_render_timeline_frames()
 	)
+
 
 func _update_timeline_preview_display() -> void:
 	if working_timeline_frames.is_empty():
@@ -883,9 +915,12 @@ func _update_timeline_preview_display() -> void:
 	else:
 		timeline_onion_rect.texture = null
 
+
 func _render_timeline_frames() -> void:
-	if timeline_frames_vbox == null: return
-	for child: Node in timeline_frames_vbox.get_children(): child.queue_free()
+	if timeline_frames_vbox == null: 
+		return
+	for child: Node in timeline_frames_vbox.get_children(): 
+		child.queue_free()
 
 	var is_mob: bool = is_mobile()
 	var btn_size: float = 28.0 if is_mob else 22.0
@@ -972,6 +1007,7 @@ func _render_timeline_frames() -> void:
 
 		timeline_frames_vbox.add_child(row)
 
+
 func _swap_timeline_frames(idx_a: int, idx_b: int) -> void:
 	if idx_a < 0 or idx_b < 0 or idx_a >= working_timeline_frames.size() or idx_b >= working_timeline_frames.size():
 		return
@@ -986,8 +1022,10 @@ func _swap_timeline_frames(idx_a: int, idx_b: int) -> void:
 	_update_timeline_preview_display()
 	_render_timeline_frames()
 
+
 func _on_save_timeline_to_state_pressed() -> void:
-	if active_entity == null or working_timeline_frames.is_empty(): return
+	if active_entity == null or working_timeline_frames.is_empty(): 
+		return
 	var target_state_key: String = ""
 	if opt_edit_state_target.selected >= 0:
 		target_state_key = str(opt_edit_state_target.get_item_metadata(opt_edit_state_target.selected)).strip_edges()
@@ -1001,6 +1039,7 @@ func _on_save_timeline_to_state_pressed() -> void:
 	_render_states_list()
 	EventBus.notification_requested.emit("Saved %d frames to State: %s" % [working_timeline_frames.size(), target_state_key], true)
 
+
 func _on_pick_sheet_art_pressed() -> void:
 	asset_picker.open_picker("Choose Sprite Sheet / Strip", "", func(art_name: String, tex: Texture2D, path: String) -> void:
 		slicer_source_tex = tex
@@ -1011,8 +1050,10 @@ func _on_pick_sheet_art_pressed() -> void:
 		var suggested: Vector2i = SpriteSheetSlicer.suggest_grid_layout(tex.get_width(), tex.get_height())
 		spin_cols.value = suggested.x
 		spin_rows.value = suggested.y
-		if slicer_grid_overlay != null: slicer_grid_overlay.queue_redraw()
+		if slicer_grid_overlay != null: 
+			slicer_grid_overlay.queue_redraw()
 	)
+
 
 func _on_extract_slices_pressed() -> void:
 	if slicer_source_tex == null or active_entity == null:
@@ -1047,15 +1088,18 @@ func _on_extract_slices_pressed() -> void:
 	tab_container.current_tab = 1
 	EventBus.notification_requested.emit("Extracted %d frames into State: %s" % [tex_arr.size(), dest_state_key], true)
 
+
 class SlicerGridDraw extends Control:
 	var studio_ref: PoseAnimationStudioDialog = null
 
 	func _draw() -> void:
-		if studio_ref == null or studio_ref.slicer_source_tex == null: return
+		if studio_ref == null or studio_ref.slicer_source_tex == null: 
+			return
 
 		var canvas_size: Vector2 = size
 		var tex_size: Vector2 = studio_ref.slicer_source_tex.get_size()
-		if tex_size.x <= 0.0 or tex_size.y <= 0.0: return
+		if tex_size.x <= 0.0 or tex_size.y <= 0.0: 
+			return
 
 		var scale_f: float = minf(canvas_size.x / tex_size.x, canvas_size.y / tex_size.y)
 		var drawn_size: Vector2 = tex_size * scale_f

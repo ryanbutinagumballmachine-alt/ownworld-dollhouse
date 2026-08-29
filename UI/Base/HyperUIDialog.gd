@@ -1,15 +1,22 @@
+# ============================================================
+# File: res://UI/Base/HyperUIDialog.gd
+# ============================================================
+
 # ==============================================================================
-# OWNWORLD — HYPER UI DIALOG BASE CLASS
+# OWNWORLD — HYPER UI DIALOG BASE CLASS (STANDARDIZED MODAL LAYER)
 # File: res://UI/Base/HyperUIDialog.gd
 # Base Class: CanvasLayer (class_name HyperUIDialog)
 #
-# Responsibility: Centralized boilerplate for all modal dialogs. Handles
-# responsive resizing, mobile detection, keyboard dodging, backdrop creation,
-# and theme icon application to enforce the DRY (Don't Repeat Yourself) principle.
+# Responsibility: Centralized modal dialog base class. Enforces Layer 120 depth
+# so dialogs float cleanly above all game docks, and supports sub-modal depth
+# (Layer 125) for nested child pickers with automatic responsive resizing.
 # ==============================================================================
 
 class_name HyperUIDialog
 extends CanvasLayer
+
+const MODAL_BASE_LAYER: int = 120
+const SUB_MODAL_LAYER: int = 125
 
 var max_panel_width: float = 600.0
 var max_panel_height: float = 500.0
@@ -18,15 +25,23 @@ var root_backdrop: Control = null
 var center_container: CenterContainer = null
 var root_panel: PanelContainer = null
 
+signal dialog_opened()
 signal dialog_closed()
 
+
+func _init() -> void:
+	layer = MODAL_BASE_LAYER
+
+
 func _ready() -> void:
+	layer = MODAL_BASE_LAYER
 	visible = false
 	add_to_group("modal_ui")
 	_build_base_ui()
 	_build_content()
 	_connect_system_signals()
 	_update_responsive_layout()
+
 
 # --- VIRTUAL METHODS (To be overridden by children) ---
 
@@ -42,18 +57,29 @@ func _on_theme_updated() -> void:
 func _on_close_requested() -> void:
 	close_dialog()
 
+
 # --- CORE FUNCTIONALITY ---
 
 func is_mobile() -> bool:
 	return ThemeEngine.is_mobile_platform()
 
+
 func open_dialog() -> void:
 	_update_responsive_layout()
 	visible = true
+	dialog_opened.emit()
+	EventBus.modal_opened.emit(name)
+
 
 func close_dialog() -> void:
 	visible = false
 	dialog_closed.emit()
+	EventBus.modal_closed.emit(name)
+
+
+func set_sub_modal_priority(is_sub_modal: bool = true) -> void:
+	layer = SUB_MODAL_LAYER if is_sub_modal else MODAL_BASE_LAYER
+
 
 func _build_base_ui() -> void:
 	root_backdrop = Control.new()
@@ -77,6 +103,7 @@ func _build_base_ui() -> void:
 	root_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	center_container.add_child(root_panel)
 
+
 func _connect_system_signals() -> void:
 	var tree: SceneTree = get_tree()
 	if tree != null and tree.root != null and not tree.root.size_changed.is_connected(_update_responsive_layout):
@@ -84,12 +111,15 @@ func _connect_system_signals() -> void:
 	if not EventBus.theme_changed.is_connected(_internal_theme_changed):
 		EventBus.theme_changed.connect(_internal_theme_changed)
 
+
 func _internal_theme_changed(_theme_data: Dictionary) -> void:
 	_update_responsive_layout()
 	_on_theme_updated()
 
+
 func _update_responsive_layout() -> void:
-	if not is_instance_valid(root_panel): return
+	if not is_instance_valid(root_panel): 
+		return
 	var viewport_size: Vector2 = get_viewport().get_visible_rect().size if get_viewport() else Vector2(1280.0, 720.0)
 	var is_mob: bool = is_mobile()
 
@@ -98,16 +128,20 @@ func _update_responsive_layout() -> void:
 	root_panel.custom_minimum_size = Vector2(target_width, target_height)
 	root_panel.size = Vector2(target_width, target_height)
 
+
 func _on_backdrop_gui_input(event: InputEvent) -> void:
 	if (event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT) or (event is InputEventScreenTouch and event.pressed):
 		_on_close_requested()
 
+
 # --- KEYBOARD DODGING ---
 
 func register_keyboard_dodge(control: Control) -> void:
-	if not is_mobile() or control == null: return
+	if not is_mobile() or control == null: 
+		return
 	control.focus_entered.connect(_on_input_focus_entered)
 	control.focus_exited.connect(_on_input_focus_exited)
+
 
 func _on_input_focus_entered() -> void:
 	if is_mobile() and center_container != null:
@@ -118,27 +152,38 @@ func _on_input_focus_entered() -> void:
 			var tween: Tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 			tween.tween_property(center_container, "position:y", -kb_height * 0.45, 0.25)
 
+
 func _on_input_focus_exited() -> void:
 	if is_mobile() and center_container != null:
 		var tween: Tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 		tween.tween_property(center_container, "position:y", 0.0, 0.25)
 
+
 # --- THEME HELPERS ---
 
 func apply_button_icon(button: Button, icon_key: String) -> void:
-	if button == null: return
+	if button == null: 
+		return
 	var icon_texture: Texture2D = ThemeService.get_icon(icon_key)
-	if icon_texture != null: button.icon = icon_texture
+	if icon_texture != null: 
+		button.icon = icon_texture
+
 
 func apply_close_icon(button: Button) -> void:
-	if button == null: return
+	if button == null: 
+		return
 	var icon_texture: Texture2D = ThemeService.get_icon("icon_close")
-	if icon_texture != null: button.icon = icon_texture
-	else: button.text = "✕"
+	if icon_texture != null: 
+		button.icon = icon_texture
+	else: 
+		button.text = "✕"
+
 
 func apply_checkbox_icon(checkbox: CheckBox, icon_key: String) -> void:
-	if checkbox == null: return
+	if checkbox == null: 
+		return
 	var icon_texture: Texture2D = ThemeService.get_icon(icon_key)
 	if icon_texture == null and icon_key == "icon_stairs":
 		icon_texture = ThemeService.get_icon("icon_up")
-	if icon_texture != null: checkbox.icon = icon_texture
+	if icon_texture != null: 
+		checkbox.icon = icon_texture

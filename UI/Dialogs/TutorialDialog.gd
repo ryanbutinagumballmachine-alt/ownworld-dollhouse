@@ -1,5 +1,9 @@
+# ============================================================
+# File: res://UI/Dialogs/TutorialDialog.gd
+# ============================================================
+
 # ==============================================================================
-# OWNWORLD — IN-GAME CREATOR HANDBOOK (HYPER OPTIMIZED)
+# OWNWORLD — IN-GAME CREATOR HANDBOOK (HYPER OPTIMIZED & LAYER 120)
 # File: res://UI/Dialogs/TutorialDialog.gd
 # Base Class: HyperUIDialog
 # ==============================================================================
@@ -28,7 +32,7 @@ var tutorial_chapters: Array[Dictionary] = [
 		"sections": [
 			{
 				"title": "What is OwnWorld: Dollhouse?",
-				"body": "OwnWorld is an interactive digital playset and storytelling sandbox. Just like playing with a physical wooden dollhouse or paper dolls, you can pick up characters, decorate rooms, dress people up, cook meals, and invent your own adventures. Best of all, you can draw your own characters and furniture and bring them into the game anytime!"
+				"body": "OwnWorld is an interactive digital playset and storytelling sandbox. Just like playing with a physical dollhouse or paper dolls, you can pick up characters, decorate rooms, dress people up, cook meals, and invent your own adventures. Best of all, you can draw your own characters and furniture and bring them into the game anytime!"
 			},
 			{
 				"title": "Looking Around Your Room",
@@ -378,9 +382,11 @@ var tutorial_chapters: Array[Dictionary] = [
 	}
 ]
 
+
 func _init() -> void:
 	max_panel_width = 780.0
 	max_panel_height = 580.0
+
 
 func _build_content() -> void:
 	name = "TutorialDialog"
@@ -458,24 +464,32 @@ func _build_content() -> void:
 	content_vbox.add_theme_constant_override("separation", 10)
 	content_scroll.add_child(content_vbox)
 
+
 func _on_theme_updated() -> void:
-	if header_title_lbl: header_title_lbl.add_theme_color_override("font_color", ThemeService.get_color("accent_primary", "#ec4899"))
-	if btn_close: apply_close_icon(btn_close)
+	if header_title_lbl: 
+		header_title_lbl.add_theme_color_override("font_color", ThemeService.get_color("accent_primary", "#ec4899"))
+	if btn_close: 
+		apply_close_icon(btn_close)
 	if visible:
 		_render_topics_sidebar()
 		_render_active_topic_content()
 
+
 func open_handbook(starting_topic_index: int = 0) -> void:
 	active_topic_index = clampi(starting_topic_index, 0, tutorial_chapters.size() - 1)
 	active_filter_query = ""
-	if search_input: search_input.text = ""
+	if search_input: 
+		search_input.text = ""
 	_render_topics_sidebar()
 	_render_active_topic_content()
 	open_dialog()
 
+
 func _render_topics_sidebar() -> void:
-	if not topics_list_vbox: return
-	for child: Node in topics_list_vbox.get_children(): child.queue_free()
+	if not topics_list_vbox: 
+		return
+	for child: Node in topics_list_vbox.get_children(): 
+		child.queue_free()
 
 	var is_mob: bool = is_mobile()
 	var c_accent: Color = ThemeService.get_color("accent_primary", "#ec4899")
@@ -492,7 +506,8 @@ func _render_topics_sidebar() -> void:
 					if s is Dictionary and (active_filter_query in str(s.get("title", "")).to_lower() or active_filter_query in str(s.get("body", "")).to_lower()):
 						matches_query = true
 						break
-			if not matches_query: continue
+			if not matches_query: 
+				continue
 
 		var is_active: bool = (i == active_topic_index)
 		var btn: Button = Button.new()
@@ -529,9 +544,12 @@ func _render_topics_sidebar() -> void:
 		)
 		topics_list_vbox.add_child(btn)
 
+
 func _render_active_topic_content() -> void:
-	if not content_vbox: return
-	for child: Node in content_vbox.get_children(): child.queue_free()
+	if not content_vbox: 
+		return
+	for child: Node in content_vbox.get_children(): 
+		child.queue_free()
 
 	if active_topic_index < 0 or active_topic_index >= tutorial_chapters.size():
 		return
@@ -555,7 +573,8 @@ func _render_active_topic_content() -> void:
 	icon_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	var icon_tex: Texture2D = ThemeService.get_icon(str(chapter.get("icon", "icon_room")))
-	if icon_tex: icon_rect.texture = icon_tex
+	if icon_tex: 
+		icon_rect.texture = icon_tex
 	title_hbox.add_child(icon_rect)
 
 	var title_lbl: Label = Label.new()
@@ -572,7 +591,8 @@ func _render_active_topic_content() -> void:
 	title_hbox.add_child(badge_lbl)
 
 	for sec_var: Variant in sections:
-		if not sec_var is Dictionary: continue
+		if not sec_var is Dictionary: 
+			continue
 		var sec: Dictionary = sec_var as Dictionary
 		var s_title: String = str(sec.get("title", ""))
 		var s_body: String = str(sec.get("body", ""))
@@ -636,6 +656,7 @@ func _render_active_topic_content() -> void:
 			content_scroll.scroll_vertical = 0
 		)
 		nav_row.add_child(btn_next)
+
 
 func _on_search_query_changed(new_text: String) -> void:
 	active_filter_query = new_text.strip_edges().to_lower()

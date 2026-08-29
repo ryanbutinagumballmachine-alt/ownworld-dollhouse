@@ -1,5 +1,9 @@
+# ============================================================
+# File: res://UI/Dialogs/RecipeStudioDialog.gd
+# ============================================================
+
 # ==============================================================================
-# OWNWORLD — RECIPE STUDIO (HYPER OPTIMIZED)
+# OWNWORLD — RECIPE STUDIO (HYPER OPTIMIZED & LAYER 120)
 # File: res://UI/Dialogs/RecipeStudioDialog.gd
 # Base Class: HyperUIDialog
 # ==============================================================================
@@ -28,9 +32,11 @@ var preview_res: TextureRect = null
 
 var art_library: Array[Dictionary] = []
 
+
 func _init() -> void:
 	max_panel_width = 620.0
 	max_panel_height = 520.0
+
 
 func _build_content() -> void:
 	name = "RecipeStudioDialog"
@@ -159,6 +165,7 @@ func _build_content() -> void:
 	btn_save.pressed.connect(_on_save_recipe_pressed)
 	main_vbox.add_child(btn_save)
 
+
 func _create_preview_slot(parent_vbox: VBoxContainer, dim: float) -> PanelContainer:
 	var panel: PanelContainer = PanelContainer.new()
 	panel.theme_type_variation = "SubPanel"
@@ -175,8 +182,10 @@ func _create_preview_slot(parent_vbox: VBoxContainer, dim: float) -> PanelContai
 	_apply_preview_style(panel)
 	return panel
 
+
 func _apply_preview_style(panel: PanelContainer) -> void:
-	if panel == null: return
+	if panel == null: 
+		return
 	var style: StyleBoxFlat = StyleBoxFlat.new()
 	style.bg_color = ThemeService.get_color("input_background", "#ffffff")
 	style.border_color = ThemeService.get_color("panel_border", "#f472b6")
@@ -184,20 +193,24 @@ func _apply_preview_style(panel: PanelContainer) -> void:
 	style.set_corner_radius_all(4)
 	panel.add_theme_stylebox_override("panel", style)
 
+
 func _on_theme_updated() -> void:
 	_apply_preview_style(slot_panel_a)
 	_apply_preview_style(slot_panel_b)
 	_apply_preview_style(slot_panel_res)
 	apply_button_icon(btn_save, "icon_recipes")
-	if root_panel == null: return
+	if root_panel == null: 
+		return
 	for node: Node in root_panel.find_children("*", "Button", true, false):
 		if node is Button and (node as Button).text == "✕":
 			apply_close_icon(node as Button)
+
 
 func open_studio() -> void:
 	art_library = UGCManager.scan_user_art_library()
 	_populate_dropdowns()
 	open_dialog()
+
 
 func _populate_dropdowns() -> void:
 	for opt: OptionButton in [opt_ingredient_a, opt_ingredient_b, opt_result_item]:
@@ -206,7 +219,8 @@ func _populate_dropdowns() -> void:
 			var item: Dictionary = art_library[index]
 			opt.add_item(str(item.get("name", "Art")), index)
 
-	if art_library.is_empty(): return
+	if art_library.is_empty(): 
+		return
 	opt_ingredient_a.selected = 0
 	opt_ingredient_b.selected = mini(1, art_library.size() - 1)
 	opt_result_item.selected = mini(2, art_library.size() - 1)
@@ -216,21 +230,27 @@ func _populate_dropdowns() -> void:
 	_update_preview_from_opt(preview_res, opt_result_item.selected)
 	result_name_edit.text = str(art_library[opt_result_item.selected].get("name", ""))
 
+
 func _update_preview_from_opt(preview: TextureRect, index: int) -> void:
-	if preview == null: return
+	if preview == null: 
+		return
 	if index >= 0 and index < art_library.size():
 		var texture_variant: Variant = art_library[index].get("texture", null)
-		if texture_variant is Texture2D: preview.texture = texture_variant as Texture2D
+		if texture_variant is Texture2D: 
+			preview.texture = texture_variant as Texture2D
 		else:
 			var fpath: String = str(art_library[index].get("file_path", ""))
 			preview.texture = UGCManager.get_thumbnail(fpath)
 
+
 func _on_save_recipe_pressed() -> void:
-	if art_library.is_empty(): return
+	if art_library.is_empty(): 
+		return
 	var index_a: int = opt_ingredient_a.selected
 	var index_b: int = opt_ingredient_b.selected
 	var index_result: int = opt_result_item.selected
-	if index_a < 0 or index_b < 0 or index_result < 0: return
+	if index_a < 0 or index_b < 0 or index_result < 0: 
+		return
 
 	var name_a: String = str(art_library[index_a].get("name", "Item A"))
 	var name_b: String = str(art_library[index_b].get("name", "Item B"))

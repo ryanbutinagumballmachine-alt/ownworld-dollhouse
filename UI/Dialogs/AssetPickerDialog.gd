@@ -1,7 +1,14 @@
+# ============================================================
+# File: res://UI/Dialogs/AssetPickerDialog.gd
+# ============================================================
+
 # ==============================================================================
-# OWNWORLD — ASSET PICKER DIALOG (HYPER OPTIMIZED)
+# OWNWORLD — ASSET PICKER DIALOG (SUB-MODAL LAYER 125)
 # File: res://UI/Dialogs/AssetPickerDialog.gd
 # Base Class: HyperUIDialog
+#
+# Responsibility: High-speed user art and drawing selector. Configured with
+# sub-modal priority (Layer 125) to stack cleanly above parent modal dialogs.
 # ==============================================================================
 
 class_name AssetPickerDialog
@@ -29,9 +36,12 @@ var user_available_tags: Array[String] = []
 signal asset_selected(asset_name: String, texture: Texture2D, file_path: String)
 signal picker_closed()
 
+
 func _init() -> void:
 	max_panel_width = 640.0
 	max_panel_height = 560.0
+	set_sub_modal_priority(true)
+
 
 func _build_content() -> void:
 	name = "AssetPickerDialog"
@@ -129,9 +139,11 @@ func _build_content() -> void:
 	items_grid.add_theme_constant_override("v_separation", 6)
 	scroll_container.add_child(items_grid)
 
+
 func _on_theme_updated() -> void:
 	apply_button_icon(btn_back_up, "icon_up")
-	if root_panel == null: return
+	if root_panel == null: 
+		return
 	for node: Node in root_panel.find_children("*", "Button", true, false):
 		if node is Button and (node as Button).text == "✕":
 			apply_close_icon(node as Button)
@@ -140,6 +152,7 @@ func _on_theme_updated() -> void:
 		_render_breadcrumbs()
 		_render_grid_view()
 
+
 func _update_responsive_layout() -> void:
 	super._update_responsive_layout()
 	if items_grid and root_panel:
@@ -147,13 +160,15 @@ func _update_responsive_layout() -> void:
 		var card_w: float = 88.0 if is_mobile() else 72.0
 		items_grid.columns = clampi(int(usable_w / (card_w + 6.0)), 3, 10)
 
+
 func open_picker(prompt_title: String = "Select Artwork", default_folder: String = "", on_selected_callback: Callable = Callable()) -> void:
 	header_title_lbl.text = prompt_title
 	current_virtual_folder = default_folder.strip_edges()
 	current_select_callback = on_selected_callback
 	active_search_query = ""
 	active_tag_filter = "All"
-	if search_input: search_input.text = ""
+	if search_input: 
+		search_input.text = ""
 
 	_load_tag_registry()
 	all_art_files = UGCManager.scan_user_art_library()
@@ -163,10 +178,12 @@ func open_picker(prompt_title: String = "Select Artwork", default_folder: String
 	_render_grid_view()
 	open_dialog()
 
+
 func _on_close_requested() -> void:
 	current_select_callback = Callable()
 	picker_closed.emit()
 	super._on_close_requested()
+
 
 func _render_breadcrumbs() -> void:
 	for child: Node in breadcrumbs_hbox.get_children():
@@ -201,6 +218,7 @@ func _render_breadcrumbs() -> void:
 			)
 			breadcrumbs_hbox.add_child(btn_part)
 
+
 func _create_breadcrumb_pill(label_text: String, icon_key: String, is_active: bool) -> Button:
 	var is_mob: bool = is_mobile()
 	var btn: Button = Button.new()
@@ -214,6 +232,7 @@ func _create_breadcrumb_pill(label_text: String, icon_key: String, is_active: bo
 	apply_button_icon(btn, icon_key)
 	return btn
 
+
 func _navigate_up_one_folder() -> void:
 	if current_virtual_folder.is_empty() or current_virtual_folder == "Root":
 		return
@@ -225,6 +244,7 @@ func _navigate_up_one_folder() -> void:
 		current_virtual_folder = ""
 	_render_breadcrumbs()
 	_render_grid_view()
+
 
 func _render_grid_view() -> void:
 	for child: Node in items_grid.get_children():
@@ -244,7 +264,8 @@ func _render_grid_view() -> void:
 	for art_data: Dictionary in all_art_files:
 		var fname: String = str(art_data.get("name", "Art"))
 		var f_folder: String = str(art_data.get("folder", "")).replace("\\", "/").strip_edges().trim_prefix("/").trim_suffix("/")
-		if f_folder == "Root": f_folder = ""
+		if f_folder == "Root": 
+			f_folder = ""
 
 		var tags: Array = asset_tags_registry.get(fname, ["#props"]) as Array
 		var in_current_folder: bool = (f_folder == active_folder_norm)
@@ -255,11 +276,14 @@ func _render_grid_view() -> void:
 				if active_search_query in str(t).to_lower():
 					matches_query = true
 					break
-			if not matches_query: continue
+			if not matches_query: 
+				continue
 		elif active_tag_filter != "All":
-			if not (active_tag_filter in tags): continue
+			if not (active_tag_filter in tags): 
+				continue
 		else:
-			if not in_current_folder: continue
+			if not in_current_folder: 
+				continue
 
 		_create_image_card(art_data)
 		items_rendered += 1
@@ -270,6 +294,7 @@ func _render_grid_view() -> void:
 		empty_lbl.theme_type_variation = "HintLabel"
 		empty_lbl.add_theme_font_size_override("font_size", 11 if is_mobile() else 10)
 		items_grid.add_child(empty_lbl)
+
 
 func _create_folder_card(folder_name: String) -> void:
 	var is_mob: bool = is_mobile()
@@ -325,6 +350,7 @@ func _create_folder_card(folder_name: String) -> void:
 		_render_grid_view()
 	)
 	items_grid.add_child(card)
+
 
 func _create_image_card(art_data: Dictionary) -> void:
 	var is_mob: bool = is_mobile()
@@ -395,12 +421,14 @@ func _create_image_card(art_data: Dictionary) -> void:
 	)
 	items_grid.add_child(card)
 
+
 func _build_tag_filter_pills() -> void:
 	for child: Node in filter_scroll_container.get_children():
 		child.queue_free()
 	_add_filter_pill("All", active_tag_filter == "All")
 	for tag: String in user_available_tags:
 		_add_filter_pill(tag, active_tag_filter == tag)
+
 
 func _add_filter_pill(label_text: String, is_active: bool) -> void:
 	var is_mob: bool = is_mobile()
@@ -439,9 +467,11 @@ func _add_filter_pill(label_text: String, is_active: bool) -> void:
 	)
 	filter_scroll_container.add_child(btn)
 
+
 func _on_search_text_changed(new_text: String) -> void:
 	active_search_query = new_text.strip_edges().to_lower()
 	_render_grid_view()
+
 
 func _load_tag_registry() -> void:
 	user_available_tags = DrawerMetadataService.load_tags_list()
