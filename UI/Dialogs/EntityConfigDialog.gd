@@ -402,6 +402,7 @@ func save_and_close() -> void:
 		else:
 			active_entity.unconfigure_portal_and_elevator()
 
+		CapabilitySynchronizer.synchronize(active_entity)
 		SaveSystem.update_character_in_cast(active_entity)
 		SaveSystem.save_current_room_state()
 		EventBus.entity_state_changed.emit(active_entity.entity_id)

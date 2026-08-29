@@ -6,11 +6,11 @@
 #
 # Responsibility: Central coordinator for room files, cast rosters, building
 # floor hierarchies, and universe journals with unified JSON schema compatibility.
+# Uses in-memory AppState caching to eliminate redundant disk reads.
 # ==============================================================================
 
 extends Node
 
-const PATH_SESSION_FILE: String = "user://session.json"
 const PATH_SAVES_ROOT: String = "user://saves/"
 const PATH_UNIVERSES_DIR: String = "user://universes/"
 
@@ -33,22 +33,22 @@ func _initialize_directories() -> void:
 	JsonFileStore.ensure_directory(PATH_UNIVERSES_DIR)
 
 
+## Reads current active universe ID directly from RAM (AppState).
 func get_current_universe_id() -> String:
-	var session: Dictionary = _load_session()
-	var universe_id: String = str(session.get("universe_id", DEFAULT_UNIVERSE_ID)).strip_edges()
-	return universe_id if not universe_id.is_empty() else DEFAULT_UNIVERSE_ID
+	var u_id: String = AppState.universe_id.strip_edges()
+	return u_id if not u_id.is_empty() else DEFAULT_UNIVERSE_ID
 
 
+## Reads current active room ID directly from RAM (AppState).
 func get_current_room_id() -> String:
-	var session: Dictionary = _load_session()
-	var room_id: String = str(session.get("room_id", DEFAULT_ROOM_ID)).strip_edges()
-	return room_id if not room_id.is_empty() else DEFAULT_ROOM_ID
+	var r_id: String = AppState.room_id.strip_edges()
+	return r_id if not r_id.is_empty() else DEFAULT_ROOM_ID
 
 
+## Reads current active universe display name directly from RAM (AppState).
 func get_current_universe_name() -> String:
-	var session: Dictionary = _load_session()
-	var universe_name: String = str(session.get("universe_name", "Default Universe")).strip_edges()
-	return universe_name if not universe_name.is_empty() else "Default Universe"
+	var u_name: String = AppState.universe_name.strip_edges()
+	return u_name if not u_name.is_empty() else "Default Universe"
 
 
 func get_universe_save_dir(universe_id: String = "") -> String:
@@ -120,7 +120,7 @@ func get_building_floors(building_id: String, universe_id: String = "") -> Array
 
 
 ## Finds the floor directly above the current active room in the same building.
-func get_next_floor_above(building_id: String, current_room_id: String, universe_id: String = "") -> Dictionary:
+func get_next_floor_above(building_id: String, current_room_id_str: String, universe_id: String = "") -> Dictionary:
 	var floors: Array[Dictionary] = get_building_floors(building_id, universe_id)
 	if floors.size() <= 1:
 		return {}
@@ -133,7 +133,7 @@ func get_next_floor_above(building_id: String, current_room_id: String, universe
 
 	var current_index: int = -1
 	for i: int in range(floors.size()):
-		if str(floors[i].get("room_id", "")) == current_room_id:
+		if str(floors[i].get("room_id", "")) == current_room_id_str:
 			current_index = i
 			break
 
@@ -160,7 +160,7 @@ func save_current_room_state() -> void:
 	var tree: SceneTree = get_tree()
 	if tree == null:
 		return
-	var room_id: String = get_current_room_id()
+	var target_room_id: String = get_current_room_id()
 	var main_node: Node = tree.root.find_child("Main", true, false)
 	if main_node == null:
 		main_node = tree.current_scene
@@ -175,7 +175,7 @@ func save_current_room_state() -> void:
 	else:
 		return
 
-	save_room_state(room_id, room_payload)
+	save_room_state(target_room_id, room_payload)
 
 
 func update_character_in_cast(entity: OwnEntity) -> void:
@@ -277,8 +277,10 @@ func load_room_state(room_id: String) -> Dictionary:
 
 func save_universe_journal(universe_id: String, journal_data: Dictionary) -> bool:
 	var target_id: String = universe_id.strip_edges()
-	if target_id.is_empty(): target_id = get_current_universe_id()
-	if target_id.is_empty(): target_id = DEFAULT_UNIVERSE_ID
+	if target_id.is_empty(): 
+		target_id = get_current_universe_id()
+	if target_id.is_empty(): 
+		target_id = DEFAULT_UNIVERSE_ID
 
 	var file_path: String = get_universe_journal_path(target_id)
 	var success: bool = JsonFileStore.write_dictionary(file_path, journal_data)
@@ -290,15 +292,15 @@ func save_universe_journal(universe_id: String, journal_data: Dictionary) -> boo
 
 func load_universe_journal(universe_id: String) -> Dictionary:
 	var target_id: String = universe_id.strip_edges()
-	if target_id.is_empty(): target_id = get_current_universe_id()
-	if target_id.is_empty(): target_id = DEFAULT_UNIVERSE_ID
+	if target_id.is_empty(): 
+		target_id = get_current_universe_id()
+	if target_id.is_empty(): 
+		target_id = DEFAULT_UNIVERSE_ID
 
 	var file_path: String = get_universe_journal_path(target_id)
 	var data: Dictionary = JsonFileStore.read_dictionary(file_path)
-	if not data.has("timeline"): data["timeline"] = []
-	if not data.has("factions"): data["factions"] = []
+	if not data.has("timeline"): 
+		data["timeline"] = []
+	if not data.has("factions"): 
+		data["factions"] = []
 	return data
-
-
-func _load_session() -> Dictionary:
-	return JsonFileStore.read_dictionary(PATH_SESSION_FILE)

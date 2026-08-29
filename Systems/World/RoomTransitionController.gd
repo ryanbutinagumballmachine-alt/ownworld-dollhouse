@@ -83,11 +83,13 @@ func request_transition(target_room_id: String, traveler_data: Dictionary = {}) 
 
 func _execute_transition(transition_id: int) -> void:
 	await _fade_to(1.0, FADE_OUT_DURATION)
-	if transition_id != _transition_serial: return
+	if transition_id != _transition_serial: 
+		return
 
 	state = State.SAVE_DEPARTURE
 	_save_departure()
-	if transition_id != _transition_serial: return
+	if transition_id != _transition_serial: 
+		return
 
 	state = State.CHANGE_STATE
 	if not AppState.begin_room_transition(pending_room_id):
@@ -127,7 +129,7 @@ func _on_room_loaded(room_id: String, _room_state: Dictionary) -> void:
 	state = State.IDLE
 	AppState.complete_room_transition()
 	EventBus.room_changed.emit(completed_room_id, previous_room_id, traveler_data)
-	SessionStore.save_current_app_state()
+	AppState.save_session_to_disk()
 
 
 func _abort_transition() -> void:
@@ -157,5 +159,8 @@ func _fade_to(target_alpha: float, duration: float) -> void:
 	await tween.finished
 
 
-func is_transitioning() -> bool: return state != State.IDLE
-func get_state() -> State: return state
+func is_transitioning() -> bool: 
+	return state != State.IDLE
+
+func get_state() -> State: 
+	return state

@@ -87,27 +87,23 @@ func _is_mobile() -> bool:
 
 
 func _get_props_path() -> String:
-	return DrawerMetadataService.get_props_path(SaveSystem.get_current_universe_id())
+	return DrawerMetadataService.get_props_path(AppState.universe_id)
 
 
 func _get_furniture_path() -> String:
-	return DrawerMetadataService.get_furniture_path(SaveSystem.get_current_universe_id())
+	return DrawerMetadataService.get_furniture_path(AppState.universe_id)
 
 
 func _get_cast_path() -> String:
-	return DrawerMetadataService.get_cast_path(SaveSystem.get_current_universe_id())
+	return DrawerMetadataService.get_cast_path(AppState.universe_id)
 
 
-func _get_current_universe_id() -> String: return SaveSystem.get_current_universe_id()
-func _generate_entity_uuid(base_name: String) -> String: return base_name.validate_node_name() + "_" + str(Time.get_ticks_usec())
-func _notify(message: String, is_success: bool = true) -> void: EventBus.notification_requested.emit(message, is_success)
+func _notify(message: String, is_success: bool = true) -> void: 
+	EventBus.notification_requested.emit(message, is_success)
 
 
 func _get_next_z_index() -> int:
-	var max_z: int = 100
-	for node: Node in get_tree().get_nodes_in_group("entities"):
-		if node is Node2D: max_z = maxi(max_z, (node as Node2D).z_index)
-	return max_z + 1
+	return AppState.get_next_z_index()
 
 
 func _trigger_haptic(duration_ms: int = 35) -> void:
@@ -139,7 +135,8 @@ func _connect_theme_signals() -> void:
 
 func _on_theme_changed(_theme_data: Dictionary) -> void:
 	_apply_theme()
-	if is_drawer_open: refresh_tray()
+	if is_drawer_open: 
+		refresh_tray()
 
 
 func is_point_inside_drawer(screen_point: Vector2) -> bool:
@@ -176,7 +173,6 @@ func _on_input_focus_exited() -> void:
 
 func _build_ui() -> void:
 	var is_mob: bool = _is_mobile()
-# Floating Drawer Open Pill Handle
 	var pill_w: float = 60.0 if is_mob else 48.0
 	var pill_h: float = 36.0 if is_mob else 26.0
 
@@ -306,7 +302,8 @@ func _build_ui() -> void:
 	btn_back_up.add_theme_constant_override("icon_max_width", 14)
 	btn_back_up.add_theme_font_size_override("font_size", 11 if is_mob else 9)
 	var up_icon: Texture2D = ThemeService.get_icon("icon_up")
-	if up_icon: btn_back_up.icon = up_icon
+	if up_icon: 
+		btn_back_up.icon = up_icon
 	btn_back_up.pressed.connect(_navigate_up_one_folder)
 	breadcrumb_row.add_child(btn_back_up)
 
@@ -402,7 +399,8 @@ func _build_batch_action_bar() -> void:
 	btn_batch_organize.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	btn_batch_organize.add_theme_constant_override("icon_max_width", 14)
 	var tag_icon: Texture2D = ThemeService.get_icon("icon_tag")
-	if tag_icon: btn_batch_organize.icon = tag_icon
+	if tag_icon: 
+		btn_batch_organize.icon = tag_icon
 	btn_batch_organize.pressed.connect(_on_batch_organize_pressed)
 	bar_hbox.add_child(btn_batch_organize)
 
@@ -413,7 +411,8 @@ func _build_batch_action_bar() -> void:
 	btn_batch_delete.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	btn_batch_delete.add_theme_constant_override("icon_max_width", 14)
 	var del_icon: Texture2D = ThemeService.get_icon("icon_close")
-	if del_icon: btn_batch_delete.icon = del_icon
+	if del_icon: 
+		btn_batch_delete.icon = del_icon
 	btn_batch_delete.pressed.connect(_on_batch_delete_pressed)
 	bar_hbox.add_child(btn_batch_delete)
 
@@ -432,8 +431,10 @@ func _build_batch_action_bar() -> void:
 
 func _apply_theme() -> void:
 	var global_theme: Theme = ThemeService.create_theme()
-	if toggle_pill_container: toggle_pill_container.theme = global_theme
-	if drawer_root_container: drawer_root_container.theme = global_theme
+	if toggle_pill_container: 
+		toggle_pill_container.theme = global_theme
+	if drawer_root_container: 
+		drawer_root_container.theme = global_theme
 
 	var c_bg: Color = ThemeService.get_color("panel_background", "#fff5f7")
 	var c_border: Color = ThemeService.get_color("panel_border", "#f9a8d4")
@@ -493,7 +494,8 @@ func _create_compact_tab_btn(title: String, icon_key: String, btn_h: float, call
 	btn.add_theme_constant_override("icon_max_width", 16 if is_mob else 14)
 	btn.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	var icon_tex: Texture2D = ThemeService.get_icon(icon_key)
-	if icon_tex: btn.icon = icon_tex
+	if icon_tex: 
+		btn.icon = icon_tex
 	btn.pressed.connect(callback)
 	return btn
 
@@ -531,7 +533,8 @@ func _set_tray_mode(mode: TrayMode) -> void:
 	active_category_filter = "All"
 	active_search_query = ""
 	selected_batch_items.clear()
-	if search_input: search_input.text = ""
+	if search_input: 
+		search_input.text = ""
 
 	_update_tab_buttons_appearance()
 	btn_import_art.visible = (mode == TrayMode.ASSETS)
@@ -556,7 +559,8 @@ func _update_tab_buttons_appearance() -> void:
 
 	for t: Dictionary in tabs:
 		var btn: Button = t["btn"] as Button
-		if not is_instance_valid(btn): continue
+		if not is_instance_valid(btn): 
+			continue
 		var is_active: bool = bool(t["active"])
 
 		btn.remove_theme_stylebox_override("normal")
@@ -584,12 +588,14 @@ func _update_tab_buttons_appearance() -> void:
 
 
 func _update_responsive_columns() -> void:
-	if not is_instance_valid(root_panel) or not is_instance_valid(items_grid): return
+	if not is_instance_valid(root_panel) or not is_instance_valid(items_grid): 
+		return
 	var win_w: float = get_viewport().get_visible_rect().size.x if get_viewport() else 1280.0
 	var is_mob: bool = _is_mobile()
 
 	var target_w: float = minf(DRAWER_MAX_WIDTH, win_w - (32.0 if is_mob else 24.0))
-	if target_w < 320.0: target_w = 320.0
+	if target_w < 320.0: 
+		target_w = 320.0
 
 	var d_height: float = DRAWER_HEIGHT
 	root_panel.offset_left = -target_w * 0.5
@@ -650,12 +656,14 @@ func _create_breadcrumb_pill(label_text: String, icon_key: String, is_active: bo
 	btn.add_theme_constant_override("icon_max_width", 14 if is_mob else 12)
 	btn.add_theme_font_size_override("font_size", 10 if is_mob else 9)
 	var icon_tex: Texture2D = ThemeService.get_icon(icon_key)
-	if icon_tex: btn.icon = icon_tex
+	if icon_tex: 
+		btn.icon = icon_tex
 	return btn
 
 
 func _navigate_up_one_folder() -> void:
-	if current_folder_path == "" or current_folder_path == "Root": return
+	if current_folder_path == "" or current_folder_path == "Root": 
+		return
 	if "/" in current_folder_path:
 		var parts: PackedStringArray = current_folder_path.split("/", false)
 		parts.remove_at(parts.size() - 1)
@@ -771,8 +779,10 @@ func _create_folder_grid_card(folder_name: String) -> void:
 	vbox.add_child(label_box)
 
 	card.pressed.connect(func() -> void:
-		if current_folder_path == "" or current_folder_path == "Root": current_folder_path = cap_fname
-		else: current_folder_path = current_folder_path + "/" + cap_fname
+		if current_folder_path == "" or current_folder_path == "Root": 
+			current_folder_path = cap_fname
+		else: 
+			current_folder_path = current_folder_path + "/" + cap_fname
 		_render_breadcrumbs()
 		refresh_tray()
 	)
@@ -784,15 +794,20 @@ func refresh_tray() -> void:
 		child.queue_free()
 
 	match current_mode:
-		TrayMode.ASSETS: _render_assets_tab()
-		TrayMode.PROPS: _render_templates_tab(_get_props_path(), Types.EntityType.PROP, "props")
-		TrayMode.FURNITURE: _render_templates_tab(_get_furniture_path(), Types.EntityType.FURNITURE, "furniture")
-		TrayMode.CAST: _render_cast_tab()
+		TrayMode.ASSETS: 
+			_render_assets_tab()
+		TrayMode.PROPS: 
+			_render_templates_tab(_get_props_path(), Types.EntityType.PROP, "props")
+		TrayMode.FURNITURE: 
+			_render_templates_tab(_get_furniture_path(), Types.EntityType.FURNITURE, "furniture")
+		TrayMode.CAST: 
+			_render_cast_tab()
 
 
 func _render_assets_tab() -> void:
 	var norm_folder: String = current_folder_path.replace("\\", "/").strip_edges().trim_prefix("/").trim_suffix("/")
-	if norm_folder == "Root": norm_folder = ""
+	if norm_folder == "Root": 
+		norm_folder = ""
 
 	if not is_batch_mode and active_search_query == "" and active_category_filter == "All":
 		var direct_subfolders: Array[String] = UGCManager.get_subfolders_in_art_folder(norm_folder)
@@ -816,11 +831,14 @@ func _render_assets_tab() -> void:
 				if active_search_query in str(t).to_lower():
 					matches = true
 					break
-			if not matches: continue
+			if not matches: 
+				continue
 		elif active_category_filter != "All":
-			if not (active_category_filter in tags): continue
+			if not (active_category_filter in tags): 
+				continue
 		else:
-			if f_path != norm_folder: continue
+			if f_path != norm_folder: 
+				continue
 
 		_create_asset_card(art_data)
 
@@ -900,7 +918,8 @@ func _render_templates_tab(file_path: String, type: Types.EntityType, category_k
 
 	var templates: Array[Dictionary] = DrawerMetadataService.load_template_array(file_path)
 	var norm_folder: String = current_folder_path.strip_edges().trim_prefix("/").trim_suffix("/")
-	if norm_folder == "Root": norm_folder = ""
+	if norm_folder == "Root": 
+		norm_folder = ""
 
 	var subfolders: Array[String] = []
 	var raw_folders: Array = user_registered_folders.get(category_key, [])
@@ -908,11 +927,13 @@ func _render_templates_tab(file_path: String, type: Types.EntityType, category_k
 		var reg_f: String = str(reg_f_var).strip_edges().trim_prefix("/").trim_suffix("/")
 		if norm_folder == "" and reg_f != "":
 			var direct_c: String = reg_f.split("/")[0]
-			if not direct_c in subfolders: subfolders.append(direct_c)
+			if not direct_c in subfolders: 
+				subfolders.append(direct_c)
 		elif norm_folder != "" and reg_f.begins_with(norm_folder + "/"):
 			var rem: String = reg_f.trim_prefix(norm_folder + "/")
 			var direct_c: String = rem.split("/")[0]
-			if not direct_c in subfolders: subfolders.append(direct_c)
+			if not direct_c in subfolders: 
+				subfolders.append(direct_c)
 
 	if not is_batch_mode and active_search_query == "" and active_category_filter == "All":
 		for sub: String in subfolders:
@@ -933,11 +954,14 @@ func _render_templates_tab(file_path: String, type: Types.EntityType, category_k
 				if active_search_query in str(t).to_lower():
 					matches = true
 					break
-			if not matches: continue
+			if not matches: 
+				continue
 		elif active_category_filter != "All":
-			if not (active_category_filter in tags): continue
+			if not (active_category_filter in tags): 
+				continue
 		else:
-			if f_path != norm_folder: continue
+			if f_path != norm_folder: 
+				continue
 
 		var tex: Texture2D = UGCManager.get_thumbnail(img_path)
 		
@@ -1008,7 +1032,8 @@ func _render_cast_tab() -> void:
 
 	var raw_cast_list: Array[Dictionary] = _load_cast_data()
 	var norm_folder: String = current_folder_path.strip_edges().trim_prefix("/").trim_suffix("/")
-	if norm_folder == "Root": norm_folder = ""
+	if norm_folder == "Root": 
+		norm_folder = ""
 
 	var subfolders: Array[String] = []
 	var raw_folders: Array = user_registered_folders.get("cast", [])
@@ -1016,11 +1041,13 @@ func _render_cast_tab() -> void:
 		var reg_f: String = str(reg_f_var).strip_edges().trim_prefix("/").trim_suffix("/")
 		if norm_folder == "" and reg_f != "":
 			var direct_c: String = reg_f.split("/")[0]
-			if not direct_c in subfolders: subfolders.append(direct_c)
+			if not direct_c in subfolders: 
+				subfolders.append(direct_c)
 		elif norm_folder != "" and reg_f.begins_with(norm_folder + "/"):
 			var rem: String = reg_f.trim_prefix(norm_folder + "/")
 			var direct_c: String = rem.split("/")[0]
-			if not direct_c in subfolders: subfolders.append(direct_c)
+			if not direct_c in subfolders: 
+				subfolders.append(direct_c)
 
 	if not is_batch_mode and active_search_query == "" and active_category_filter == "All":
 		for sub: String in subfolders:
@@ -1038,8 +1065,10 @@ func _render_cast_tab() -> void:
 
 		if seen_characters.has(c_id) or (not name_key.is_empty() and seen_characters.has(name_key)):
 			continue
-		if not c_id.is_empty(): seen_characters[c_id] = true
-		if not name_key.is_empty(): seen_characters[name_key] = true
+		if not c_id.is_empty(): 
+			seen_characters[c_id] = true
+		if not name_key.is_empty(): 
+			seen_characters[name_key] = true
 
 		var c_path: String = str(char_data.get("texture_path", ""))
 		var f_path: String = str(char_data.get("folder", "")).strip_edges().trim_prefix("/").trim_suffix("/")
@@ -1051,11 +1080,14 @@ func _render_cast_tab() -> void:
 				if active_search_query in str(t).to_lower():
 					matches = true
 					break
-			if not matches: continue
+			if not matches: 
+				continue
 		elif active_category_filter != "All":
-			if not (active_category_filter in tags): continue
+			if not (active_category_filter in tags): 
+				continue
 		else:
-			if f_path != norm_folder: continue
+			if f_path != norm_folder: 
+				continue
 
 		var tex: Texture2D = UGCManager.get_thumbnail(c_path)
 		
@@ -1168,7 +1200,7 @@ func _setup_cast_card_gestures(card: Button, cap_data: Dictionary, item_key: Str
 					if bool(press_state.get("is_holding", false)) and not bool(press_state.get("fired", false)):
 						press_state["fired"] = true
 						_recall_character_to_tray(cap_data)
-				)
+					)
 			else:
 				var was_fired: bool = bool(press_state.get("fired", false))
 				press_state["is_holding"] = false
@@ -1260,8 +1292,10 @@ func _apply_card_selection_style(card: Button, is_selected: bool) -> void:
 
 
 func _toggle_item_batch_selection(key: String, data: Dictionary) -> void:
-	if selected_batch_items.has(key): selected_batch_items.erase(key)
-	else: selected_batch_items[key] = data
+	if selected_batch_items.has(key): 
+		selected_batch_items.erase(key)
+	else: 
+		selected_batch_items[key] = data
 	_update_batch_count_label()
 	refresh_tray()
 
@@ -1306,7 +1340,8 @@ func _on_batch_organize_pressed() -> void:
 		folder_list = UGCManager.get_all_art_folders()
 	else:
 		var raw_folders: Array = user_registered_folders.get(mode_key, [])
-		for f: Variant in raw_folders: folder_list.append(str(f))
+		for f: Variant in raw_folders: 
+			folder_list.append(str(f))
 
 	var item_arr: Array[Dictionary] = []
 	for k: String in selected_batch_items.keys():
@@ -1316,7 +1351,8 @@ func _on_batch_organize_pressed() -> void:
 
 
 func _on_batch_delete_pressed() -> void:
-	if selected_batch_items.is_empty(): return
+	if selected_batch_items.is_empty(): 
+		return
 	var count: int = selected_batch_items.size()
 
 	if current_mode == TrayMode.ASSETS:
@@ -1327,7 +1363,8 @@ func _on_batch_delete_pressed() -> void:
 		var file_path: String = _get_props_path() if current_mode == TrayMode.PROPS else _get_furniture_path()
 		var templates: Array[Dictionary] = DrawerMetadataService.load_template_array(file_path)
 		var ids_to_remove: Dictionary = {}
-		for k: String in selected_batch_items.keys(): ids_to_remove[k] = true
+		for k: String in selected_batch_items.keys(): 
+			ids_to_remove[k] = true
 		for i: int in range(templates.size() - 1, -1, -1):
 			if ids_to_remove.has(str(templates[i].get("id", ""))):
 				templates.remove_at(i)
@@ -1350,7 +1387,8 @@ func _on_batch_organization_saved(items: Array[Dictionary], mode_type: String, t
 			if not chosen_tags.is_empty():
 				var existing: Array = asset_tags_registry.get(fname, []).duplicate()
 				for t: String in chosen_tags:
-					if not (t in existing): existing.append(t)
+					if not (t in existing): 
+						existing.append(t)
 				asset_tags_registry[fname] = existing
 			if target_folder != "__KEEP__":
 				UGCManager.move_art_file(fpath, target_folder)
@@ -1358,7 +1396,8 @@ func _on_batch_organization_saved(items: Array[Dictionary], mode_type: String, t
 		var file_path: String = _get_props_path() if mode_type == "props" else _get_furniture_path()
 		var templates: Array[Dictionary] = DrawerMetadataService.load_template_array(file_path)
 		var id_map: Dictionary = {}
-		for item: Dictionary in items: id_map[str(item.get("id", ""))] = true
+		for item: Dictionary in items: 
+			id_map[str(item.get("id", ""))] = true
 		for t_entry: Dictionary in templates:
 			if id_map.has(str(t_entry.get("id", ""))):
 				if target_folder != "__KEEP__":
@@ -1366,13 +1405,15 @@ func _on_batch_organization_saved(items: Array[Dictionary], mode_type: String, t
 				if not chosen_tags.is_empty():
 					var cur_t: Array = t_entry.get("tags", []).duplicate()
 					for t: String in chosen_tags:
-						if not (t in cur_t): cur_t.append(t)
+						if not (t in cur_t): 
+							cur_t.append(t)
 					t_entry["tags"] = cur_t
 		DrawerMetadataService.save_template_array(file_path, templates)
 	elif mode_type == "cast":
 		var cast_list: Array[Dictionary] = _load_cast_data()
 		var id_map: Dictionary = {}
-		for item: Dictionary in items: id_map[str(item.get("id", ""))] = true
+		for item: Dictionary in items: 
+			id_map[str(item.get("id", ""))] = true
 		for c_entry: Dictionary in cast_list:
 			if id_map.has(str(c_entry.get("id", ""))):
 				if target_folder != "__KEEP__":
@@ -1380,7 +1421,8 @@ func _on_batch_organization_saved(items: Array[Dictionary], mode_type: String, t
 				if not chosen_tags.is_empty():
 					var cur_t: Array = c_entry.get("tags", []).duplicate()
 					for t: String in chosen_tags:
-						if not (t in cur_t): cur_t.append(t)
+						if not (t in cur_t): 
+							cur_t.append(t)
 					c_entry["tags"] = cur_t
 		_save_cast_data(cast_list)
 
@@ -1568,20 +1610,23 @@ func _request_delete_folder(folder_name: String) -> void:
 		var p_path: String = _get_props_path()
 		var templates: Array[Dictionary] = DrawerMetadataService.load_template_array(p_path)
 		for item: Dictionary in templates:
-			if str(item.get("folder", "")).begins_with(full_rel_path): item["folder"] = ""
+			if str(item.get("folder", "")).begins_with(full_rel_path): 
+				item["folder"] = ""
 		DrawerMetadataService.save_template_array(p_path, templates)
 	elif current_mode == TrayMode.FURNITURE:
 		user_registered_folders["furniture"].erase(full_rel_path)
 		var f_path: String = _get_furniture_path()
 		var templates: Array[Dictionary] = DrawerMetadataService.load_template_array(f_path)
 		for item: Dictionary in templates:
-			if str(item.get("folder", "")).begins_with(full_rel_path): item["folder"] = ""
+			if str(item.get("folder", "")).begins_with(full_rel_path): 
+				item["folder"] = ""
 		DrawerMetadataService.save_template_array(f_path, templates)
 	elif current_mode == TrayMode.CAST:
 		user_registered_folders["cast"].erase(full_rel_path)
 		var cast_list: Array[Dictionary] = _load_cast_data()
 		for char_d: Dictionary in cast_list:
-			if str(char_d.get("folder", "")).begins_with(full_rel_path): char_d["folder"] = ""
+			if str(char_d.get("folder", "")).begins_with(full_rel_path): 
+				char_d["folder"] = ""
 		_save_cast_data(cast_list)
 
 	_save_all_metadata()
@@ -1590,16 +1635,19 @@ func _request_delete_folder(folder_name: String) -> void:
 
 
 func _open_organizer_for_item(item_data: Dictionary, mode_type: String, item_index: int = -1) -> void:
-	if not organize_modal: return
+	if not organize_modal: 
+		return
 	var item_name: String = str(item_data.get("display_name", item_data.get("name", "Item")))
 	var folder_list: Array[String] = []
 
 	if mode_type == "assets":
 		var art_folders: Array[String] = UGCManager.get_all_art_folders()
-		for f: String in art_folders: folder_list.append(f)
+		for f: String in art_folders: 
+			folder_list.append(f)
 	else:
 		var raw_folders: Array = user_registered_folders.get(mode_type, [])
-		for f: Variant in raw_folders: folder_list.append(str(f))
+		for f: Variant in raw_folders: 
+			folder_list.append(str(f))
 
 	var curr_tags: Array = asset_tags_registry.get(item_name, []) if mode_type == "assets" else item_data.get("tags", [])
 	organize_modal.open_organizer(item_data, mode_type, item_index, user_available_tags, curr_tags, folder_list)
@@ -1640,7 +1688,8 @@ func _delete_tag_globally(tag_name: String) -> void:
 	user_available_tags.erase(tag_name)
 	for k: String in asset_tags_registry.keys():
 		var t_list: Array = asset_tags_registry[k]
-		if tag_name in t_list: t_list.erase(tag_name)
+		if tag_name in t_list: 
+			t_list.erase(tag_name)
 
 	_save_all_metadata()
 	_build_category_filter_buttons()
@@ -1684,7 +1733,8 @@ func _spawn_and_relocate_character_from_cast(char_data: Dictionary) -> void:
 		if str(cast_list[i].get("id", "")) == c_id or (not c_name.is_empty() and str(cast_list[i].get("display_name", "")).strip_edges().to_lower() == c_name.strip_edges().to_lower()):
 			cast_list.remove_at(i)
 			cast_mod = true
-	if cast_mod: _save_cast_data(cast_list)
+	if cast_mod: 
+		_save_cast_data(cast_list)
 
 	character_spawn_requested.emit(char_data)
 	_notify("Summoned: " + c_name, true)
@@ -1694,7 +1744,7 @@ func _spawn_and_relocate_character_from_cast(char_data: Dictionary) -> void:
 func _duplicate_cast_character(_idx: int, char_data: Dictionary) -> void:
 	var clone_d: Dictionary = char_data.duplicate(true)
 	var orig_name: String = str(clone_d.get("display_name", "Character"))
-	clone_d["id"] = _generate_entity_uuid(orig_name)
+	clone_d["id"] = AppState.generate_entity_uuid(orig_name)
 	clone_d["display_name"] = orig_name + " (Copy)"
 
 	var cast_list: Array[Dictionary] = _load_cast_data()
@@ -1704,7 +1754,8 @@ func _duplicate_cast_character(_idx: int, char_data: Dictionary) -> void:
 
 
 func store_character_in_tray(char_ent: OwnEntity) -> void:
-	if not is_instance_valid(char_ent): return
+	if not is_instance_valid(char_ent): 
+		return
 	var cast_list: Array[Dictionary] = _load_cast_data()
 	var d: Dictionary = char_ent.to_dict()
 	d["folder"] = current_folder_path
@@ -1727,7 +1778,8 @@ func store_character_in_tray(char_ent: OwnEntity) -> void:
 
 
 func store_entity_as_template(entity: OwnEntity) -> void:
-	if not is_instance_valid(entity): return
+	if not is_instance_valid(entity): 
+		return
 	var file_path: String = _get_props_path() if entity.entity_type == Types.EntityType.PROP else _get_furniture_path()
 	var templates: Array[Dictionary] = DrawerMetadataService.load_template_array(file_path)
 	var d: Dictionary = entity.to_dict()
@@ -1742,7 +1794,7 @@ func _duplicate_template_in_file(file_path: String, data: Dictionary) -> void:
 	var templates: Array[Dictionary] = DrawerMetadataService.load_template_array(file_path)
 	var clone_d: Dictionary = data.duplicate(true)
 	var orig_name: String = str(clone_d.get("display_name", "Template"))
-	clone_d["id"] = _generate_entity_uuid(orig_name)
+	clone_d["id"] = AppState.generate_entity_uuid(orig_name)
 	clone_d["display_name"] = orig_name + " (Copy)"
 	templates.append(clone_d)
 	DrawerMetadataService.save_template_array(file_path, templates)
@@ -1799,14 +1851,16 @@ func _save_all_metadata() -> void:
 
 
 func _load_cast_data() -> Array[Dictionary]:
-	return DrawerMetadataService.load_template_array(SaveSystem.get_universe_cast_path(_get_current_universe_id()))
+	return DrawerMetadataService.load_template_array(SaveSystem.get_universe_cast_path(AppState.universe_id))
 
 
 func _save_cast_data(cast_list: Array[Dictionary]) -> void:
-	DrawerMetadataService.save_template_array(SaveSystem.get_universe_cast_path(_get_current_universe_id()), cast_list)
+	DrawerMetadataService.save_template_array(SaveSystem.get_universe_cast_path(AppState.universe_id), cast_list)
 
 
-func save_cast_tray_for_current_universe() -> void: _save_all_metadata()
+func save_cast_tray_for_current_universe() -> void: 
+	_save_all_metadata()
+
 func load_cast_tray_for_current_universe() -> void:
 	_load_all_metadata()
 	refresh_tray()

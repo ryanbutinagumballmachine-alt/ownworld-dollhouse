@@ -128,8 +128,10 @@ func _build_ui() -> void:
 	btn_add_tag.add_theme_constant_override("icon_max_width", 14)
 
 	var tag_icon: Texture2D = ThemeService.get_icon("icon_tag")
-	if not tag_icon: tag_icon = ThemeService.get_icon("icon_plus")
-	if tag_icon: btn_add_tag.icon = tag_icon
+	if not tag_icon: 
+		tag_icon = ThemeService.get_icon("icon_plus")
+	if tag_icon: 
+		btn_add_tag.icon = tag_icon
 	btn_add_tag.pressed.connect(_on_add_tag_clicked)
 	custom_row.add_child(btn_add_tag)
 
@@ -140,7 +142,8 @@ func _build_ui() -> void:
 	btn_save.add_theme_constant_override("icon_max_width", 16)
 
 	var s_icon: Texture2D = ThemeService.get_icon("icon_save")
-	if s_icon: btn_save.icon = s_icon
+	if s_icon: 
+		btn_save.icon = s_icon
 	btn_save.pressed.connect(_on_save_clicked)
 	vbox.add_child(btn_save)
 
@@ -162,7 +165,8 @@ func _on_input_focus_exited() -> void:
 
 
 func _enforce_dropdown_popup_limits(opt_btn: OptionButton, max_height: int = 200) -> void:
-	if not is_instance_valid(opt_btn): return
+	if not is_instance_valid(opt_btn): 
+		return
 	var pop: PopupMenu = opt_btn.get_popup()
 	if pop:
 		pop.max_size = Vector2i(4000, max_height)
@@ -179,7 +183,8 @@ func open_organizer(item_data: Dictionary, mode_type: String, item_index: int, a
 
 	var item_name: String = str(item_data.get("display_name", item_data.get("name", "Item")))
 	var curr_folder: String = str(item_data.get("folder", "Root"))
-	if curr_folder == "": curr_folder = "Root"
+	if curr_folder == "": 
+		curr_folder = "Root"
 
 	item_label.text = "Organize: " + item_name
 	btn_save.text = " Save Organization"
@@ -192,7 +197,8 @@ func open_organizer(item_data: Dictionary, mode_type: String, item_index: int, a
 		var f: String = folder_list[i]
 		if f != "Root":
 			folder_option.add_item(f, i + 1)
-			if f == curr_folder: sel_idx = i + 1
+			if f == curr_folder: 
+				sel_idx = i + 1
 	folder_option.selected = sel_idx
 
 	_populate_tag_checkboxes(current_tags)
@@ -244,7 +250,8 @@ func _populate_tag_checkboxes(preselected_tags: Array) -> void:
 		chk.custom_minimum_size = Vector2(0.0, 32.0 if is_mob else 26.0)
 		chk.add_theme_constant_override("icon_max_width", 16 if is_mob else 14)
 		chk.add_theme_font_size_override("font_size", 11 if is_mob else 10)
-		if t_icon: chk.icon = t_icon
+		if t_icon: 
+			chk.icon = t_icon
 		tag_row.add_child(chk)
 
 		var btn_del_tag: Button = Button.new()
@@ -252,8 +259,10 @@ func _populate_tag_checkboxes(preselected_tags: Array) -> void:
 		btn_del_tag.theme_type_variation = "DangerButton"
 		btn_del_tag.focus_mode = Control.FOCUS_NONE
 		btn_del_tag.add_theme_constant_override("icon_max_width", 10)
-		if del_icon: btn_del_tag.icon = del_icon
-		else: btn_del_tag.text = "✕"
+		if del_icon: 
+			btn_del_tag.icon = del_icon
+		else: 
+			btn_del_tag.text = "✕"
 
 		var cap_tag: String = t_str
 		btn_del_tag.pressed.connect(func() -> void: tag_deleted.emit(cap_tag))
@@ -264,7 +273,8 @@ func _populate_tag_checkboxes(preselected_tags: Array) -> void:
 func _on_add_tag_clicked() -> void:
 	var t: String = tag_new_input.text.strip_edges().to_lower()
 	if not t.is_empty():
-		if not t.begins_with("#"): t = "#" + t
+		if not t.begins_with("#"): 
+			t = "#" + t
 		custom_tag_added.emit(t)
 	tag_new_input.text = ""
 

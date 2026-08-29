@@ -37,16 +37,19 @@ func _ready() -> void:
 
 
 func _setup_channels() -> void:
+	var music_bus_name: StringName = MUSIC_BUS if AudioServer.get_bus_index(MUSIC_BUS) >= 0 else MASTER_BUS
+	var sfx_bus_name: StringName = SFX_BUS if AudioServer.get_bus_index(SFX_BUS) >= 0 else MASTER_BUS
+
 	music_player = AudioStreamPlayer.new()
 	music_player.name = "MusicStreamPlayer"
-	music_player.bus = MUSIC_BUS
+	music_player.bus = music_bus_name
 	add_child(music_player)
 
 	sfx_players.clear()
 	for index: int in range(POOL_SIZE):
 		var player: AudioStreamPlayer = AudioStreamPlayer.new()
 		player.name = "SFXPlayer_%d" % index
-		player.bus = SFX_BUS
+		player.bus = sfx_bus_name
 		add_child(player)
 		sfx_players.append(player)
 

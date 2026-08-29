@@ -642,34 +642,7 @@ func _on_dev_mode_toggled(toggled_on: bool) -> void: SettingsManager.set_develop
 func _execute_factory_reset() -> void:
 	reset_modal_backdrop.visible = false
 	visible = false
-	_perform_factory_reset()
-	EventBus.notification_requested.emit("Factory reset complete.", true)
-
-
-func _perform_factory_reset() -> void:
-	_wipe_directory_contents("user://")
-	var marker_file: FileAccess = FileAccess.open(FACTORY_RESET_MARKER, FileAccess.WRITE)
-	if marker_file != null:
-		marker_file.store_string("reset")
-		marker_file.flush()
-		marker_file.close()
-
-	SettingsManager.load_settings()
-	ThemeService.reset_to_default_theme()
-	get_tree().reload_current_scene()
-
-
-func _wipe_directory_contents(directory_path: String) -> void:
-	if not DirAccess.dir_exists_absolute(directory_path): return
-	var files: PackedStringArray = DirAccess.get_files_at(directory_path)
-	for file_name: String in files:
-		DirAccess.remove_absolute(directory_path.path_join(file_name))
-
-	var directories: PackedStringArray = DirAccess.get_directories_at(directory_path)
-	for directory_name: String in directories:
-		var child_dir: String = directory_path.path_join(directory_name)
-		_wipe_directory_contents(child_dir)
-		DirAccess.remove_absolute(child_dir)
+	GameManager.factory_reset_entire_game()
 
 
 func _refresh_theme_icons() -> void:

@@ -34,8 +34,10 @@ func set_room_bounds(bounds: Rect2) -> void:
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventScreenTouch:
 		var st: InputEventScreenTouch = event as InputEventScreenTouch
-		if st.pressed: active_touch_count += 1
-		else: active_touch_count = maxi(0, active_touch_count - 1)
+		if st.pressed: 
+			active_touch_count += 1
+		else: 
+			active_touch_count = maxi(0, active_touch_count - 1)
 		
 	# STRICT INPUT SEPARATION: Ignore emulated mouse events if a touch is active
 	if (event is InputEventMouseButton or event is InputEventMouseMotion) and active_touch_count > 0:
@@ -44,12 +46,16 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		var e: InputEventMouseButton = event as InputEventMouseButton
 		if e.button_index == MOUSE_BUTTON_LEFT:
-			if e.pressed: _press(_screen_to_world(e.position))
-			else: _release(_screen_to_world(e.position))
+			if e.pressed: 
+				_press(_screen_to_world(e.position))
+			else: 
+				_release(_screen_to_world(e.position))
 		elif e.button_index == MOUSE_BUTTON_MIDDLE:
 			if main_camera != null and is_instance_valid(main_camera):
-				if e.pressed and main_camera.has_method("start_drag_pan"): main_camera.start_drag_pan(e.position)
-				elif not e.pressed and main_camera.has_method("end_drag_pan"): main_camera.end_drag_pan()
+				if e.pressed and main_camera.has_method("start_drag_pan"): 
+					main_camera.start_drag_pan(e.position)
+				elif not e.pressed and main_camera.has_method("end_drag_pan"): 
+					main_camera.end_drag_pan()
 	elif event is InputEventMouseMotion and active_dragged_entity != null:
 		_move(_screen_to_world((event as InputEventMouseMotion).position))
 
@@ -119,9 +125,11 @@ func _find_topmost(world_pos: Vector2) -> OwnEntity:
 	var padded_hits: Array[OwnEntity] = []
 
 	for child: Node in entity_root.get_children():
-		if not child is OwnEntity or not is_instance_valid(child): continue
+		if not child is OwnEntity or not is_instance_valid(child): 
+			continue
 		var entity: OwnEntity = child as OwnEntity
-		if not entity.visible: continue
+		if not entity.visible: 
+			continue
 		
 		if entity.has_point_exact(world_pos):
 			exact_hits.append(entity)

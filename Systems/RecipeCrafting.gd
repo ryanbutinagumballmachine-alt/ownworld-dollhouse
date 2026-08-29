@@ -1,5 +1,5 @@
 # ==============================================================================
-# OWNWORLD — RECIPE CRAFTING
+# OWNWORLD — RECIPE CRAFTING (COMMUTATIVE MATCHER)
 # File: res://Systems/RecipeCrafting.gd
 # Base Class: RefCounted (class_name RecipeCrafting)
 #

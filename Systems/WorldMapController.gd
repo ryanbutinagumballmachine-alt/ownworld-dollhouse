@@ -50,11 +50,10 @@ var map_pins: Array[MapPin] = []
 signal reset_all_rooms_requested()
 
 const MAP_DIRECTORY: String = "user://maps/"
-const SESSION_FILE: String = "user://session.json"
 
 
 func _get_current_map_path() -> String:
-	return MAP_DIRECTORY + SaveSystem.get_current_universe_id() + "_map.json"
+	return MAP_DIRECTORY + AppState.universe_id + "_map.json"
 
 
 func _ready() -> void:
@@ -108,7 +107,8 @@ func _on_theme_changed(_theme_data: Dictionary) -> void:
 
 func _refresh_existing_pin_icons() -> void:
 	for pin: MapPin in map_pins:
-		if is_instance_valid(pin): pin.refresh_theme_icons()
+		if is_instance_valid(pin): 
+			pin.refresh_theme_icons()
 
 
 func _build_map_ui() -> void:
@@ -168,7 +168,8 @@ func _build_map_ui() -> void:
 	btn_mode.add_theme_constant_override("icon_max_width", 14)
 	btn_mode.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	var play_icon: Texture2D = ThemeService.get_icon("icon_play")
-	if play_icon: btn_mode.icon = play_icon
+	if play_icon: 
+		btn_mode.icon = play_icon
 
 	btn_mode.pressed.connect(func() -> void:
 		is_edit_mode = not is_edit_mode
@@ -186,7 +187,8 @@ func _build_map_ui() -> void:
 	btn_add_pin.focus_mode = Control.FOCUS_NONE
 	btn_add_pin.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	var bldg_icon: Texture2D = ThemeService.get_icon("icon_room")
-	if bldg_icon: btn_add_pin.icon = bldg_icon
+	if bldg_icon: 
+		btn_add_pin.icon = bldg_icon
 	btn_add_pin.pressed.connect(_on_add_building_pressed)
 	tb_tools_hbox.add_child(btn_add_pin)
 
@@ -196,7 +198,8 @@ func _build_map_ui() -> void:
 	btn_change_bg.focus_mode = Control.FOCUS_NONE
 	btn_change_bg.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	var brush_icon: Texture2D = ThemeService.get_icon("icon_palette")
-	if brush_icon: btn_change_bg.icon = brush_icon
+	if brush_icon: 
+		btn_change_bg.icon = brush_icon
 	btn_change_bg.pressed.connect(_on_change_bg_pressed)
 	tb_tools_hbox.add_child(btn_change_bg)
 
@@ -208,7 +211,8 @@ func _build_map_ui() -> void:
 	btn_reset.add_theme_constant_override("icon_max_width", 14)
 	btn_reset.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	var ref_icon: Texture2D = ThemeService.get_icon("icon_refresh")
-	if ref_icon: btn_reset.icon = ref_icon
+	if ref_icon: 
+		btn_reset.icon = ref_icon
 	btn_reset.pressed.connect(_on_reset_rooms_pressed)
 	tb_tools_hbox.add_child(btn_reset)
 
@@ -223,7 +227,8 @@ func _build_map_ui() -> void:
 	btn_close.add_theme_constant_override("icon_max_width", 12)
 	btn_close.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	var close_icon: Texture2D = ThemeService.get_icon("icon_close")
-	if close_icon: btn_close.icon = close_icon
+	if close_icon: 
+		btn_close.icon = close_icon
 	btn_close.pressed.connect(close_map)
 	tb_hbox.add_child(btn_close)
 
@@ -298,10 +303,11 @@ func _build_atmosphere_control_bar(parent_vbox: VBoxContainer, margin_left: int,
 		btn.add_theme_constant_override("icon_max_width", 14)
 		btn.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 		var t_icon: Texture2D = ThemeService.get_icon(str(t_data["icon"]))
-		if t_icon: btn.icon = t_icon
+		if t_icon: 
+			btn.icon = t_icon
 		var cap_t: String = str(t_data["name"])
 		btn.pressed.connect(func() -> void:
-			EventBus.global_atmosphere_changed.emit(cap_t.to_lower(), "none")
+			AppState.set_time_preset(cap_t.to_lower())
 			EventBus.notification_requested.emit("Mood: " + cap_t, true)
 		)
 		hbox.add_child(btn)
@@ -328,11 +334,12 @@ func _build_atmosphere_control_bar(parent_vbox: VBoxContainer, margin_left: int,
 		btn.add_theme_constant_override("icon_max_width", 14)
 		btn.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 		var w_icon: Texture2D = ThemeService.get_icon(str(w_data["icon"]))
-		if w_icon: btn.icon = w_icon
+		if w_icon: 
+			btn.icon = w_icon
 		var w_name: String = str(w_data["name"]).to_lower()
 		var w_lbl: String = str(w_data["label"])
 		btn.pressed.connect(func() -> void:
-			EventBus.global_atmosphere_changed.emit("day", w_name)
+			AppState.set_weather_preset(w_name)
 			EventBus.notification_requested.emit("Weather: " + w_lbl, true)
 		)
 		hbox.add_child(btn)
@@ -458,7 +465,8 @@ func _build_pin_editor_dialog() -> void:
 	btn_choose_pin_art.custom_minimum_size = Vector2(0.0, row_h)
 	btn_choose_pin_art.focus_mode = Control.FOCUS_NONE
 	var f_icon: Texture2D = ThemeService.get_icon("icon_folder")
-	if f_icon: btn_choose_pin_art.icon = f_icon
+	if f_icon: 
+		btn_choose_pin_art.icon = f_icon
 	btn_choose_pin_art.pressed.connect(_on_choose_pin_art_pressed)
 	img_hbox.add_child(btn_choose_pin_art)
 
@@ -541,7 +549,8 @@ func _build_pin_editor_dialog() -> void:
 	btn_save.add_theme_constant_override("icon_max_width", 16)
 	btn_save.add_theme_font_size_override("font_size", 12 if is_mob else 11)
 	var s_icon: Texture2D = ThemeService.get_icon("icon_save")
-	if s_icon: btn_save.icon = s_icon
+	if s_icon: 
+		btn_save.icon = s_icon
 	btn_save.pressed.connect(_on_save_pin_editor_pressed)
 	outer_vbox.add_child(btn_save)
 
@@ -565,7 +574,8 @@ func open_pin_editor(pin: MapPin) -> void:
 
 
 func _on_choose_pin_art_pressed() -> void:
-	if asset_picker == null: return
+	if asset_picker == null: 
+		return
 	asset_picker.open_picker("Choose Building Pin Drawing", "", func(art_name: String, texture: Texture2D, file_path: String) -> void:
 		selected_pin_art_path = file_path
 		edit_preview_rect.texture = texture
@@ -604,7 +614,8 @@ func _load_floors_for_editing_building(bldg_id: String, bldg_name: String) -> vo
 
 
 func _render_floors_list() -> void:
-	if floors_vbox == null: return
+	if floors_vbox == null: 
+		return
 	for child: Node in floors_vbox.get_children():
 		child.queue_free()
 
@@ -660,9 +671,11 @@ func _render_floors_list() -> void:
 func _on_add_floor_to_building_pressed() -> void:
 	var next_num: int = working_floors_list.size() + 1
 	var b_id: String = edit_building_id_input.text.strip_edges()
-	if b_id.is_empty(): b_id = "building_main"
+	if b_id.is_empty(): 
+		b_id = "building_main"
 	var b_name: String = edit_name_input.text.strip_edges()
-	if b_name.is_empty(): b_name = "Building"
+	if b_name.is_empty(): 
+		b_name = "Building"
 
 	var next_level_str: String = "%dF" % next_num
 	var next_room_id: String = "%s_%df" % [b_id.to_lower().replace(" ", "_"), next_num]
@@ -677,7 +690,8 @@ func _on_add_floor_to_building_pressed() -> void:
 
 
 func _remove_floor_from_building(index: int) -> void:
-	if index < 0 or index >= working_floors_list.size(): return
+	if index < 0 or index >= working_floors_list.size(): 
+		return
 	var r_id_to_delete: String = str(working_floors_list[index].get("room_id", "")).strip_edges()
 	if not r_id_to_delete.is_empty() and r_id_to_delete != "room_main":
 		deleted_room_ids.append(r_id_to_delete)
@@ -689,10 +703,12 @@ func _remove_floor_from_building(index: int) -> void:
 func _on_save_pin_editor_pressed() -> void:
 	if active_editing_pin and is_instance_valid(active_editing_pin):
 		var b_name: String = edit_name_input.text.strip_edges()
-		if b_name.is_empty(): b_name = "Building"
+		if b_name.is_empty(): 
+			b_name = "Building"
 
 		var b_id: String = edit_building_id_input.text.strip_edges().to_lower().replace(" ", "_")
-		if b_id.is_empty(): b_id = "building_" + b_name.to_lower().replace(" ", "_")
+		if b_id.is_empty(): 
+			b_id = "building_" + b_name.to_lower().replace(" ", "_")
 
 		active_editing_pin.building_name = b_name
 		active_editing_pin.building_id = b_id
@@ -713,7 +729,8 @@ func _on_save_pin_editor_pressed() -> void:
 
 		for fl_data: Dictionary in working_floors_list:
 			var r_id: String = str(fl_data.get("room_id", "")).strip_edges()
-			if r_id.is_empty(): continue
+			if r_id.is_empty(): 
+				continue
 
 			var r_level: String = str(fl_data.get("floor_level", "1F")).strip_edges()
 			var r_title: String = str(fl_data.get("room_title", b_name + " (" + r_level + ")")).strip_edges()
@@ -745,18 +762,21 @@ func _on_modal_backdrop_gui_input(event: InputEvent) -> void:
 
 func open_map() -> void:
 	visible = true
-	if modal_backdrop: modal_backdrop.visible = false
+	if modal_backdrop: 
+		modal_backdrop.visible = false
 	load_map_for_current_universe()
 
 
 func close_map() -> void:
 	save_map_for_current_universe()
-	if modal_backdrop: modal_backdrop.visible = false
+	if modal_backdrop: 
+		modal_backdrop.visible = false
 	visible = false
 
 
 func _on_change_bg_pressed() -> void:
-	if asset_picker == null: return
+	if asset_picker == null: 
+		return
 	asset_picker.open_picker("Choose Map Background Artwork", "", func(_name: String, texture: Texture2D, file_path: String) -> void:
 		_on_bg_asset_selected(file_path, texture)
 	)
@@ -772,12 +792,15 @@ func _on_bg_asset_selected(fpath: String, texture: Texture2D) -> void:
 
 func _update_pins_edit_mode() -> void:
 	for pin: MapPin in map_pins:
-		if is_instance_valid(pin): pin.set_edit_mode(is_edit_mode)
+		if is_instance_valid(pin): 
+			pin.set_edit_mode(is_edit_mode)
 
 
 func load_map_for_current_universe() -> void:
-	if title_lbl: title_lbl.text = SaveSystem.get_current_universe_name().to_upper()
-	for child: Node in pins_container.get_children(): child.queue_free()
+	if title_lbl: 
+		title_lbl.text = AppState.universe_name.to_upper()
+	for child: Node in pins_container.get_children(): 
+		child.queue_free()
 	map_pins.clear()
 
 	var map_file_path: String = _get_current_map_path()
@@ -794,7 +817,8 @@ func load_map_for_current_universe() -> void:
 
 			var pins_data: Array = parsed.get("pins", [])
 			for p_dict_var: Variant in pins_data:
-				if not (p_dict_var is Dictionary): continue
+				if not (p_dict_var is Dictionary): 
+					continue
 				var p_dict: Dictionary = p_dict_var as Dictionary
 				var b_name: String = str(p_dict.get("name", p_dict.get("building_name", "Building"))).strip_edges()
 				var b_id: String = str(p_dict.get("building_id", p_dict.get("room_id", "building_main"))).strip_edges()
@@ -808,7 +832,7 @@ func load_map_for_current_universe() -> void:
 	current_bg_image_path = ""
 	map_background_rect.texture = null
 	empty_hint_label.visible = true
-	create_pin(SaveSystem.get_current_universe_name() + " Main", "building_main", Vector2(400.0, 200.0))
+	create_pin(AppState.universe_name + " Main", "building_main", Vector2(400.0, 200.0))
 	_update_pins_edit_mode()
 	save_map_for_current_universe()
 
@@ -828,8 +852,8 @@ func save_map_for_current_universe() -> void:
 			})
 
 	var map_payload: Dictionary = {
-		"universe_id": SaveSystem.get_current_universe_id(),
-		"universe_name": SaveSystem.get_current_universe_name(),
+		"universe_id": AppState.universe_id,
+		"universe_name": AppState.universe_name,
 		"bg_image_path": current_bg_image_path,
 		"pins": pins_data
 	}
@@ -919,7 +943,7 @@ func _on_pin_selected(pin: MapPin) -> void:
 		EventBus.room_change_requested.emit(target_entry_room, traveler_data)
 
 
-# --- CARDLESS MAP BUILDING PIN (AUTO-CENTERED & RESPONSIVE) ---
+# --- CARDLESS MAP BUILDING PIN ---
 
 class MapPin extends Control:
 	var building_name: String = ""
@@ -960,7 +984,8 @@ class MapPin extends Control:
 	func set_pin_image(p_path: String, p_tex: Texture2D) -> void:
 		image_path = p_path.strip_edges()
 		pin_texture = p_tex
-		if texture_rect: texture_rect.texture = p_tex
+		if texture_rect: 
+			texture_rect.texture = p_tex
 
 
 	func _build_visuals() -> void:
@@ -1009,8 +1034,10 @@ class MapPin extends Control:
 		delete_btn.visible = false
 		delete_btn.add_theme_constant_override("icon_max_width", 12)
 		var del_icon: Texture2D = ThemeService.get_icon("icon_close")
-		if del_icon: delete_btn.icon = del_icon
-		else: delete_btn.text = "✕"
+		if del_icon: 
+			delete_btn.icon = del_icon
+		else: 
+			delete_btn.text = "✕"
 		delete_btn.pressed.connect(func() -> void: pin_deleted.emit(self))
 		add_child(delete_btn)
 
@@ -1023,8 +1050,10 @@ class MapPin extends Control:
 		config_btn.visible = false
 		config_btn.add_theme_constant_override("icon_max_width", 12)
 		var cfg_icon: Texture2D = ThemeService.get_icon("icon_settings")
-		if cfg_icon: config_btn.icon = cfg_icon
-		else: config_btn.text = "•"
+		if cfg_icon: 
+			config_btn.icon = cfg_icon
+		else: 
+			config_btn.text = "•"
 		config_btn.pressed.connect(func() -> void: pin_configure_requested.emit(self))
 		add_child(config_btn)
 
@@ -1032,26 +1061,33 @@ class MapPin extends Control:
 
 
 	func update_visuals() -> void:
-		if label_node: label_node.text = building_name
-		if texture_rect and pin_texture: texture_rect.texture = pin_texture
+		if label_node: 
+			label_node.text = building_name
+		if texture_rect and pin_texture: 
+			texture_rect.texture = pin_texture
 
 
 	func set_edit_mode(enabled: bool) -> void:
-		if delete_btn: delete_btn.visible = enabled
-		if config_btn: config_btn.visible = enabled
+		if delete_btn: 
+			delete_btn.visible = enabled
+		if config_btn: 
+			config_btn.visible = enabled
 
 
 	func refresh_theme_icons() -> void:
 		if delete_btn != null:
 			var del_i: Texture2D = ThemeService.get_icon("icon_close")
-			if del_i: delete_btn.icon = del_i
+			if del_i: 
+				delete_btn.icon = del_i
 		if config_btn != null:
 			var cfg_i: Texture2D = ThemeService.get_icon("icon_settings")
-			if cfg_i: config_btn.icon = cfg_i
+			if cfg_i: 
+				config_btn.icon = cfg_i
 
 
 	func _on_pin_gui_input(event: InputEvent) -> void:
-		if not map_controller: return
+		if not map_controller: 
+			return
 		if event is InputEventMouseButton:
 			var mb: InputEventMouseButton = event as InputEventMouseButton
 			if mb.button_index == MOUSE_BUTTON_LEFT:

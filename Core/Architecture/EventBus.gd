@@ -1,5 +1,5 @@
 # ==============================================================================
-# OWNWORLD — GLOBAL EVENT BUS
+# OWNWORLD — GLOBAL EVENT BUS (TYPED DISPATCHER)
 # File: res://Core/Architecture/EventBus.gd
 # Autoload Singleton: EventBus
 # Base Class: Node

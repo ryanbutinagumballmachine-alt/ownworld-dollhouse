@@ -112,7 +112,8 @@ static func normalize_room(raw_data: Dictionary, fallback_room_id: String = DEFA
 		return create_empty_room(fallback_room_id)
 
 	var room_id: String = str(raw_data.get("room_id", fallback_room_id)).strip_edges()
-	if room_id.is_empty(): room_id = fallback_room_id
+	if room_id.is_empty(): 
+		room_id = fallback_room_id
 	var room_title: String = str(raw_data.get("room_title", room_id)).strip_edges()
 	var floor_level: String = str(raw_data.get("floor_level", DEFAULT_FLOOR_LEVEL)).strip_edges()
 	var building_id: String = str(raw_data.get("building_id", DEFAULT_BUILDING_ID)).strip_edges()

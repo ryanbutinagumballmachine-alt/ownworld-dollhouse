@@ -86,7 +86,7 @@ func _update_responsive_layout() -> void:
 	var is_mob: bool = _is_mobile()
 
 	var target_width: float = clampf(viewport_size.x * 0.92, 320.0, MAX_PANEL_WIDTH)
-	var target_height: float = clampf(viewport_size.y * (0.92 if is_mob else 0.88), 320.0, MAX_PANEL_HEIGHT)
+	var target_height: float = clampf(viewport_size.y * (0.92 if is_mob else 0.88), 300.0, MAX_PANEL_HEIGHT)
 	root_panel.custom_minimum_size = Vector2(target_width, target_height)
 	root_panel.size = Vector2(target_width, target_height)
 
@@ -511,6 +511,7 @@ func _update_control_interactivity(is_enabled: bool) -> void:
 
 func _persist_entity_changes(entity: OwnEntity) -> void:
 	if not is_instance_valid(entity): return
+	CapabilitySynchronizer.synchronize(entity)
 	SaveSystem.update_character_in_cast(entity)
 	SaveSystem.save_current_room_state()
 	EventBus.entity_state_changed.emit(entity.entity_id)

@@ -370,12 +370,8 @@ func _update_stats_display() -> void:
 		cam_pos = camera.position
 		cam_zoom = camera.zoom.x
 
-	var session: Dictionary = _load_session()
-	var room_id: String = str(session.get("room_id", str(main_ref.get("current_room_id"))))
-	if room_id.is_empty(): room_id = "room_main"
-
 	stats_label.text = "DIAGNOSTICS (F1) | %d FPS\nRoom: %s | Entities: %d\nCam: (%d, %d) @ %.2fx" % [
-		int(fps), room_id, entity_count, int(cam_pos.x), int(cam_pos.y), cam_zoom
+		int(fps), AppState.room_id, entity_count, int(cam_pos.x), int(cam_pos.y), cam_zoom
 	]
 
 
@@ -390,25 +386,24 @@ func _on_copy_state_json_pressed() -> void:
 
 	var cam_node: Camera2D = main_ref.get("main_camera") as Camera2D if main_camera_valid() else null
 	var r_bounds: Rect2 = main_ref.get("room_bounds") as Rect2 if "room_bounds" in main_ref else Rect2(0.0, 0.0, 1920.0, 1080.0)
-	var session: Dictionary = _load_session()
 
 	var state_dump: Dictionary = {
 		"timestamp": Time.get_datetime_string_from_system(),
 		"engine_version": "Godot 4.x",
 		"active_universe": {
-			"id": str(session.get("universe_id", "default_universe")),
-			"name": str(session.get("universe_name", "Default Universe"))
+			"id": AppState.universe_id,
+			"name": AppState.universe_name
 		},
 		"room": {
-			"id": str(session.get("room_id", str(main_ref.get("current_room_id")))),
+			"id": AppState.room_id,
 			"title": str(main_ref.get("current_room_title")),
 			"floor_y": float(main_ref.get("current_room_floor_y")),
 			"wallpaper": str(main_ref.get("current_wallpaper_path")),
 			"fill_mode": str(main_ref.get("current_wallpaper_fill_mode"))
 		},
 		"atmosphere": {
-			"time_preset": str(session.get("time_preset", "day")),
-			"weather_preset": str(session.get("weather_preset", "none"))
+			"time_preset": AppState.time_preset,
+			"weather_preset": AppState.weather_preset
 		},
 		"camera": {
 			"position": ({"x": cam_node.position.x, "y": cam_node.position.y} if cam_node else {}),
@@ -421,10 +416,6 @@ func _on_copy_state_json_pressed() -> void:
 	var json_payload: String = JSON.stringify(state_dump, "\t")
 	DisplayServer.clipboard_set(json_payload)
 	EventBus.notification_requested.emit("State Copied to Clipboard", true)
-
-
-func _load_session() -> Dictionary:
-	return JsonFileStore.read_dictionary(SESSION_FILE)
 
 
 class DebugCanvasDraw extends Control:

@@ -360,7 +360,7 @@ static func create_theme(theme_data: Dictionary, corner_radius: int = DEFAULT_CO
 	th.set_color("icon_normal_color", "FloatingCapsule", c_text_on_bg)
 	th.set_color("icon_hover_color", "FloatingCapsule", c_accent)
 
-	# --- SLIDERS & PROGRESS BARS (TOUCH ENLARGED) ---
+	# --- SLIDERS & PROGRESS BARS ---
 	var track_height: int = 6 if is_mobile else 4
 	var s_track: StyleBoxFlat = _create_flat_style(c_sub_bg, c_border_safe, 4, 1, 0, 0, track_height, track_height)
 	var s_fill: StyleBoxFlat = _create_flat_style(c_accent, Color.TRANSPARENT, 4, 0, 0, 0, track_height, track_height)
@@ -464,10 +464,12 @@ static func _propagate_theme_to_tree(node: Node, th: Theme) -> void:
 
 	if node is OptionButton:
 		var pop: PopupMenu = (node as OptionButton).get_popup()
-		if pop != null: pop.theme = th
+		if pop != null: 
+			pop.theme = th
 	elif node is MenuButton:
 		var pop: PopupMenu = (node as MenuButton).get_popup()
-		if pop != null: pop.theme = th
+		if pop != null: 
+			pop.theme = th
 
 	for child: Node in node.get_children(true):
 		_propagate_theme_to_tree(child, th)

@@ -1,7 +1,3 @@
-# ============================================================
-# File: res://Core/Animation/SpriteSheetSlicer.gd
-# ============================================================
-
 # ==============================================================================
 # OWNWORLD — PROCEDURAL SPRITE SHEET & STRIP SLICER (BOUNDS PROTECTED)
 # File: res://Core/Animation/SpriteSheetSlicer.gd

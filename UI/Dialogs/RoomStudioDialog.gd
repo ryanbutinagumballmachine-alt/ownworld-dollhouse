@@ -136,7 +136,7 @@ func _update_responsive_layout() -> void:
 	var is_mob: bool = _is_mobile()
 
 	var target_width: float = clampf(viewport_size.x * 0.94, 320.0, MAX_PANEL_WIDTH)
-	var target_height: float = clampf(viewport_size.y * (0.92 if is_mob else 0.88), 320.0, MAX_PANEL_HEIGHT)
+	var target_height: float = clampf(viewport_size.y * (0.92 if is_mob else 0.88), 300.0, MAX_PANEL_HEIGHT)
 	root_panel.custom_minimum_size = Vector2(target_width, target_height)
 	root_panel.size = Vector2(target_width, target_height)
 
@@ -320,7 +320,9 @@ func _build_ui() -> void:
 	btn_add_slice.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	btn_add_slice.custom_minimum_size = Vector2(0.0, row_h)
 	btn_add_slice.focus_mode = Control.FOCUS_NONE
+	btn_add_slice.add_theme_constant_override("icon_max_width", 14)
 	btn_add_slice.add_theme_font_size_override("font_size", 11 if is_mob else 10)
+	_apply_button_icon(btn_add_slice, "icon_plus")
 	btn_add_slice.pressed.connect(_on_add_slice_pressed)
 	slice_actions_hbox.add_child(btn_add_slice)
 

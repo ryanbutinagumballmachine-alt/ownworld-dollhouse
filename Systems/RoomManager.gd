@@ -44,13 +44,15 @@ static func _deduplicate_bundle_entities(bundle: Array, all_entities: Array[OwnE
 			var id_str: String = str(d.get("id", "")).strip_edges()
 			var name_str: String = str(d.get("display_name", "")).strip_edges().to_lower()
 			var type_val: int = int(d.get("entity_type", -1))
-			if not id_str.is_empty(): incoming_ids[id_str] = true
+			if not id_str.is_empty(): 
+				incoming_ids[id_str] = true
 			if type_val == int(Types.EntityType.CHARACTER) and not name_str.is_empty():
 				incoming_names[name_str] = true
 
 	for i: int in range(all_entities.size() - 1, -1, -1):
 		var ent: OwnEntity = all_entities[i]
-		if not is_instance_valid(ent): continue
+		if not is_instance_valid(ent): 
+			continue
 		var ent_id: String = ent.entity_id.strip_edges()
 		var ent_name: String = ent.display_name.strip_edges().to_lower()
 
@@ -145,7 +147,8 @@ static func deserialize_room_into_canvas(snapshot: Dictionary, canvas: Node2D, a
 static func _create_entity_from_data(entity_data: Dictionary, spawn_position: Vector2) -> OwnEntity:
 	var entity_id: String = _read_entity_id(entity_data)
 	var display_name: String = str(entity_data.get("display_name", entity_id if not entity_id.is_empty() else DEFAULT_ENTITY_NAME)).strip_edges()
-	if display_name.is_empty(): display_name = DEFAULT_ENTITY_NAME
+	if display_name.is_empty(): 
+		display_name = DEFAULT_ENTITY_NAME
 
 	var entity_type: Types.EntityType = _read_entity_type(entity_data)
 	var texture_path: String = str(entity_data.get("texture_path", "")).strip_edges()
@@ -155,8 +158,10 @@ static func _create_entity_from_data(entity_data: Dictionary, spawn_position: Ve
 	entity.setup(entity_id, display_name, texture, spawn_position, entity_type, texture_path)
 	entity.from_dict(entity_data)
 
-	if not entity_data.has("x"): entity.global_position = spawn_position
-	if not entity_data.has("y"): entity.global_position.y = spawn_position.y
+	if not entity_data.has("x"): 
+		entity.global_position = spawn_position
+	if not entity_data.has("y"): 
+		entity.global_position.y = spawn_position.y
 
 	CapabilitySynchronizer.synchronize(entity)
 	return entity
@@ -179,10 +184,12 @@ static func _load_entity_texture(texture_path: String, entity_type: Types.Entity
 	if not normalized_path.is_empty():
 		if normalized_path.begins_with("res://") and ResourceLoader.exists(normalized_path):
 			var resource: Resource = load(normalized_path)
-			if resource is Texture2D: return resource as Texture2D
+			if resource is Texture2D: 
+				return resource as Texture2D
 		if (normalized_path.begins_with("user://") or not normalized_path.begins_with("res://")) and FileAccess.file_exists(normalized_path):
 			var texture: Texture2D = UGCManager.load_texture_from_file(normalized_path)
-			if texture != null: return texture
+			if texture != null: 
+				return texture
 
 	var fallback_color: Color = Color.CORAL if entity_type == Types.EntityType.CHARACTER else Color.AQUAMARINE
 	return UGCManager.create_blank_starter_graphic(DEFAULT_TEXTURE_SIZE, fallback_color)

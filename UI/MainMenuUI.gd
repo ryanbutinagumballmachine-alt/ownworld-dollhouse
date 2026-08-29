@@ -243,7 +243,8 @@ func _build_ui() -> void:
 	btn_quit.alignment = HORIZONTAL_ALIGNMENT_CENTER
 	btn_quit.add_theme_constant_override("icon_max_width", 18 if is_mob else 16)
 	var quit_icon: Texture2D = ThemeService.get_icon("icon_quit")
-	if quit_icon != null: btn_quit.icon = quit_icon
+	if quit_icon != null: 
+		btn_quit.icon = quit_icon
 	btn_quit.pressed.connect(_on_quit_pressed)
 	main_vbox.add_child(btn_quit)
 
@@ -260,10 +261,11 @@ func close_menu() -> void:
 
 
 func _update_story_info_display() -> void:
-	if universe_info_lbl == null: return
+	if universe_info_lbl == null: 
+		return
 	universe_info_lbl.text = "Active Story: %s  |  Room: %s" % [
-		SaveSystem.get_current_universe_name(),
-		SaveSystem.get_current_room_id()
+		AppState.universe_name,
+		AppState.room_id
 	]
 
 
@@ -294,10 +296,12 @@ func _apply_theme() -> void:
 	if btn_quit != null:
 		btn_quit.icon = ThemeService.get_icon("icon_quit")
 
-	if menu_grid == null: return
+	if menu_grid == null: 
+		return
 	var buttons: Array[Button] = []
 	for child: Node in menu_grid.get_children():
-		if child is Button: buttons.append(child as Button)
+		if child is Button: 
+			buttons.append(child as Button)
 
 	var icon_keys: Array[String] = [
 		"icon_play", "icon_map", "icon_tag", "icon_room",
@@ -310,7 +314,8 @@ func _apply_theme() -> void:
 
 func _on_quit_pressed() -> void:
 	var tree: SceneTree = get_tree()
-	if tree == null: return
+	if tree == null: 
+		return
 	tree.root.propagate_notification(NOTIFICATION_WM_CLOSE_REQUEST)
 	tree.quit()
 

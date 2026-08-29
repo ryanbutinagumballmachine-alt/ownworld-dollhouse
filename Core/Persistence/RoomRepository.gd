@@ -1,5 +1,5 @@
 # ==============================================================================
-# OWNWORLD — ROOM REPOSITORY
+# OWNWORLD — ROOM REPOSITORY (PATH & COLLECTION ABSTRACTION)
 # File: res://Core/Persistence/RoomRepository.gd
 # Base Class: RefCounted (class_name RoomRepository)
 #
@@ -93,11 +93,13 @@ static func clear_universe(universe_id: String) -> bool:
 
 static func _normalize_universe_id(universe_id: String) -> String:
 	var normalized: String = universe_id.strip_edges()
-	if normalized.is_empty(): normalized = SaveSchema.DEFAULT_UNIVERSE_ID
+	if normalized.is_empty(): 
+		normalized = SaveSchema.DEFAULT_UNIVERSE_ID
 	return normalized.validate_filename()
 
 
 static func _normalize_room_id(room_id: String) -> String:
 	var normalized: String = room_id.strip_edges()
-	if normalized.is_empty(): normalized = SaveSchema.DEFAULT_ROOM_ID
+	if normalized.is_empty(): 
+		normalized = SaveSchema.DEFAULT_ROOM_ID
 	return normalized.validate_filename()

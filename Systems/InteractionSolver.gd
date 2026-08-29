@@ -1,7 +1,3 @@
-# ============================================================
-# File: res://Systems/InteractionSolver.gd
-# ============================================================
-
 # ==============================================================================
 # OWNWORLD — INTERACTION SOLVER & DYNAMIC HOVER PHYSICS
 # File: res://Systems/InteractionSolver.gd
@@ -18,6 +14,8 @@ extends RefCounted
 static var hover_eat_timer: float = 0.0
 static var hover_drink_timer: float = 0.0
 static var hover_pour_timer: float = 0.0
+
+const MAX_POUR_DIST_SQ: float = 4900.0
 
 
 static func process_live_interactions(delta: float, active_dragged: OwnEntity, all_entities: Array[OwnEntity]) -> void:
@@ -94,9 +92,9 @@ static func _get_faucet_stream_data(source: OwnEntity) -> Dictionary:
 			return {
 				"found": true,
 				"global_pos": source.to_global(offset_pos),
-				"radius_sq": 50.0 * 50.0
+				"radius_sq": 2500.0
 			}
-	return {"found": true, "global_pos": source.global_position, "radius_sq": 50.0 * 50.0}
+	return {"found": true, "global_pos": source.global_position, "radius_sq": 2500.0}
 
 
 static func _process_food_eating_zone(delta: float, food: OwnEntity, all_entities: Array[OwnEntity]) -> void:
@@ -163,8 +161,6 @@ static func _process_cup_to_cup_pouring(delta: float, source_cup: OwnEntity, all
 	var source_stream_pos: Vector2 = source_cup.global_position
 	if source_cup.is_liquid_source:
 		source_stream_pos = source_cup.to_global(source_cup.get_faucet_stream_offset())
-
-	const MAX_POUR_DIST_SQ: float = 4900.0
 
 	for ent: OwnEntity in all_entities:
 		if is_instance_valid(ent) and ent != source_cup and ent.is_liquid_container and ent.fill_level < 2:

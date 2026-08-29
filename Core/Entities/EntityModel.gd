@@ -1,5 +1,5 @@
 # ==============================================================================
-# OWNWORLD — ENTITY MODEL
+# OWNWORLD — ENTITY MODEL (DECOUPLED DATA REPRESENTATION)
 # File: res://Core/Entities/EntityModel.gd
 # Base Class: RefCounted (class_name EntityModel)
 #

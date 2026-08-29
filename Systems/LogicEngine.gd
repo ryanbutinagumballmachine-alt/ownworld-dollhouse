@@ -1,7 +1,3 @@
-# ============================================================
-# File: res://Systems/LogicEngine.gd
-# ============================================================
-
 # ==============================================================================
 # OWNWORLD — LOGIC ENGINE (UNIFIED STATE & EMOTE SCRIPTING)
 # File: res://Systems/LogicEngine.gd
@@ -84,21 +80,33 @@ static func _execute_single_target_action(action_command: int, value: String, ta
 		return
 
 	match action_command:
-		int(Types.ActionCommand.PLAY_ANIM): target.set_actor_state(value)
-		101: target.reset_to_default_pose()
-		int(Types.ActionCommand.SWAP_FORM): target.switch_wardrobe_form(value)
-		102: target.set_expression(value.to_lower(), 2.0)
-		103: target.show_speech_bubble(value)
-		104: target.spray_emotion(value if not value.is_empty() else "✨")
-		int(Types.ActionCommand.PLAY_SOUND): _play_sound(value)
-		int(Types.ActionCommand.TOGGLE_LIGHT), 105: _apply_mood_action(value)
-		106: AppState.set_weather_preset(value if not value.is_empty() else "rain")
-		107: _request_spawn_item(value, target.global_position + Vector2(randf_range(-30.0, 30.0), -40.0))
+		int(Types.ActionCommand.PLAY_ANIM):
+			target.set_actor_state(value)
+		int(Types.ActionCommand.STOP_ANIM):
+			target.reset_to_default_pose()
+		int(Types.ActionCommand.SWAP_FORM):
+			target.switch_wardrobe_form(value)
+		int(Types.ActionCommand.SET_EXPRESSION):
+			target.set_expression(value.to_lower(), 2.0)
+		int(Types.ActionCommand.SAY_DIALOGUE):
+			target.show_speech_bubble(value)
+		int(Types.ActionCommand.SPRAY_EMOTION):
+			target.spray_emotion(value if not value.is_empty() else "✨")
+		int(Types.ActionCommand.PLAY_SOUND):
+			_play_sound(value)
+		int(Types.ActionCommand.TOGGLE_LIGHT), int(Types.ActionCommand.SET_MOOD):
+			_apply_mood_action(value)
+		int(Types.ActionCommand.SET_WEATHER):
+			AppState.set_weather_preset(value if not value.is_empty() else "rain")
+		int(Types.ActionCommand.SPAWN_ITEM), int(Types.ActionCommand.SPAWN_ITEM_UGC):
+			_request_spawn_item(value, target.global_position + Vector2(randf_range(-30.0, 30.0), -40.0))
 		int(Types.ActionCommand.ADVANCE_STATE):
 			if target.is_consumable: target.take_bite()
 			elif target.has_method("toggle_active_state"): target.toggle_active_state()
-		108: _request_room_transition(value)
-		_: pass
+		int(Types.ActionCommand.TELEPORT_ROOM), int(Types.ActionCommand.TELEPORT_ROOM_CUSTOM):
+			_request_room_transition(value)
+		_:
+			pass
 
 
 static func _execute_room_character_action(action_command: int, value: String, context: Dictionary) -> void:
@@ -113,10 +121,14 @@ static func _execute_room_character_action(action_command: int, value: String, c
 
 static func _execute_environment_action(action_command: int, value: String) -> void:
 	match action_command:
-		int(Types.ActionCommand.TOGGLE_LIGHT), 105: AppState.set_time_preset(value if not value.is_empty() else "sunset")
-		106: AppState.set_weather_preset(value if not value.is_empty() else "rain")
-		108: _request_room_transition(value)
-		_: pass
+		int(Types.ActionCommand.TOGGLE_LIGHT), int(Types.ActionCommand.SET_MOOD):
+			AppState.set_time_preset(value if not value.is_empty() else "sunset")
+		int(Types.ActionCommand.SET_WEATHER):
+			AppState.set_weather_preset(value if not value.is_empty() else "rain")
+		int(Types.ActionCommand.TELEPORT_ROOM), int(Types.ActionCommand.TELEPORT_ROOM_CUSTOM):
+			_request_room_transition(value)
+		_:
+			pass
 
 
 static func _play_sound(value: String) -> void:
@@ -135,7 +147,8 @@ static func _apply_mood_action(value: String) -> void:
 
 static func _request_room_transition(room_id: String) -> void:
 	var normalized_room_id: String = room_id.strip_edges()
-	if normalized_room_id.is_empty(): normalized_room_id = AppState.DEFAULT_ROOM_ID
+	if normalized_room_id.is_empty(): 
+		normalized_room_id = AppState.DEFAULT_ROOM_ID
 	EventBus.room_change_requested.emit(normalized_room_id, {})
 
 
@@ -172,5 +185,6 @@ static func _request_spawn_item(art_name_or_path: String, spawn_position: Vector
 
 static func _publish_rule_notification(rule: Dictionary, source_entity: OwnEntity) -> void:
 	var message: String = str(rule.get("toast_msg", "")).strip_edges()
-	if message.is_empty(): message = "Triggered: " + source_entity.display_name
+	if message.is_empty(): 
+		message = "Triggered: " + source_entity.display_name
 	EventBus.notification_requested.emit(message, true)

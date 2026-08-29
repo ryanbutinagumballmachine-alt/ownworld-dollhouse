@@ -36,8 +36,10 @@ static func export_universe_pack(pack_name: String, author: String, universe_id:
 		return false
 
 	var clean_output_name: String = output_filename.strip_edges()
-	if clean_output_name.is_empty(): clean_output_name = clean_universe_id
-	if clean_output_name.ends_with(".ownpack"): clean_output_name = clean_output_name.trim_suffix(".ownpack")
+	if clean_output_name.is_empty(): 
+		clean_output_name = clean_universe_id
+	if clean_output_name.ends_with(".ownpack"): 
+		clean_output_name = clean_output_name.trim_suffix(".ownpack")
 
 	var output_path: String = get_exports_dir().path_join(clean_output_name + ".ownpack")
 
@@ -133,8 +135,10 @@ static func import_pack_file(source_file_path: String) -> bool:
 	var manifest: Dictionary = manifest_data as Dictionary
 	var universe_id: String = str(manifest.get("universe_id", "imported_universe")).strip_edges()
 	var universe_name: String = str(manifest.get("pack_name", universe_id)).strip_edges()
-	if universe_id.is_empty(): universe_id = "imported_universe"
-	if universe_name.is_empty(): universe_name = universe_id
+	if universe_id.is_empty(): 
+		universe_id = "imported_universe"
+	if universe_name.is_empty(): 
+		universe_name = universe_id
 
 	JsonFileStore.ensure_directory(UNIVERSES_DIR)
 	JsonFileStore.ensure_directory(MAPS_DIR)
@@ -175,15 +179,24 @@ static func import_pack_file(source_file_path: String) -> bool:
 
 
 static func _resolve_import_destination(internal_path: String, universe_id: String, universe_save_dir: String) -> String:
-	if internal_path == "universe.json": return UNIVERSES_DIR + universe_id + ".json"
-	if internal_path == "cast.json": return SaveSystem.get_universe_cast_path(universe_id)
-	if internal_path == "map.json": return _get_universe_map_path(universe_id)
-	if internal_path == "journal.json": return SaveSystem.get_universe_journal_path(universe_id)
-	if internal_path == "recipes.json": return universe_save_dir + "recipes.json"
-	if internal_path.begins_with("rooms/"): return universe_save_dir + internal_path.get_file()
-	if internal_path.begins_with("art/"): return UGCManager.get_art_root_directory().path_join(internal_path.get_file())
-	if internal_path.begins_with("font/") or internal_path.begins_with("fonts/"): return UGCManager.get_font_root_directory().path_join(internal_path.get_file())
-	if internal_path.begins_with("theme/") or internal_path.begins_with("themes/"): return UGCManager.get_theme_root_directory().path_join(internal_path.get_file())
+	if internal_path == "universe.json": 
+		return UNIVERSES_DIR + universe_id + ".json"
+	if internal_path == "cast.json": 
+		return SaveSystem.get_universe_cast_path(universe_id)
+	if internal_path == "map.json": 
+		return _get_universe_map_path(universe_id)
+	if internal_path == "journal.json": 
+		return SaveSystem.get_universe_journal_path(universe_id)
+	if internal_path == "recipes.json": 
+		return universe_save_dir + "recipes.json"
+	if internal_path.begins_with("rooms/"): 
+		return universe_save_dir + internal_path.get_file()
+	if internal_path.begins_with("art/"): 
+		return UGCManager.get_art_root_directory().path_join(internal_path.get_file())
+	if internal_path.begins_with("font/") or internal_path.begins_with("fonts/"): 
+		return UGCManager.get_font_root_directory().path_join(internal_path.get_file())
+	if internal_path.begins_with("theme/") or internal_path.begins_with("themes/"): 
+		return UGCManager.get_theme_root_directory().path_join(internal_path.get_file())
 	return ""
 
 

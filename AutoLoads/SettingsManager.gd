@@ -168,7 +168,8 @@ func set_juice_idle_motion_enabled(enabled: bool) -> void:
 	juice_settings_changed.emit(get_all_juice_settings())
 
 func get_juice_idle_intensity() -> float:
-	if not is_juice_enabled(): return 0.0
+	if not is_juice_enabled(): 
+		return 0.0
 	return float(settings_data.get("juice_idle_intensity", DEFAULT_JUICE_IDLE_INTENSITY))
 
 func set_juice_idle_intensity(value: float) -> void:

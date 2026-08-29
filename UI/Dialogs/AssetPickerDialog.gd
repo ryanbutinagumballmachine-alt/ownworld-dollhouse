@@ -10,9 +10,6 @@
 class_name AssetPickerDialog
 extends CanvasLayer
 
-const PATH_ITEM_TAGS_FILE: String = "user://my_art_tags.json"
-const PATH_TAGS_LIST_FILE: String = "user://my_art_tags_list.json"
-
 const MAX_PANEL_WIDTH: float = 640.0
 const MAX_PANEL_HEIGHT: float = 560.0
 

@@ -85,7 +85,8 @@ func _build_ui() -> void:
 	btn_cancel.focus_mode = Control.FOCUS_NONE
 	btn_cancel.add_theme_constant_override("icon_max_width", 14)
 	var c_icon: Texture2D = ThemeService.get_icon("icon_close")
-	if c_icon: btn_cancel.icon = c_icon
+	if c_icon: 
+		btn_cancel.icon = c_icon
 	btn_cancel.pressed.connect(close_modal)
 	btn_row.add_child(btn_cancel)
 
@@ -96,8 +97,10 @@ func _build_ui() -> void:
 	btn_ok.focus_mode = Control.FOCUS_NONE
 	btn_ok.add_theme_constant_override("icon_max_width", 14)
 	var plus_icon: Texture2D = ThemeService.get_icon("icon_plus")
-	if not plus_icon: plus_icon = ThemeService.get_icon("icon_folder")
-	if plus_icon: btn_ok.icon = plus_icon
+	if not plus_icon: 
+		plus_icon = ThemeService.get_icon("icon_folder")
+	if plus_icon: 
+		btn_ok.icon = plus_icon
 	btn_ok.pressed.connect(_on_confirm)
 	btn_row.add_child(btn_ok)
 

@@ -95,7 +95,8 @@ func _connect_system_signals() -> void:
 
 
 func _setup_keyboard_dodging() -> void:
-	if not _is_mobile(): return
+	if not _is_mobile(): 
+		return
 	var inputs: Array[Control] = [t_era_input, t_title_input, t_content_edit, f_name_input, f_motto_input, f_notes_edit]
 	for input in inputs:
 		if input != null:
@@ -120,7 +121,8 @@ func _on_input_focus_exited() -> void:
 
 
 func _update_responsive_layout() -> void:
-	if not is_instance_valid(modal_panel): return
+	if not is_instance_valid(modal_panel): 
+		return
 	var vp_size: Vector2 = get_viewport().get_visible_rect().size if get_viewport() else Vector2(1280.0, 720.0)
 	var is_mob: bool = _is_mobile()
 
@@ -132,17 +134,16 @@ func _update_responsive_layout() -> void:
 
 func _on_theme_changed(_theme_data: Dictionary) -> void:
 	_apply_theme_styling()
-	if visible: _select_tab(current_tab)
+	if visible: 
+		_select_tab(current_tab)
 
 
 func _load_journal_state() -> void:
-	var curr_uni: String = SaveSystem.get_current_universe_id()
-	journal_data = SaveSystem.load_universe_journal(curr_uni)
-	cached_roster = _load_universe_character_data()
+	journal_data = SaveSystem.load_universe_journal(AppState.universe_id)
+	cached_roster = GameManager.get_all_universe_character_data()
 
 	if universe_title_lbl:
-		var curr_uni_name: String = SaveSystem.get_current_universe_name()
-		universe_title_lbl.text = "Universe: %s" % (curr_uni_name if not curr_uni_name.is_empty() else "Universe")
+		universe_title_lbl.text = "Universe: %s" % (AppState.universe_name if not AppState.universe_name.is_empty() else "Universe")
 
 
 func open_journal() -> void:
@@ -179,14 +180,18 @@ func _apply_theme_styling() -> void:
 		p_style.content_margin_bottom = 10
 		modal_panel.add_theme_stylebox_override("panel", p_style)
 
-	if header_lbl: header_lbl.add_theme_color_override("font_color", c_accent)
-	if universe_title_lbl: universe_title_lbl.add_theme_color_override("font_color", c_muted)
+	if header_lbl: 
+		header_lbl.add_theme_color_override("font_color", c_accent)
+	if universe_title_lbl: 
+		universe_title_lbl.add_theme_color_override("font_color", c_muted)
 
 	var icon_timeline: Texture2D = ThemeService.get_icon("icon_room")
-	if icon_timeline and tab_btn_timeline: tab_btn_timeline.icon = icon_timeline
+	if icon_timeline and tab_btn_timeline: 
+		tab_btn_timeline.icon = icon_timeline
 
 	var icon_factions: Texture2D = ThemeService.get_icon("icon_cast")
-	if icon_factions and tab_btn_factions: tab_btn_factions.icon = icon_factions
+	if icon_factions and tab_btn_factions: 
+		tab_btn_factions.icon = icon_factions
 
 	_style_tab_button(tab_btn_timeline, current_tab == TabMode.TIMELINE, c_accent, c_text, radius)
 	_style_tab_button(tab_btn_factions, current_tab == TabMode.FACTIONS, c_accent, c_text, radius)
@@ -1010,7 +1015,7 @@ func _populate_character_chips(container: Control, active_id_list: Array, on_tog
 
 func _populate_room_selector(opt_btn: OptionButton, selected_room_id: String) -> void:
 	opt_btn.clear()
-	var save_dir: String = SaveSystem.get_universe_save_dir(SaveSystem.get_current_universe_id())
+	var save_dir: String = SaveSystem.get_universe_save_dir(AppState.universe_id)
 	var rooms: Array[String] = ["room_main"]
 
 	if not save_dir.is_empty() and DirAccess.dir_exists_absolute(save_dir):
@@ -1142,40 +1147,8 @@ func _open_character_lore_card(char_dict: Dictionary) -> void:
 		card_ui.call("open_card_for_character_dict", char_dict)
 
 
-func _load_universe_character_data() -> Array[Dictionary]:
-	var roster: Array[Dictionary] = []
-	var seen_ids: Dictionary = {}
-	var seen_names: Dictionary = {}
-	var universe_id: String = SaveSystem.get_current_universe_id()
-	var cast_path: String = SaveSystem.get_universe_cast_path(universe_id)
-
-	if FileAccess.file_exists(cast_path):
-		var cast_file: FileAccess = FileAccess.open(cast_path, FileAccess.READ)
-		if cast_file != null:
-			var parsed_cast: Variant = JSON.parse_string(cast_file.get_as_text())
-			cast_file.close()
-			var cast_items: Array = []
-			if parsed_cast is Array:
-				cast_items = parsed_cast as Array
-			elif parsed_cast is Dictionary:
-				cast_items = (parsed_cast as Dictionary).get("cast", (parsed_cast as Dictionary).get("templates", []))
-
-			for item: Variant in cast_items:
-				if item is Dictionary:
-					var c_data: Dictionary = (item as Dictionary).duplicate(true)
-					var c_id: String = str(c_data.get("id", ""))
-					var c_name: String = str(c_data.get("display_name", "")).strip_edges().to_lower()
-					if c_id.is_empty() or seen_ids.has(c_id): continue
-					if not c_name.is_empty() and seen_names.has(c_name): continue
-					roster.append(c_data)
-					seen_ids[c_id] = true
-					if not c_name.is_empty(): seen_names[c_name] = true
-
-	return roster
-
-
 func _save_silently() -> void:
-	SaveSystem.save_universe_journal(SaveSystem.get_current_universe_id(), journal_data)
+	SaveSystem.save_universe_journal(AppState.universe_id, journal_data)
 
 
 func _on_save_button_pressed() -> void:

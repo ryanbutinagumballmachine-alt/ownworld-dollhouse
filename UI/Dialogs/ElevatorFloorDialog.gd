@@ -12,7 +12,6 @@ extends CanvasLayer
 
 const MAX_PANEL_WIDTH: float = 520.0
 const MAX_PANEL_HEIGHT: float = 460.0
-const SESSION_FILE: String = "user://session.json"
 
 var root_backdrop: Control = null
 var center_container: CenterContainer = null
@@ -159,7 +158,7 @@ func _render_keypad_buttons() -> void:
 		return
 
 	var is_mob: bool = _is_mobile()
-	var current_room_id: String = _get_current_room_id()
+	var current_room_id: String = AppState.room_id
 	var current_room_state: Dictionary = SaveSystem.load_room_state(current_room_id)
 	var bldg_id: String = str(current_room_state.get("building_id", "building_main")).strip_edges()
 	var bldg_name: String = str(current_room_state.get("building_name", "Main Building")).strip_edges()
@@ -236,17 +235,12 @@ func _render_keypad_buttons() -> void:
 
 
 func _on_floor_selected(target_room_id: String, floor_name: String) -> void:
-	var current_room_id: String = _get_current_room_id()
+	var current_room_id: String = AppState.room_id
 	if target_room_id.is_empty() or target_room_id == current_room_id or active_elevator == null or not is_instance_valid(active_elevator):
 		return
 	var elevator_ref: OwnEntity = active_elevator
 	close_dialog()
 	floor_travel_requested.emit(elevator_ref, target_room_id, floor_name)
-
-
-func _get_current_room_id() -> String:
-	var session: Dictionary = JsonFileStore.read_dictionary(SESSION_FILE)
-	return str(session.get("room_id", "room_main"))
 
 
 func _apply_button_icon(button: Button, icon_key: String) -> void:

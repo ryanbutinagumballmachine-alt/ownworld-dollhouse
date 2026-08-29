@@ -11,6 +11,7 @@ class_name SocketManager
 extends RefCounted
 
 const SNAP_RADIUS: float = 38.0
+const SNAP_RADIUS_SQ: float = 1444.0
 
 
 static func evaluate_and_snap(dropped_entity: OwnEntity, all_entities: Array[OwnEntity]) -> bool:
@@ -19,7 +20,7 @@ static func evaluate_and_snap(dropped_entity: OwnEntity, all_entities: Array[Own
 
 	var best_target: OwnEntity = null
 	var best_socket_key: String = ""
-	var closest_distance: float = SNAP_RADIUS
+	var closest_distance_sq: float = SNAP_RADIUS_SQ
 
 	for target_entity: OwnEntity in all_entities:
 		if target_entity == null or not is_instance_valid(target_entity) or target_entity == dropped_entity:
@@ -33,10 +34,10 @@ static func evaluate_and_snap(dropped_entity: OwnEntity, all_entities: Array[Own
 
 			var target_socket_world: Vector2 = target_entity.to_global(target_entity.snap_points[socket_key])
 			var incoming_anchor_world: Vector2 = _get_incoming_anchor_world_pos(dropped_entity, socket_key)
-			var distance: float = incoming_anchor_world.distance_to(target_socket_world)
+			var dist_sq: float = incoming_anchor_world.distance_squared_to(target_socket_world)
 
-			if distance < closest_distance:
-				closest_distance = distance
+			if dist_sq < closest_distance_sq:
+				closest_distance_sq = dist_sq
 				best_target = target_entity
 				best_socket_key = socket_key
 

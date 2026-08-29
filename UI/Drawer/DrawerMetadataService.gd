@@ -40,9 +40,12 @@ static func load_tags_list() -> Array[String]:
 	if list_variant is Array:
 		for value: Variant in (list_variant as Array):
 			var tag: String = str(value).strip_edges().to_lower()
-			if tag.is_empty(): continue
-			if not tag.begins_with("#"): tag = "#" + tag
-			if not result.has(tag): result.append(tag)
+			if tag.is_empty(): 
+				continue
+			if not tag.begins_with("#"): 
+				tag = "#" + tag
+			if not result.has(tag): 
+				result.append(tag)
 
 	return result if not result.is_empty() else default_tags.duplicate()
 
@@ -51,11 +54,15 @@ static func save_tags_list(tags: Array[String]) -> bool:
 	var normalized: Array[String] = []
 	for tag_value: String in tags:
 		var tag: String = tag_value.strip_edges().to_lower()
-		if tag.is_empty(): continue
-		if not tag.begins_with("#"): tag = "#" + tag
-		if not normalized.has(tag): normalized.append(tag)
+		if tag.is_empty(): 
+			continue
+		if not tag.begins_with("#"): 
+			tag = "#" + tag
+		if not normalized.has(tag): 
+			normalized.append(tag)
 
-	if normalized.is_empty(): normalized = default_tags.duplicate()
+	if normalized.is_empty(): 
+		normalized = default_tags.duplicate()
 	return JsonFileStore.write_dictionary(PATH_TAGS_LIST_FILE, {"tags": normalized})
 
 
@@ -70,13 +77,15 @@ static func save_asset_tags(tags_dictionary: Dictionary) -> bool:
 static func load_registered_folders() -> Dictionary:
 	var defaults: Dictionary = {"props": [], "furniture": [], "cast": []}
 	var stored_dictionary: Dictionary = JsonFileStore.read_dictionary(PATH_TEMPLATE_FOLDERS_FILE)
-	if stored_dictionary.is_empty(): return defaults
+	if stored_dictionary.is_empty(): 
+		return defaults
 
 	var result: Dictionary = defaults.duplicate(true)
 
 	for key: String in ["props", "furniture", "cast"]:
 		var raw_values: Variant = stored_dictionary.get(key, [])
-		if not raw_values is Array: continue
+		if not raw_values is Array: 
+			continue
 		var folders: Array[String] = []
 		for folder_value: Variant in (raw_values as Array):
 			var folder: String = _normalize_folder(str(folder_value))
@@ -94,11 +103,13 @@ static func save_registered_folders(folder_dictionary: Dictionary) -> bool:
 static func load_template_array(file_path: String) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	var normalized_path: String = file_path.strip_edges()
-	if normalized_path.is_empty(): return result
+	if normalized_path.is_empty(): 
+		return result
 
 	var stored: Dictionary = JsonFileStore.read_dictionary(normalized_path)
 	var raw_items: Variant = stored.get("templates", stored.get("cast", []))
-	if not raw_items is Array: return result
+	if not raw_items is Array: 
+		return result
 
 	for value: Variant in (raw_items as Array):
 		if value is Dictionary:
@@ -107,7 +118,8 @@ static func load_template_array(file_path: String) -> Array[Dictionary]:
 
 
 static func save_template_array(file_path: String, items: Array[Dictionary]) -> bool:
-	if file_path.strip_edges().is_empty(): return false
+	if file_path.strip_edges().is_empty(): 
+		return false
 	return JsonFileStore.write_dictionary(file_path, {"templates": items.duplicate(true)})
 
 
@@ -142,17 +154,20 @@ static func scrub_character_from_universe_rooms(character_id: String, character_
 
 	for room_id: String in room_ids:
 		var room_data: Dictionary = RoomRepository.load_room(universe_id, room_id)
-		if room_data.is_empty(): continue
+		if room_data.is_empty(): 
+			continue
 
 		var raw_entities: Variant = room_data.get("entities", [])
-		if not raw_entities is Array: continue
+		if not raw_entities is Array: 
+			continue
 
 		var entities: Array = raw_entities as Array
 		var modified: bool = false
 
 		for index: int in range(entities.size() - 1, -1, -1):
 			var value: Variant = entities[index]
-			if not value is Dictionary: continue
+			if not value is Dictionary: 
+				continue
 			var entity_data: Dictionary = value as Dictionary
 			var entity_id: String = str(entity_data.get("id", "")).strip_edges()
 			var entity_name: String = str(entity_data.get("display_name", "")).strip_edges().to_lower()
@@ -170,7 +185,8 @@ static func scrub_character_from_universe_rooms(character_id: String, character_
 
 static func _normalize_universe_id(universe_id: String) -> String:
 	var normalized: String = universe_id.strip_edges()
-	if normalized.is_empty(): normalized = SaveSchema.DEFAULT_UNIVERSE_ID
+	if normalized.is_empty(): 
+		normalized = SaveSchema.DEFAULT_UNIVERSE_ID
 	return normalized.validate_filename()
 
 
@@ -179,6 +195,7 @@ static func _normalize_folder(folder: String) -> String:
 	var parts: PackedStringArray = normalized.split("/", false)
 	var safe_parts: Array[String] = []
 	for part: String in parts:
-		if part.is_empty() or part == "." or part == "..": continue
+		if part.is_empty() or part == "." or part == "..": 
+			continue
 		safe_parts.append(part)
 	return "/".join(safe_parts)

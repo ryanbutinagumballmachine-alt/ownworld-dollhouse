@@ -40,7 +40,7 @@ func _ready() -> void:
 
 
 func _is_mobile() -> bool:
-	return OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios")
+	return ThemeEngine.is_mobile_platform()
 
 
 func show_notification(message: String, is_success: bool = true) -> void:
@@ -145,7 +145,8 @@ func _recalculate_toast_margins() -> void:
 
 	# 4. Responsive Font Text Width Fitting
 	var font: Font = toast_label.get_theme_font("font")
-	if font == null: font = ThemeDB.fallback_font
+	if font == null: 
+		font = ThemeDB.fallback_font
 	var font_sz: int = toast_label.get_theme_font_size("font_size")
 
 	var calculated_width: float = font.get_string_size(toast_label.text, HORIZONTAL_ALIGNMENT_CENTER, -1, font_sz).x + (44.0 if is_mob else 32.0)

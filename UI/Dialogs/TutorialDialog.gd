@@ -1,9 +1,5 @@
-# ============================================================
-# File: res://UI/Dialogs/TutorialDialog.gd
-# ============================================================
-
 # ==============================================================================
-# OWNWORLD - IN-GAME CREATOR HANDBOOK (LANDSCAPE MASTER-DETAIL DUAL-OS)
+# OWNWORLD — IN-GAME CREATOR HANDBOOK (LANDSCAPE MASTER-DETAIL DUAL-OS)
 # File: res://UI/Dialogs/TutorialDialog.gd
 # Base Class: CanvasLayer (class_name TutorialDialog)
 #
@@ -507,7 +503,7 @@ func _build_ui() -> void:
 	btn_close.add_theme_constant_override("icon_max_width", 12)
 	var close_icon: Texture2D = ThemeService.get_icon("icon_close")
 	if close_icon: btn_close.icon = close_icon
-	else: btn_close.text = "X"
+	else: btn_close.text = "✕"
 	btn_close.pressed.connect(close_handbook)
 	header_hbox.add_child(btn_close)
 

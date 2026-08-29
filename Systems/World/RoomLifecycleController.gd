@@ -63,10 +63,12 @@ func load_room(room_id: String, traveler_data: Dictionary = {}) -> void:
 	room_sections.clear()
 	if raw_sections is Array and not (raw_sections as Array).is_empty():
 		for item: Variant in (raw_sections as Array):
-			if item is Dictionary: room_sections.append((item as Dictionary).duplicate(true))
+			if item is Dictionary: 
+				room_sections.append((item as Dictionary).duplicate(true))
 	elif state.has("slices") and state["slices"] is Array:
 		for item: Variant in (state["slices"] as Array):
-			if item is Dictionary: room_sections.append((item as Dictionary).duplicate(true))
+			if item is Dictionary: 
+				room_sections.append((item as Dictionary).duplicate(true))
 	else:
 		room_sections.append({"wallpaper_path": str(state.get("wallpaper_path", "")), "fill_mode": str(state.get("wallpaper_fill_mode", "cover"))})
 
@@ -81,8 +83,10 @@ func load_room(room_id: String, traveler_data: Dictionary = {}) -> void:
 			RoomManager.reconstruct_traveler_bundle(bundle_value as Array, Vector2(300.0, current_room_floor_y - 80.0), entity_root, _entities)
 
 	if atmosphere != null and is_instance_valid(atmosphere):
-		if atmosphere.has_method("set_preset"): atmosphere.set_preset(AppState.time_preset)
-		if atmosphere.has_method("set_weather"): atmosphere.set_weather(AppState.weather_preset)
+		if atmosphere.has_method("set_preset"): 
+			atmosphere.set_preset(AppState.time_preset)
+		if atmosphere.has_method("set_weather"): 
+			atmosphere.set_weather(AppState.weather_preset)
 	if world_camera != null and is_instance_valid(world_camera) and world_camera.has_method("update_room_bounds"):
 		world_camera.update_room_bounds(room_bounds)
 
@@ -94,8 +98,11 @@ func save_active_room() -> bool:
 	return SaveSystem.save_room_state(room_id, get_current_room_state())
 
 
-func get_entities() -> Array: return _entities
-func get_active_room_id() -> String: return _active_room_id
+func get_entities() -> Array: 
+	return _entities
+
+func get_active_room_id() -> String: 
+	return _active_room_id
 
 
 func get_current_room_state() -> Dictionary:

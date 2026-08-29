@@ -113,7 +113,7 @@ func _update_responsive_layout() -> void:
 	var is_mob: bool = _is_mobile()
 
 	var target_w: float = clampf(vp_size.x * 0.94, 320.0, MAX_PANEL_WIDTH)
-	var target_h: float = clampf(vp_size.y * (0.92 if is_mob else 0.88), 320.0, MAX_PANEL_HEIGHT)
+	var target_h: float = clampf(vp_size.y * (0.92 if is_mob else 0.88), 300.0, MAX_PANEL_HEIGHT)
 	root_panel.custom_minimum_size = Vector2(target_w, target_h)
 	root_panel.size = Vector2(target_w, target_h)
 
@@ -1158,6 +1158,10 @@ func _on_extract_slices_pressed() -> void:
 
 
 # --- HELPERS & THEME ---
+
+func _btn_add_theme_constant_override(button: Button, property: StringName, value: int) -> void:
+	button.add_theme_constant_override(property, value)
+
 
 func _apply_button_icon(btn: Button, key: String) -> void:
 	if btn == null: return

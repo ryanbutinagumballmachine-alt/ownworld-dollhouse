@@ -1,7 +1,3 @@
-# ============================================================
-# File: res://Core/Animation/GifDecoder.gd
-# ============================================================
-
 # ==============================================================================
 # OWNWORLD — PURE GDSCRIPT GIF DECODER (RECURSION PROTECTED)
 # File: res://Core/Animation/GifDecoder.gd

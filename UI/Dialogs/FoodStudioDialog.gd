@@ -193,6 +193,16 @@ func _build_ui() -> void:
 	_refresh_theme_icons()
 
 
+func _on_add_stage_pressed() -> void:
+	if asset_picker == null: return
+	asset_picker.open_picker("Choose Next Bite Stage Drawing", "", func(_art_name: String, texture: Texture2D, file_path: String) -> void:
+		if not file_path.is_empty():
+			custom_stage_paths.append(file_path)
+			custom_stage_textures.append(texture)
+			_render_stages_list()
+	)
+
+
 func open_for_entity(entity: OwnEntity) -> void:
 	if not is_instance_valid(entity): return
 	active_entity = entity
@@ -217,16 +227,6 @@ func close_dialog() -> void:
 	active_entity = null
 	custom_stage_paths.clear()
 	custom_stage_textures.clear()
-
-
-func _on_add_stage_pressed() -> void:
-	if asset_picker == null: return
-	asset_picker.open_picker("Choose Next Bite Stage Drawing", "", func(_art_name: String, texture: Texture2D, file_path: String) -> void:
-		if not file_path.is_empty():
-			custom_stage_paths.append(file_path)
-			custom_stage_textures.append(texture)
-			_render_stages_list()
-	)
 
 
 func _render_stages_list() -> void:
@@ -312,6 +312,7 @@ func save_and_close() -> void:
 	active_entity.max_bites = maxi(custom_stage_paths.size(), 3)
 	active_entity.current_state_idx = 0
 
+	CapabilitySynchronizer.synchronize(active_entity)
 	SaveSystem.update_character_in_cast(active_entity)
 	SaveSystem.save_current_room_state()
 	EventBus.entity_state_changed.emit(active_entity.entity_id)

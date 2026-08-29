@@ -12,7 +12,6 @@ extends CanvasLayer
 
 const MAX_PANEL_WIDTH: float = 500.0
 const MAX_PANEL_HEIGHT: float = 440.0
-const SESSION_FILE: String = "user://session.json"
 const MAP_DIRECTORY: String = "user://maps/"
 
 var root_backdrop: Control = null
@@ -222,9 +221,8 @@ func _populate_map_locations() -> void:
 	location_ids.append("")
 	if active_door_entity == null: return
 
-	var session: Dictionary = _load_session()
-	var current_universe_id: String = str(session.get("universe_id", "default_universe"))
-	var current_room_id: String = str(session.get("room_id", "room_main"))
+	var current_universe_id: String = AppState.universe_id
+	var current_room_id: String = AppState.room_id
 
 	var pin_icon: Texture2D = ThemeService.get_icon("icon_pin")
 	if pin_icon == null: pin_icon = ThemeService.get_icon("icon_map")
@@ -269,15 +267,16 @@ func save_and_close() -> void:
 		visible = false
 		return
 
-	var session: Dictionary = _load_session()
-	var current_room_id: String = str(session.get("room_id", "room_main"))
+	var current_room_id: String = AppState.room_id
 	var new_name: String = name_edit.text.strip_edges()
 	var new_target: String = custom_room_edit.text.strip_edges()
 
 	if not new_target.is_empty() and new_target == current_room_id:
 		new_target = "room_main" if current_room_id != "room_main" else "room_destination"
-	if new_target.is_empty(): new_target = "room_destination"
-	if new_name.is_empty(): new_name = "Doorway"
+	if new_target.is_empty(): 
+		new_target = "room_destination"
+	if new_name.is_empty(): 
+		new_name = "Doorway"
 
 	active_door_entity.configure_as_portal(new_target, new_name)
 	if active_door_entity.entity_type == Types.EntityType.CHARACTER:
@@ -287,10 +286,6 @@ func save_and_close() -> void:
 	EventBus.entity_state_changed.emit(active_door_entity.entity_id)
 	EventBus.notification_requested.emit("Door Leads to: " + active_door_entity.target_room_id, true)
 	close_dialog()
-
-
-func _load_session() -> Dictionary:
-	return JsonFileStore.read_dictionary(SESSION_FILE)
 
 
 func _enforce_dropdown_popup_limits(option_button: OptionButton, max_height: int = 200) -> void:

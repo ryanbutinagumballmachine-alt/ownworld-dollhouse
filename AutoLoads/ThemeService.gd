@@ -67,10 +67,12 @@ func _on_node_added(node: Node) -> void:
 
 	if node is OptionButton:
 		var pop: PopupMenu = (node as OptionButton).get_popup()
-		if pop != null: pop.theme = _theme_cache
+		if pop != null: 
+			pop.theme = _theme_cache
 	elif node is MenuButton:
 		var pop: PopupMenu = (node as MenuButton).get_popup()
-		if pop != null: pop.theme = _theme_cache
+		if pop != null: 
+			pop.theme = _theme_cache
 
 
 func _initialize_theme_directories() -> void:

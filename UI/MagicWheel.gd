@@ -73,8 +73,10 @@ func _build_card_ui() -> void:
 	btn_close.focus_mode = Control.FOCUS_NONE
 	btn_close.add_theme_constant_override("icon_max_width", 14 if is_mob else 12)
 	var close_icon: Texture2D = ThemeService.get_icon("icon_close")
-	if close_icon != null: btn_close.icon = close_icon
-	else: btn_close.text = "✕"
+	if close_icon != null: 
+		btn_close.icon = close_icon
+	else: 
+		btn_close.text = "✕"
 	btn_close.pressed.connect(close_wheel)
 	header_hbox.add_child(btn_close)
 
@@ -88,7 +90,8 @@ func _build_card_ui() -> void:
 
 
 func open_wheel_for_entity(entity: OwnEntity, screen_pos: Vector2) -> void:
-	if not is_instance_valid(entity): return
+	if not is_instance_valid(entity): 
+		return
 	active_target_entity = entity
 	header_lbl.text = entity.display_name
 
@@ -173,7 +176,8 @@ func _populate_context_tools(entity: OwnEntity) -> void:
 			btn.expand_icon = false
 
 		var action_name: String = str(tool_data["name"])
-		if action_name == "delete": btn.theme_type_variation = "DangerButton"
+		if action_name == "delete": 
+			btn.theme_type_variation = "DangerButton"
 		btn.pressed.connect(func() -> void: _execute_action(action_name))
 		tools_grid.add_child(btn)
 

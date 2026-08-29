@@ -46,10 +46,14 @@ func handle_drop(source: OwnEntity, world_position: Vector2, context: Dictionary
 
 	var entities: Array[OwnEntity] = _extract_entities(context.get("entities", []))
 
-	if _try_portal(source, entities): return
-	if _try_container(source, entities): return
-	if _try_liquid(source, entities): return
-	if _try_socket(source, entities): return
+	if _try_portal(source, entities): 
+		return
+	if _try_container(source, entities): 
+		return
+	if _try_liquid(source, entities): 
+		return
+	if _try_socket(source, entities): 
+		return
 
 	var canvas: Node2D = context.get("canvas", null) as Node2D
 	if canvas != null and InteractionSolver.check_and_execute_crafting(source, entities, canvas):

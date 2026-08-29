@@ -1,5 +1,5 @@
 # ==============================================================================
-# OWNWORLD — SESSION STORE
+# OWNWORLD — SESSION STORE (ATOMIC PERSISTENCE FACADE)
 # File: res://Core/Persistence/SessionStore.gd
 # Autoload Singleton: SessionStore
 # Base Class: Node

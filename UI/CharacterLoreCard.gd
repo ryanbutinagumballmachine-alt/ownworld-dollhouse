@@ -282,17 +282,17 @@ func _build_ui() -> void:
 
 	main_vbox.add_child(HSeparator.new())
 
-	var content_holder: PanelContainer = PanelContainer.new()
-	content_holder.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	content_holder.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	content_holder.theme_type_variation = "SubPanel"
-	main_vbox.add_child(content_holder)
+	var content_holder_panel: PanelContainer = PanelContainer.new()
+	content_holder_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	content_holder_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	content_holder_panel.theme_type_variation = "SubPanel"
+	main_vbox.add_child(content_holder_panel)
 
 	tab_profile_container = VBoxContainer.new()
 	tab_profile_container.add_theme_constant_override("separation", 6)
 	tab_profile_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	tab_profile_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	content_holder.add_child(tab_profile_container)
+	content_holder_panel.add_child(tab_profile_container)
 	_build_profile_tab(row_h)
 
 	tab_bonds_container = VBoxContainer.new()
@@ -300,7 +300,7 @@ func _build_ui() -> void:
 	tab_bonds_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	tab_bonds_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	tab_bonds_container.visible = false
-	content_holder.add_child(tab_bonds_container)
+	content_holder_panel.add_child(tab_bonds_container)
 	_build_bonds_tab(row_h)
 
 	tab_notes_container = VBoxContainer.new()
@@ -308,7 +308,7 @@ func _build_ui() -> void:
 	tab_notes_container.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	tab_notes_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	tab_notes_container.visible = false
-	content_holder.add_child(tab_notes_container)
+	content_holder_panel.add_child(tab_notes_container)
 	_build_notes_tab()
 
 	main_vbox.add_child(HSeparator.new())
@@ -968,7 +968,7 @@ func _scrape_bond_cards(vbox_container: VBoxContainer, fallback_rel: String) -> 
 
 
 func _enforce_symmetrical_family(source_name: String, current_family: Array[Dictionary], old_family: Array[Dictionary]) -> void:
-	var all_chars: Array[Dictionary] = _load_universe_character_data()
+	var all_chars: Array[Dictionary] = GameManager.get_all_universe_character_data()
 	if all_chars.is_empty(): return
 	var char_map: Dictionary = {}
 	for c_var: Variant in all_chars:
@@ -993,7 +993,7 @@ func _enforce_symmetrical_family(source_name: String, current_family: Array[Dict
 					fam.remove_at(i)
 			c_fields["family_ties"] = fam
 			tgt["custom_fields"] = c_fields
-			_update_universe_character_data(tgt)
+			SaveSystem.update_character_data_in_cast(tgt)
 
 	for cur_f: Dictionary in current_family:
 		var target_name: String = str(cur_f.get("target_name", "")).strip_edges()
@@ -1018,7 +1018,7 @@ func _enforce_symmetrical_family(source_name: String, current_family: Array[Dict
 
 			c_fields["family_ties"] = fam
 			tgt["custom_fields"] = c_fields
-			_update_universe_character_data(tgt)
+			SaveSystem.update_character_data_in_cast(tgt)
 
 
 func _get_reciprocal_family_role(rel_type: String) -> String:
@@ -1037,7 +1037,7 @@ func _get_reciprocal_family_role(rel_type: String) -> String:
 
 
 func _sync_directional_feelings(source_name: String, current_feelings: Array[Dictionary], old_feelings: Array[Dictionary]) -> void:
-	var all_chars: Array[Dictionary] = _load_universe_character_data()
+	var all_chars: Array[Dictionary] = GameManager.get_all_universe_character_data()
 	if all_chars.is_empty(): return
 	var char_map: Dictionary = {}
 	for c_var: Variant in all_chars:
@@ -1068,7 +1068,7 @@ func _sync_directional_feelings(source_name: String, current_feelings: Array[Dic
 			if modified:
 				c_fields["relationships"] = rels
 				tgt["custom_fields"] = c_fields
-				_update_universe_character_data(tgt)
+				SaveSystem.update_character_data_in_cast(tgt)
 
 	for cur_b: Dictionary in current_feelings:
 		var target_name: String = str(cur_b.get("target_name", "")).strip_edges()
@@ -1085,7 +1085,7 @@ func _sync_directional_feelings(source_name: String, current_feelings: Array[Dic
 				rels.append({"target_name": source_name, "relation_type": "Distant / Acquaintance", "notes": ""})
 				c_fields["relationships"] = rels
 				tgt["custom_fields"] = c_fields
-				_update_universe_character_data(tgt)
+				SaveSystem.update_character_data_in_cast(tgt)
 
 
 func _on_open_journal_from_card() -> void:
@@ -1102,7 +1102,7 @@ func _on_open_journal_from_card() -> void:
 func _get_universe_character_names() -> Array[String]:
 	var result: Array[String] = []
 	var my_name: String = name_edit.text.strip_edges() if name_edit else ""
-	var all_chars: Array[Dictionary] = _load_universe_character_data()
+	var all_chars: Array[Dictionary] = GameManager.get_all_universe_character_data()
 	for c_var: Variant in all_chars:
 		if c_var is Dictionary:
 			var c_name: String = str((c_var as Dictionary).get("display_name", "")).strip_edges()
@@ -1111,42 +1111,6 @@ func _get_universe_character_names() -> Array[String]:
 
 	result.sort()
 	return result
-
-
-func _load_universe_character_data() -> Array[Dictionary]:
-	var roster: Array[Dictionary] = []
-	var seen_ids: Dictionary = {}
-	var seen_names: Dictionary = {}
-	var universe_id: String = SaveSystem.get_current_universe_id()
-	var cast_path: String = SaveSystem.get_universe_cast_path(universe_id)
-
-	if FileAccess.file_exists(cast_path):
-		var cast_file: FileAccess = FileAccess.open(cast_path, FileAccess.READ)
-		if cast_file != null:
-			var parsed_cast: Variant = JSON.parse_string(cast_file.get_as_text())
-			cast_file.close()
-			var cast_items: Array = []
-			if parsed_cast is Array:
-				cast_items = parsed_cast as Array
-			elif parsed_cast is Dictionary:
-				cast_items = (parsed_cast as Dictionary).get("cast", (parsed_cast as Dictionary).get("templates", []))
-
-			for item: Variant in cast_items:
-				if item is Dictionary:
-					var c_data: Dictionary = (item as Dictionary).duplicate(true)
-					var c_id: String = str(c_data.get("id", ""))
-					var c_name: String = str(c_data.get("display_name", "")).strip_edges().to_lower()
-					if c_id.is_empty() or seen_ids.has(c_id): continue
-					if not c_name.is_empty() and seen_names.has(c_name): continue
-					roster.append(c_data)
-					seen_ids[c_id] = true
-					if not c_name.is_empty(): seen_names[c_name] = true
-
-	return roster
-
-
-func _update_universe_character_data(character_data: Dictionary) -> void:
-	SaveSystem.update_character_data_in_cast(character_data)
 
 
 func _on_backdrop_gui_input(event: InputEvent) -> void:

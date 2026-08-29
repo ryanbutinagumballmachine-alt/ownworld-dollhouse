@@ -84,7 +84,7 @@ func _update_responsive_layout() -> void:
 	var is_mob: bool = _is_mobile()
 
 	var target_width: float = clampf(viewport_size.x * 0.94, 320.0, MAX_PANEL_WIDTH)
-	var target_height: float = clampf(viewport_size.y * (0.92 if is_mob else 0.88), 320.0, MAX_PANEL_HEIGHT)
+	var target_height: float = clampf(viewport_size.y * (0.92 if is_mob else 0.88), 300.0, MAX_PANEL_HEIGHT)
 	root_panel.custom_minimum_size = Vector2(target_width, target_height)
 	root_panel.size = Vector2(target_width, target_height)
 
@@ -256,17 +256,17 @@ func _build_action_section(parent: VBoxContainer, row_h: float) -> void:
 	opt_then = OptionButton.new()
 	opt_then.custom_minimum_size = Vector2(0.0, row_h)
 	opt_then.add_item("Play Animation / Pose", int(Types.ActionCommand.PLAY_ANIM))
-	opt_then.add_item("Stop Animation", 101)
+	opt_then.add_item("Stop Animation", int(Types.ActionCommand.STOP_ANIM))
 	opt_then.add_item("Swap Outfit Form", int(Types.ActionCommand.SWAP_FORM))
-	opt_then.add_item("Set Transient Expression", 102)
-	opt_then.add_item("Say Dialogue (Speech Bubble)", 103)
-	opt_then.add_item("Spray Emotion Symbol", 104)
+	opt_then.add_item("Set Transient Expression", int(Types.ActionCommand.SET_EXPRESSION))
+	opt_then.add_item("Say Dialogue (Speech Bubble)", int(Types.ActionCommand.SAY_DIALOGUE))
+	opt_then.add_item("Spray Emotion Symbol", int(Types.ActionCommand.SPRAY_EMOTION))
 	opt_then.add_item("Play Sound Effect", int(Types.ActionCommand.PLAY_SOUND))
-	opt_then.add_item("Change Room Mood (Day/Sunset/Night)", 105)
-	opt_then.add_item("Set Weather (Rain/Snow/Dust)", 106)
-	opt_then.add_item("Spawn Item from Art Library", 107)
+	opt_then.add_item("Change Room Mood (Day/Sunset/Night)", int(Types.ActionCommand.SET_MOOD))
+	opt_then.add_item("Set Weather (Rain/Snow/Dust)", int(Types.ActionCommand.SET_WEATHER))
+	opt_then.add_item("Spawn Item from Art Library", int(Types.ActionCommand.SPAWN_ITEM_UGC))
 	opt_then.add_item("Advance State / Take Bite", int(Types.ActionCommand.ADVANCE_STATE))
-	opt_then.add_item("Teleport to Another Room", 108)
+	opt_then.add_item("Teleport to Another Room", int(Types.ActionCommand.TELEPORT_ROOM_CUSTOM))
 	opt_then.item_selected.connect(_on_then_action_changed)
 	then_vbox.add_child(opt_then)
 
@@ -360,17 +360,17 @@ func _on_then_action_changed(index: int) -> void:
 			if active_entity != null:
 				for form_name: String in active_entity.wardrobe_forms.keys():
 					dynamic_opt_param.add_item(form_name, dynamic_opt_param.item_count)
-		102:
+		int(Types.ActionCommand.SET_EXPRESSION):
 			dynamic_opt_param.clear()
 			dynamic_opt_param.visible = true
 			dynamic_opt_param.add_item("mouth_open", 0)
 			dynamic_opt_param.add_item("eyes_closed", 1)
 			dynamic_opt_param.add_item("eyes_open", 2)
-		103:
+		int(Types.ActionCommand.SAY_DIALOGUE):
 			dynamic_line_param.visible = true
 			dynamic_line_param.text = "Hello!"
 			dynamic_line_param.placeholder_text = "Type dialogue text here..."
-		104:
+		int(Types.ActionCommand.SPRAY_EMOTION):
 			dynamic_line_param.visible = true
 			emoji_bar_hbox.visible = true
 			dynamic_line_param.text = "❤️"
@@ -382,20 +382,20 @@ func _on_then_action_changed(index: int) -> void:
 			dynamic_opt_param.add_item("Chew / Bite", 2)
 			dynamic_opt_param.add_item("Sip", 3)
 			dynamic_opt_param.add_item("Pour", 4)
-		105:
+		int(Types.ActionCommand.SET_MOOD):
 			dynamic_opt_param.clear()
 			dynamic_opt_param.visible = true
 			for i: int in range(5):
 				dynamic_opt_param.add_item(["Day", "Sunset", "Night", "Cozy", "Cyberpunk"][i], i)
-		106:
+		int(Types.ActionCommand.SET_WEATHER):
 			dynamic_opt_param.clear()
 			dynamic_opt_param.visible = true
 			for i: int in range(5):
 				dynamic_opt_param.add_item(["Clear", "Rain", "Snow", "Leaves", "Dust"][i], i)
-		107:
+		int(Types.ActionCommand.SPAWN_ITEM_UGC):
 			btn_browse_spawn.visible = true
 			btn_browse_spawn.text = " " + (selected_spawn_art_name if not selected_spawn_art_name.is_empty() else "Browse Art to Spawn...")
-		108:
+		int(Types.ActionCommand.TELEPORT_ROOM_CUSTOM):
 			dynamic_line_param.visible = true
 			dynamic_line_param.text = "room_main"
 			dynamic_line_param.placeholder_text = "Target Room ID (e.g. room_garden)..."
@@ -535,17 +535,17 @@ func _get_target_label(id: int) -> String:
 func _get_then_label(id: int) -> String:
 	match id:
 		int(Types.ActionCommand.PLAY_ANIM): return "Play Anim"
-		101: return "Stop Anim"
+		int(Types.ActionCommand.STOP_ANIM): return "Stop Anim"
 		int(Types.ActionCommand.SWAP_FORM): return "Swap Outfit"
-		102: return "Expression"
-		103: return "Say Dialogue"
-		104: return "Spray Symbol"
+		int(Types.ActionCommand.SET_EXPRESSION): return "Expression"
+		int(Types.ActionCommand.SAY_DIALOGUE): return "Say Dialogue"
+		int(Types.ActionCommand.SPRAY_EMOTION): return "Spray Symbol"
 		int(Types.ActionCommand.PLAY_SOUND): return "Play Sound"
-		105: return "Change Mood"
-		106: return "Set Weather"
-		107: return "Spawn Item"
+		int(Types.ActionCommand.SET_MOOD): return "Change Mood"
+		int(Types.ActionCommand.SET_WEATHER): return "Set Weather"
+		int(Types.ActionCommand.SPAWN_ITEM), int(Types.ActionCommand.SPAWN_ITEM_UGC): return "Spawn Item"
 		int(Types.ActionCommand.ADVANCE_STATE): return "Advance State"
-		108: return "Teleport"
+		int(Types.ActionCommand.TELEPORT_ROOM), int(Types.ActionCommand.TELEPORT_ROOM_CUSTOM): return "Teleport"
 	return "Action"
 
 

@@ -177,7 +177,9 @@ func _apply_theme() -> void:
 
 
 func _apply_nav_icon(button: Button, icon_key: String) -> void:
-	if button == null: return
+	if button == null: 
+		return
 	var icon_tex: Texture2D = ThemeService.get_icon(icon_key)
-	if icon_tex != null: button.icon = icon_tex
+	if icon_tex != null: 
+		button.icon = icon_tex
 	button.expand_icon = false

@@ -179,7 +179,8 @@ func close_hub() -> void:
 
 
 func _render_universe_cards() -> void:
-	if universe_list_vbox == null: return
+	if universe_list_vbox == null: 
+		return
 	for child: Node in universe_list_vbox.get_children():
 		child.queue_free()
 
@@ -187,7 +188,7 @@ func _render_universe_cards() -> void:
 	var c_sub_bg: Color = ThemeService.get_color("container_sub_bg", "#fdf2f4")
 	var c_border: Color = ThemeService.get_color("panel_border", "#f472b6")
 	var c_accent: Color = ThemeService.get_color("accent_primary", "#db2777")
-	var current_universe_id: String = SaveSystem.get_current_universe_id()
+	var current_universe_id: String = AppState.universe_id
 	var corner_radius: int = ThemeService.get_corner_radius()
 	var btn_h: float = 38.0 if is_mob else 32.0
 
@@ -222,7 +223,8 @@ func _render_universe_cards() -> void:
 		var u_title: Label = Label.new()
 		u_title.text = universe_name
 		u_title.add_theme_font_size_override("font_size", 13 if is_mob else 12)
-		if is_active: u_title.theme_type_variation = "HeaderLabel"
+		if is_active: 
+			u_title.theme_type_variation = "HeaderLabel"
 		info_vbox.add_child(u_title)
 
 		var u_desc: Label = Label.new()
@@ -275,7 +277,8 @@ func _render_universe_cards() -> void:
 
 
 func _on_open_import_dialog() -> void:
-	if file_dialog == null: return
+	if file_dialog == null: 
+		return
 	file_dialog.theme = ThemeService.create_theme()
 	file_dialog.popup_centered_ratio(0.7)
 
@@ -291,21 +294,24 @@ func _on_pack_file_selected(file_path: String) -> void:
 
 
 func _delete_universe(u_id: String, u_name: String) -> void:
-	var current_universe_id: String = SaveSystem.get_current_universe_id()
-	if u_id == current_universe_id:
+	if u_id == AppState.universe_id:
 		_on_switch_universe_pressed(DEFAULT_UNIVERSE_ID, DEFAULT_UNIVERSE_NAME)
 
 	var manifest_path: String = UNIVERSES_DIR + u_id + ".json"
-	if FileAccess.file_exists(manifest_path): DirAccess.remove_absolute(manifest_path)
+	if FileAccess.file_exists(manifest_path): 
+		DirAccess.remove_absolute(manifest_path)
 
 	var cast_path: String = SaveSystem.get_universe_cast_path(u_id)
-	if FileAccess.file_exists(cast_path): DirAccess.remove_absolute(cast_path)
+	if FileAccess.file_exists(cast_path): 
+		DirAccess.remove_absolute(cast_path)
 
 	var journal_path: String = SaveSystem.get_universe_journal_path(u_id)
-	if FileAccess.file_exists(journal_path): DirAccess.remove_absolute(journal_path)
+	if FileAccess.file_exists(journal_path): 
+		DirAccess.remove_absolute(journal_path)
 
 	var map_path: String = _get_universe_map_path(u_id)
-	if FileAccess.file_exists(map_path): DirAccess.remove_absolute(map_path)
+	if FileAccess.file_exists(map_path): 
+		DirAccess.remove_absolute(map_path)
 
 	var save_dir: String = SaveSystem.get_universe_save_dir(u_id)
 	if DirAccess.dir_exists_absolute(save_dir):
@@ -319,7 +325,8 @@ func _delete_universe(u_id: String, u_name: String) -> void:
 
 func _delete_directory_contents(directory_path: String) -> void:
 	var dir: DirAccess = DirAccess.open(directory_path)
-	if dir == null: return
+	if dir == null: 
+		return
 	dir.list_dir_begin()
 	var file_name: String = dir.get_next()
 	while not file_name.is_empty():
@@ -335,7 +342,8 @@ func _delete_directory_contents(directory_path: String) -> void:
 
 func _on_create_universe_pressed() -> void:
 	var u_name: String = name_input.text.strip_edges()
-	if u_name.is_empty(): return
+	if u_name.is_empty(): 
+		return
 	var u_id: String = u_name.to_lower().replace(" ", "_")
 
 	var new_universe: Dictionary = {
@@ -356,17 +364,17 @@ func _on_switch_universe_pressed(new_u_id: String, new_u_name: String) -> void:
 
 
 func _on_export_pack_pressed() -> void:
-	var current_universe_id: String = SaveSystem.get_current_universe_id()
-	var current_universe_name: String = SaveSystem.get_current_universe_name()
-	var success: bool = OwnPackManager.export_universe_pack(current_universe_name, "@Creator", current_universe_id, current_universe_id + "_export")
-
-	if success: EventBus.notification_requested.emit("Exported .ownpack to Documents/OwnWorld/Dollhouse/Exports/", true)
-	else: EventBus.notification_requested.emit("Export Failed", false)
+	var success: bool = OwnPackManager.export_universe_pack(AppState.universe_name, "@Creator", AppState.universe_id, AppState.universe_id + "_export")
+	if success: 
+		EventBus.notification_requested.emit("Exported .ownpack to Documents/OwnWorld/Dollhouse/Exports/", true)
+	else: 
+		EventBus.notification_requested.emit("Export Failed", false)
 
 
 func _save_universe_manifest(u_data: Dictionary) -> void:
 	var universe_id: String = str(u_data.get("id", ""))
-	if universe_id.is_empty(): return
+	if universe_id.is_empty(): 
+		return
 	JsonFileStore.write_dictionary(UNIVERSES_DIR + universe_id + ".json", u_data)
 
 
@@ -408,23 +416,31 @@ func _refresh_theme_icons() -> void:
 
 
 func _apply_button_icon(button: Button, icon_key: String) -> void:
-	if button == null: return
+	if button == null: 
+		return
 	var icon_texture: Texture2D = ThemeService.get_icon(icon_key)
-	if icon_texture != null: button.icon = icon_texture
+	if icon_texture != null: 
+		button.icon = icon_texture
 
 
 func _apply_export_icon(button: Button) -> void:
-	if button == null: return
+	if button == null: 
+		return
 	var icon_texture: Texture2D = ThemeService.get_icon("icon_prefab")
-	if icon_texture == null: icon_texture = ThemeService.get_icon("icon_save")
-	if icon_texture != null: button.icon = icon_texture
+	if icon_texture == null: 
+		icon_texture = ThemeService.get_icon("icon_save")
+	if icon_texture != null: 
+		button.icon = icon_texture
 
 
 func _apply_create_icon(button: Button) -> void:
-	if button == null: return
+	if button == null: 
+		return
 	var icon_texture: Texture2D = ThemeService.get_icon("icon_universe")
-	if icon_texture == null: icon_texture = ThemeService.get_icon("icon_plus")
-	if icon_texture != null: button.icon = icon_texture
+	if icon_texture == null: 
+		icon_texture = ThemeService.get_icon("icon_plus")
+	if icon_texture != null: 
+		button.icon = icon_texture
 
 
 func _on_backdrop_gui_input(event: InputEvent) -> void:

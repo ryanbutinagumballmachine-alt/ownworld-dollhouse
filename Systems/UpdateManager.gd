@@ -112,7 +112,8 @@ static func get_apk_target_path() -> String:
 ## Downloads the remote APK file with polled progress callbacks and triggers installation.
 static func download_and_install_update(caller_node: Node, apk_url: String, on_progress: Callable, on_complete: Callable, on_error: Callable) -> void:
 	if caller_node == null or apk_url.is_empty():
-		if on_error.is_valid(): on_error.call("Invalid download parameters")
+		if on_error.is_valid(): 
+			on_error.call("Invalid download parameters")
 		return
 
 	var target_file_path: String = get_apk_target_path()

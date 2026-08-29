@@ -97,8 +97,8 @@ func _ready() -> void:
 	_mount_subsystems()
 	_connect_system_signals()
 
-	RecipeCrafting.load_recipes_for_universe(_get_current_universe_id())
-	_load_active_room(_get_current_room_id())
+	RecipeCrafting.load_recipes_for_universe(AppState.universe_id)
+	_load_active_room(AppState.room_id)
 
 	ThemeService.apply_theme_globally()
 	_update_room_bg_theme_color()
@@ -166,9 +166,11 @@ func _notification(what: int) -> void:
 		_handle_mobile_back_button()
 	elif what == NOTIFICATION_WM_CLOSE_REQUEST:
 		SaveSystem.save_current_room_state()
-		_save_session_from_main_state()
-		if drawer_tray_ui != null: drawer_tray_ui.save_cast_tray_for_current_universe()
-		if world_map_screen != null: world_map_screen.save_map_for_current_universe()
+		AppState.save_session_to_disk()
+		if drawer_tray_ui != null: 
+			drawer_tray_ui.save_cast_tray_for_current_universe()
+		if world_map_screen != null: 
+			world_map_screen.save_map_for_current_universe()
 	elif what == NOTIFICATION_APPLICATION_PAUSED or what == NOTIFICATION_WM_WINDOW_FOCUS_OUT or what == NOTIFICATION_APPLICATION_FOCUS_OUT:
 		_cancel_active_drag()
 		_active_touches.clear()
@@ -178,7 +180,7 @@ func _notification(what: int) -> void:
 			main_camera.reset_touch_state()
 		if is_room_loaded:
 			SaveSystem.save_current_room_state()
-		_save_session_from_main_state()
+		AppState.save_session_to_disk()
 
 
 func _handle_mobile_back_button() -> void:
@@ -358,7 +360,8 @@ func _mount_subsystems() -> void:
 
 
 func _toggle_camera_zoom_mode() -> void:
-	if main_camera == null: return
+	if main_camera == null: 
+		return
 	var is_active: bool = main_camera.toggle_zoom_mode()
 	if top_nav_bar != null:
 		top_nav_bar.set_zoom_button_state(is_active)
@@ -426,7 +429,8 @@ func _apply_room_slices(slices_data: Array[Dictionary]) -> void:
 
 	room_bounds = Rect2(0.0, 0.0, total_width, slice_h)
 
-	if room_slices_container == null: return
+	if room_slices_container == null: 
+		return
 	for child: Node in room_slices_container.get_children():
 		child.queue_free()
 
@@ -513,7 +517,8 @@ func _apply_room_slices(slices_data: Array[Dictionary]) -> void:
 func _apply_slice_sprite_scaling(sprite: Sprite2D, texture: Texture2D, fill_mode: String, slice_w: float, slice_h: float) -> void:
 	var tw: float = float(texture.get_width())
 	var th: float = float(texture.get_height())
-	if tw <= 0.0 or th <= 0.0: return
+	if tw <= 0.0 or th <= 0.0: 
+		return
 
 	match fill_mode:
 		"cover":
@@ -561,10 +566,14 @@ func _screen_to_world(screen_pos: Vector2) -> Vector2:
 
 func _is_any_modal_open() -> bool:
 	for ui: Node in get_tree().get_nodes_in_group("modal_ui"):
-		if not is_instance_valid(ui): continue
-		if ui is CanvasLayer and (ui as CanvasLayer).visible: return true
-		elif ui is Control and (ui as Control).visible: return true
-		elif ui is Window and (ui as Window).visible: return true
+		if not is_instance_valid(ui): 
+			continue
+		if ui is CanvasLayer and (ui as CanvasLayer).visible: 
+			return true
+		elif ui is Control and (ui as Control).visible: 
+			return true
+		elif ui is Window and (ui as Window).visible: 
+			return true
 	return false
 
 
@@ -594,7 +603,8 @@ func _input(event: InputEvent) -> void:
 
 			if is_ui_touch:
 				_ui_touch_indices[touch_idx] = true
-				if _active_touches.size() >= 2: _cancel_active_drag()
+				if _active_touches.size() >= 2: 
+					_cancel_active_drag()
 			else:
 				_ui_touch_indices.erase(touch_idx)
 				if _active_touches.size() == 1:
@@ -746,7 +756,8 @@ func _update_active_process_state() -> void:
 
 
 func _handle_press_begin(world_pos: Vector2, screen_pos: Vector2) -> void:
-	if is_pointer_down: return
+	if is_pointer_down: 
+		return
 
 	is_pointer_down = true
 	long_press_triggered = false
@@ -783,7 +794,8 @@ func _handle_press_begin(world_pos: Vector2, screen_pos: Vector2) -> void:
 
 
 func _handle_press_end(_world_pos: Vector2) -> void:
-	if not is_pointer_down: return
+	if not is_pointer_down: 
+		return
 
 	is_pointer_down = false
 	if main_camera != null:
@@ -820,7 +832,8 @@ func _handle_press_end(_world_pos: Vector2) -> void:
 			# Portal / Stairs / Elevator Routing
 			if released.entity_type == Types.EntityType.CHARACTER:
 				for portal_ent: OwnEntity in all_entities:
-					if not is_instance_valid(portal_ent): continue
+					if not is_instance_valid(portal_ent): 
+						continue
 					if portal_ent != released and portal_ent.is_portal and portal_ent.contains_point(released.global_position):
 						if portal_ent.is_stairs:
 							_handle_stairs_travel(portal_ent, released)
@@ -832,7 +845,7 @@ func _handle_press_end(_world_pos: Vector2) -> void:
 							return
 						else:
 							var target_room: String = portal_ent.target_room_id
-							if not target_room.is_empty() and target_room != _get_current_room_id():
+							if not target_room.is_empty() and target_room != AppState.room_id:
 								var bundle: Array[Dictionary] = released.get_full_hierarchy_bundle()
 								_remove_hierarchy(released)
 								released.queue_free()
@@ -843,7 +856,8 @@ func _handle_press_end(_world_pos: Vector2) -> void:
 
 			if released.entity_type == Types.EntityType.PROP:
 				for container_ent: OwnEntity in all_entities:
-					if not is_instance_valid(container_ent): continue
+					if not is_instance_valid(container_ent): 
+						continue
 					if container_ent != released and container_ent.is_container and container_ent.contains_point(released.global_position):
 						all_entities.erase(released)
 						container_ent.pack_item_inside(released)
@@ -909,7 +923,7 @@ func _handle_layer1_tap(entity: OwnEntity) -> void:
 # --- STAIRS ROUTING LOGIC ---
 
 func _handle_stairs_travel(_stairs: OwnEntity, traveler: OwnEntity) -> void:
-	var current_room: String = _get_current_room_id()
+	var current_room: String = AppState.room_id
 	var bldg_floors: Array[Dictionary] = SaveSystem.get_building_floors(current_building_id)
 
 	if bldg_floors.size() <= 1:
@@ -951,7 +965,7 @@ func _handle_stairs_travel(_stairs: OwnEntity, traveler: OwnEntity) -> void:
 
 
 func _handle_stairs_tap(stairs: OwnEntity) -> void:
-	var current_room: String = _get_current_room_id()
+	var current_room: String = AppState.room_id
 	var bldg_floors: Array[Dictionary] = SaveSystem.get_building_floors(current_building_id)
 
 	if bldg_floors.size() <= 1:
@@ -1017,7 +1031,8 @@ func _trigger_haptic(duration_ms: int = 30) -> void:
 
 
 func _on_elevator_floor_travel_requested(elevator: OwnEntity, target_room_id: String, floor_name: String) -> void:
-	if not is_instance_valid(elevator): return
+	if not is_instance_valid(elevator): 
+		return
 
 	var passengers: Array[OwnEntity] = elevator.get_passengers_in_cab(all_entities)
 	var bundle: Array[Dictionary] = []
@@ -1071,7 +1086,8 @@ func _apply_physical_gravity_settle(entity: OwnEntity) -> void:
 func _remove_hierarchy(root_ent: OwnEntity) -> void:
 	all_entities.erase(root_ent)
 	for child: OwnEntity in root_ent.attached_children:
-		if is_instance_valid(child): _remove_hierarchy(child)
+		if is_instance_valid(child): 
+			_remove_hierarchy(child)
 
 
 func _get_topmost_at(world_pos: Vector2, touch_padding: float = 0.0) -> OwnEntity:
@@ -1130,27 +1146,14 @@ func _get_ysort_root_entity(entity: OwnEntity) -> OwnEntity:
 
 
 func _calculate_effective_z(entity: OwnEntity) -> int:
-	if not is_instance_valid(entity): return 0
+	if not is_instance_valid(entity): 
+		return 0
 	if entity.z_as_relative and entity.get_parent() is Node2D:
 		var parent_node: Node2D = entity.get_parent() as Node2D
 		if parent_node is OwnEntity:
 			return _calculate_effective_z(parent_node as OwnEntity) + entity.z_index
 		return parent_node.z_index + entity.z_index
 	return entity.z_index
-
-
-func _load_session() -> Dictionary:
-	return JsonFileStore.read_dictionary("user://session.json")
-
-
-func _get_current_universe_id() -> String: return SaveSystem.get_current_universe_id()
-func _get_current_room_id() -> String: return SaveSystem.get_current_room_id()
-
-
-func _save_session_from_main_state() -> void:
-	var session: Dictionary = _load_session()
-	session["room_id"] = _get_current_room_id()
-	JsonFileStore.write_dictionary("user://session.json", session)
 
 
 func _on_atmosphere_changed(time_preset: String, weather_preset: String) -> void:
@@ -1162,7 +1165,7 @@ func _on_atmosphere_changed(time_preset: String, weather_preset: String) -> void
 # --- TRANSITIONS ---
 
 func _transition_to_room(target_room_id: String, traveler_data: Dictionary = {}) -> void:
-	var current_room_id_str: String = _get_current_room_id()
+	var current_room_id_str: String = AppState.room_id
 	if target_room_id.is_empty() or is_transitioning_room:
 		return
 	if target_room_id == current_room_id_str and traveler_data.is_empty():
@@ -1178,11 +1181,8 @@ func _transition_to_room(target_room_id: String, traveler_data: Dictionary = {})
 		tw_out.tween_property(transition_rect, "color:a", 1.0, 0.18)
 		await tw_out.finished
 
-	# 2. Write session & stream target room
-	var session: Dictionary = _load_session()
-	session["room_id"] = target_room_id
-	JsonFileStore.write_dictionary("user://session.json", session)
-
+	# 2. Update session & stream target room
+	AppState.set_active_room(target_room_id)
 	_load_active_room(target_room_id, traveler_data)
 
 	# 3. Smooth Fade-In
@@ -1200,26 +1200,6 @@ func _transition_to_room(target_room_id: String, traveler_data: Dictionary = {})
 		_on_game_room_changed(target_room_id, current_room_id_str, traveler_data)
 
 
-func _switch_universe(new_u_id: String, new_u_name: String, starting_room: String = "room_main") -> void:
-	if new_u_id.is_empty(): return
-	var session: Dictionary = _load_session()
-	session["universe_id"] = new_u_id
-	session["universe_name"] = new_u_name
-	session["room_id"] = starting_room
-	JsonFileStore.write_dictionary("user://session.json", session)
-
-	if EventBus.has_signal("universe_changed"):
-		EventBus.universe_changed.emit(new_u_id, new_u_name)
-
-
-func _clear_current_universe_rooms() -> void:
-	RoomRepository.clear_universe(SaveSystem.get_current_universe_id())
-
-
-func _generate_entity_uuid(base_name: String) -> String:
-	return AppState.generate_entity_uuid(base_name)
-
-
 func _on_open_universe_journal() -> void:
 	if universe_journal_ui != null and universe_journal_ui.has_method("open_journal"):
 		universe_journal_ui.call("open_journal")
@@ -1235,7 +1215,7 @@ func _on_open_room_studio() -> void:
 			current_room_floor_level,
 			current_building_name,
 			current_building_id,
-			_get_current_room_id()
+			AppState.room_id
 		)
 
 
@@ -1247,10 +1227,14 @@ func _on_floor_preview_changed(preview_y: float, preview_visible: bool) -> void:
 
 func _on_room_configured(slices_data: Array[Dictionary], floor_y: float, room_name: String, floor_level: String, bldg_name: String = "", bldg_id: String = "") -> void:
 	current_room_floor_y = floor_y
-	current_room_title = room_name if not room_name.is_empty() else _get_current_room_id()
+	current_room_title = room_name if not room_name.is_empty() else AppState.room_id
 	current_room_floor_level = floor_level if not floor_level.is_empty() else "1F"
-	if not bldg_name.is_empty(): current_building_name = bldg_name
-	if not bldg_id.is_empty(): current_building_id = bldg_id
+	if not bldg_name.is_empty(): 
+		current_building_name = bldg_name
+	if not bldg_id.is_empty(): 
+		current_building_id = bldg_id
+
+	AppState.set_active_room(AppState.room_id, current_room_floor_level, current_building_id, current_building_name)
 
 	_apply_room_slices(slices_data)
 	_update_floor_guide_visuals(floor_y, false)
@@ -1259,7 +1243,8 @@ func _on_room_configured(slices_data: Array[Dictionary], floor_y: float, room_na
 
 
 func _update_floor_guide_visuals(floor_y: float, preview_visible: bool) -> void:
-	if floor_guide_line == null: return
+	if floor_guide_line == null: 
+		return
 	if preview_visible:
 		floor_guide_line.clear_points()
 		floor_guide_line.add_point(Vector2(0.0, floor_y))
@@ -1271,10 +1256,12 @@ func _update_floor_guide_visuals(floor_y: float, preview_visible: bool) -> void:
 
 static func parse_floor_info(raw_label: String) -> Dictionary:
 	var text: String = raw_label.strip_edges()
-	if text.is_empty(): return {"floor_level": "1F", "title": "Main Room"}
+	if text.is_empty(): 
+		return {"floor_level": "1F", "title": "Main Room"}
 
 	var words: PackedStringArray = text.split(" ", false)
-	if words.is_empty(): return {"floor_level": "1F", "title": text}
+	if words.is_empty(): 
+		return {"floor_level": "1F", "title": text}
 
 	var first_word: String = words[0].strip_edges()
 	var upper_first: String = first_word.to_upper()
@@ -1344,6 +1331,8 @@ func _load_active_room(room_id: String, traveler_data: Dictionary = {}) -> void:
 	current_room_floor_level = target_floor_level
 	current_room_title = target_title
 
+	AppState.set_active_room(room_id, current_room_floor_level, current_building_id, current_building_name)
+
 	if top_nav_bar != null:
 		top_nav_bar.update_current_floor_display(current_room_floor_level, current_room_title)
 
@@ -1351,10 +1340,12 @@ func _load_active_room(room_id: String, traveler_data: Dictionary = {}) -> void:
 	var loaded_slices: Array[Dictionary] = []
 	if raw_slices is Array and not (raw_slices as Array).is_empty():
 		for item: Variant in (raw_slices as Array):
-			if item is Dictionary: loaded_slices.append((item as Dictionary).duplicate(true))
+			if item is Dictionary: 
+				loaded_slices.append((item as Dictionary).duplicate(true))
 	elif saved_state.has("sections") and saved_state["sections"] is Array:
 		for item: Variant in (saved_state["sections"] as Array):
-			if item is Dictionary: loaded_slices.append((item as Dictionary).duplicate(true))
+			if item is Dictionary: 
+				loaded_slices.append((item as Dictionary).duplicate(true))
 	else:
 		var wall_path: String = str(saved_state.get("wallpaper_path", ""))
 		var fill_mode: String = str(saved_state.get("fill_mode", "cover"))
@@ -1367,9 +1358,8 @@ func _load_active_room(room_id: String, traveler_data: Dictionary = {}) -> void:
 	_apply_room_slices(loaded_slices)
 
 	if atmosphere != null:
-		var session: Dictionary = _load_session()
-		atmosphere.set_preset(str(session.get("time_preset", "day")))
-		atmosphere.set_weather(str(session.get("weather_preset", "none")))
+		atmosphere.set_preset(AppState.time_preset)
+		atmosphere.set_weather(AppState.weather_preset)
 
 	_update_floor_guide_visuals(current_room_floor_y, false)
 
@@ -1380,7 +1370,8 @@ func _load_active_room(room_id: String, traveler_data: Dictionary = {}) -> void:
 		if top_nav_bar != null:
 			top_nav_bar.set_zoom_button_state(false)
 
-	if drawer_tray_ui != null: drawer_tray_ui.refresh_tray()
+	if drawer_tray_ui != null: 
+		drawer_tray_ui.refresh_tray()
 	is_room_loaded = true
 
 	SaveSystem.save_current_room_state()
@@ -1397,11 +1388,13 @@ func _on_game_room_changed(new_room: String, _departing_room: String, traveler_d
 
 func _on_universe_switched(new_u_id: String, new_u_name: String) -> void:
 	SaveSystem.save_current_room_state()
-	_switch_universe(new_u_id, new_u_name, "room_main")
+	AppState.switch_universe(new_u_id, new_u_name, "room_main")
 	RecipeCrafting.load_recipes_for_universe(new_u_id)
 
-	if world_map_screen != null: world_map_screen.load_map_for_current_universe()
-	if drawer_tray_ui != null: drawer_tray_ui.load_cast_tray_for_current_universe()
+	if world_map_screen != null: 
+		world_map_screen.load_map_for_current_universe()
+	if drawer_tray_ui != null: 
+		drawer_tray_ui.load_cast_tray_for_current_universe()
 	_load_active_room("room_main")
 
 
@@ -1414,12 +1407,14 @@ func _on_reset_all_rooms_requested() -> void:
 			characters_to_rescue.append(entity)
 
 	for character: OwnEntity in characters_to_rescue:
-		if not is_instance_valid(character): continue
+		if not is_instance_valid(character): 
+			continue
 		all_entities.erase(character)
-		if drawer_tray_ui != null: drawer_tray_ui.store_character_in_tray(character)
+		if drawer_tray_ui != null: 
+			drawer_tray_ui.store_character_in_tray(character)
 		rescued_count += 1
 
-	_clear_current_universe_rooms()
+	RoomRepository.clear_universe(AppState.universe_id)
 	_load_active_room("room_main")
 	EventBus.notification_requested.emit("Rooms Reset. %d Character(s) returned to Cast Tray!" % rescued_count, true)
 
@@ -1447,7 +1442,7 @@ func _serialize_state() -> Dictionary:
 	var camera_zoom: float = main_camera.zoom.x if main_camera != null else 1.0
 
 	return SaveSchema.create_room(
-		_get_current_room_id(),
+		AppState.room_id,
 		current_room_title,
 		current_room_floor_y,
 		room_slices,
@@ -1461,13 +1456,17 @@ func _serialize_state() -> Dictionary:
 
 
 func _on_history_state_restored(snapshot: Dictionary) -> void:
-	if snapshot.has("floor_y"): current_room_floor_y = float(snapshot["floor_y"])
-	if snapshot.has("room_title"): current_room_title = str(snapshot["room_title"])
-	if snapshot.has("floor_level"): current_room_floor_level = str(snapshot["floor_level"])
+	if snapshot.has("floor_y"): 
+		current_room_floor_y = float(snapshot["floor_y"])
+	if snapshot.has("room_title"): 
+		current_room_title = str(snapshot["room_title"])
+	if snapshot.has("floor_level"): 
+		current_room_floor_level = str(snapshot["floor_level"])
 	if snapshot.has("slices") and snapshot["slices"] is Array:
 		var restored_slices: Array[Dictionary] = []
 		for s: Variant in (snapshot["slices"] as Array):
-			if s is Dictionary: restored_slices.append((s as Dictionary).duplicate(true))
+			if s is Dictionary: 
+				restored_slices.append((s as Dictionary).duplicate(true))
 		_apply_room_slices(restored_slices)
 	RoomManager.deserialize_room_into_canvas(snapshot, world_canvas, all_entities)
 	_update_floor_guide_visuals(current_room_floor_y, false)
@@ -1477,7 +1476,7 @@ func _on_history_state_restored(snapshot: Dictionary) -> void:
 func _on_drawer_spawn_ugc(item_name: String, texture: Texture2D, file_path: String) -> void:
 	var texture_height: float = float(texture.get_height()) if texture != null else 64.0
 	var scale_factor: float = clampf(180.0 / texture_height, 0.08, 1.0) if texture_height > 240.0 else 1.0
-	var uid: String = _generate_entity_uuid(item_name)
+	var uid: String = AppState.generate_entity_uuid(item_name)
 	var entity: OwnEntity = OwnEntity.new()
 	var center_x: float = main_camera.position.x if main_camera != null else room_bounds.get_center().x
 	var spawn_x: float = clampf(center_x + randf_range(-40.0, 40.0), 100.0, room_bounds.end.x - 100.0)
@@ -1522,7 +1521,7 @@ func _on_entity_spawn_requested(request: Dictionary) -> void:
 	var pos_dict: Dictionary = request.get("position", {})
 	var spawn_pos: Vector2 = Vector2(float(pos_dict.get("x", 640.0)), float(pos_dict.get("y", current_room_floor_y)))
 
-	var uid: String = _generate_entity_uuid(item_name)
+	var uid: String = AppState.generate_entity_uuid(item_name)
 	var entity: OwnEntity = OwnEntity.new()
 	entity.setup(uid, item_name, tex, spawn_pos, Types.EntityType.PROP, fpath)
 
@@ -1543,27 +1542,36 @@ func _on_magic_wheel_action(action_name: String, target: OwnEntity) -> void:
 			_record_history()
 			SaveSystem.save_current_room_state()
 		"character_studio", "wardrobe", "frames", "states":
-			if pose_anim_studio_ui != null: pose_anim_studio_ui.open_for_entity(target)
+			if pose_anim_studio_ui != null: 
+				pose_anim_studio_ui.open_for_entity(target)
 		"anchors":
-			if snap_studio_ui != null: snap_studio_ui.open_for_entity(target)
+			if snap_studio_ui != null: 
+				snap_studio_ui.open_for_entity(target)
 		"lighting":
-			if light_studio_ui != null: light_studio_ui.open_for_entity(target)
+			if light_studio_ui != null: 
+				light_studio_ui.open_for_entity(target)
 		"food_studio":
-			if food_studio_ui != null: food_studio_ui.open_for_entity(target)
+			if food_studio_ui != null: 
+				food_studio_ui.open_for_entity(target)
 		"lore", "profile":
-			if lore_card_ui != null and lore_card_ui.has_method("open_card"): lore_card_ui.call("open_card", target)
+			if lore_card_ui != null and lore_card_ui.has_method("open_card"): 
+				lore_card_ui.call("open_card", target)
 		"config":
-			if entity_config_dialog != null: entity_config_dialog.open_for_entity(target)
+			if entity_config_dialog != null: 
+				entity_config_dialog.open_for_entity(target)
 		"logic":
-			if logic_rule_dialog != null: logic_rule_dialog.open_for_entity(target)
+			if logic_rule_dialog != null: 
+				logic_rule_dialog.open_for_entity(target)
 		"edit_door":
-			if door_editor_dialog != null: door_editor_dialog.open_for_door(target)
+			if door_editor_dialog != null: 
+				door_editor_dialog.open_for_door(target)
 		"climb_stairs":
 			_handle_stairs_tap(target)
 		"elevator":
 			_handle_elevator_tap(target)
 		"save_template":
-			if drawer_tray_ui != null: drawer_tray_ui.store_entity_as_template(target)
+			if drawer_tray_ui != null: 
+				drawer_tray_ui.store_entity_as_template(target)
 		"lock":
 			target.is_locked = not target.is_locked
 			_record_history()
@@ -1571,7 +1579,7 @@ func _on_magic_wheel_action(action_name: String, target: OwnEntity) -> void:
 			_trigger_haptic(40)
 			EventBus.notification_requested.emit("Locked" if target.is_locked else "Unlocked", true)
 		"clone":
-			var uid: String = _generate_entity_uuid(target.display_name)
+			var uid: String = AppState.generate_entity_uuid(target.display_name)
 			var clone_entity: OwnEntity = OwnEntity.new()
 			clone_entity.setup(uid, target.display_name, target.main_texture, target.global_position + Vector2(40.0, 40.0), target.entity_type, target.texture_path)
 			clone_entity.from_dict(target.to_dict())
@@ -1583,7 +1591,8 @@ func _on_magic_wheel_action(action_name: String, target: OwnEntity) -> void:
 			SaveSystem.save_current_room_state()
 		"store":
 			_remove_hierarchy(target)
-			if drawer_tray_ui != null: drawer_tray_ui.store_character_in_tray(target)
+			if drawer_tray_ui != null: 
+				drawer_tray_ui.store_character_in_tray(target)
 			_trigger_haptic(45)
 			_record_history()
 			SaveSystem.save_current_room_state()
@@ -1618,7 +1627,7 @@ func _on_top_nav_floor_switcher_requested() -> void:
 		var fl: Dictionary = floors[i]
 		var r_id: String = str(fl.get("room_id", ""))
 		var fl_label: String = str(fl.get("label", r_id))
-		var is_current: bool = (r_id == _get_current_room_id())
+		var is_current: bool = (r_id == AppState.room_id)
 		popup.add_item(fl_label + (" (Current)" if is_current else ""), i)
 		popup.set_item_disabled(i, is_current)
 

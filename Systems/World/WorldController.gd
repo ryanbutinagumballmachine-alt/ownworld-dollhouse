@@ -53,8 +53,8 @@ func _ready() -> void:
 
 func _initialize_world() -> void:
 	if room_lifecycle and room_lifecycle.has_method("load_room"):
-		var room_id: String = AppState.room_id if not AppState.room_id.is_empty() else SaveSchema.DEFAULT_ROOM_ID
-		room_lifecycle.load_room(room_id)
+		var target_room_id: String = AppState.room_id if not AppState.room_id.is_empty() else SaveSchema.DEFAULT_ROOM_ID
+		room_lifecycle.load_room(target_room_id)
 	world_ready.emit()
 
 
@@ -62,9 +62,12 @@ func set_room_bounds(new_bounds: Rect2) -> void:
 	if new_bounds.size.x <= 0.0 or new_bounds.size.y <= 0.0:
 		return
 	room_bounds = new_bounds
-	if room_lifecycle and room_lifecycle.has_method("set_room_bounds"): room_lifecycle.set_room_bounds(new_bounds)
-	if world_camera and world_camera.has_method("update_room_bounds"): world_camera.update_room_bounds(new_bounds)
-	if interaction_controller and interaction_controller.has_method("set_room_bounds"): interaction_controller.set_room_bounds(new_bounds)
+	if room_lifecycle and room_lifecycle.has_method("set_room_bounds"): 
+		room_lifecycle.set_room_bounds(new_bounds)
+	if world_camera and world_camera.has_method("update_room_bounds"): 
+		world_camera.update_room_bounds(new_bounds)
+	if interaction_controller and interaction_controller.has_method("set_room_bounds"): 
+		interaction_controller.set_room_bounds(new_bounds)
 
 
 func get_entities() -> Array:

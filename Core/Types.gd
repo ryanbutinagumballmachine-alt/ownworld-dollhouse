@@ -1,7 +1,3 @@
-# ============================================================
-# File: res://Core/Types.gd
-# ============================================================
-
 # ==============================================================================
 # OWNWORLD — CORE TYPES & ENUMS
 # File: res://Core/Types.gd
@@ -70,7 +66,15 @@ enum ActionCommand {
 	ADVANCE_STATE = 5,
 	TELEPORT_ROOM = 6,
 	TOGGLE_LIGHT = 7,
-	SPAWN_ITEM = 8
+	SPAWN_ITEM = 8,
+	STOP_ANIM = 101,
+	SET_EXPRESSION = 102,
+	SAY_DIALOGUE = 103,
+	SPRAY_EMOTION = 104,
+	SET_MOOD = 105,
+	SET_WEATHER = 106,
+	SPAWN_ITEM_UGC = 107,
+	TELEPORT_ROOM_CUSTOM = 108
 }
 
 ## Target categories for action execution in Logic Rules.
