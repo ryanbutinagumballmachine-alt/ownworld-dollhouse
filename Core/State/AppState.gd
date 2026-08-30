@@ -54,7 +54,7 @@ func load_session_from_disk() -> void:
 		return
 
 	var file: FileAccess = FileAccess.open(PATH_SESSION_FILE, FileAccess.READ)
-	if file == null:
+	if not is_instance_valid(file):
 		return
 
 	var parsed: Variant = JSON.parse_string(file.get_as_text())

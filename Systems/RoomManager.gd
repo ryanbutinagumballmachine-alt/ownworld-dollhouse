@@ -17,7 +17,7 @@ const DEFAULT_TEXTURE_SIZE: Vector2 = Vector2(64.0, 64.0)
 
 ## Streams a saved room onto the canvas, reconciling incoming traveler entities.
 static func stream_room(room_id: String, traveler_data: Dictionary, canvas: Node2D, all_entities: Array[OwnEntity]) -> void:
-	if canvas == null:
+	if not is_instance_valid(canvas):
 		return
 
 	clear_runtime_entities(canvas, all_entities)
@@ -70,7 +70,7 @@ static func clear_runtime_entities(canvas: Node2D, all_entities: Array[OwnEntity
 			entity.queue_free()
 	all_entities.clear()
 
-	if canvas != null:
+	if is_instance_valid(canvas):
 		for child: Node in canvas.get_children():
 			if child is OwnEntity and is_instance_valid(child):
 				child.queue_free()
@@ -98,14 +98,14 @@ static func resolve_traveler_spawn_position(traveler_data: Dictionary, all_entit
 
 
 static func reconstruct_traveler_bundle(bundle: Array, spawn_pos: Vector2, canvas: Node2D, all_entities: Array[OwnEntity]) -> void:
-	if canvas == null or bundle.is_empty():
+	if not is_instance_valid(canvas) or bundle.is_empty():
 		return
 
 	var lookup: Dictionary = {}
 	for value: Variant in bundle:
 		if value is Dictionary:
 			var entity: OwnEntity = _create_entity_from_data(value as Dictionary, spawn_pos)
-			if entity != null:
+			if is_instance_valid(entity):
 				canvas.add_child(entity)
 				all_entities.append(entity)
 				lookup[entity.entity_id] = entity
@@ -114,7 +114,7 @@ static func reconstruct_traveler_bundle(bundle: Array, spawn_pos: Vector2, canva
 
 
 static func deserialize_room_into_canvas(snapshot: Dictionary, canvas: Node2D, all_entities: Array[OwnEntity]) -> void:
-	if canvas == null:
+	if not is_instance_valid(canvas):
 		return
 	clear_runtime_entities(canvas, all_entities)
 
@@ -132,7 +132,7 @@ static func deserialize_room_into_canvas(snapshot: Dictionary, canvas: Node2D, a
 			var entity_data: Dictionary = value as Dictionary
 			var spawn_position: Vector2 = Vector2(float(entity_data.get("x", 0.0)), float(entity_data.get("y", 0.0)))
 			var entity: OwnEntity = _create_entity_from_data(entity_data, spawn_position)
-			if entity != null:
+			if is_instance_valid(entity):
 				canvas.add_child(entity)
 				all_entities.append(entity)
 				lookup[entity.entity_id] = entity
@@ -209,5 +209,5 @@ static func _relink_hierarchy(raw_entities: Array, lookup: Dictionary) -> void:
 
 		var child_entity: OwnEntity = lookup.get(child_id, null) as OwnEntity
 		var parent_entity: OwnEntity = lookup.get(parent_id, null) as OwnEntity
-		if child_entity != null and parent_entity != null and is_instance_valid(child_entity) and is_instance_valid(parent_entity) and child_entity != parent_entity:
+		if is_instance_valid(child_entity) and is_instance_valid(parent_entity) and child_entity != parent_entity:
 			child_entity.attach_to_socket(parent_entity, socket_key, true)

@@ -32,7 +32,7 @@ func configure(color: Color, new_intensity: float, new_radius: float, new_pulse_
 	pulse_speed = maxf(new_pulse_speed, 0.0)
 	shape_mode = clampi(new_shape_mode, int(Types.LightShapeMode.SILHOUETTE_CONTOUR), int(Types.LightShapeMode.ANCHOR_POINTS))
 	configuration_changed.emit()
-	if entity != null and is_instance_valid(entity):
+	if is_instance_valid(entity):
 		EventBus.entity_state_changed.emit(entity.entity_id)
 
 
@@ -41,7 +41,7 @@ func set_active(value: bool) -> void:
 		return
 	active = value
 	active_changed.emit(active)
-	if entity != null and is_instance_valid(entity):
+	if is_instance_valid(entity):
 		EventBus.entity_state_changed.emit(entity.entity_id)
 
 

@@ -445,7 +445,7 @@ static func create_theme(theme_data: Dictionary, corner_radius: int = DEFAULT_CO
 
 ## Recursively applies the procedural theme resource across the entire SceneTree.
 static func apply_theme_globally(tree: SceneTree, theme_data: Dictionary, corner_radius: int = DEFAULT_CORNER_RADIUS) -> Theme:
-	if not tree or not tree.root:
+	if not is_instance_valid(tree) or not is_instance_valid(tree.root):
 		return null
 	var global_theme: Theme = create_theme(theme_data, corner_radius)
 	tree.root.theme = global_theme
@@ -454,6 +454,8 @@ static func apply_theme_globally(tree: SceneTree, theme_data: Dictionary, corner
 
 
 static func _propagate_theme_to_tree(node: Node, th: Theme) -> void:
+	if not is_instance_valid(node):
+		return
 	if node is Window:
 		(node as Window).theme = th
 	elif node is Control:
@@ -464,15 +466,16 @@ static func _propagate_theme_to_tree(node: Node, th: Theme) -> void:
 
 	if node is OptionButton:
 		var pop: PopupMenu = (node as OptionButton).get_popup()
-		if pop != null: 
+		if is_instance_valid(pop): 
 			pop.theme = th
 	elif node is MenuButton:
 		var pop: PopupMenu = (node as MenuButton).get_popup()
-		if pop != null: 
+		if is_instance_valid(pop): 
 			pop.theme = th
 
 	for child: Node in node.get_children(true):
-		_propagate_theme_to_tree(child, th)
+		if is_instance_valid(child):
+			_propagate_theme_to_tree(child, th)
 
 
 static func clear_procedural_icon_cache() -> void:

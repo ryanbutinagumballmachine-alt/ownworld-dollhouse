@@ -12,7 +12,7 @@ extends RefCounted
 
 
 static func evaluate_trigger(trigger_event: Types.TriggerEvent, source_entity: OwnEntity, context: Dictionary = {}) -> void:
-	if source_entity == null or not is_instance_valid(source_entity) or source_entity.logic_rules.is_empty():
+	if not is_instance_valid(source_entity) or source_entity.logic_rules.is_empty():
 		return
 
 	for rule: Dictionary in source_entity.logic_rules:
@@ -29,7 +29,7 @@ static func _passes_item_filter(rule: Dictionary, context: Dictionary) -> bool:
 		return true
 
 	var received_item: OwnEntity = context.get("item", null) as OwnEntity
-	if received_item == null or not is_instance_valid(received_item):
+	if not is_instance_valid(received_item):
 		return false
 
 	var item_name: String = received_item.display_name.strip_edges().to_lower()
@@ -46,6 +46,8 @@ static func _passes_condition(rule: Dictionary, source_entity: OwnEntity) -> boo
 
 
 static func _evaluate_condition(entity: OwnEntity, field: String, expected_value: String) -> bool:
+	if not is_instance_valid(entity):
+		return false
 	var expected: String = expected_value.strip_edges().to_lower()
 	match field.strip_edges().to_lower():
 		"active_form": return entity.active_form_key.strip_edges().to_lower() == expected
@@ -65,7 +67,7 @@ static func _dispatch_action(rule: Dictionary, source_entity: OwnEntity, context
 			_execute_single_target_action(action_command, value, source_entity, context)
 		int(Types.ActionTarget.TRIGGER_ITEM):
 			var received_item: OwnEntity = context.get("item", null) as OwnEntity
-			if received_item != null and is_instance_valid(received_item):
+			if is_instance_valid(received_item):
 				_execute_single_target_action(action_command, value, received_item, context)
 		int(Types.ActionTarget.ROOM_ALL_CHARACTERS):
 			_execute_room_character_action(action_command, value, context)
@@ -76,7 +78,7 @@ static func _dispatch_action(rule: Dictionary, source_entity: OwnEntity, context
 
 
 static func _execute_single_target_action(action_command: int, value: String, target: OwnEntity, _context: Dictionary) -> void:
-	if target == null or not is_instance_valid(target):
+	if not is_instance_valid(target):
 		return
 
 	match action_command:
@@ -184,6 +186,8 @@ static func _request_spawn_item(art_name_or_path: String, spawn_position: Vector
 
 
 static func _publish_rule_notification(rule: Dictionary, source_entity: OwnEntity) -> void:
+	if not is_instance_valid(source_entity):
+		return
 	var message: String = str(rule.get("toast_msg", "")).strip_edges()
 	if message.is_empty(): 
 		message = "Triggered: " + source_entity.display_name

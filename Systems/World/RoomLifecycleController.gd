@@ -21,7 +21,7 @@ var current_room_floor_y: float = 600.0
 var current_room_title: String = "Main Room"
 var current_room_floor_level: String = "1F"
 var room_sections: Array[Dictionary] = [{"wallpaper_path": "", "fill_mode": "cover"}]
-var _entities: Array = []
+var _entities: Array[OwnEntity] = []
 var _active_room_id: String = ""
 
 signal room_loading_started(room_id: String)
@@ -39,12 +39,12 @@ func configure(p_entity_root: Node2D, p_world_camera: Camera2D, p_atmosphere: No
 
 func set_room_bounds(new_bounds: Rect2) -> void:
 	room_bounds = new_bounds
-	if world_camera != null and is_instance_valid(world_camera) and world_camera.has_method("update_room_bounds"):
+	if is_instance_valid(world_camera) and world_camera.has_method("update_room_bounds"):
 		world_camera.update_room_bounds(new_bounds)
 
 
 func load_room(room_id: String, traveler_data: Dictionary = {}) -> void:
-	if entity_root == null:
+	if not is_instance_valid(entity_root):
 		return
 	var clean_room_id: String = room_id.strip_edges()
 	room_loading_started.emit(clean_room_id)
@@ -82,12 +82,12 @@ func load_room(room_id: String, traveler_data: Dictionary = {}) -> void:
 		if bundle_value is Array and not (bundle_value as Array).is_empty():
 			RoomManager.reconstruct_traveler_bundle(bundle_value as Array, Vector2(300.0, current_room_floor_y - 80.0), entity_root, _entities)
 
-	if atmosphere != null and is_instance_valid(atmosphere):
+	if is_instance_valid(atmosphere):
 		if atmosphere.has_method("set_preset"): 
 			atmosphere.set_preset(AppState.time_preset)
 		if atmosphere.has_method("set_weather"): 
 			atmosphere.set_weather(AppState.weather_preset)
-	if world_camera != null and is_instance_valid(world_camera) and world_camera.has_method("update_room_bounds"):
+	if is_instance_valid(world_camera) and world_camera.has_method("update_room_bounds"):
 		world_camera.update_room_bounds(room_bounds)
 
 	room_loaded.emit(clean_room_id, state.duplicate(true))
@@ -98,16 +98,17 @@ func save_active_room() -> bool:
 	return SaveSystem.save_room_state(room_id, get_current_room_state())
 
 
-func get_entities() -> Array: 
+func get_entities() -> Array[OwnEntity]: 
 	return _entities
+
 
 func get_active_room_id() -> String: 
 	return _active_room_id
 
 
 func get_current_room_state() -> Dictionary:
-	var cam_pos: Vector2 = world_camera.position if (world_camera != null and is_instance_valid(world_camera)) else Vector2(960.0, 540.0)
-	var cam_zoom: float = world_camera.zoom.x if (world_camera != null and is_instance_valid(world_camera)) else 1.0
+	var cam_pos: Vector2 = world_camera.position if is_instance_valid(world_camera) else Vector2(960.0, 540.0)
+	var cam_zoom: float = world_camera.zoom.x if is_instance_valid(world_camera) else 1.0
 	var serialized_entities: Array[Dictionary] = EntitySerializer.serialize_roots(_entities)
 
 	return SaveSchema.create_room(
@@ -121,7 +122,7 @@ func get_current_room_state() -> Dictionary:
 func _clear_entities() -> void:
 	if not _active_room_id.is_empty():
 		room_unloaded.emit(_active_room_id)
-	for entity: Variant in _entities:
+	for entity: OwnEntity in _entities:
 		if is_instance_valid(entity):
 			entity.queue_free()
 	_entities.clear()

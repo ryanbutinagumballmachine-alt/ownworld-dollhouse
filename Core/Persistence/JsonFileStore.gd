@@ -24,7 +24,7 @@ static func write_dictionary(file_path: String, data: Dictionary) -> bool:
 
 	var temp_path: String = normalized_path + ".tmp"
 	var file: FileAccess = FileAccess.open(temp_path, FileAccess.WRITE)
-	if file == null:
+	if not is_instance_valid(file):
 		return false
 
 	file.store_string(JSON.stringify(data, "\t"))

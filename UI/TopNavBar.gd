@@ -35,7 +35,7 @@ signal open_tutorial_requested()
 func _ready() -> void:
 	name = "TopNavBar"
 	layer = 100
-	add_to_group("top_nav_bar")
+	add_to_group(&"top_nav_bar")
 	_build_nav_ui()
 	_connect_system_signals()
 	_apply_theme()
@@ -50,7 +50,7 @@ func _connect_system_signals() -> void:
 	if not ThemeService.theme_changed.is_connected(_on_theme_changed):
 		ThemeService.theme_changed.connect(_on_theme_changed)
 	var tree: SceneTree = get_tree()
-	if tree != null and tree.root != null and not tree.root.size_changed.is_connected(_apply_hardware_safe_margins):
+	if is_instance_valid(tree) and is_instance_valid(tree.root) and not tree.root.size_changed.is_connected(_apply_hardware_safe_margins):
 		tree.root.size_changed.connect(_apply_hardware_safe_margins)
 
 
@@ -58,7 +58,7 @@ func _connect_system_signals() -> void:
 func _apply_hardware_safe_margins() -> void:
 	var safe_area: Rect2i = DisplayServer.get_display_safe_area()
 	var top_margin: float = float(safe_area.position.y)
-	if root_container != null:
+	if is_instance_valid(root_container):
 		root_container.offset_top = maxf(10.0, top_margin + (6.0 if _is_mobile() else 2.0))
 
 
@@ -109,32 +109,32 @@ func _build_nav_ui() -> void:
 
 ## Returns the exact bottom Y screen coordinate of the navigation capsule for dynamic toast positioning.
 func get_nav_bottom_y() -> float:
-	if capsule_panel != null and capsule_panel.is_inside_tree():
+	if is_instance_valid(capsule_panel) and capsule_panel.is_inside_tree():
 		var capsule_rect: Rect2 = capsule_panel.get_global_rect()
 		if capsule_rect.size.y > 0.0:
 			return capsule_rect.end.y
 
-	if root_container != null and root_container.is_inside_tree():
+	if is_instance_valid(root_container) and root_container.is_inside_tree():
 		return root_container.offset_top + (48.0 if _is_mobile() else 36.0)
 
 	return 54.0
 
 
 func is_point_inside_nav(screen_pos: Vector2) -> bool:
-	if capsule_panel != null and capsule_panel.is_visible_in_tree():
+	if is_instance_valid(capsule_panel) and capsule_panel.is_visible_in_tree():
 		return capsule_panel.get_global_rect().has_point(screen_pos)
 	return false
 
 
 func set_zoom_button_state(is_zoom_active: bool) -> void:
-	if btn_zoom != null:
+	if is_instance_valid(btn_zoom):
 		btn_zoom.button_pressed = is_zoom_active
 		btn_zoom.text = " Focus" if is_zoom_active else " Zoom"
 		btn_zoom.modulate = Color(1.3, 1.3, 1.3) if is_zoom_active else Color.WHITE
 
 
 func update_current_floor_display(floor_level: String, _floor_title: String = "") -> void:
-	if btn_floors != null:
+	if is_instance_valid(btn_floors):
 		btn_floors.text = " %s ▼ " % (floor_level if not floor_level.is_empty() else "1F")
 
 
@@ -164,7 +164,7 @@ func _on_theme_changed(_theme_data: Dictionary) -> void:
 
 
 func _apply_theme() -> void:
-	if root_container != null:
+	if is_instance_valid(root_container):
 		root_container.theme = ThemeService.create_theme()
 
 	_apply_nav_icon(btn_menu, "icon_menu")
@@ -177,7 +177,7 @@ func _apply_theme() -> void:
 
 
 func _apply_nav_icon(button: Button, icon_key: String) -> void:
-	if button == null: 
+	if not is_instance_valid(button): 
 		return
 	var icon_tex: Texture2D = ThemeService.get_icon(icon_key)
 	if icon_tex != null: 

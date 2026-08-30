@@ -1,7 +1,3 @@
-# ============================================================
-# File: res://UI/Dialogs/FoodStudioDialog.gd
-# ============================================================
-
 # ==============================================================================
 # OWNWORLD — FOOD & DRINK STUDIO (LAYER 120 & SUB-MODAL PICKER)
 # File: res://UI/Dialogs/FoodStudioDialog.gd
@@ -136,17 +132,17 @@ func _build_content() -> void:
 
 
 func _on_theme_updated() -> void:
-	if check_is_drink != null: 
+	if is_instance_valid(check_is_drink): 
 		apply_checkbox_icon(check_is_drink, "icon_drink")
-	if check_is_infinite != null: 
+	if is_instance_valid(check_is_infinite): 
 		apply_checkbox_icon(check_is_infinite, "icon_infinite")
-	if btn_add_stage != null: 
+	if is_instance_valid(btn_add_stage): 
 		apply_button_icon(btn_add_stage, "icon_plus")
-	if btn_save != null: 
+	if is_instance_valid(btn_save): 
 		apply_button_icon(btn_save, "icon_save")
-	if stages_vbox != null: 
+	if is_instance_valid(stages_vbox): 
 		_render_stages_list()
-	if root_panel == null: 
+	if not is_instance_valid(root_panel): 
 		return
 	for node: Node in root_panel.find_children("*", "Button", true, false):
 		if node is Button and (node as Button).text == "✕":
@@ -154,7 +150,7 @@ func _on_theme_updated() -> void:
 
 
 func _on_add_stage_pressed() -> void:
-	if asset_picker == null: 
+	if not is_instance_valid(asset_picker): 
 		return
 	asset_picker.open_picker("Choose Next Bite Stage Drawing", "", func(_art_name: String, texture: Texture2D, file_path: String) -> void:
 		if not file_path.is_empty():
@@ -191,7 +187,7 @@ func _on_close_requested() -> void:
 
 
 func _render_stages_list() -> void:
-	if stages_vbox == null: 
+	if not is_instance_valid(stages_vbox): 
 		return
 	for child: Node in stages_vbox.get_children():
 		child.queue_free()
@@ -265,7 +261,7 @@ func _remove_stage(index: int) -> void:
 
 
 func _on_save_pressed() -> void:
-	if active_entity == null or not is_instance_valid(active_entity):
+	if not is_instance_valid(active_entity):
 		_on_close_requested()
 		return
 

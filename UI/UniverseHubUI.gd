@@ -1,7 +1,3 @@
-# ============================================================
-# File: res://UI/UniverseHubUI.gd
-# ============================================================
-
 # ==============================================================================
 # OWNWORLD — UNIVERSE HUB / STORY LIBRARY (HYPER OPTIMIZED & LAYER 120)
 # File: res://UI/UniverseHubUI.gd
@@ -158,7 +154,7 @@ func close_hub() -> void:
 
 
 func _render_universe_cards() -> void:
-	if universe_list_vbox == null: 
+	if not is_instance_valid(universe_list_vbox): 
 		return
 	for child: Node in universe_list_vbox.get_children():
 		child.queue_free()
@@ -256,7 +252,7 @@ func _render_universe_cards() -> void:
 
 
 func _on_open_import_dialog() -> void:
-	if file_dialog == null: 
+	if not is_instance_valid(file_dialog): 
 		return
 	file_dialog.theme = ThemeService.create_theme()
 	file_dialog.popup_centered_ratio(0.7)
@@ -304,7 +300,7 @@ func _delete_universe(u_id: String, u_name: String) -> void:
 
 func _delete_directory_contents(directory_path: String) -> void:
 	var dir: DirAccess = DirAccess.open(directory_path)
-	if dir == null: 
+	if not is_instance_valid(dir): 
 		return
 	dir.list_dir_begin()
 	var file_name: String = dir.get_next()
@@ -320,7 +316,7 @@ func _delete_directory_contents(directory_path: String) -> void:
 
 
 func _on_create_universe_pressed() -> void:
-	var u_name: String = name_input.text.strip_edges()
+	var u_name: String = name_input.text.strip_edges() if is_instance_valid(name_input) else ""
 	if u_name.is_empty(): 
 		return
 	var u_id: String = u_name.to_lower().replace(" ", "_")
@@ -331,7 +327,8 @@ func _on_create_universe_pressed() -> void:
 	}
 
 	universe_registry.append(new_universe)
-	name_input.text = ""
+	if is_instance_valid(name_input):
+		name_input.text = ""
 	_save_universe_manifest(new_universe)
 	_render_universe_cards()
 	EventBus.notification_requested.emit("Created Universe: " + u_name, true)
@@ -362,7 +359,7 @@ func _load_universe_manifests() -> void:
 	JsonFileStore.ensure_directory(UNIVERSES_DIR)
 	var dir: DirAccess = DirAccess.open(UNIVERSES_DIR)
 
-	if dir != null:
+	if is_instance_valid(dir):
 		dir.list_dir_begin()
 		var file_name: String = dir.get_next()
 		while not file_name.is_empty():
@@ -387,7 +384,7 @@ func _get_universe_map_path(universe_id: String) -> String:
 
 
 func _apply_export_icon(button: Button) -> void:
-	if button == null: 
+	if not is_instance_valid(button): 
 		return
 	var icon_texture: Texture2D = ThemeService.get_icon("icon_prefab")
 	if icon_texture == null: 
@@ -397,7 +394,7 @@ func _apply_export_icon(button: Button) -> void:
 
 
 func _apply_create_icon(button: Button) -> void:
-	if button == null: 
+	if not is_instance_valid(button): 
 		return
 	var icon_texture: Texture2D = ThemeService.get_icon("icon_universe")
 	if icon_texture == null: 

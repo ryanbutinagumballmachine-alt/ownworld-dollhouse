@@ -22,15 +22,17 @@ var current_weather: String = "none"
 var current_preset: String = "day"
 
 var slice_emitters: Array[CPUParticles2D] = []
-var emitter_pool: Array[CPUParticles2D] = [] # Object Pool for performance
+var emitter_pool: Array[CPUParticles2D] = [] # Object Pool for zero-stutter reuse
 var cached_slices: Array[Dictionary] = []
 var cached_slice_width: float = 1280.0
 
 static var _cached_radial_texture: ImageTexture = null
 
+
 func _ready() -> void:
-	add_to_group("AtmosphereController")
+	add_to_group(&"AtmosphereController")
 	_setup_canvas_modulate()
+
 
 func _setup_canvas_modulate() -> void:
 	canvas_modulate = CanvasModulate.new()
@@ -38,11 +40,13 @@ func _setup_canvas_modulate() -> void:
 	canvas_modulate.color = TINT_DAY
 	add_child(canvas_modulate)
 
+
 func set_atmosphere_tint(target_color: Color, duration: float = 0.8) -> void:
-	if not canvas_modulate:
+	if not is_instance_valid(canvas_modulate):
 		return
 	var tw: Tween = create_tween().set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
 	tw.tween_property(canvas_modulate, "color", target_color, duration)
+
 
 func set_preset(preset_name: String) -> void:
 	current_preset = preset_name.to_lower()
@@ -53,19 +57,22 @@ func set_preset(preset_name: String) -> void:
 		"cozy": set_atmosphere_tint(TINT_COZY)
 		"cyberpunk": set_atmosphere_tint(TINT_CYBERPUNK)
 
+
 func set_weather(weather_name: String) -> void:
 	current_weather = weather_name.to_lower()
 	_update_all_slice_weather_emitters()
+
 
 func configure_weather_slices(slices: Array[Dictionary], slice_width: float) -> void:
 	cached_slices = slices.duplicate(true)
 	cached_slice_width = slice_width
 
-	# Return current emitters to pool
-	for emitter in slice_emitters:
-		emitter.emitting = false
-		emitter.visible = false
-		emitter_pool.append(emitter)
+	# Return current emitters to pool rather than destroying them
+	for emitter: CPUParticles2D in slice_emitters:
+		if is_instance_valid(emitter):
+			emitter.emitting = false
+			emitter.visible = false
+			emitter_pool.append(emitter)
 	slice_emitters.clear()
 
 	for i: int in range(cached_slices.size()):
@@ -73,7 +80,7 @@ func configure_weather_slices(slices: Array[Dictionary], slice_width: float) -> 
 		var is_outdoor: bool = bool(sec_data.get("is_outdoor", false))
 
 		if is_outdoor:
-			var emitter: CPUParticles2D
+			var emitter: CPUParticles2D = null
 			if emitter_pool.is_empty():
 				emitter = CPUParticles2D.new()
 				add_child(emitter)
@@ -89,6 +96,7 @@ func configure_weather_slices(slices: Array[Dictionary], slice_width: float) -> 
 			slice_emitters.append(emitter)
 
 	_update_all_slice_weather_emitters()
+
 
 func _update_all_slice_weather_emitters() -> void:
 	var is_mobile: bool = OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios")
@@ -135,6 +143,7 @@ func _update_all_slice_weather_emitters() -> void:
 				emitter.color = Color(1.0, 0.95, 0.6, 0.5)
 				emitter.emitting = true
 
+
 static func get_cached_radial_texture() -> ImageTexture:
 	if _cached_radial_texture != null:
 		return _cached_radial_texture
@@ -155,6 +164,7 @@ static func get_cached_radial_texture() -> ImageTexture:
 	
 	_cached_radial_texture = ImageTexture.create_from_image(img)
 	return _cached_radial_texture
+
 
 static func create_radial_point_light(radius: int = 140, tint: Color = Color(1.0, 0.85, 0.5, 0.9)) -> PointLight2D:
 	var light: PointLight2D = PointLight2D.new()

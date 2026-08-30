@@ -54,7 +54,7 @@ static func list_room_ids(universe_id: String) -> Array[String]:
 		return result
 
 	var directory: DirAccess = DirAccess.open(directory_path)
-	if directory == null:
+	if not is_instance_valid(directory):
 		return result
 
 	directory.list_dir_begin()
@@ -75,7 +75,7 @@ static func clear_universe(universe_id: String) -> bool:
 		return false
 
 	var directory: DirAccess = DirAccess.open(directory_path)
-	if directory == null:
+	if not is_instance_valid(directory):
 		return false
 
 	var changed: bool = false

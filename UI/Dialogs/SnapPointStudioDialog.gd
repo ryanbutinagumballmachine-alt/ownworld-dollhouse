@@ -61,9 +61,11 @@ var family_definitions: Array[Dictionary] = [
 	{"family": "custom", "label": "Custom Socket Key...", "icon": "icon_pin", "is_snap": true, "color": Color("#ec4899")}
 ]
 
+
 func _init() -> void:
 	max_panel_width = 680.0
 	max_panel_height = 580.0
+
 
 func _build_content() -> void:
 	name = "SnapPointStudioDialog"
@@ -250,16 +252,20 @@ func _build_content() -> void:
 	btn_save.pressed.connect(_on_close_requested)
 	main_vbox.add_child(btn_save)
 
+
 func _on_theme_updated() -> void:
 	_populate_family_dropdown()
 	_refresh_all()
-	if root_panel == null: return
+	if not is_instance_valid(root_panel): 
+		return
 	for node: Node in root_panel.find_children("*", "Button", true, false):
 		if node is Button and (node as Button).text == "✕":
 			apply_close_icon(node as Button)
 
+
 func _populate_family_dropdown() -> void:
-	if opt_family_category == null: return
+	if not is_instance_valid(opt_family_category): 
+		return
 	var prev_idx: int = opt_family_category.selected
 	opt_family_category.clear()
 
@@ -274,8 +280,10 @@ func _populate_family_dropdown() -> void:
 	if not family_definitions.is_empty():
 		opt_family_category.selected = clampi(prev_idx, 0, family_definitions.size() - 1)
 
+
 func open_for_entity(entity: OwnEntity) -> void:
-	if not is_instance_valid(entity): return
+	if not is_instance_valid(entity): 
+		return
 	active_entity = entity
 	sprite_preview_rect.texture = entity.main_texture
 	_populate_family_dropdown()
@@ -294,8 +302,9 @@ func open_for_entity(entity: OwnEntity) -> void:
 	await get_tree().process_frame
 	_refresh_all()
 
+
 func _on_close_requested() -> void:
-	if active_entity != null and is_instance_valid(active_entity):
+	if is_instance_valid(active_entity):
 		active_entity.rebuild_gizmos()
 		CapabilitySynchronizer.synchronize(active_entity)
 		SaveSystem.update_character_in_cast(active_entity)
@@ -305,18 +314,23 @@ func _on_close_requested() -> void:
 	selected_anchor_key = ""
 	super._on_close_requested()
 
+
 func _on_family_selected(index: int) -> void:
-	if index < 0 or index >= family_definitions.size(): return
+	if index < 0 or index >= family_definitions.size(): 
+		return
 	var definition: Dictionary = family_definitions[index]
 	var family: String = str(definition["family"])
 	var is_custom: bool = (family == "custom")
-	custom_name_input.visible = is_custom
+	if is_instance_valid(custom_name_input):
+		custom_name_input.visible = is_custom
 
 	var next_key: String = _find_next_incremental_key(family, bool(definition["is_snap"]))
-	btn_add_anchor.text = " + Add " + next_key
+	if is_instance_valid(btn_add_anchor):
+		btn_add_anchor.text = " + Add " + next_key
+
 
 func _on_add_anchor_pressed() -> void:
-	if active_entity == null or opt_family_category.selected < 0 or opt_family_category.selected >= family_definitions.size():
+	if not is_instance_valid(active_entity) or opt_family_category.selected < 0 or opt_family_category.selected >= family_definitions.size():
 		return
 
 	var def: Dictionary = family_definitions[opt_family_category.selected]
@@ -326,7 +340,8 @@ func _on_add_anchor_pressed() -> void:
 
 	if family == "custom":
 		var custom_txt: String = custom_name_input.text.strip_edges().to_lower().replace(" ", "_")
-		if custom_txt.is_empty(): custom_txt = "custom_1"
+		if custom_txt.is_empty(): 
+			custom_txt = "custom_1"
 		new_key = custom_txt
 	elif family == "sit_point":
 		new_key = "sit_point"
@@ -358,31 +373,41 @@ func _on_add_anchor_pressed() -> void:
 	_on_family_selected(opt_family_category.selected)
 	EventBus.notification_requested.emit("Added %s. Drag on canvas to position." % new_key, true)
 
+
 func _find_next_incremental_key(family_prefix: String, is_snap: bool) -> String:
-	if active_entity == null: return family_prefix + "_1"
-	if family_prefix == "sit_point": return "sit_point"
+	if not is_instance_valid(active_entity): 
+		return family_prefix + "_1"
+	if family_prefix == "sit_point": 
+		return "sit_point"
 
 	var pool: Dictionary = active_entity.snap_points if is_snap else active_entity.interaction_points
 	var max_index: int = 0
 
 	for key_name: String in pool.keys():
-		if key_name == family_prefix: max_index = maxi(max_index, 1)
+		if key_name == family_prefix: 
+			max_index = maxi(max_index, 1)
 		elif key_name.begins_with(family_prefix + "_"):
 			var suffix: String = key_name.trim_prefix(family_prefix + "_")
-			if suffix.is_valid_int(): max_index = maxi(max_index, suffix.to_int())
+			if suffix.is_valid_int(): 
+				max_index = maxi(max_index, suffix.to_int())
 
 	return "%s_%d" % [family_prefix, max_index + 1]
 
+
 func _count_family_instances(family_prefix: String, is_snap: bool) -> int:
-	if active_entity == null: return 0
+	if not is_instance_valid(active_entity): 
+		return 0
 	var pool: Dictionary = active_entity.snap_points if is_snap else active_entity.interaction_points
 	var count: int = 0
 	for k: String in pool.keys():
-		if k.begins_with(family_prefix): count += 1
+		if k.begins_with(family_prefix): 
+			count += 1
 	return count
 
+
 func _on_canvas_gui_input(event: InputEvent) -> void:
-	if active_entity == null: return
+	if not is_instance_valid(active_entity): 
+		return
 
 	if event is InputEventMouseButton:
 		var mb: InputEventMouseButton = event as InputEventMouseButton
@@ -410,8 +435,10 @@ func _on_canvas_gui_input(event: InputEvent) -> void:
 		if sd.index == active_touch_index and is_dragging_anchor:
 			_handle_pointer_move(sd.position)
 
+
 func _handle_pointer_down(ui_pos: Vector2) -> void:
-	if active_entity == null: return
+	if not is_instance_valid(active_entity): 
+		return
 
 	var touched_key: String = ""
 	var touched_is_snap: bool = true
@@ -449,25 +476,30 @@ func _handle_pointer_down(ui_pos: Vector2) -> void:
 		else:
 			EventBus.notification_requested.emit("Tap '+ Add Slot' to create an anchor, or select an existing one below.", true)
 
+
 func _handle_pointer_move(ui_pos: Vector2) -> void:
-	if not is_dragging_anchor or selected_anchor_key.is_empty() or active_entity == null:
+	if not is_dragging_anchor or selected_anchor_key.is_empty() or not is_instance_valid(active_entity):
 		return
 
 	var local_offset: Vector2 = _ui_to_sprite_offset(ui_pos)
 	local_offset = Vector2(roundf(local_offset.x), roundf(local_offset.y))
 	_set_anchor_local_pos(selected_anchor_key, is_selected_snap, local_offset)
 
+
 func _handle_pointer_up(_ui_pos: Vector2) -> void:
 	if is_dragging_anchor:
 		is_dragging_anchor = false
-		if active_entity != null and is_instance_valid(active_entity):
+		if is_instance_valid(active_entity):
 			active_entity.rebuild_gizmos()
 			EventBus.entity_state_changed.emit(active_entity.entity_id)
 		_sync_coordinate_inputs()
-		if marker_overlay != null: marker_overlay.queue_redraw()
+		if is_instance_valid(marker_overlay): 
+			marker_overlay.queue_redraw()
+
 
 func _set_anchor_local_pos(key: String, is_snap: bool, local_pos: Vector2) -> void:
-	if active_entity == null: return
+	if not is_instance_valid(active_entity): 
+		return
 
 	if is_snap:
 		active_entity.snap_points[key] = local_pos
@@ -487,77 +519,97 @@ func _set_anchor_local_pos(key: String, is_snap: bool, local_pos: Vector2) -> vo
 		active_entity.update_faucet_particles()
 
 	_sync_coordinate_inputs()
-	if marker_overlay != null: marker_overlay.queue_redraw()
+	if is_instance_valid(marker_overlay): 
+		marker_overlay.queue_redraw()
 	_render_anchors_list()
+
 
 func _select_anchor(key: String, is_snap: bool) -> void:
 	selected_anchor_key = key
 	is_selected_snap = is_snap
 	_match_category_dropdown(key)
 	_sync_coordinate_inputs()
-	if marker_overlay != null: marker_overlay.queue_redraw()
+	if is_instance_valid(marker_overlay): 
+		marker_overlay.queue_redraw()
 	_render_anchors_list()
 
+
 func _match_category_dropdown(key: String) -> void:
-	if opt_family_category == null: return
+	if not is_instance_valid(opt_family_category): 
+		return
 	for index: int in range(family_definitions.size()):
 		var family: String = str(family_definitions[index]["family"])
 		if family != "custom" and key.begins_with(family):
 			opt_family_category.selected = index
-			custom_name_input.visible = false
+			if is_instance_valid(custom_name_input): 
+				custom_name_input.visible = false
 			_on_family_selected(index)
 			return
 
 	opt_family_category.selected = family_definitions.size() - 1
-	custom_name_input.visible = true
-	custom_name_input.text = key
+	if is_instance_valid(custom_name_input):
+		custom_name_input.visible = true
+		custom_name_input.text = key
+
 
 func _sync_coordinate_inputs() -> void:
-	if _is_updating_ui or spin_x == null or spin_y == null: return
+	if _is_updating_ui or not is_instance_valid(spin_x) or not is_instance_valid(spin_y): 
+		return
 	_is_updating_ui = true
 
-	var has_selection: bool = not selected_anchor_key.is_empty() and active_entity != null
+	var has_selection: bool = not selected_anchor_key.is_empty() and is_instance_valid(active_entity)
 	spin_x.editable = has_selection
 	spin_y.editable = has_selection
-	btn_center_anchor.disabled = not has_selection
-	btn_delete_selected.disabled = not has_selection
+	if is_instance_valid(btn_center_anchor): btn_center_anchor.disabled = not has_selection
+	if is_instance_valid(btn_delete_selected): btn_delete_selected.disabled = not has_selection
 
 	if has_selection:
 		var current_pos: Vector2 = Vector2.ZERO
-		if is_selected_snap: current_pos = active_entity.snap_points.get(selected_anchor_key, Vector2.ZERO)
-		else: current_pos = active_entity.interaction_points.get(selected_anchor_key, {}).get("offset", Vector2.ZERO)
+		if is_selected_snap: 
+			current_pos = active_entity.snap_points.get(selected_anchor_key, Vector2.ZERO)
+		else: 
+			current_pos = active_entity.interaction_points.get(selected_anchor_key, {}).get("offset", Vector2.ZERO)
 
-		active_badge_lbl.text = "Selected: [ %s ]" % selected_anchor_key
-		active_badge_lbl.add_theme_color_override("font_color", ThemeService.get_color("accent_primary", "#ec4899"))
+		if is_instance_valid(active_badge_lbl):
+			active_badge_lbl.text = "Selected: [ %s ]" % selected_anchor_key
+			active_badge_lbl.add_theme_color_override("font_color", ThemeService.get_color("accent_primary", "#ec4899"))
 		spin_x.value = current_pos.x
 		spin_y.value = current_pos.y
 	else:
-		active_badge_lbl.text = "Select an anchor or tap '+ Add Slot'"
-		active_badge_lbl.remove_theme_color_override("font_color")
+		if is_instance_valid(active_badge_lbl):
+			active_badge_lbl.text = "Select an anchor or tap '+ Add Slot'"
+			active_badge_lbl.remove_theme_color_override("font_color")
 		spin_x.value = 0
 		spin_y.value = 0
 
 	_is_updating_ui = false
 
+
 func _on_coordinate_spin_changed(_val: float) -> void:
-	if _is_updating_ui or selected_anchor_key.is_empty() or active_entity == null:
+	if _is_updating_ui or selected_anchor_key.is_empty() or not is_instance_valid(active_entity):
 		return
 	var new_local_pos: Vector2 = Vector2(roundf(spin_x.value), roundf(spin_y.value))
 	_set_anchor_local_pos(selected_anchor_key, is_selected_snap, new_local_pos)
 
+
 func _on_center_selected_pressed() -> void:
-	if selected_anchor_key.is_empty() or active_entity == null: return
+	if selected_anchor_key.is_empty() or not is_instance_valid(active_entity): 
+		return
 	_set_anchor_local_pos(selected_anchor_key, is_selected_snap, Vector2.ZERO)
 	_trigger_haptic(15)
 
+
 func _on_delete_selected_pressed() -> void:
-	if selected_anchor_key.is_empty() or active_entity == null: return
+	if selected_anchor_key.is_empty() or not is_instance_valid(active_entity): 
+		return
 	var key_to_del: String = selected_anchor_key
 	var was_snap: bool = is_selected_snap
 	selected_anchor_key = ""
 
-	if was_snap: active_entity.snap_points.erase(key_to_del)
-	else: active_entity.interaction_points.erase(key_to_del)
+	if was_snap: 
+		active_entity.snap_points.erase(key_to_del)
+	else: 
+		active_entity.interaction_points.erase(key_to_del)
 
 	active_entity.rebuild_gizmos()
 	EventBus.entity_state_changed.emit(active_entity.entity_id)
@@ -565,9 +617,10 @@ func _on_delete_selected_pressed() -> void:
 	_refresh_all()
 	EventBus.notification_requested.emit("Deleted: " + key_to_del, true)
 
+
 func _get_texture_render_rect() -> Rect2:
-	if active_entity == null or active_entity.texture_size == Vector2.ZERO or sprite_canvas.size == Vector2.ZERO:
-		return Rect2(Vector2.ZERO, sprite_canvas.size)
+	if not is_instance_valid(active_entity) or active_entity.texture_size == Vector2.ZERO or not is_instance_valid(sprite_canvas) or sprite_canvas.size == Vector2.ZERO:
+		return Rect2(Vector2.ZERO, sprite_canvas.size if is_instance_valid(sprite_canvas) else Vector2.ZERO)
 	var texture_size: Vector2 = active_entity.texture_size
 	var canvas_size: Vector2 = sprite_canvas.size
 	var scale_factor: float = minf(canvas_size.x / texture_size.x, canvas_size.y / texture_size.y)
@@ -575,19 +628,24 @@ func _get_texture_render_rect() -> Rect2:
 	var drawn_position: Vector2 = (canvas_size - drawn_size) * 0.5
 	return Rect2(drawn_position, drawn_size)
 
+
 func _sprite_offset_to_ui(sprite_offset: Vector2) -> Vector2:
 	var render_rect: Rect2 = _get_texture_render_rect()
 	var center: Vector2 = render_rect.position + (render_rect.size * 0.5)
-	if active_entity == null or active_entity.texture_size.x == 0.0: return center
+	if not is_instance_valid(active_entity) or active_entity.texture_size.x == 0.0: 
+		return center
 	var scale_factor: float = render_rect.size.x / active_entity.texture_size.x
 	return center + (sprite_offset * scale_factor)
+
 
 func _ui_to_sprite_offset(ui_position: Vector2) -> Vector2:
 	var render_rect: Rect2 = _get_texture_render_rect()
 	var center: Vector2 = render_rect.position + (render_rect.size * 0.5)
-	if active_entity == null or active_entity.texture_size.x == 0.0: return Vector2.ZERO
+	if not is_instance_valid(active_entity) or active_entity.texture_size.x == 0.0: 
+		return Vector2.ZERO
 	var scale_factor: float = render_rect.size.x / active_entity.texture_size.x
 	return (ui_position - center) / (scale_factor if scale_factor != 0.0 else 1.0)
+
 
 func _get_color_for_key(key_name: String, is_snap: bool) -> Color:
 	var lowercase_key: String = key_name.to_lower()
@@ -597,6 +655,7 @@ func _get_color_for_key(key_name: String, is_snap: bool) -> Color:
 			return definition["color"] as Color
 	return Color("#ec4899") if is_snap else Color("#d97706")
 
+
 func _get_icon_for_key(key_name: String, is_snap: bool) -> String:
 	var lowercase_key: String = key_name.to_lower()
 	for definition: Dictionary in family_definitions:
@@ -605,19 +664,25 @@ func _get_icon_for_key(key_name: String, is_snap: bool) -> String:
 			return str(definition.get("icon", "icon_anchors"))
 	return "icon_anchors" if is_snap else "icon_food"
 
+
 func _refresh_all() -> void:
 	_sync_coordinate_inputs()
-	if marker_overlay != null: marker_overlay.queue_redraw()
+	if is_instance_valid(marker_overlay): 
+		marker_overlay.queue_redraw()
 	_render_anchors_list()
 
+
 func _render_anchors_list() -> void:
-	if anchors_list_vbox == null: return
+	if not is_instance_valid(anchors_list_vbox): 
+		return
 	for child: Node in anchors_list_vbox.get_children():
 		child.queue_free()
 
-	if active_entity == null: return
+	if not is_instance_valid(active_entity): 
+		return
 	var total_count: int = active_entity.snap_points.size() + active_entity.interaction_points.size()
-	anchors_count_lbl.text = "Placed Anchors (%d):" % total_count
+	if is_instance_valid(anchors_count_lbl):
+		anchors_count_lbl.text = "Placed Anchors (%d):" % total_count
 
 	if total_count == 0:
 		var empty_lbl: Label = Label.new()
@@ -639,6 +704,7 @@ func _render_anchors_list() -> void:
 		var is_sel: bool = (inter_name == selected_anchor_key and not is_selected_snap)
 		var icon_key: String = _get_icon_for_key(inter_name, false)
 		_create_anchor_list_row(inter_name, pos, false, icon_key, is_sel)
+
 
 func _create_anchor_list_row(anchor_key: String, pos: Vector2, is_snap: bool, icon_key: String, is_selected: bool) -> void:
 	var is_mob: bool = is_mobile()
@@ -676,7 +742,8 @@ func _create_anchor_list_row(anchor_key: String, pos: Vector2, is_snap: bool, ic
 	select_btn.add_theme_constant_override("icon_max_width", 16 if is_mob else 14)
 
 	var row_icon: Texture2D = ThemeService.get_icon(icon_key)
-	if row_icon != null: select_btn.icon = row_icon
+	if row_icon != null: 
+		select_btn.icon = row_icon
 	if is_selected:
 		select_btn.add_theme_color_override("font_color", c_accent)
 
@@ -703,16 +770,18 @@ func _create_anchor_list_row(anchor_key: String, pos: Vector2, is_snap: bool, ic
 	hbox.add_child(delete_btn)
 	anchors_list_vbox.add_child(card)
 
+
 func _trigger_haptic(duration_ms: int = 25) -> void:
 	if SettingsManager.are_haptics_enabled() and (OS.has_feature("mobile") or OS.has_feature("android") or OS.has_feature("ios")):
 		if Input.has_method("vibrate_handheld"):
 			Input.vibrate_handheld(duration_ms)
 
+
 class AnchorOverlayDraw extends Control:
 	var studio_ref: SnapPointStudioDialog = null
 
 	func _draw() -> void:
-		if studio_ref == null or studio_ref.active_entity == null:
+		if not is_instance_valid(studio_ref) or not is_instance_valid(studio_ref.active_entity):
 			return
 
 		var render_rect: Rect2 = studio_ref._get_texture_render_rect()

@@ -12,8 +12,9 @@ extends Node
 
 signal interaction_handled(source: OwnEntity, action: StringName)
 
+
 func handle_tap(entity: OwnEntity, all_entities: Array[OwnEntity]) -> void:
-	if entity == null or not is_instance_valid(entity):
+	if not is_instance_valid(entity):
 		return
 
 	LogicEngine.evaluate_trigger(Types.TriggerEvent.ON_TAPPED, entity)
@@ -25,19 +26,19 @@ func handle_tap(entity: OwnEntity, all_entities: Array[OwnEntity]) -> void:
 
 	if entity.is_elevator:
 		var elevator: EntityElevatorCapability = entity.get_component(&"EntityElevatorCapability") as EntityElevatorCapability
-		if elevator != null:
+		if is_instance_valid(elevator):
 			elevator.request_floor_selection()
 			interaction_handled.emit(entity, &"elevator_floor_selection")
 		return
 
 	var container: EntityContainerCapability = entity.get_component(&"EntityContainerCapability") as EntityContainerCapability
-	if container != null:
+	if is_instance_valid(container):
 		container.toggle_open()
 		interaction_handled.emit(entity, &"container_toggle")
 		return
 
 	var light: EntityLightCapability = entity.get_component(&"EntityLightCapability") as EntityLightCapability
-	if light != null:
+	if is_instance_valid(light):
 		light.toggle()
 		interaction_handled.emit(entity, &"light_toggle")
 		return
@@ -47,24 +48,30 @@ func handle_tap(entity: OwnEntity, all_entities: Array[OwnEntity]) -> void:
 
 	interaction_handled.emit(entity, &"tap")
 
+
 func handle_drop(source: OwnEntity, _world_position: Vector2, context: Dictionary) -> void:
-	if source == null or not is_instance_valid(source):
+	if not is_instance_valid(source):
 		return
 
 	var entities: Array[OwnEntity] = _extract_entities(context.get("entities", []))
 
-	if _try_portal(source, entities): return
-	if _try_container(source, entities): return
-	if _try_liquid(source, entities): return
-	if _try_socket(source, entities): return
+	if _try_portal(source, entities): 
+		return
+	if _try_container(source, entities): 
+		return
+	if _try_liquid(source, entities): 
+		return
+	if _try_socket(source, entities): 
+		return
 
 	var canvas: Node2D = context.get("canvas", null) as Node2D
-	if canvas != null and InteractionSolver.check_and_execute_crafting(source, entities, canvas):
+	if is_instance_valid(canvas) and InteractionSolver.check_and_execute_crafting(source, entities, canvas):
 		EventBus.entity_state_changed.emit(source.entity_id)
 		interaction_handled.emit(source, &"crafting")
 		return
 
 	interaction_handled.emit(source, &"default_drop")
+
 
 func _try_portal(source: OwnEntity, entities: Array[OwnEntity]) -> bool:
 	if source.entity_type != Types.EntityType.CHARACTER:
@@ -82,7 +89,7 @@ func _try_portal(source: OwnEntity, entities: Array[OwnEntity]) -> bool:
 			return true
 		elif candidate.is_elevator:
 			var elevator: EntityElevatorCapability = candidate.get_component(&"EntityElevatorCapability") as EntityElevatorCapability
-			if elevator != null:
+			if is_instance_valid(elevator):
 				elevator.request_floor_selection()
 				interaction_handled.emit(source, &"elevator_floor_selection")
 			return true
@@ -98,6 +105,7 @@ func _try_portal(source: OwnEntity, entities: Array[OwnEntity]) -> bool:
 				return true
 
 	return false
+
 
 func _try_container(source: OwnEntity, entities: Array[OwnEntity]) -> bool:
 	if source.entity_type != Types.EntityType.PROP:
@@ -126,6 +134,7 @@ func _try_container(source: OwnEntity, entities: Array[OwnEntity]) -> bool:
 
 	return false
 
+
 func _try_liquid(source: OwnEntity, entities: Array[OwnEntity]) -> bool:
 	var source_liquid: EntityLiquidCapability = source.get_component(&"EntityLiquidCapability") as EntityLiquidCapability
 	if source_liquid == null or not source_liquid.can_pour():
@@ -147,11 +156,13 @@ func _try_liquid(source: OwnEntity, entities: Array[OwnEntity]) -> bool:
 
 	return false
 
+
 func _try_socket(source: OwnEntity, entities: Array[OwnEntity]) -> bool:
 	if SocketManager.evaluate_and_snap(source, entities):
 		interaction_handled.emit(source, &"socket_attach")
 		return true
 	return false
+
 
 func _extract_entities(value: Variant) -> Array[OwnEntity]:
 	var result: Array[OwnEntity] = []
@@ -160,6 +171,7 @@ func _extract_entities(value: Variant) -> Array[OwnEntity]:
 			if candidate is OwnEntity and is_instance_valid(candidate as OwnEntity):
 				result.append(candidate as OwnEntity)
 	return result
+
 
 func _handle_stairs_tap(stairs: OwnEntity, all_entities: Array[OwnEntity]) -> void:
 	var current_room: String = AppState.room_id
@@ -195,6 +207,7 @@ func _handle_stairs_tap(stairs: OwnEntity, all_entities: Array[OwnEntity]) -> vo
 		"building_name": AppState.building_name,
 		"source": "stairs"
 	})
+
 
 func _handle_stairs_travel(_stairs: OwnEntity, traveler: OwnEntity) -> void:
 	var current_room: String = AppState.room_id

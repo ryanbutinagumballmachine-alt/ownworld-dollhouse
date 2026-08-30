@@ -11,12 +11,14 @@ class_name EntitySerializer
 extends RefCounted
 
 
+## Serializes a single OwnEntity instance into a dictionary payload.
 static func serialize_entity(entity: OwnEntity) -> Dictionary:
-	if entity == null or not is_instance_valid(entity):
+	if not is_instance_valid(entity):
 		return {}
 	return entity.to_dict().duplicate(true)
 
 
+## Serializes only root entities and their full nested hierarchy bundles.
 static func serialize_roots(entities: Array[OwnEntity]) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for entity: OwnEntity in entities:
@@ -25,6 +27,7 @@ static func serialize_roots(entities: Array[OwnEntity]) -> Array[Dictionary]:
 	return result
 
 
+## Sanitizes and cleans an arbitrary array of entity dictionaries.
 static func sanitize_entity_array(raw_entities: Array) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
 	for value: Variant in raw_entities:

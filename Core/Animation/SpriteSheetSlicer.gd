@@ -23,11 +23,11 @@ static func slice_by_grid(
 	spacing_y: int = 0
 ) -> Array[ImageTexture]:
 	var result: Array[ImageTexture] = []
-	if source_texture == null or columns <= 0 or rows <= 0:
+	if not is_instance_valid(source_texture) or columns <= 0 or rows <= 0:
 		return result
 
 	var source_image: Image = source_texture.get_image()
-	if source_image == null or source_image.is_empty():
+	if not is_instance_valid(source_image) or source_image.is_empty():
 		return result
 
 	var total_w: int = source_image.get_width()
@@ -59,7 +59,7 @@ static func slice_by_grid(
 			var rect: Rect2i = Rect2i(src_x, src_y, actual_w, actual_h)
 			var sub_img: Image = source_image.get_region(rect)
 
-			if sub_img != null and not sub_img.is_empty():
+			if is_instance_valid(sub_img) and not sub_img.is_empty():
 				sub_img.generate_mipmaps()
 				var tex: ImageTexture = ImageTexture.create_from_image(sub_img)
 				result.append(tex)
@@ -78,11 +78,11 @@ static func slice_by_cell_size(
 	spacing_y: int = 0
 ) -> Array[ImageTexture]:
 	var result: Array[ImageTexture] = []
-	if source_texture == null or cell_width <= 0 or cell_height <= 0:
+	if not is_instance_valid(source_texture) or cell_width <= 0 or cell_height <= 0:
 		return result
 
 	var source_image: Image = source_texture.get_image()
-	if source_image == null or source_image.is_empty():
+	if not is_instance_valid(source_image) or source_image.is_empty():
 		return result
 
 	var total_w: int = source_image.get_width()

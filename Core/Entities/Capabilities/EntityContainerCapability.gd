@@ -24,7 +24,7 @@ func get_component_key() -> StringName:
 
 
 func can_store(item: OwnEntity) -> bool:
-	if entity == null or item == null or not is_instance_valid(item):
+	if not is_instance_valid(entity) or not is_instance_valid(item):
 		return false
 	if item == entity or item.entity_type != Types.EntityType.PROP:
 		return false
@@ -38,7 +38,7 @@ func store_item(item: OwnEntity) -> bool:
 	var serialized_item: Dictionary = item.to_dict().duplicate(true)
 	stored_items.append(serialized_item)
 	item_stored.emit(serialized_item)
-	if entity != null and is_instance_valid(entity):
+	if is_instance_valid(entity):
 		EventBus.entity_state_changed.emit(entity.entity_id)
 	return true
 
@@ -50,7 +50,7 @@ func unpack_item(index: int) -> Dictionary:
 	var item_data: Dictionary = stored_items[index].duplicate(true)
 	stored_items.remove_at(index)
 	item_unpacked.emit(item_data)
-	if entity != null and is_instance_valid(entity):
+	if is_instance_valid(entity):
 		EventBus.entity_state_changed.emit(entity.entity_id)
 	return item_data
 
@@ -59,7 +59,7 @@ func clear() -> void:
 	if stored_items.is_empty():
 		return
 	stored_items.clear()
-	if entity != null and is_instance_valid(entity):
+	if is_instance_valid(entity):
 		EventBus.entity_state_changed.emit(entity.entity_id)
 
 
@@ -81,7 +81,7 @@ func set_open(open: bool) -> void:
 		opened.emit()
 	else:
 		closed.emit()
-	if entity != null and is_instance_valid(entity):
+	if is_instance_valid(entity):
 		EventBus.entity_state_changed.emit(entity.entity_id)
 
 

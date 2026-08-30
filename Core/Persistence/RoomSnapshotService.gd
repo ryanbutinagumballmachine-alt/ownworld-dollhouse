@@ -26,7 +26,7 @@ func create_snapshot(
 	var camera_position: Vector2 = SaveSchema.DEFAULT_CAMERA_POSITION
 	var camera_zoom: float = SaveSchema.DEFAULT_CAMERA_ZOOM
 
-	if camera != null and is_instance_valid(camera):
+	if is_instance_valid(camera):
 		camera_position = camera.position
 		camera_zoom = maxf(camera.zoom.x, 0.01)
 

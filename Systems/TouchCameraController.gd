@@ -38,7 +38,7 @@ func _ready() -> void:
 	position = room_bounds.get_center()
 
 	var viewport: Viewport = get_viewport()
-	if viewport != null and not viewport.size_changed.is_connected(_on_viewport_size_changed):
+	if is_instance_valid(viewport) and not viewport.size_changed.is_connected(_on_viewport_size_changed):
 		viewport.size_changed.connect(_on_viewport_size_changed)
 
 	call_deferred("_deferred_initial_update")
@@ -116,7 +116,7 @@ func _recalculate_camera_mode() -> void:
 
 func _clamp_camera_position() -> void:
 	var viewport: Viewport = get_viewport()
-	var viewport_size: Vector2 = viewport.get_visible_rect().size if viewport != null else DEFAULT_VIEWPORT_SIZE
+	var viewport_size: Vector2 = viewport.get_visible_rect().size if is_instance_valid(viewport) else DEFAULT_VIEWPORT_SIZE
 	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
 		viewport_size = DEFAULT_VIEWPORT_SIZE
 
@@ -239,7 +239,7 @@ func _apply_zoom_step(factor: float, mouse_screen_pos: Vector2) -> void:
 		return
 
 	var viewport: Viewport = get_viewport()
-	var viewport_size: Vector2 = viewport.get_visible_rect().size if viewport != null else DEFAULT_VIEWPORT_SIZE
+	var viewport_size: Vector2 = viewport.get_visible_rect().size if is_instance_valid(viewport) else DEFAULT_VIEWPORT_SIZE
 	if viewport_size.x <= 0.0 or viewport_size.y <= 0.0:
 		return
 

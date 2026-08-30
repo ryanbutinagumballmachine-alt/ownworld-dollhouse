@@ -15,7 +15,7 @@ const SNAP_RADIUS_SQ: float = 1444.0
 
 
 static func evaluate_and_snap(dropped_entity: OwnEntity, all_entities: Array[OwnEntity]) -> bool:
-	if dropped_entity == null or not is_instance_valid(dropped_entity):
+	if not is_instance_valid(dropped_entity):
 		return false
 
 	var best_target: OwnEntity = null
@@ -23,7 +23,7 @@ static func evaluate_and_snap(dropped_entity: OwnEntity, all_entities: Array[Own
 	var closest_distance_sq: float = SNAP_RADIUS_SQ
 
 	for target_entity: OwnEntity in all_entities:
-		if target_entity == null or not is_instance_valid(target_entity) or target_entity == dropped_entity:
+		if not is_instance_valid(target_entity) or target_entity == dropped_entity:
 			continue
 
 		for socket_key: String in target_entity.snap_points.keys():
@@ -55,6 +55,9 @@ static func evaluate_and_snap(dropped_entity: OwnEntity, all_entities: Array[Own
 
 
 static func _get_incoming_anchor_world_pos(incoming: OwnEntity, socket_key: String) -> Vector2:
+	if not is_instance_valid(incoming):
+		return Vector2.ZERO
+
 	var socket_name: String = socket_key.to_lower()
 
 	if socket_name.begins_with("seat") or socket_name.begins_with("bed"):
@@ -78,16 +81,16 @@ static func _get_incoming_anchor_world_pos(incoming: OwnEntity, socket_key: Stri
 
 
 static func is_socket_occupied(host: OwnEntity, socket_key: String) -> bool:
-	if host == null or not is_instance_valid(host):
+	if not is_instance_valid(host):
 		return false
 	for child: OwnEntity in host.attached_children:
-		if child != null and is_instance_valid(child) and child.attached_socket_key == socket_key:
+		if is_instance_valid(child) and child.attached_socket_key == socket_key:
 			return true
 	return false
 
 
 static func is_socket_compatible(incoming: OwnEntity, host: OwnEntity, socket_key: String) -> bool:
-	if incoming == null or host == null:
+	if not is_instance_valid(incoming) or not is_instance_valid(host):
 		return false
 	var socket_name: String = socket_key.to_lower()
 	if socket_name == "sit_point":

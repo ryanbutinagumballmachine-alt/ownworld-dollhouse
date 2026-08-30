@@ -1,7 +1,3 @@
-# ============================================================
-# File: res://UI/Base/HyperUIDialog.gd
-# ============================================================
-
 # ==============================================================================
 # OWNWORLD — HYPER UI DIALOG BASE CLASS (STANDARDIZED MODAL LAYER)
 # File: res://UI/Base/HyperUIDialog.gd
@@ -39,7 +35,7 @@ func _init() -> void:
 func _ready() -> void:
 	layer = SUB_MODAL_LAYER if is_sub_modal else MODAL_BASE_LAYER
 	visible = false
-	add_to_group("modal_ui")
+	add_to_group(&"modal_ui")
 	_build_base_ui()
 	_build_content()
 	_connect_system_signals()
@@ -52,9 +48,11 @@ func _ready() -> void:
 func _build_content() -> void:
 	pass
 
+
 ## Override this to refresh specific theme elements.
 func _on_theme_updated() -> void:
 	pass
+
 
 ## Override this to handle specific close logic before hiding.
 func _on_close_requested() -> void:
@@ -111,7 +109,7 @@ func _build_base_ui() -> void:
 
 func _connect_system_signals() -> void:
 	var tree: SceneTree = get_tree()
-	if tree != null and tree.root != null and not tree.root.size_changed.is_connected(_update_responsive_layout):
+	if is_instance_valid(tree) and is_instance_valid(tree.root) and not tree.root.size_changed.is_connected(_update_responsive_layout):
 		tree.root.size_changed.connect(_update_responsive_layout)
 	if not EventBus.theme_changed.is_connected(_internal_theme_changed):
 		EventBus.theme_changed.connect(_internal_theme_changed)
@@ -142,14 +140,14 @@ func _on_backdrop_gui_input(event: InputEvent) -> void:
 # --- KEYBOARD DODGING ---
 
 func register_keyboard_dodge(control: Control) -> void:
-	if not is_mobile() or control == null: 
+	if not is_mobile() or not is_instance_valid(control): 
 		return
 	control.focus_entered.connect(_on_input_focus_entered)
 	control.focus_exited.connect(_on_input_focus_exited)
 
 
 func _on_input_focus_entered() -> void:
-	if is_mobile() and center_container != null:
+	if is_mobile() and is_instance_valid(center_container):
 		await get_tree().process_frame
 		await get_tree().process_frame
 		var kb_height: float = DisplayServer.virtual_keyboard_get_height()
@@ -159,7 +157,7 @@ func _on_input_focus_entered() -> void:
 
 
 func _on_input_focus_exited() -> void:
-	if is_mobile() and center_container != null:
+	if is_mobile() and is_instance_valid(center_container):
 		var tween: Tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 		tween.tween_property(center_container, "position:y", 0.0, 0.25)
 
@@ -167,7 +165,7 @@ func _on_input_focus_exited() -> void:
 # --- THEME HELPERS ---
 
 func apply_button_icon(button: Button, icon_key: String) -> void:
-	if button == null: 
+	if not is_instance_valid(button): 
 		return
 	var icon_texture: Texture2D = ThemeService.get_icon(icon_key)
 	if icon_texture != null: 
@@ -175,7 +173,7 @@ func apply_button_icon(button: Button, icon_key: String) -> void:
 
 
 func apply_close_icon(button: Button) -> void:
-	if button == null: 
+	if not is_instance_valid(button): 
 		return
 	var icon_texture: Texture2D = ThemeService.get_icon("icon_close")
 	if icon_texture != null: 
@@ -185,7 +183,7 @@ func apply_close_icon(button: Button) -> void:
 
 
 func apply_checkbox_icon(checkbox: CheckBox, icon_key: String) -> void:
-	if checkbox == null: 
+	if not is_instance_valid(checkbox): 
 		return
 	var icon_texture: Texture2D = ThemeService.get_icon(icon_key)
 	if icon_texture == null and icon_key == "icon_stairs":

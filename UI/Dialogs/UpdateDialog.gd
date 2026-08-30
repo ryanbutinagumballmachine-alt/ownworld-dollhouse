@@ -250,7 +250,7 @@ func _build_content() -> void:
 # SIGNAL CONNECTIONS & THEME INTEGRATION
 # ------------------------------------------------------------------------------
 func _connect_update_manager_signals() -> void:
-	if update_manager == null:
+	if not is_instance_valid(update_manager):
 		return
 	update_manager.check_started.connect(_on_update_check_started)
 	update_manager.check_completed.connect(_on_update_check_completed)
@@ -263,7 +263,7 @@ func _connect_update_manager_signals() -> void:
 
 func _on_theme_updated() -> void:
 	var c_accent: Color = ThemeService.get_color("accent_primary", "#ec4899")
-	if header_title_lbl != null:
+	if is_instance_valid(header_title_lbl):
 		header_title_lbl.add_theme_color_override("font_color", c_accent)
 	apply_button_icon(btn_check_again, "icon_refresh")
 	apply_button_icon(btn_view_github, "icon_tag")
@@ -278,141 +278,170 @@ func _on_theme_updated() -> void:
 ## Opens the update dialog and immediately checks GitHub for the latest release.
 func open_and_check() -> void:
 	open_dialog()
-	current_version_lbl.text = "Installed: v%s" % UpdateManager.get_current_app_version()
+	if is_instance_valid(current_version_lbl):
+		current_version_lbl.text = "Installed: v%s" % UpdateManager.get_current_app_version()
 	check_updates()
 
 
 func check_updates() -> void:
 	if is_downloading:
 		return
-	btn_download_update.visible = true
-	btn_download_update.disabled = true
-	btn_install_now.visible = false
-	progress_card.visible = false
-	remote_version_lbl.text = "Latest: Checking..."
-	status_desc_lbl.text = "Connecting to GitHub release feed..."
-	release_notes_text.text = "Fetching changelog..."
-	update_manager.check_for_updates()
+	if is_instance_valid(btn_download_update):
+		btn_download_update.visible = true
+		btn_download_update.disabled = true
+	if is_instance_valid(btn_install_now): 
+		btn_install_now.visible = false
+	if is_instance_valid(progress_card): 
+		progress_card.visible = false
+	if is_instance_valid(remote_version_lbl): 
+		remote_version_lbl.text = "Latest: Checking..."
+	if is_instance_valid(status_desc_lbl): 
+		status_desc_lbl.text = "Connecting to GitHub release feed..."
+	if is_instance_valid(release_notes_text): 
+		release_notes_text.text = "Fetching changelog..."
+	if is_instance_valid(update_manager):
+		update_manager.check_for_updates()
 
 
 # ------------------------------------------------------------------------------
 # UPDATE MANAGER EVENT HANDLERS
 # ------------------------------------------------------------------------------
 func _on_update_check_started() -> void:
-	btn_check_again.disabled = true
+	if is_instance_valid(btn_check_again):
+		btn_check_again.disabled = true
 
 
 func _on_update_check_completed(result: UpdateManager.CheckResult, release_data: Dictionary) -> void:
-	btn_check_again.disabled = false
+	if is_instance_valid(btn_check_again):
+		btn_check_again.disabled = false
 	cached_release_info = release_data
 
 	var tag_name: String = str(release_data.get("tag_name", "")).strip_edges()
 	var raw_notes: String = str(release_data.get("release_notes", "")).strip_edges()
 
-	if not tag_name.is_empty():
+	if not tag_name.is_empty() and is_instance_valid(remote_version_lbl):
 		remote_version_lbl.text = "Latest: %s" % tag_name
 
-	if not raw_notes.is_empty():
-		release_notes_text.text = raw_notes
-	else:
-		release_notes_text.text = "No detailed release notes provided."
+	if is_instance_valid(release_notes_text):
+		if not raw_notes.is_empty():
+			release_notes_text.text = raw_notes
+		else:
+			release_notes_text.text = "No detailed release notes provided."
 
 	match result:
 		UpdateManager.CheckResult.UPDATE_AVAILABLE:
-			status_desc_lbl.text = "✨ A new update (%s) is ready for download!" % tag_name
-			status_desc_lbl.add_theme_color_override("font_color", ThemeService.get_color("accent_primary", "#ec4899"))
-			btn_download_update.disabled = false
-			btn_download_update.text = " Download & Update"
+			if is_instance_valid(status_desc_lbl):
+				status_desc_lbl.text = "✨ A new update (%s) is ready for download!" % tag_name
+				status_desc_lbl.add_theme_color_override("font_color", ThemeService.get_color("accent_primary", "#ec4899"))
+			if is_instance_valid(btn_download_update):
+				btn_download_update.disabled = false
+				btn_download_update.text = " Download & Update"
 
 		UpdateManager.CheckResult.UP_TO_DATE:
-			status_desc_lbl.text = "✔ You are running the latest version (%s)." % UpdateManager.get_current_app_version()
-			status_desc_lbl.add_theme_color_override("font_color", ThemeService.get_color("text_primary", "#6c2e3f"))
-			btn_download_update.disabled = true
+			if is_instance_valid(status_desc_lbl):
+				status_desc_lbl.text = "✔ You are running the latest version (%s)." % UpdateManager.get_current_app_version()
+				status_desc_lbl.add_theme_color_override("font_color", ThemeService.get_color("text_primary", "#6c2e3f"))
+			if is_instance_valid(btn_download_update):
+				btn_download_update.disabled = true
 
 		UpdateManager.CheckResult.NO_COMPATIBLE_ASSET:
-			status_desc_lbl.text = "New release %s found, but no direct package was attached for this platform." % tag_name
-			status_desc_lbl.add_theme_color_override("font_color", ThemeService.get_color("text_muted", "#a36374"))
-			btn_download_update.disabled = true
+			if is_instance_valid(status_desc_lbl):
+				status_desc_lbl.text = "New release %s found, but no direct package was attached for this platform." % tag_name
+				status_desc_lbl.add_theme_color_override("font_color", ThemeService.get_color("text_muted", "#a36374"))
+			if is_instance_valid(btn_download_update):
+				btn_download_update.disabled = true
 
 		UpdateManager.CheckResult.RATE_LIMITED:
-			status_desc_lbl.text = "GitHub API rate limit reached. Please try again later or check via web."
-			status_desc_lbl.add_theme_color_override("font_color", ThemeService.get_color("accent_danger", "#f43f5e"))
-			btn_download_update.disabled = true
+			if is_instance_valid(status_desc_lbl):
+				status_desc_lbl.text = "GitHub API rate limit reached. Please try again later or check via web."
+				status_desc_lbl.add_theme_color_override("font_color", ThemeService.get_color("accent_danger", "#f43f5e"))
+			if is_instance_valid(btn_download_update):
+				btn_download_update.disabled = true
 
 		UpdateManager.CheckResult.NETWORK_ERROR, UpdateManager.CheckResult.ERROR:
 			var err_str: String = str(release_data.get("error", "Failed to connect to update feed."))
-			status_desc_lbl.text = err_str
-			status_desc_lbl.add_theme_color_override("font_color", ThemeService.get_color("accent_danger", "#f43f5e"))
-			btn_download_update.disabled = true
+			if is_instance_valid(status_desc_lbl):
+				status_desc_lbl.text = err_str
+				status_desc_lbl.add_theme_color_override("font_color", ThemeService.get_color("accent_danger", "#f43f5e"))
+			if is_instance_valid(btn_download_update):
+				btn_download_update.disabled = true
 
 
 func _on_download_button_pressed() -> void:
-	if is_downloading:
+	if is_downloading or not is_instance_valid(update_manager):
 		return
 	is_downloading = true
-	btn_download_update.disabled = true
-	btn_check_again.disabled = true
-	progress_card.visible = true
-	progress_bar.value = 0.0
-	status_desc_lbl.text = "Downloading package..."
+	if is_instance_valid(btn_download_update): btn_download_update.disabled = true
+	if is_instance_valid(btn_check_again): btn_check_again.disabled = true
+	if is_instance_valid(progress_card): progress_card.visible = true
+	if is_instance_valid(progress_bar): progress_bar.value = 0.0
+	if is_instance_valid(status_desc_lbl): status_desc_lbl.text = "Downloading package..."
 	update_manager.start_download()
 
 
 func _on_update_download_started(total_bytes: int, _target_path: String) -> void:
 	var total_mb: float = float(total_bytes) / 1048576.0
-	progress_metrics_lbl.text = "Starting download (%.1f MB)..." % total_mb if total_bytes > 0 else "Starting download stream..."
+	if is_instance_valid(progress_metrics_lbl):
+		progress_metrics_lbl.text = "Starting download (%.1f MB)..." % total_mb if total_bytes > 0 else "Starting download stream..."
 
 
 func _on_update_download_progress(percent: float, downloaded_bytes: int, total_bytes: int, speed_bytes_per_sec: float, eta_seconds: float) -> void:
-	progress_bar.value = percent
+	if is_instance_valid(progress_bar):
+		progress_bar.value = percent
 
 	var downloaded_mb: float = float(downloaded_bytes) / 1048576.0
 	var total_mb: float = float(total_bytes) / 1048576.0
 	var speed_mb: float = speed_bytes_per_sec / 1048576.0
 
-	if total_bytes > 0:
-		progress_metrics_lbl.text = "Downloading: %.1f MB / %.1f MB (%d%%)" % [downloaded_mb, total_mb, int(percent * 100.0)]
-	else:
-		progress_metrics_lbl.text = "Downloaded: %.1f MB" % downloaded_mb
+	if is_instance_valid(progress_metrics_lbl):
+		if total_bytes > 0:
+			progress_metrics_lbl.text = "Downloading: %.1f MB / %.1f MB (%d%%)" % [downloaded_mb, total_mb, int(percent * 100.0)]
+		else:
+			progress_metrics_lbl.text = "Downloaded: %.1f MB" % downloaded_mb
 
 	var eta_str: String = "%ds" % int(eta_seconds) if eta_seconds > 0.0 else "--"
-	progress_speed_lbl.text = "%.2f MB/s • ETA: %s" % [speed_mb, eta_str]
+	if is_instance_valid(progress_speed_lbl):
+		progress_speed_lbl.text = "%.2f MB/s • ETA: %s" % [speed_mb, eta_str]
 
 
 func _on_update_download_completed(target_file_path: String) -> void:
 	is_downloading = false
-	btn_check_again.disabled = false
-	progress_bar.value = 1.0
-	progress_metrics_lbl.text = "Download Complete!"
-	progress_speed_lbl.text = "Ready to install"
-	status_desc_lbl.text = "Package ready: %s" % target_file_path.get_file()
+	if is_instance_valid(btn_check_again): btn_check_again.disabled = false
+	if is_instance_valid(progress_bar): progress_bar.value = 1.0
+	if is_instance_valid(progress_metrics_lbl): progress_metrics_lbl.text = "Download Complete!"
+	if is_instance_valid(progress_speed_lbl): progress_speed_lbl.text = "Ready to install"
+	if is_instance_valid(status_desc_lbl): status_desc_lbl.text = "Package ready: %s" % target_file_path.get_file()
 
-	btn_download_update.visible = false
-	btn_install_now.visible = true
-	btn_install_now.disabled = false
+	if is_instance_valid(btn_download_update): btn_download_update.visible = false
+	if is_instance_valid(btn_install_now):
+		btn_install_now.visible = true
+		btn_install_now.disabled = false
 
 	# Automatically trigger installation prompt on mobile
-	if OS.has_feature("android"):
+	if OS.has_feature("android") and is_instance_valid(update_manager):
 		update_manager.install_update(target_file_path)
 
 
 func _on_install_button_pressed() -> void:
-	update_manager.install_update()
+	if is_instance_valid(update_manager):
+		update_manager.install_update()
 
 
 func _on_installation_triggered(success: bool) -> void:
-	if success:
-		status_desc_lbl.text = "OS Installer launched. Follow on-screen prompts."
-	else:
-		status_desc_lbl.text = "Could not launch package installer automatically."
+	if is_instance_valid(status_desc_lbl):
+		if success:
+			status_desc_lbl.text = "OS Installer launched. Follow on-screen prompts."
+		else:
+			status_desc_lbl.text = "Could not launch package installer automatically."
 
 
 func _on_update_error_occurred(message: String) -> void:
 	is_downloading = false
-	btn_check_again.disabled = false
-	btn_download_update.disabled = false
-	status_desc_lbl.text = "Error: %s" % message
-	status_desc_lbl.add_theme_color_override("font_color", ThemeService.get_color("accent_danger", "#f43f5e"))
+	if is_instance_valid(btn_check_again): btn_check_again.disabled = false
+	if is_instance_valid(btn_download_update): btn_download_update.disabled = false
+	if is_instance_valid(status_desc_lbl):
+		status_desc_lbl.text = "Error: %s" % message
+		status_desc_lbl.add_theme_color_override("font_color", ThemeService.get_color("accent_danger", "#f43f5e"))
 	EventBus.notification_requested.emit(message, false)
 
 

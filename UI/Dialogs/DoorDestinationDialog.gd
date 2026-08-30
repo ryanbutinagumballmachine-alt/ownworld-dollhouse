@@ -1,7 +1,3 @@
-# ============================================================
-# File: res://UI/Dialogs/DoorDestinationDialog.gd
-# ============================================================
-
 # ==============================================================================
 # OWNWORLD — DOOR DESTINATION DIALOG (HYPER OPTIMIZED & LAYER 120)
 # File: res://UI/Dialogs/DoorDestinationDialog.gd
@@ -114,7 +110,7 @@ func _build_content() -> void:
 
 func _on_theme_updated() -> void:
 	apply_button_icon(btn_save, "icon_save")
-	if root_panel == null: 
+	if not is_instance_valid(root_panel): 
 		return
 	for node: Node in root_panel.find_children("*", "Button", true, false):
 		if node is Button and (node as Button).text == "✕":
@@ -140,14 +136,14 @@ func _on_close_requested() -> void:
 
 
 func _populate_map_locations() -> void:
-	if destination_option == null: 
+	if not is_instance_valid(destination_option): 
 		return
 	destination_option.clear()
 	location_ids.clear()
 
 	destination_option.add_item("(Use Custom Room ID Below)", 0)
 	location_ids.append("")
-	if active_door_entity == null: 
+	if not is_instance_valid(active_door_entity): 
 		return
 
 	var current_universe_id: String = AppState.universe_id
@@ -200,7 +196,7 @@ func _on_location_selected(index: int) -> void:
 
 
 func _on_save_pressed() -> void:
-	if active_door_entity == null or not is_instance_valid(active_door_entity):
+	if not is_instance_valid(active_door_entity):
 		_on_close_requested()
 		return
 
@@ -226,10 +222,13 @@ func _on_save_pressed() -> void:
 
 
 func _enforce_dropdown_popup_limits(option_button: OptionButton, max_height: int = 200) -> void:
-	if option_button == null: 
+	if not is_instance_valid(option_button): 
 		return
 	var popup: PopupMenu = option_button.get_popup()
-	if popup == null: 
+	if not is_instance_valid(popup): 
 		return
 	popup.max_size = Vector2i(4000, max_height)
-	popup.about_to_popup.connect(func() -> void: popup.max_size = Vector2i(4000, max_height))
+	popup.about_to_popup.connect(func() -> void: 
+		if is_instance_valid(popup):
+			popup.max_size = Vector2i(4000, max_height)
+	)

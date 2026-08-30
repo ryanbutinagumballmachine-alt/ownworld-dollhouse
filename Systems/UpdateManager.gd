@@ -307,18 +307,18 @@ func install_update(file_path: String = "") -> void:
 
 ## Resilient Android FileProvider intent invocation with full SDK backward compatibility.
 func _install_android_package(global_apk_path: String) -> bool:
-	if not Engine.has_singleton("AndroidRuntime") or not ClassDB.class_exists("JavaClassWrapper"):
+	if not Engine.has_singleton(&"AndroidRuntime") or not ClassDB.class_exists("JavaClassWrapper"):
 		OS.shell_open(global_apk_path)
 		return true
 
-	var android_runtime: Object = Engine.get_singleton("AndroidRuntime")
-	if android_runtime == null:
+	var android_runtime: Object = Engine.get_singleton(&"AndroidRuntime")
+	if not is_instance_valid(android_runtime):
 		OS.shell_open(global_apk_path)
 		return true
 
 	var activity: Object = android_runtime.getActivity()
 	var context: Object = android_runtime.getApplicationContext()
-	if activity == null or context == null:
+	if not is_instance_valid(activity) or not is_instance_valid(context):
 		OS.shell_open(global_apk_path)
 		return true
 

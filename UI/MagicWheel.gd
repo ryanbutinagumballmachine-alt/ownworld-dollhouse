@@ -26,7 +26,7 @@ func _ready() -> void:
 	name = "MagicWheel"
 	layer = 115
 	visible = false
-	add_to_group("modal_ui")
+	add_to_group(&"modal_ui")
 	_build_card_ui()
 
 	if not ThemeService.theme_changed.is_connected(_on_theme_changed):
@@ -113,6 +113,8 @@ func open_wheel_for_entity(entity: OwnEntity, screen_pos: Vector2) -> void:
 
 
 func _populate_context_tools(entity: OwnEntity) -> void:
+	if not is_instance_valid(entity):
+		return
 	var is_mob: bool = _is_mobile()
 	var btn_h: float = 38.0 if is_mob else 30.0
 
@@ -183,6 +185,9 @@ func _populate_context_tools(entity: OwnEntity) -> void:
 
 
 func _position_card_safely(screen_pos: Vector2) -> void:
+	if not is_instance_valid(card_panel):
+		return
+
 	var viewport_size: Vector2 = get_viewport().get_visible_rect().size
 	var safe_area: Rect2i = DisplayServer.get_display_safe_area()
 

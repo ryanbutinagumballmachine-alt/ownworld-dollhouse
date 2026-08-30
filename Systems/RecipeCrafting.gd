@@ -67,7 +67,7 @@ static func check_and_craft(source_item: OwnEntity, target_item: OwnEntity) -> D
 
 
 static func spawn_merge_poof(parent_canvas: Node2D, world_pos: Vector2) -> void:
-	if parent_canvas == null:
+	if not is_instance_valid(parent_canvas):
 		return
 
 	var particles: CPUParticles2D = CPUParticles2D.new()

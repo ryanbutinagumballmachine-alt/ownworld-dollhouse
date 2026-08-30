@@ -34,7 +34,7 @@ func _ready() -> void:
 	_load_persisted_theme()
 
 	var tree: SceneTree = get_tree()
-	if tree != null:
+	if is_instance_valid(tree):
 		tree.node_added.connect(_on_node_added)
 
 	call_deferred("apply_theme_globally")
@@ -53,7 +53,7 @@ func get_touch_target_min_width() -> float:
 
 
 func _on_node_added(node: Node) -> void:
-	if _theme_cache == null:
+	if _theme_cache == null or not is_instance_valid(node):
 		return
 	if node is Window:
 		(node as Window).theme = _theme_cache
@@ -67,11 +67,11 @@ func _on_node_added(node: Node) -> void:
 
 	if node is OptionButton:
 		var pop: PopupMenu = (node as OptionButton).get_popup()
-		if pop != null: 
+		if is_instance_valid(pop): 
 			pop.theme = _theme_cache
 	elif node is MenuButton:
 		var pop: PopupMenu = (node as MenuButton).get_popup()
-		if pop != null: 
+		if is_instance_valid(pop): 
 			pop.theme = _theme_cache
 
 
@@ -169,7 +169,7 @@ func apply_global_theme(theme_data: Dictionary) -> void:
 
 func apply_theme_globally() -> void:
 	var tree: SceneTree = get_tree()
-	if tree == null or tree.root == null:
+	if not is_instance_valid(tree) or not is_instance_valid(tree.root):
 		return
 
 	ThemeEngine.clear_procedural_icon_cache()
@@ -195,8 +195,10 @@ func create_stylebox(background_key: String, border_key: String, radius: int = D
 func get_icon(icon_name: String) -> Texture2D:
 	if icon_name.is_empty():
 		return null
-	if _theme_icon_cache.has(icon_name):
-		return _theme_icon_cache[icon_name]
+	
+	var cache_key: StringName = StringName(icon_name)
+	if _theme_icon_cache.has(cache_key):
+		return _theme_icon_cache[cache_key]
 
 	var clean_name: String = icon_name.strip_edges().to_lower()
 	var names: Array[String] = [clean_name]
@@ -219,14 +221,14 @@ func get_icon(icon_name: String) -> Texture2D:
 				if path.begins_with("res://") and ResourceLoader.exists(path):
 					var resource_texture: Texture2D = load(path) as Texture2D
 					if resource_texture != null:
-						_theme_icon_cache[icon_name] = resource_texture
+						_theme_icon_cache[cache_key] = resource_texture
 						return resource_texture
 				if (path.begins_with("user://") or not path.begins_with("res://")) and FileAccess.file_exists(path):
 					var image: Image = Image.load_from_file(path)
 					if image != null and not image.is_empty():
 						image.generate_mipmaps()
 						var user_texture: ImageTexture = ImageTexture.create_from_image(image)
-						_theme_icon_cache[icon_name] = user_texture
+						_theme_icon_cache[cache_key] = user_texture
 						return user_texture
 
 	return null
@@ -234,7 +236,7 @@ func get_icon(icon_name: String) -> Texture2D:
 
 func get_popup_icon(icon_name: String) -> Texture2D:
 	var tint_color: Color = get_color("text_primary", "#6c2e3f")
-	var cache_key: String = icon_name + "_" + tint_color.to_html(false)
+	var cache_key: StringName = StringName(icon_name + "_" + tint_color.to_html(false))
 
 	if _popup_icon_cache.has(cache_key):
 		return _popup_icon_cache[cache_key]
@@ -269,7 +271,7 @@ func clear_icon_cache() -> void:
 
 
 func register_background(control: Control) -> void:
-	if control == null:
+	if not is_instance_valid(control):
 		return
 	for weak_reference: WeakRef in _registered_backgrounds:
 		if weak_reference.get_ref() == control:
@@ -281,18 +283,18 @@ func register_background(control: Control) -> void:
 
 
 func unregister_background(control: Control) -> void:
-	if control == null:
+	if not is_instance_valid(control):
 		return
 	for index: int in range(_registered_backgrounds.size() - 1, -1, -1):
 		var target: Control = _registered_backgrounds[index].get_ref() as Control
-		if target == null or target == control:
+		if not is_instance_valid(target) or target == control:
 			_registered_backgrounds.remove_at(index)
 
 
 func _refresh_registered_backgrounds() -> void:
 	for index: int in range(_registered_backgrounds.size() - 1, -1, -1):
 		var bg: Control = _registered_backgrounds[index].get_ref() as Control
-		if bg == null:
+		if not is_instance_valid(bg):
 			_registered_backgrounds.remove_at(index)
 			continue
 		_update_background_control(bg)

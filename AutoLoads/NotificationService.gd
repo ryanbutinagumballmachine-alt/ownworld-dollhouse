@@ -45,7 +45,7 @@ func _is_mobile() -> bool:
 
 func show_notification(message: String, is_success: bool = true) -> void:
 	var normalized_message: String = message.strip_edges()
-	if normalized_message.is_empty() or not SettingsManager.are_toasts_enabled() or toast_panel == null:
+	if normalized_message.is_empty() or not SettingsManager.are_toasts_enabled() or not is_instance_valid(toast_panel):
 		return
 
 	toast_label.text = normalized_message
@@ -72,7 +72,7 @@ func _on_notification_requested(message: String, is_success: bool) -> void:
 
 
 func _on_theme_changed(_theme_data: Dictionary) -> void:
-	if toast_panel != null:
+	if is_instance_valid(toast_panel):
 		_apply_style(true)
 
 
@@ -116,7 +116,7 @@ func _build_notification_ui() -> void:
 
 ## Dynamically queries the exact bottom coordinate of the Top Navigation Bar to position toasts cleanly below it.
 func _recalculate_toast_margins() -> void:
-	if toast_container == null or toast_panel == null:
+	if not is_instance_valid(toast_container) or not is_instance_valid(toast_panel):
 		return
 
 	var is_mob: bool = _is_mobile()
@@ -129,8 +129,8 @@ func _recalculate_toast_margins() -> void:
 
 	# 2. Inspect Top Navigation Bar via the group registry
 	var tree: SceneTree = get_tree()
-	if tree != null:
-		var nav_nodes: Array[Node] = tree.get_nodes_in_group("top_nav_bar")
+	if is_instance_valid(tree):
+		var nav_nodes: Array[Node] = tree.get_nodes_in_group(&"top_nav_bar")
 		for nav_node: Node in nav_nodes:
 			if is_instance_valid(nav_node) and nav_node is CanvasLayer and (nav_node as CanvasLayer).visible:
 				if nav_node.has_method("get_nav_bottom_y"):
@@ -145,7 +145,7 @@ func _recalculate_toast_margins() -> void:
 
 	# 4. Responsive Font Text Width Fitting
 	var font: Font = toast_label.get_theme_font("font")
-	if font == null: 
+	if not is_instance_valid(font): 
 		font = ThemeDB.fallback_font
 	var font_sz: int = toast_label.get_theme_font_size("font_size")
 
@@ -155,7 +155,7 @@ func _recalculate_toast_margins() -> void:
 
 
 func _apply_style(is_success: bool) -> void:
-	if toast_panel == null:
+	if not is_instance_valid(toast_panel):
 		return
 
 	var is_mob: bool = _is_mobile()
@@ -186,6 +186,6 @@ func _kill_tween() -> void:
 
 
 func _hide_panel() -> void:
-	if toast_panel != null:
+	if is_instance_valid(toast_panel):
 		toast_panel.visible = false
 	_toast_tween = null

@@ -263,7 +263,7 @@ func get_ui_scale() -> float:
 
 func _apply_ui_scale() -> void:
 	var window: Window = get_window()
-	if window != null:
+	if is_instance_valid(window):
 		window.content_scale_factor = clampf(get_ui_scale(), MIN_UI_SCALE, MAX_UI_SCALE)
 
 func get_master_volume() -> float: return float(settings_data.get("master_vol", DEFAULT_MASTER_VOLUME))

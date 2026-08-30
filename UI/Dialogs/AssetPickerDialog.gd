@@ -1,7 +1,3 @@
-# ============================================================
-# File: res://UI/Dialogs/AssetPickerDialog.gd
-# ============================================================
-
 # ==============================================================================
 # OWNWORLD — ASSET PICKER DIALOG (SUB-MODAL LAYER 125)
 # File: res://UI/Dialogs/AssetPickerDialog.gd
@@ -143,7 +139,7 @@ func _build_content() -> void:
 
 func _on_theme_updated() -> void:
 	apply_button_icon(btn_back_up, "icon_up")
-	if root_panel == null: 
+	if not is_instance_valid(root_panel): 
 		return
 	for node: Node in root_panel.find_children("*", "Button", true, false):
 		if node is Button and (node as Button).text == "✕":
@@ -156,7 +152,7 @@ func _on_theme_updated() -> void:
 
 func _update_responsive_layout() -> void:
 	super._update_responsive_layout()
-	if items_grid and root_panel:
+	if is_instance_valid(items_grid) and is_instance_valid(root_panel):
 		var usable_w: float = root_panel.size.x - 28.0
 		var card_w: float = 88.0 if is_mobile() else 72.0
 		items_grid.columns = clampi(int(usable_w / (card_w + 6.0)), 3, 10)
@@ -169,7 +165,7 @@ func open_picker(prompt_title: String = "Select Artwork", default_folder: String
 	current_select_callback = on_selected_callback
 	active_search_query = ""
 	active_tag_filter = "All"
-	if search_input: 
+	if is_instance_valid(search_input): 
 		search_input.text = ""
 
 	_load_tag_registry()
@@ -188,6 +184,8 @@ func _on_close_requested() -> void:
 
 
 func _render_breadcrumbs() -> void:
+	if not is_instance_valid(breadcrumbs_hbox):
+		return
 	for child: Node in breadcrumbs_hbox.get_children():
 		child.queue_free()
 
@@ -249,6 +247,8 @@ func _navigate_up_one_folder() -> void:
 
 
 func _render_grid_view() -> void:
+	if not is_instance_valid(items_grid):
+		return
 	for child: Node in items_grid.get_children():
 		child.queue_free()
 
@@ -425,6 +425,8 @@ func _create_image_card(art_data: Dictionary) -> void:
 
 
 func _build_tag_filter_pills() -> void:
+	if not is_instance_valid(filter_scroll_container):
+		return
 	for child: Node in filter_scroll_container.get_children():
 		child.queue_free()
 	_add_filter_pill("All", active_tag_filter == "All")

@@ -1,7 +1,3 @@
-# ============================================================
-# File: res://UI/Dialogs/PoseAnimationStudioDialog.gd
-# ============================================================
-
 # ==============================================================================
 # OWNWORLD — UNIFIED POSE & ANIMATION STUDIO (LAYER 120 & SUB-MODAL PICKER)
 # File: res://UI/Dialogs/PoseAnimationStudioDialog.gd
@@ -174,6 +170,11 @@ func _build_content() -> void:
 	add_child(asset_picker)
 
 
+func _btn_add_theme_font_size_override(button: Button, font_size: int) -> void:
+	if is_instance_valid(button):
+		button.add_theme_font_size_override("font_size", font_size)
+
+
 func _build_states_and_mannequin_tab(row_h: float, is_mob: bool) -> void:
 	var tab_vbox: VBoxContainer = VBoxContainer.new()
 	tab_vbox.name = "States & Mannequin"
@@ -219,10 +220,10 @@ func _build_states_and_mannequin_tab(row_h: float, is_mob: bool) -> void:
 	test_btn_grid.add_theme_constant_override("v_separation", 4)
 	m_actions_vbox.add_child(test_btn_grid)
 
-	_add_mannequin_test_btn(test_btn_grid, "Test Blink", func() -> void: if active_entity: active_entity.force_trigger_blink(), is_mob)
-	_add_mannequin_test_btn(test_btn_grid, "Eat / Speak", func() -> void: if active_entity: active_entity.set_actor_state(Types.STATE_SPEAKING, 1.5), is_mob)
-	_add_mannequin_test_btn(test_btn_grid, "Sit", func() -> void: if active_entity: active_entity.set_actor_state(Types.STATE_SITTING, 2.5), is_mob)
-	_add_mannequin_test_btn(test_btn_grid, "Sleep", func() -> void: if active_entity: active_entity.set_actor_state(Types.STATE_SLEEPING, 2.5), is_mob)
+	_add_mannequin_test_btn(test_btn_grid, "Test Blink", func() -> void: if is_instance_valid(active_entity): active_entity.force_trigger_blink(), is_mob)
+	_add_mannequin_test_btn(test_btn_grid, "Eat / Speak", func() -> void: if is_instance_valid(active_entity): active_entity.set_actor_state(Types.STATE_SPEAKING, 1.5), is_mob)
+	_add_mannequin_test_btn(test_btn_grid, "Sit", func() -> void: if is_instance_valid(active_entity): active_entity.set_actor_state(Types.STATE_SITTING, 2.5), is_mob)
+	_add_mannequin_test_btn(test_btn_grid, "Sleep", func() -> void: if is_instance_valid(active_entity): active_entity.set_actor_state(Types.STATE_SLEEPING, 2.5), is_mob)
 
 	var add_custom_row: HBoxContainer = HBoxContainer.new()
 	add_custom_row.add_theme_constant_override("separation", 6)
@@ -332,7 +333,10 @@ func _build_timeline_tab(row_h: float, is_mob: bool) -> void:
 	clip_fps_slider.step = 1.0
 	clip_fps_slider.value = 6.0
 	clip_fps_slider.custom_minimum_size = Vector2(0.0, 22.0)
-	clip_fps_slider.value_changed.connect(func(v: float) -> void: clip_fps_val_lbl.text = "%d FPS" % int(v))
+	clip_fps_slider.value_changed.connect(func(v: float) -> void: 
+		if is_instance_valid(clip_fps_val_lbl): 
+			clip_fps_val_lbl.text = "%d FPS" % int(v)
+	)
 	fps_box.add_child(clip_fps_slider)
 	top_controls_grid.add_child(fps_box)
 
@@ -392,7 +396,10 @@ func _build_timeline_tab(row_h: float, is_mob: bool) -> void:
 	check_onion_skin = CheckBox.new()
 	check_onion_skin.text = " Onion Skin Ghost Overlay"
 	check_onion_skin.add_theme_font_size_override("font_size", 11 if is_mob else 10)
-	check_onion_skin.toggled.connect(func(v: bool) -> void: timeline_onion_rect.visible = v)
+	check_onion_skin.toggled.connect(func(v: bool) -> void: 
+		if is_instance_valid(timeline_onion_rect): 
+			timeline_onion_rect.visible = v
+	)
 	action_btns_vbox.add_child(check_onion_skin)
 
 	var frames_scroll: ScrollContainer = ScrollContainer.new()
@@ -456,7 +463,7 @@ func _build_slicer_tab(row_h: float, is_mob: bool) -> void:
 	spin_cols.max_value = 16
 	spin_cols.value = 4
 	spin_cols.custom_minimum_size = Vector2(76.0 if is_mob else 65.0, row_h)
-	spin_cols.value_changed.connect(func(_v: float) -> void: if slicer_grid_overlay: slicer_grid_overlay.queue_redraw())
+	spin_cols.value_changed.connect(func(_v: float) -> void: if is_instance_valid(slicer_grid_overlay): slicer_grid_overlay.queue_redraw())
 	grid_params_row.add_child(spin_cols)
 
 	var lbl_r: Label = Label.new()
@@ -470,7 +477,7 @@ func _build_slicer_tab(row_h: float, is_mob: bool) -> void:
 	spin_rows.max_value = 16
 	spin_rows.value = 1
 	spin_rows.custom_minimum_size = Vector2(76.0 if is_mob else 65.0, row_h)
-	spin_rows.value_changed.connect(func(_v: float) -> void: if slicer_grid_overlay: slicer_grid_overlay.queue_redraw())
+	spin_rows.value_changed.connect(func(_v: float) -> void: if is_instance_valid(slicer_grid_overlay): slicer_grid_overlay.queue_redraw())
 	grid_params_row.add_child(spin_rows)
 
 	var lbl_dest: Label = Label.new()
@@ -522,9 +529,9 @@ func _process(delta: float) -> void:
 	if not visible: 
 		return
 
-	if tab_container != null and tab_container.current_tab == 1 and not working_timeline_frames.is_empty():
+	if is_instance_valid(tab_container) and tab_container.current_tab == 1 and not working_timeline_frames.is_empty():
 		timeline_preview_timer += delta
-		var fps_val: float = clip_fps_slider.value if clip_fps_slider != null else 6.0
+		var fps_val: float = clip_fps_slider.value if is_instance_valid(clip_fps_slider) else 6.0
 		var frame_dur: float = 1.0 / maxf(fps_val, 1.0)
 
 		if timeline_preview_timer >= frame_dur:
@@ -557,7 +564,7 @@ func _on_theme_updated() -> void:
 		_render_forms_bar()
 		_render_states_list()
 		_render_timeline_frames()
-	if root_panel == null: 
+	if not is_instance_valid(root_panel): 
 		return
 	for node: Node in root_panel.find_children("*", "Button", true, false):
 		if node is Button and (node as Button).text == "✕":
@@ -570,19 +577,21 @@ func open_for_entity(entity: OwnEntity) -> void:
 	active_entity = entity
 	selected_form_tex = null
 	selected_form_path = ""
-	btn_choose_form_art.text = " Pick Art..."
+	if is_instance_valid(btn_choose_form_art):
+		btn_choose_form_art.text = " Pick Art..."
 
 	_render_forms_bar()
 	_populate_state_dropdowns()
 	_render_states_list()
 	_load_state_into_timeline(active_entity.active_state_name)
 
-	tab_container.current_tab = 0
+	if is_instance_valid(tab_container):
+		tab_container.current_tab = 0
 	open_dialog()
 
 
 func _on_close_requested() -> void:
-	if active_entity != null and is_instance_valid(active_entity):
+	if is_instance_valid(active_entity):
 		SaveSystem.update_character_in_cast(active_entity)
 		SaveSystem.save_current_room_state()
 	active_entity = null
@@ -590,7 +599,7 @@ func _on_close_requested() -> void:
 
 
 func _render_forms_bar() -> void:
-	if forms_hbox_container == null or active_entity == null: 
+	if not is_instance_valid(forms_hbox_container) or not is_instance_valid(active_entity): 
 		return
 	for child: Node in forms_hbox_container.get_children(): 
 		child.queue_free()
@@ -649,12 +658,12 @@ func _render_forms_bar() -> void:
 
 
 func _populate_state_dropdowns() -> void:
-	if active_entity == null: 
+	if not is_instance_valid(active_entity): 
 		return
 	var states: Dictionary = active_entity.wardrobe_forms.get(active_entity.active_form_key, {}).get("states", {})
 
 	for opt: OptionButton in [opt_edit_state_target, opt_slicer_dest_state]:
-		if opt == null: 
+		if not is_instance_valid(opt): 
 			continue
 		opt.clear()
 		for definition: Dictionary in CORE_HOOK_DEFINITIONS:
@@ -674,7 +683,7 @@ func _populate_state_dropdowns() -> void:
 
 
 func _render_states_list() -> void:
-	if states_list_vbox == null or active_entity == null: 
+	if not is_instance_valid(states_list_vbox) or not is_instance_valid(active_entity): 
 		return
 	for child: Node in states_list_vbox.get_children(): 
 		child.queue_free()
@@ -682,8 +691,10 @@ func _render_states_list() -> void:
 	var form_dict: Dictionary = active_entity.wardrobe_forms.get(active_entity.active_form_key, {})
 	var states_dict: Dictionary = form_dict.get("states", {})
 
-	mannequin_preview_rect.texture = active_entity.main_texture
-	mannequin_status_lbl.text = "Interactive Test Mannequin — Active: %s" % active_entity.active_state_name.capitalize()
+	if is_instance_valid(mannequin_preview_rect):
+		mannequin_preview_rect.texture = active_entity.main_texture
+	if is_instance_valid(mannequin_status_lbl):
+		mannequin_status_lbl.text = "Interactive Test Mannequin — Active: %s" % active_entity.active_state_name.capitalize()
 
 	for definition: Dictionary in CORE_HOOK_DEFINITIONS:
 		var state_key: String = str(definition["key"])
@@ -725,7 +736,7 @@ func _create_state_row(state_key: String, label_text: String, icon_key: String, 
 	thumb.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 
 	var frames: Array = data.get("frames", [])
-	if not frames.is_empty() and frames[0] is Texture2D:
+	if not frames.is_empty() and is_instance_valid(frames[0]):
 		thumb.texture = frames[0] as Texture2D
 	else:
 		thumb.texture = active_entity.main_texture
@@ -748,15 +759,16 @@ func _create_state_row(state_key: String, label_text: String, icon_key: String, 
 	btn_pick.add_theme_constant_override("icon_max_width", 12)
 	apply_button_icon(btn_pick, "icon_folder")
 	btn_pick.pressed.connect(func() -> void:
-		asset_picker.open_picker("Assign Art for " + label_text, "", func(_a_name: String, tex: Texture2D, path: String) -> void:
-			if path.get_extension().to_lower() == "gif":
-				var g_data: Dictionary = UGCManager.load_gif(path)
-				if bool(g_data.get("valid", false)):
-					active_entity.register_state(active_entity.active_form_key, state_key, g_data.get("frames", []), [path], float(g_data.get("fps", 6.0)), Types.PlaybackMode.LOOP)
-			else:
-				active_entity.register_state(active_entity.active_form_key, state_key, [tex], [path], 6.0, Types.PlaybackMode.LOOP)
-			_render_states_list()
-		)
+		if is_instance_valid(asset_picker):
+			asset_picker.open_picker("Assign Art for " + label_text, "", func(_a_name: String, tex: Texture2D, path: String) -> void:
+				if path.get_extension().to_lower() == "gif":
+					var g_data: Dictionary = UGCManager.load_gif(path)
+					if bool(g_data.get("valid", false)):
+						active_entity.register_state(active_entity.active_form_key, state_key, g_data.get("frames", []), [path], float(g_data.get("fps", 6.0)), Types.PlaybackMode.LOOP)
+				else:
+					active_entity.register_state(active_entity.active_form_key, state_key, [tex], [path], 6.0, Types.PlaybackMode.LOOP)
+				_render_states_list()
+			)
 	)
 	hbox.add_child(btn_pick)
 
@@ -769,7 +781,8 @@ func _create_state_row(state_key: String, label_text: String, icon_key: String, 
 	apply_button_icon(btn_edit, icon_key)
 	btn_edit.pressed.connect(func() -> void:
 		_load_state_into_timeline(state_key)
-		tab_container.current_tab = 1
+		if is_instance_valid(tab_container):
+			tab_container.current_tab = 1
 	)
 	hbox.add_child(btn_edit)
 
@@ -793,7 +806,7 @@ func _create_state_row(state_key: String, label_text: String, icon_key: String, 
 
 func _on_add_custom_state_pressed() -> void:
 	var state_name: String = new_state_name_input.text.strip_edges().to_lower().replace(" ", "_")
-	if state_name.is_empty() or active_entity == null: 
+	if state_name.is_empty() or not is_instance_valid(active_entity): 
 		return
 	active_entity.register_state(active_entity.active_form_key, state_name, [active_entity.main_texture], [active_entity.texture_path])
 	new_state_name_input.text = ""
@@ -802,29 +815,32 @@ func _on_add_custom_state_pressed() -> void:
 
 
 func _on_pick_form_art_pressed() -> void:
-	asset_picker.open_picker("Choose Outfit Base Drawing", "", func(art_name: String, tex: Texture2D, path: String) -> void:
-		selected_form_tex = tex
-		selected_form_path = path
-		btn_choose_form_art.text = " " + art_name
-	)
+	if is_instance_valid(asset_picker):
+		asset_picker.open_picker("Choose Outfit Base Drawing", "", func(art_name: String, tex: Texture2D, path: String) -> void:
+			selected_form_tex = tex
+			selected_form_path = path
+			if is_instance_valid(btn_choose_form_art):
+				btn_choose_form_art.text = " " + art_name
+		)
 
 
 func _on_add_form_pressed() -> void:
 	var form_name: String = form_name_input.text.strip_edges()
-	if form_name.is_empty() or selected_form_tex == null or active_entity == null: 
+	if form_name.is_empty() or selected_form_tex == null or not is_instance_valid(active_entity): 
 		return
 	active_entity.add_wardrobe_form(form_name, selected_form_tex, selected_form_path)
 	form_name_input.text = ""
 	selected_form_tex = null
 	selected_form_path = ""
-	btn_choose_form_art.text = " Pick Art..."
+	if is_instance_valid(btn_choose_form_art):
+		btn_choose_form_art.text = " Pick Art..."
 	_render_forms_bar()
 	_populate_state_dropdowns()
 	_render_states_list()
 
 
 func _load_state_into_timeline(state_key: String) -> void:
-	if active_entity == null: 
+	if not is_instance_valid(active_entity): 
 		return
 	var form_dict: Dictionary = active_entity.wardrobe_forms.get(active_entity.active_form_key, {})
 	var states: Dictionary = form_dict.get("states", {})
@@ -834,28 +850,32 @@ func _load_state_into_timeline(state_key: String) -> void:
 	working_timeline_paths.clear()
 
 	for f: Variant in data.get("frames", []):
-		if f is Texture2D: 
+		if f is Texture2D and is_instance_valid(f): 
 			working_timeline_frames.append(f as Texture2D)
 	for p: Variant in data.get("paths", []):
 		working_timeline_paths.append(str(p))
 
-	if working_timeline_frames.is_empty() and active_entity.main_texture != null:
+	if working_timeline_frames.is_empty() and is_instance_valid(active_entity.main_texture):
 		working_timeline_frames.append(active_entity.main_texture)
 		working_timeline_paths.append(active_entity.texture_path)
 
-	clip_fps_slider.value = float(data.get("fps", 6.0))
-	clip_fps_val_lbl.text = "%d FPS" % int(clip_fps_slider.value)
+	if is_instance_valid(clip_fps_slider):
+		clip_fps_slider.value = float(data.get("fps", 6.0))
+	if is_instance_valid(clip_fps_val_lbl):
+		clip_fps_val_lbl.text = "%d FPS" % int(clip_fps_slider.value)
 
 	var p_mode: int = int(data.get("mode", Types.PlaybackMode.LOOP))
-	for idx: int in range(opt_playback_mode.item_count):
-		if opt_playback_mode.get_item_id(idx) == p_mode:
-			opt_playback_mode.selected = idx
-			break
+	if is_instance_valid(opt_playback_mode):
+		for idx: int in range(opt_playback_mode.item_count):
+			if opt_playback_mode.get_item_id(idx) == p_mode:
+				opt_playback_mode.selected = idx
+				break
 
-	for idx: int in range(opt_edit_state_target.item_count):
-		if str(opt_edit_state_target.get_item_metadata(idx)) == state_key:
-			opt_edit_state_target.selected = idx
-			break
+	if is_instance_valid(opt_edit_state_target):
+		for idx: int in range(opt_edit_state_target.item_count):
+			if str(opt_edit_state_target.get_item_metadata(idx)) == state_key:
+				opt_edit_state_target.selected = idx
+				break
 
 	timeline_preview_idx = 0
 	timeline_preview_timer = 0.0
@@ -864,68 +884,81 @@ func _load_state_into_timeline(state_key: String) -> void:
 
 
 func _on_timeline_target_state_selected(index: int) -> void:
-	var state_key: String = str(opt_edit_state_target.get_item_metadata(index))
-	_load_state_into_timeline(state_key)
+	if is_instance_valid(opt_edit_state_target):
+		var state_key: String = str(opt_edit_state_target.get_item_metadata(index))
+		_load_state_into_timeline(state_key)
 
 
 func _on_import_gif_pressed() -> void:
-	asset_picker.open_picker("Choose Animated GIF to Import", "", func(_a_name: String, _tex: Texture2D, file_path: String) -> void:
-		if file_path.get_extension().to_lower() != "gif":
-			EventBus.notification_requested.emit("Please select a .gif file", false)
-			return
-		var gif_data: Dictionary = UGCManager.load_gif(file_path)
-		if not bool(gif_data.get("valid", false)):
-			EventBus.notification_requested.emit("GIF Decoding Failed", false)
-			return
+	if is_instance_valid(asset_picker):
+		asset_picker.open_picker("Choose Animated GIF to Import", "", func(_a_name: String, _tex: Texture2D, file_path: String) -> void:
+			if file_path.get_extension().to_lower() != "gif":
+				EventBus.notification_requested.emit("Please select a .gif file", false)
+				return
+			var gif_data: Dictionary = UGCManager.load_gif(file_path)
+			if not bool(gif_data.get("valid", false)):
+				EventBus.notification_requested.emit("GIF Decoding Failed", false)
+				return
 
-		working_timeline_frames.clear()
-		working_timeline_paths.clear()
+			working_timeline_frames.clear()
+			working_timeline_paths.clear()
 
-		for f: Variant in gif_data.get("frames", []):
-			if f is Texture2D:
-				working_timeline_frames.append(f as Texture2D)
-				working_timeline_paths.append(file_path)
+			for f: Variant in gif_data.get("frames", []):
+				if f is Texture2D and is_instance_valid(f):
+					working_timeline_frames.append(f as Texture2D)
+					working_timeline_paths.append(file_path)
 
-		var detected_fps: float = float(gif_data.get("fps", 10.0))
-		clip_fps_slider.value = clampf(detected_fps, 1.0, 30.0)
-		clip_fps_val_lbl.text = "%d FPS" % int(clip_fps_slider.value)
-		opt_playback_mode.selected = 0
+			var detected_fps: float = float(gif_data.get("fps", 10.0))
+			if is_instance_valid(clip_fps_slider):
+				clip_fps_slider.value = clampf(detected_fps, 1.0, 30.0)
+			if is_instance_valid(clip_fps_val_lbl):
+				clip_fps_val_lbl.text = "%d FPS" % int(clip_fps_slider.value)
+			if is_instance_valid(opt_playback_mode):
+				opt_playback_mode.selected = 0
 
-		timeline_preview_idx = 0
-		timeline_preview_timer = 0.0
-		_update_timeline_preview_display()
-		_render_timeline_frames()
-		EventBus.notification_requested.emit("Imported GIF (%d frames @ %d FPS)" % [working_timeline_frames.size(), int(detected_fps)], true)
-	)
+			timeline_preview_idx = 0
+			timeline_preview_timer = 0.0
+			_update_timeline_preview_display()
+			_render_timeline_frames()
+			EventBus.notification_requested.emit("Imported GIF (%d frames @ %d FPS)" % [working_timeline_frames.size(), int(detected_fps)], true)
+		)
 
 
 func _on_add_timeline_frame_pressed() -> void:
-	asset_picker.open_picker("Choose Frame Drawing", "", func(_a_name: String, tex: Texture2D, path: String) -> void:
-		working_timeline_frames.append(tex)
-		working_timeline_paths.append(path)
-		_update_timeline_preview_display()
-		_render_timeline_frames()
-	)
+	if is_instance_valid(asset_picker):
+		asset_picker.open_picker("Choose Frame Drawing", "", func(_a_name: String, tex: Texture2D, path: String) -> void:
+			if is_instance_valid(tex):
+				working_timeline_frames.append(tex)
+				working_timeline_paths.append(path)
+				_update_timeline_preview_display()
+				_render_timeline_frames()
+		)
 
 
 func _update_timeline_preview_display() -> void:
+	if not is_instance_valid(timeline_preview_rect):
+		return
+
 	if working_timeline_frames.is_empty():
 		timeline_preview_rect.texture = null
-		timeline_onion_rect.texture = null
+		if is_instance_valid(timeline_onion_rect): 
+			timeline_onion_rect.texture = null
 		return
 
 	timeline_preview_idx = clampi(timeline_preview_idx, 0, working_timeline_frames.size() - 1)
 	timeline_preview_rect.texture = working_timeline_frames[timeline_preview_idx]
 
-	if check_onion_skin.button_pressed and working_timeline_frames.size() > 1:
+	if is_instance_valid(check_onion_skin) and check_onion_skin.button_pressed and working_timeline_frames.size() > 1:
 		var prev_idx: int = (timeline_preview_idx - 1 + working_timeline_frames.size()) % working_timeline_frames.size()
-		timeline_onion_rect.texture = working_timeline_frames[prev_idx]
+		if is_instance_valid(timeline_onion_rect):
+			timeline_onion_rect.texture = working_timeline_frames[prev_idx]
 	else:
-		timeline_onion_rect.texture = null
+		if is_instance_valid(timeline_onion_rect):
+			timeline_onion_rect.texture = null
 
 
 func _render_timeline_frames() -> void:
-	if timeline_frames_vbox == null: 
+	if not is_instance_valid(timeline_frames_vbox): 
 		return
 	for child: Node in timeline_frames_vbox.get_children(): 
 		child.queue_free()
@@ -1032,16 +1065,16 @@ func _swap_timeline_frames(idx_a: int, idx_b: int) -> void:
 
 
 func _on_save_timeline_to_state_pressed() -> void:
-	if active_entity == null or working_timeline_frames.is_empty(): 
+	if not is_instance_valid(active_entity) or working_timeline_frames.is_empty(): 
 		return
 	var target_state_key: String = ""
-	if opt_edit_state_target.selected >= 0:
+	if is_instance_valid(opt_edit_state_target) and opt_edit_state_target.selected >= 0:
 		target_state_key = str(opt_edit_state_target.get_item_metadata(opt_edit_state_target.selected)).strip_edges()
 	if target_state_key.is_empty():
 		target_state_key = Types.STATE_IDLE
 
-	var p_mode: int = opt_playback_mode.get_selected_id()
-	var fps_val: float = clip_fps_slider.value
+	var p_mode: int = opt_playback_mode.get_selected_id() if is_instance_valid(opt_playback_mode) else int(Types.PlaybackMode.LOOP)
+	var fps_val: float = clip_fps_slider.value if is_instance_valid(clip_fps_slider) else 6.0
 
 	active_entity.register_state(active_entity.active_form_key, target_state_key, working_timeline_frames, working_timeline_paths, fps_val, p_mode)
 	_render_states_list()
@@ -1049,27 +1082,30 @@ func _on_save_timeline_to_state_pressed() -> void:
 
 
 func _on_pick_sheet_art_pressed() -> void:
-	asset_picker.open_picker("Choose Sprite Sheet / Strip", "", func(art_name: String, tex: Texture2D, path: String) -> void:
-		slicer_source_tex = tex
-		slicer_source_path = path
-		btn_choose_sheet_art.text = " Sheet: " + art_name
-		slicer_preview_rect.texture = tex
+	if is_instance_valid(asset_picker):
+		asset_picker.open_picker("Choose Sprite Sheet / Strip", "", func(art_name: String, tex: Texture2D, path: String) -> void:
+			slicer_source_tex = tex
+			slicer_source_path = path
+			if is_instance_valid(btn_choose_sheet_art):
+				btn_choose_sheet_art.text = " Sheet: " + art_name
+			if is_instance_valid(slicer_preview_rect):
+				slicer_preview_rect.texture = tex
 
-		var suggested: Vector2i = SpriteSheetSlicer.suggest_grid_layout(tex.get_width(), tex.get_height())
-		spin_cols.value = suggested.x
-		spin_rows.value = suggested.y
-		if slicer_grid_overlay != null: 
-			slicer_grid_overlay.queue_redraw()
-	)
+			var suggested: Vector2i = SpriteSheetSlicer.suggest_grid_layout(tex.get_width(), tex.get_height())
+			if is_instance_valid(spin_cols): spin_cols.value = suggested.x
+			if is_instance_valid(spin_rows): spin_rows.value = suggested.y
+			if is_instance_valid(slicer_grid_overlay): 
+				slicer_grid_overlay.queue_redraw()
+		)
 
 
 func _on_extract_slices_pressed() -> void:
-	if slicer_source_tex == null or active_entity == null:
+	if not is_instance_valid(slicer_source_tex) or not is_instance_valid(active_entity):
 		EventBus.notification_requested.emit("Please select a sprite sheet graphic first.", false)
 		return
 
-	var cols: int = int(spin_cols.value)
-	var rows: int = int(spin_rows.value)
+	var cols: int = int(spin_cols.value) if is_instance_valid(spin_cols) else 1
+	var rows: int = int(spin_rows.value) if is_instance_valid(spin_rows) else 1
 	var sliced_textures: Array[ImageTexture] = SpriteSheetSlicer.slice_by_grid(slicer_source_tex, cols, rows)
 
 	if sliced_textures.is_empty():
@@ -1077,7 +1113,7 @@ func _on_extract_slices_pressed() -> void:
 		return
 
 	var dest_state_key: String = ""
-	if opt_slicer_dest_state.selected >= 0:
+	if is_instance_valid(opt_slicer_dest_state) and opt_slicer_dest_state.selected >= 0:
 		dest_state_key = str(opt_slicer_dest_state.get_item_metadata(opt_slicer_dest_state.selected)).strip_edges()
 	if dest_state_key.is_empty():
 		dest_state_key = Types.STATE_IDLE
@@ -1093,7 +1129,8 @@ func _on_extract_slices_pressed() -> void:
 
 	_load_state_into_timeline(dest_state_key)
 	_render_states_list()
-	tab_container.current_tab = 1
+	if is_instance_valid(tab_container):
+		tab_container.current_tab = 1
 	EventBus.notification_requested.emit("Extracted %d frames into State: %s" % [tex_arr.size(), dest_state_key], true)
 
 
@@ -1101,7 +1138,7 @@ class SlicerGridDraw extends Control:
 	var studio_ref: PoseAnimationStudioDialog = null
 
 	func _draw() -> void:
-		if studio_ref == null or studio_ref.slicer_source_tex == null: 
+		if not is_instance_valid(studio_ref) or not is_instance_valid(studio_ref.slicer_source_tex): 
 			return
 
 		var canvas_size: Vector2 = size
@@ -1116,8 +1153,8 @@ class SlicerGridDraw extends Control:
 
 		draw_rect(rect, Color("#ec4899", 0.35), false, 2.0)
 
-		var cols: int = int(studio_ref.spin_cols.value)
-		var rows: int = int(studio_ref.spin_rows.value)
+		var cols: int = int(studio_ref.spin_cols.value) if is_instance_valid(studio_ref.spin_cols) else 1
+		var rows: int = int(studio_ref.spin_rows.value) if is_instance_valid(studio_ref.spin_rows) else 1
 
 		var cell_w: float = drawn_size.x / float(maxi(cols, 1))
 		var cell_h: float = drawn_size.y / float(maxi(rows, 1))

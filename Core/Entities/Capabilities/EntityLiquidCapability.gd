@@ -40,7 +40,7 @@ func fill_one() -> bool:
 		return false
 	fill_level += 1
 	fill_changed.emit(fill_level)
-	if entity != null and is_instance_valid(entity):
+	if is_instance_valid(entity):
 		EventBus.entity_state_changed.emit(entity.entity_id)
 	return true
 
@@ -52,7 +52,7 @@ func consume_one() -> bool:
 		return false
 	fill_level -= 1
 	fill_changed.emit(fill_level)
-	if entity != null and is_instance_valid(entity):
+	if is_instance_valid(entity):
 		EventBus.entity_state_changed.emit(entity.entity_id)
 	return true
 
@@ -62,7 +62,7 @@ func empty() -> void:
 		return
 	fill_level = 0
 	fill_changed.emit(fill_level)
-	if entity != null and is_instance_valid(entity):
+	if is_instance_valid(entity):
 		EventBus.entity_state_changed.emit(entity.entity_id)
 
 

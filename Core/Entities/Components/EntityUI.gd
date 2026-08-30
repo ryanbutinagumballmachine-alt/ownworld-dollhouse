@@ -16,10 +16,12 @@ var speech_bubble_node: PanelContainer = null
 var speech_label: Label = null
 var speech_tween: Tween = null
 
+
 func setup(parent_entity: OwnEntity) -> void:
 	entity = parent_entity
 	z_index = 650
 	_build_speech_bubble()
+
 
 func _build_speech_bubble() -> void:
 	speech_bubble_node = PanelContainer.new()
@@ -48,14 +50,15 @@ func _build_speech_bubble() -> void:
 	speech_bubble_node.add_child(speech_label)
 	add_child(speech_bubble_node)
 
+
 func show_speech_bubble(text_to_say: String) -> void:
-	if not speech_bubble_node or not speech_label: 
+	if not is_instance_valid(speech_bubble_node) or not is_instance_valid(speech_label) or not is_instance_valid(entity): 
 		return
 	speech_label.text = text_to_say
 	speech_bubble_node.visible = true
 	speech_bubble_node.position = Vector2(-speech_bubble_node.size.x * 0.5, -entity.texture_size.y * 0.65 - 40.0)
 
-	if speech_tween and speech_tween.is_valid():
+	if speech_tween != null and speech_tween.is_valid():
 		speech_tween.kill()
 
 	if SettingsManager.is_juice_squash_stretch_enabled():
@@ -64,14 +67,21 @@ func show_speech_bubble(text_to_say: String) -> void:
 		speech_tween.tween_property(speech_bubble_node, "scale", Vector2.ONE, 0.2)
 		speech_tween.chain().tween_interval(3.5)
 		speech_tween.chain().tween_property(speech_bubble_node, "scale", Vector2.ZERO, 0.15)
-		speech_tween.chain().tween_callback(func() -> void: speech_bubble_node.visible = false)
+		speech_tween.chain().tween_callback(func() -> void:
+			if is_instance_valid(speech_bubble_node):
+				speech_bubble_node.visible = false
+		)
 	else:
 		speech_bubble_node.scale = Vector2.ONE
 		var timer: SceneTreeTimer = get_tree().create_timer(3.5)
-		timer.timeout.connect(func() -> void: if speech_bubble_node: speech_bubble_node.visible = false)
+		timer.timeout.connect(func() -> void:
+			if is_instance_valid(speech_bubble_node):
+				speech_bubble_node.visible = false
+		)
+
 
 func spray_emotion(symbol_char: String) -> void:
-	if symbol_char.is_empty(): 
+	if symbol_char.is_empty() or not is_instance_valid(entity): 
 		return
 	var lbl: Label = Label.new()
 	lbl.text = symbol_char

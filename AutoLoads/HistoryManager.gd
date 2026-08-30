@@ -25,11 +25,11 @@ func _ready() -> void:
 
 
 func _connect_event_bus_signals() -> void:
-	if EventBus.has_signal("history_state_restored") and not EventBus.history_state_restored.is_connected(_on_external_state_restored):
+	if EventBus.has_signal(&"history_state_restored") and not EventBus.history_state_restored.is_connected(_on_external_state_restored):
 		EventBus.history_state_restored.connect(_on_external_state_restored)
-	if EventBus.has_signal("undo_requested") and not EventBus.undo_requested.is_connected(undo):
+	if EventBus.has_signal(&"undo_requested") and not EventBus.undo_requested.is_connected(undo):
 		EventBus.undo_requested.connect(undo)
-	if EventBus.has_signal("redo_requested") and not EventBus.redo_requested.is_connected(redo):
+	if EventBus.has_signal(&"redo_requested") and not EventBus.redo_requested.is_connected(redo):
 		EventBus.redo_requested.connect(redo)
 
 

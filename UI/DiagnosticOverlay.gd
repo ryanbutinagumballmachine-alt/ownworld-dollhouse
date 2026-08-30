@@ -1,7 +1,3 @@
-# ============================================================
-# File: res://UI/DiagnosticOverlay.gd
-# ============================================================
-
 # ==============================================================================
 # OWNWORLD — DIAGNOSTIC OVERLAY & INTEGRATED MOBILE SIMULATOR
 # File: res://UI/DiagnosticOverlay.gd
@@ -94,8 +90,8 @@ func setup(p_main: Node2D) -> void:
 func _connect_settings_signal() -> void:
 	if not is_inside_tree(): 
 		return
-	if SettingsManager.has_signal("developer_mode_changed"):
-		if not SettingsManager.is_connected("developer_mode_changed", Callable(self, "_on_dev_mode_changed")):
+	if SettingsManager.has_signal(&"developer_mode_changed"):
+		if not SettingsManager.is_connected(&"developer_mode_changed", Callable(self, "_on_dev_mode_changed")):
 			SettingsManager.developer_mode_changed.connect(_on_dev_mode_changed)
 
 
@@ -106,7 +102,7 @@ func _sync_with_settings() -> void:
 
 
 func _on_dev_mode_changed(enabled: bool) -> void:
-	if dev_pill_btn: 
+	if is_instance_valid(dev_pill_btn): 
 		dev_pill_btn.visible = enabled
 	set_diagnostic_active(enabled)
 
@@ -121,7 +117,7 @@ func _process(delta: float) -> void:
 		_update_timer = 0.0
 		_update_stats_display()
 
-	if debug_canvas and debug_canvas.visible:
+	if is_instance_valid(debug_canvas) and debug_canvas.visible:
 		debug_canvas.queue_redraw()
 
 
@@ -156,7 +152,7 @@ func set_diagnostic_active(active: bool) -> void:
 	visible = active
 	set_process(active)
 
-	if debug_canvas:
+	if is_instance_valid(debug_canvas):
 		debug_canvas.visible = active
 		if active: 
 			debug_canvas.queue_redraw()
@@ -178,7 +174,7 @@ func cycle_resolution_preset() -> void:
 
 func toggle_simulated_notch() -> void:
 	is_notch_visible = not is_notch_visible
-	if debug_canvas: 
+	if is_instance_valid(debug_canvas): 
 		debug_canvas.queue_redraw()
 	EventBus.notification_requested.emit("Camera Notch Overlay: " + ("ON (F4)" if is_notch_visible else "OFF"), true)
 
@@ -200,10 +196,10 @@ func _apply_resolution_preset(index: int) -> void:
 	DisplayServer.window_set_size(target_size)
 	_center_window_on_screen()
 
-	if preset_opt:
+	if is_instance_valid(preset_opt):
 		preset_opt.selected = active_preset_index
 
-	if debug_canvas:
+	if is_instance_valid(debug_canvas):
 		debug_canvas.queue_redraw()
 
 	EventBus.notification_requested.emit("Resized to: %s [%dx%d]" % [str(preset["name"]), target_size.x, target_size.y], true)
@@ -359,7 +355,7 @@ func _build_diagnostic_hud() -> void:
 
 
 func _update_sim_buttons_text() -> void:
-	if btn_toggle_ui_mode != null:
+	if is_instance_valid(btn_toggle_ui_mode):
 		var is_sim_mob: bool = SettingsManager.is_simulating_mobile_layout()
 		btn_toggle_ui_mode.text = "UI: " + ("Mobile (F5)" if is_sim_mob else "Desktop (F5)")
 
@@ -369,7 +365,7 @@ func _on_dropdown_preset_selected(index: int) -> void:
 
 
 func _update_stats_display() -> void:
-	if not main_ref: 
+	if not is_instance_valid(main_ref): 
 		return
 
 	var raw_ents: Variant = main_ref.get("all_entities")
@@ -389,10 +385,10 @@ func _update_stats_display() -> void:
 
 
 func main_camera_valid() -> bool:
-	if main_ref == null: 
+	if not is_instance_valid(main_ref): 
 		return false
 	var cam: Variant = main_ref.get("main_camera")
-	return cam != null and is_instance_valid(cam as Node)
+	return is_instance_valid(cam as Node)
 
 
 func _on_copy_state_json_pressed() -> void:
@@ -421,8 +417,8 @@ func _on_copy_state_json_pressed() -> void:
 			"weather_preset": AppState.weather_preset
 		},
 		"camera": {
-			"position": ({"x": cam_node.position.x, "y": cam_node.position.y} if cam_node else {}),
-			"zoom": (cam_node.zoom.x if cam_node else 1.0),
+			"position": ({"x": cam_node.position.x, "y": cam_node.position.y} if is_instance_valid(cam_node) else {}),
+			"zoom": (cam_node.zoom.x if is_instance_valid(cam_node) else 1.0),
 			"room_bounds": {"x": r_bounds.position.x, "y": r_bounds.position.y, "w": r_bounds.size.x, "h": r_bounds.size.y}
 		},
 		"entities_state": ((main_ref.call("_serialize_state") as Dictionary).get("entities", []) if main_ref.has_method("_serialize_state") else [])
@@ -437,7 +433,7 @@ class DebugCanvasDraw extends Control:
 	var overlay_ref: DiagnosticOverlay = null
 
 	func _draw() -> void:
-		if not overlay_ref or not overlay_ref.is_debug_active:
+		if not is_instance_valid(overlay_ref) or not overlay_ref.is_debug_active:
 			return
 
 		var vp_size: Vector2 = get_viewport_rect().size
@@ -469,7 +465,7 @@ class DebugCanvasDraw extends Control:
 		if not is_instance_valid(overlay_ref.main_ref): 
 			return
 		var cam: Camera2D = overlay_ref.main_ref.get("main_camera") as Camera2D
-		if not cam or not is_instance_valid(cam): 
+		if not is_instance_valid(cam): 
 			return
 
 		var raw_ents: Variant = overlay_ref.main_ref.get("all_entities")
@@ -502,7 +498,7 @@ class DebugCanvasDraw extends Control:
 				draw_rect(rect, Color("#000000", 0.8), false, 3.5)
 				draw_rect(rect, Color("#22c55e", 0.9), false, 2.0)
 
-			if ent.parent_socket_entity != null and is_instance_valid(ent.parent_socket_entity):
+			if is_instance_valid(ent.parent_socket_entity):
 				var parent_p: Vector2 = _world_to_screen(ent.parent_socket_entity.global_position, cam)
 				draw_line(parent_p, ent_screen_pos, Color("#000000", 0.8), 3.0)
 				draw_line(parent_p, ent_screen_pos, Color("#00f2fe", 0.9), 1.5)

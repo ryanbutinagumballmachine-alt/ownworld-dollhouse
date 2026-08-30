@@ -382,7 +382,10 @@ func _build_content() -> void:
 	check_show_floor_line.custom_minimum_size = Vector2(0.0, row_h)
 	check_show_floor_line.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	apply_checkbox_icon(check_show_floor_line, "icon_floor")
-	check_show_floor_line.toggled.connect(func(is_toggled: bool) -> void: floor_preview_changed.emit(floor_slider.value, is_toggled))
+	check_show_floor_line.toggled.connect(func(is_toggled: bool) -> void: 
+		if is_instance_valid(floor_slider):
+			floor_preview_changed.emit(floor_slider.value, is_toggled)
+	)
 	floor_box_c.add_child(check_show_floor_line)
 
 	var wall_box: VBoxContainer = VBoxContainer.new()
@@ -466,7 +469,7 @@ func _on_theme_updated() -> void:
 	apply_button_icon(btn_clear_slice, "icon_delete")
 	apply_checkbox_icon(check_show_floor_line, "icon_floor")
 	_render_slice_tabs()
-	if root_panel == null: 
+	if not is_instance_valid(root_panel): 
 		return
 	for node: Node in root_panel.find_children("*", "Button", true, false):
 		if node is Button and (node as Button).text == "✕":
@@ -474,13 +477,16 @@ func _on_theme_updated() -> void:
 
 
 func _enforce_dropdown_popup_limits(option_button: OptionButton, max_height: int = 200) -> void:
-	if option_button == null: 
+	if not is_instance_valid(option_button): 
 		return
 	var popup: PopupMenu = option_button.get_popup()
-	if popup == null: 
+	if not is_instance_valid(popup): 
 		return
 	popup.max_size = Vector2i(4000, max_height)
-	popup.about_to_popup.connect(func() -> void: popup.max_size = Vector2i(4000, max_height))
+	popup.about_to_popup.connect(func() -> void: 
+		if is_instance_valid(popup):
+			popup.max_size = Vector2i(4000, max_height)
+	)
 
 
 func open_studio(
@@ -497,17 +503,22 @@ func open_studio(
 	current_building_id = bldg_id.strip_edges() if not bldg_id.strip_edges().is_empty() else "building_main"
 	current_room_id = active_room_id.strip_edges() if not active_room_id.strip_edges().is_empty() else "room_main"
 
-	if building_lbl != null:
+	if is_instance_valid(building_lbl):
 		building_lbl.text = "Building: %s (%s)" % [current_building_name, current_building_id]
 
-	room_name_edit.text = p_room_title.strip_edges()
-	floor_level_edit.text = current_floor_level.strip_edges() if not current_floor_level.strip_edges().is_empty() else "1F"
-	if room_id_edit != null:
+	if is_instance_valid(room_name_edit):
+		room_name_edit.text = p_room_title.strip_edges()
+	if is_instance_valid(floor_level_edit):
+		floor_level_edit.text = current_floor_level.strip_edges() if not current_floor_level.strip_edges().is_empty() else "1F"
+	if is_instance_valid(room_id_edit):
 		room_id_edit.text = current_room_id
 
-	floor_slider.value = current_floor_y
-	floor_val_lbl.text = "%d px" % int(current_floor_y)
-	check_show_floor_line.button_pressed = true
+	if is_instance_valid(floor_slider):
+		floor_slider.value = current_floor_y
+	if is_instance_valid(floor_val_lbl):
+		floor_val_lbl.text = "%d px" % int(current_floor_y)
+	if is_instance_valid(check_show_floor_line):
+		check_show_floor_line.button_pressed = true
 
 	room_slices = current_slices_data.duplicate(true)
 	if room_slices.is_empty():
@@ -525,7 +536,7 @@ func open_studio(
 
 
 func _on_close_requested() -> void:
-	if floor_slider != null: 
+	if is_instance_valid(floor_slider): 
 		floor_preview_changed.emit(floor_slider.value, false)
 	super._on_close_requested()
 
@@ -536,13 +547,13 @@ func _on_copy_room_id_pressed() -> void:
 
 
 func _render_slice_tabs() -> void:
-	if slices_tab_container == null: 
+	if not is_instance_valid(slices_tab_container): 
 		return
 	for child: Node in slices_tab_container.get_children():
 		child.queue_free()
 
 	var is_mob: bool = is_mobile()
-	var c_accent: Color = ThemeService.get_color("accent_primary", "#db2777")
+	var c_accent: Color = ThemeService.get_color("accent_primary", "#ec4899")
 	var rad: int = ThemeService.get_corner_radius()
 
 	for i: int in range(room_slices.size()):
@@ -579,7 +590,8 @@ func _render_slice_tabs() -> void:
 		)
 		slices_tab_container.add_child(btn)
 
-	btn_remove_slice.disabled = (room_slices.size() <= 1)
+	if is_instance_valid(btn_remove_slice):
+		btn_remove_slice.disabled = (room_slices.size() <= 1)
 
 
 func _on_add_slice_pressed() -> void:
@@ -615,8 +627,10 @@ func _sync_active_slice_controls() -> void:
 	var current_fill_mode: String = str(current_sec.get("fill_mode", "cover"))
 	var is_outdoor: bool = bool(current_sec.get("is_outdoor", false))
 
-	slice_status_lbl.text = "Slice %d Artwork (Leave empty for procedural wall/floor):" % (current_selected_slice_idx + 1)
-	opt_slice_environment.selected = 1 if is_outdoor else 0
+	if is_instance_valid(slice_status_lbl):
+		slice_status_lbl.text = "Slice %d Artwork (Leave empty for procedural wall/floor):" % (current_selected_slice_idx + 1)
+	if is_instance_valid(opt_slice_environment):
+		opt_slice_environment.selected = 1 if is_outdoor else 0
 	_update_environment_hint(is_outdoor)
 
 	var def_wall: Color = ThemeService.get_color("window_background", "#fff5f7")
@@ -627,9 +641,9 @@ func _sync_active_slice_controls() -> void:
 	var f_col_str: String = str(current_sec.get("floor_color", "")).strip_edges()
 	var t_col_str: String = str(current_sec.get("baseboard_color", "")).strip_edges()
 
-	cp_wall_color.color = Color(w_col_str) if not w_col_str.is_empty() else def_wall
-	cp_floor_color.color = Color(f_col_str) if not f_col_str.is_empty() else def_floor
-	cp_trim_color.color = Color(t_col_str) if not t_col_str.is_empty() else def_trim
+	if is_instance_valid(cp_wall_color): cp_wall_color.color = Color(w_col_str) if not w_col_str.is_empty() else def_wall
+	if is_instance_valid(cp_floor_color): cp_floor_color.color = Color(f_col_str) if not f_col_str.is_empty() else def_floor
+	if is_instance_valid(cp_trim_color): cp_trim_color.color = Color(t_col_str) if not t_col_str.is_empty() else def_trim
 
 	_select_fill_mode(current_fill_mode)
 	_populate_art_dropdown(current_wall_path)
@@ -673,7 +687,7 @@ func _on_slice_environment_selected(index: int) -> void:
 
 
 func _update_environment_hint(is_outdoor: bool) -> void:
-	if slice_env_hint != null:
+	if is_instance_valid(slice_env_hint):
 		if is_outdoor:
 			slice_env_hint.text = "Outdoors: Weather precipitation (rain, snow, leaves) will fall across this slice."
 		else:
@@ -681,6 +695,8 @@ func _update_environment_hint(is_outdoor: bool) -> void:
 
 
 func _select_fill_mode(mode_id: String) -> void:
+	if not is_instance_valid(fill_mode_option):
+		return
 	for index: int in range(FILL_MODES.size()):
 		if str(FILL_MODES[index]["id"]) == mode_id:
 			fill_mode_option.selected = index
@@ -691,7 +707,7 @@ func _select_fill_mode(mode_id: String) -> void:
 
 
 func _populate_art_dropdown(current_wall_path: String) -> void:
-	if art_option == null: 
+	if not is_instance_valid(art_option): 
 		return
 	art_option.clear()
 	art_option.add_item("(Procedural Wall & Floor / No Custom Art)", 0)
@@ -708,14 +724,16 @@ func _populate_art_dropdown(current_wall_path: String) -> void:
 	art_option.selected = selected_index
 	if selected_index > 0:
 		var chosen_texture: Variant = art_library[selected_index - 1].get("texture", null)
-		if chosen_texture is Texture2D: 
+		if chosen_texture is Texture2D and is_instance_valid(chosen_texture): 
 			_update_preview_texture(chosen_texture as Texture2D)
 		elif FileAccess.file_exists(current_wall_path):
 			_update_preview_texture(UGCManager.load_texture_from_file(current_wall_path))
 		else:
-			preview_rect.texture = null
+			if is_instance_valid(preview_rect):
+				preview_rect.texture = null
 	else:
-		preview_rect.texture = null
+		if is_instance_valid(preview_rect):
+			preview_rect.texture = null
 
 
 func _on_art_selected(index: int) -> void:
@@ -728,7 +746,8 @@ func _on_art_selected(index: int) -> void:
 		_update_preview_texture(UGCManager.load_texture_from_file(chosen_path))
 	else:
 		room_slices[current_selected_slice_idx]["wallpaper_path"] = ""
-		preview_rect.texture = null
+		if is_instance_valid(preview_rect):
+			preview_rect.texture = null
 
 	_render_slice_tabs()
 
@@ -744,27 +763,29 @@ func _on_fill_mode_selected(index: int) -> void:
 
 
 func _update_preview_texture(texture: Texture2D) -> void:
-	if preview_rect != null: 
+	if is_instance_valid(preview_rect): 
 		preview_rect.texture = texture
 
 
 func _update_preview_stretch_mode(stretch_mode: int) -> void:
-	if preview_rect != null: 
+	if is_instance_valid(preview_rect): 
 		preview_rect.stretch_mode = stretch_mode as TextureRect.StretchMode
 
 
 func _on_floor_slider_changed(value: float) -> void:
-	if floor_val_lbl != null: 
+	if is_instance_valid(floor_val_lbl): 
 		floor_val_lbl.text = "%d px" % int(value)
-	if check_show_floor_line != null:
+	if is_instance_valid(check_show_floor_line):
 		floor_preview_changed.emit(value, check_show_floor_line.button_pressed)
 
 
 func _on_save_pressed() -> void:
-	var room_title: String = room_name_edit.text.strip_edges()
-	var floor_level: String = floor_level_edit.text.strip_edges()
-	floor_preview_changed.emit(floor_slider.value, false)
-	room_configured.emit(room_slices.duplicate(true), floor_slider.value, room_title, floor_level, current_building_name, current_building_id)
+	var room_title: String = room_name_edit.text.strip_edges() if is_instance_valid(room_name_edit) else ""
+	var floor_level: String = floor_level_edit.text.strip_edges() if is_instance_valid(floor_level_edit) else "1F"
+	var floor_y_val: float = floor_slider.value if is_instance_valid(floor_slider) else 580.0
+
+	floor_preview_changed.emit(floor_y_val, false)
+	room_configured.emit(room_slices.duplicate(true), floor_y_val, room_title, floor_level, current_building_name, current_building_id)
 	EventBus.notification_requested.emit("Saved: %s (%s - %s)" % [
 		(room_title if not room_title.is_empty() else current_room_id),
 		current_building_name,
@@ -781,6 +802,8 @@ func _on_clear_slice_wallpaper_pressed() -> void:
 
 
 func _add_icon_option(option_button: OptionButton, icon_key: String, text_label: String, item_id: int) -> void:
+	if not is_instance_valid(option_button):
+		return
 	var icon_texture: Texture2D = ThemeService.get_popup_icon(icon_key)
 	if icon_texture != null: 
 		option_button.add_icon_item(icon_texture, " " + text_label, item_id)

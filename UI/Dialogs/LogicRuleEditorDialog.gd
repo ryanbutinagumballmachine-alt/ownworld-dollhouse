@@ -1,7 +1,3 @@
-# ============================================================
-# File: res://UI/Dialogs/LogicRuleEditorDialog.gd
-# ============================================================
-
 # ==============================================================================
 # OWNWORLD — LOGIC RULE EDITOR (LAYER 120 & SUB-MODAL PICKER)
 # File: res://UI/Dialogs/LogicRuleEditorDialog.gd
@@ -123,7 +119,7 @@ func _build_content() -> void:
 	add_child(asset_picker)
 
 
-func _build_when_section(parent: VBoxContainer, row_h: float, is_mob: bool) -> void:
+func _build_when_section(parent: VBoxContainer, row_h: float, _is_mob: bool) -> void:
 	when_box = PanelContainer.new()
 	when_box.theme_type_variation = "SubPanel"
 	parent.add_child(when_box)
@@ -135,7 +131,7 @@ func _build_when_section(parent: VBoxContainer, row_h: float, is_mob: bool) -> v
 	lbl_when = Label.new()
 	lbl_when.text = "1. When This Happens:"
 	lbl_when.theme_type_variation = "HeaderLabel"
-	lbl_when.add_theme_font_size_override("font_size", 11 if is_mob else 10)
+	lbl_when.add_theme_font_size_override("font_size", 11 if is_mobile() else 10)
 	when_vbox.add_child(lbl_when)
 
 	opt_when = OptionButton.new()
@@ -155,7 +151,7 @@ func _build_when_section(parent: VBoxContainer, row_h: float, is_mob: bool) -> v
 	when_vbox.add_child(item_filter_edit)
 
 
-func _build_target_section(parent: VBoxContainer, row_h: float, is_mob: bool) -> void:
+func _build_target_section(parent: VBoxContainer, row_h: float, _is_mob: bool) -> void:
 	target_box = PanelContainer.new()
 	target_box.theme_type_variation = "SubPanel"
 	parent.add_child(target_box)
@@ -167,7 +163,7 @@ func _build_target_section(parent: VBoxContainer, row_h: float, is_mob: bool) ->
 	lbl_target = Label.new()
 	lbl_target.text = "2. Apply Action To:"
 	lbl_target.theme_type_variation = "HeaderLabel"
-	lbl_target.add_theme_font_size_override("font_size", 11 if is_mob else 10)
+	lbl_target.add_theme_font_size_override("font_size", 11 if is_mobile() else 10)
 	target_vbox.add_child(lbl_target)
 
 	opt_target = OptionButton.new()
@@ -252,20 +248,20 @@ func _build_action_section(parent: VBoxContainer, row_h: float, is_mob: bool) ->
 
 
 func _on_theme_updated() -> void:
-	if btn_add_rule != null:
+	if is_instance_valid(btn_add_rule):
 		var logic_icon: Texture2D = ThemeService.get_icon("icon_logic")
 		if logic_icon == null: 
 			logic_icon = ThemeService.get_icon("icon_plus")
 		if logic_icon != null: 
 			btn_add_rule.icon = logic_icon
 
-	if btn_browse_spawn != null:
+	if is_instance_valid(btn_browse_spawn):
 		var folder_icon: Texture2D = ThemeService.get_icon("icon_folder")
 		if folder_icon != null: 
 			btn_browse_spawn.icon = folder_icon
 
 	_render_rules_list()
-	if root_panel == null: 
+	if not is_instance_valid(root_panel): 
 		return
 	for node: Node in root_panel.find_children("*", "Button", true, false):
 		if node is Button and (node as Button).text == "✕":
@@ -277,7 +273,7 @@ func open_for_entity(entity: OwnEntity) -> void:
 		return
 	active_entity = entity
 	selected_spawn_art_name = ""
-	if btn_browse_spawn != null: 
+	if is_instance_valid(btn_browse_spawn): 
 		btn_browse_spawn.text = " Browse Art to Spawn..."
 	_on_when_trigger_changed(0)
 	_on_then_action_changed(0)
@@ -292,15 +288,15 @@ func _on_close_requested() -> void:
 
 
 func _on_when_trigger_changed(index: int) -> void:
-	if opt_when == null: 
+	if not is_instance_valid(opt_when): 
 		return
 	var trigger_id: int = opt_when.get_item_id(index)
-	if item_filter_edit != null:
+	if is_instance_valid(item_filter_edit):
 		item_filter_edit.visible = (trigger_id == int(Types.TriggerEvent.ON_ITEM_RECEIVED))
 
 
 func _on_then_action_changed(index: int) -> void:
-	if opt_then == null: 
+	if not is_instance_valid(opt_then): 
 		return
 	var action_id: int = opt_then.get_item_id(index)
 
@@ -313,7 +309,7 @@ func _on_then_action_changed(index: int) -> void:
 		int(Types.ActionCommand.PLAY_ANIM):
 			dynamic_opt_param.clear()
 			dynamic_opt_param.visible = true
-			if active_entity != null and active_entity.wardrobe_forms.has(active_entity.active_form_key):
+			if is_instance_valid(active_entity) and active_entity.wardrobe_forms.has(active_entity.active_form_key):
 				var form_data: Dictionary = active_entity.wardrobe_forms[active_entity.active_form_key]
 				var states: Dictionary = form_data.get("states", {})
 				for state_name: String in states.keys():
@@ -323,7 +319,7 @@ func _on_then_action_changed(index: int) -> void:
 		int(Types.ActionCommand.SWAP_FORM):
 			dynamic_opt_param.clear()
 			dynamic_opt_param.visible = true
-			if active_entity != null:
+			if is_instance_valid(active_entity):
 				for form_name: String in active_entity.wardrobe_forms.keys():
 					dynamic_opt_param.add_item(form_name, dynamic_opt_param.item_count)
 		int(Types.ActionCommand.SET_EXPRESSION):
@@ -368,7 +364,7 @@ func _on_then_action_changed(index: int) -> void:
 
 
 func _on_browse_spawn_pressed() -> void:
-	if asset_picker == null: 
+	if not is_instance_valid(asset_picker): 
 		return
 	asset_picker.open_picker("Choose Item to Spawn", "", func(art_name: String, _tex: Texture2D, _file_path: String) -> void:
 		selected_spawn_art_name = art_name
@@ -377,7 +373,7 @@ func _on_browse_spawn_pressed() -> void:
 
 
 func _on_add_rule_pressed() -> void:
-	if active_entity == null or not is_instance_valid(active_entity):
+	if not is_instance_valid(active_entity):
 		return
 
 	var when_id: int = opt_when.get_selected_id()
@@ -407,7 +403,7 @@ func _on_add_rule_pressed() -> void:
 
 
 func _persist_active_entity() -> void:
-	if active_entity == null or not is_instance_valid(active_entity):
+	if not is_instance_valid(active_entity):
 		return
 	if active_entity.entity_type == Types.EntityType.CHARACTER:
 		SaveSystem.update_character_in_cast(active_entity)
@@ -416,14 +412,14 @@ func _persist_active_entity() -> void:
 
 
 func _render_rules_list() -> void:
-	if rules_list_vbox == null: 
+	if not is_instance_valid(rules_list_vbox): 
 		return
 	for child: Node in rules_list_vbox.get_children():
 		child.queue_free()
 
 	var is_mob: bool = is_mobile()
 
-	if active_entity == null or active_entity.logic_rules.is_empty():
+	if not is_instance_valid(active_entity) or active_entity.logic_rules.is_empty():
 		var empty_label: Label = Label.new()
 		empty_label.text = "No active rules. Add a rule above to build cause-and-effect puzzles!"
 		empty_label.theme_type_variation = "HintLabel"
@@ -475,7 +471,7 @@ func _render_rules_list() -> void:
 
 
 func _remove_rule(rule_index: int) -> void:
-	if active_entity == null or not is_instance_valid(active_entity): 
+	if not is_instance_valid(active_entity): 
 		return
 	if rule_index < 0 or rule_index >= active_entity.logic_rules.size(): 
 		return

@@ -21,10 +21,13 @@ static func _static_init() -> void:
 	_registry.append(_synchronize_portal)
 	_registry.append(_synchronize_elevator)
 
+
 static func synchronize(entity: OwnEntity) -> void:
-	if entity == null: return
-	for sync_func in _registry:
+	if not is_instance_valid(entity):
+		return
+	for sync_func: Callable in _registry:
 		sync_func.call(entity)
+
 
 static func _synchronize_consumable(entity: OwnEntity) -> void:
 	if not entity.is_consumable or entity.has_component(&"EntityConsumableCapability"):
@@ -34,12 +37,14 @@ static func _synchronize_consumable(entity: OwnEntity) -> void:
 	capability.remaining_bites = clampi(entity.current_state_idx, 0, capability.max_bites)
 	entity.add_component(capability)
 
+
 static func _synchronize_liquid(entity: OwnEntity) -> void:
 	if not (entity.is_liquid_container or entity.is_liquid_source) or entity.has_component(&"EntityLiquidCapability"):
 		return
 	var capability: EntityLiquidCapability = EntityLiquidCapability.new()
 	capability.configure(entity.is_liquid_source, entity.fill_level)
 	entity.add_component(capability)
+
 
 static func _synchronize_light(entity: OwnEntity) -> void:
 	if not entity.is_light_source or entity.has_component(&"EntityLightCapability"):
@@ -48,6 +53,7 @@ static func _synchronize_light(entity: OwnEntity) -> void:
 	capability.configure(entity.light_color, entity.light_intensity, entity.light_radius, entity.light_pulse_speed, entity.light_shape_mode)
 	capability.set_active(entity.is_active)
 	entity.add_component(capability)
+
 
 static func _synchronize_container(entity: OwnEntity) -> void:
 	if not entity.is_container or entity.has_component(&"EntityContainerCapability"):
@@ -58,6 +64,7 @@ static func _synchronize_container(entity: OwnEntity) -> void:
 		capability.stored_items.append(item.duplicate(true))
 	entity.add_component(capability)
 
+
 static func _synchronize_portal(entity: OwnEntity) -> void:
 	if not entity.is_portal or entity.is_elevator or entity.has_component(&"EntityPortalCapability"):
 		return
@@ -65,6 +72,7 @@ static func _synchronize_portal(entity: OwnEntity) -> void:
 	capability.configure(entity.target_room_id, entity.display_name)
 	capability.door_open = entity.is_door_open
 	entity.add_component(capability)
+
 
 static func _synchronize_elevator(entity: OwnEntity) -> void:
 	if not entity.is_elevator or entity.has_component(&"EntityElevatorCapability"):

@@ -52,6 +52,9 @@ static func process_live_interactions(delta: float, active_dragged: OwnEntity, a
 
 
 static func _get_character_mouth_data(character: OwnEntity) -> Dictionary:
+	if not is_instance_valid(character):
+		return {"found": false, "global_pos": Vector2.ZERO, "radius_sq": 0.0}
+
 	if character.interaction_points.has("mouth_1"):
 		var m_data: Dictionary = character.interaction_points["mouth_1"]
 		var offset_pos: Vector2 = m_data.get("offset", Vector2(0.0, -32.0))
@@ -76,6 +79,9 @@ static func _get_character_mouth_data(character: OwnEntity) -> Dictionary:
 
 
 static func _get_faucet_stream_data(source: OwnEntity) -> Dictionary:
+	if not is_instance_valid(source):
+		return {"found": false, "global_pos": Vector2.ZERO, "radius_sq": 0.0}
+
 	for ik: String in source.interaction_points.keys():
 		if ik.begins_with("faucet") or ik.begins_with("liquid"):
 			var f_data: Dictionary = source.interaction_points[ik]
@@ -111,7 +117,7 @@ static func _process_food_eating_zone(delta: float, food: OwnEntity, all_entitie
 					eater = ent
 					break
 
-	if eater != null:
+	if eater != null and is_instance_valid(eater):
 		eater.set_actor_state(Types.STATE_EATING, 0.4)
 		hover_eat_timer -= delta
 		if hover_eat_timer <= 0.0:
@@ -141,7 +147,7 @@ static func _process_drink_sipping_zone(delta: float, drink: OwnEntity, all_enti
 					drinker = ent
 					break
 
-	if drinker != null:
+	if drinker != null and is_instance_valid(drinker):
 		drinker.set_actor_state(Types.STATE_SPEAKING, 0.4)
 		if SettingsManager.is_juice_physical_tilts_enabled():
 			var tilt_dir: float = -0.55 if drink_pos.x > drinker.global_position.x else 0.55
@@ -169,7 +175,7 @@ static func _process_cup_to_cup_pouring(delta: float, source_cup: OwnEntity, all
 					target_cup = ent
 					break
 
-	if target_cup != null:
+	if target_cup != null and is_instance_valid(target_cup):
 		if SettingsManager.is_juice_physical_tilts_enabled():
 			var pour_tilt: float = 0.65 if source_stream_pos.x < target_cup.global_position.x else -0.65
 			source_cup.rotation = lerp_angle(source_cup.rotation, pour_tilt, 14.0 * delta)
@@ -197,7 +203,7 @@ static func _process_cup_under_faucet(delta: float, cup: OwnEntity, all_entities
 				running_faucet = ent
 				break
 
-	if running_faucet != null:
+	if running_faucet != null and is_instance_valid(running_faucet):
 		hover_pour_timer -= delta
 		if hover_pour_timer <= 0.0:
 			hover_pour_timer = 0.6
@@ -205,6 +211,9 @@ static func _process_cup_under_faucet(delta: float, cup: OwnEntity, all_entities
 
 
 static func check_and_execute_crafting(dropped: OwnEntity, all_entities: Array[OwnEntity], canvas: Node2D) -> bool:
+	if not is_instance_valid(dropped) or not is_instance_valid(canvas):
+		return false
+
 	var drop_pos: Vector2 = dropped.global_position
 	for target: OwnEntity in all_entities:
 		if is_instance_valid(target) and target != dropped:

@@ -361,14 +361,14 @@ static func get_thumbnail_async(file_path: String, max_dimension: int = THUMBNAI
 
 	WorkerThreadPool.add_task(func():
 		var img: Image = _get_or_create_thumbnail_image(clean_path, max_dimension)
-		if img != null and not img.is_empty():
+		if is_instance_valid(img) and not img.is_empty():
 			Callable(_set_texture_image_safe).call_deferred(async_texture, img, cache_key)
 	)
 
 	return async_texture
 
 static func _set_texture_image_safe(tex: ImageTexture, img: Image, cache_key: String) -> void:
-	if is_instance_valid(tex) and img != null and not img.is_empty():
+	if is_instance_valid(tex) and is_instance_valid(img) and not img.is_empty():
 		tex.set_image(img)
 		thumb_mutex.lock()
 		thumb_cache[cache_key] = tex
@@ -391,7 +391,7 @@ static func _get_or_create_thumbnail_image(clean_path: String, max_dimension: in
 		var thumb_mod_time: int = FileAccess.get_modified_time(thumb_disk_path)
 		if thumb_mod_time >= src_mod_time:
 			var disk_img: Image = Image.load_from_file(thumb_disk_path)
-			if disk_img != null and not disk_img.is_empty():
+			if is_instance_valid(disk_img) and not disk_img.is_empty():
 				return disk_img
 
 	var source_image: Image = null
@@ -405,7 +405,7 @@ static func _get_or_create_thumbnail_image(clean_path: String, max_dimension: in
 	else:
 		source_image = Image.load_from_file(clean_path)
 
-	if source_image == null or source_image.is_empty(): 
+	if not is_instance_valid(source_image) or source_image.is_empty(): 
 		return null
 
 	var orig_w: int = source_image.get_width()
@@ -443,7 +443,7 @@ static func load_texture_from_file(file_path: String, max_dimension: int = DEFAU
 				return first_tex
 
 	var image: Image = Image.load_from_file(clean_path)
-	if image == null or image.is_empty():
+	if not is_instance_valid(image) or image.is_empty():
 		push_error("[UGCManager] Failed to load image from disk: " + clean_path)
 		return null
 
@@ -503,7 +503,7 @@ static func clear_cache_for_path(file_path: String) -> void:
 	var clean_path: String = _normalize_file_path(file_path)
 	if texture_cache.has(clean_path):
 		var cached_value: Variant = texture_cache[clean_path]
-		if cached_value is Texture2D:
+		if is_instance_valid(cached_value) and cached_value is Texture2D:
 			var rid: RID = (cached_value as Texture2D).get_rid()
 			polygon_cache.erase(rid)
 			all_polygons_cache.erase(rid)
@@ -541,7 +541,7 @@ static func get_polygon_cache_size() -> int:
 # --- ALPHA GEOMETRY & COLLISION GENERATION ---
 
 static func generate_alpha_bitmap(tex: Texture2D, alpha_cutoff: float = DEFAULT_ALPHA_CUTOFF) -> BitMap:
-	if tex == null: 
+	if not is_instance_valid(tex): 
 		return null
 	var texture_rid: RID = tex.get_rid()
 	if bitmap_cache.has(texture_rid):
@@ -551,7 +551,7 @@ static func generate_alpha_bitmap(tex: Texture2D, alpha_cutoff: float = DEFAULT_
 		bitmap_cache.erase(texture_rid)
 
 	var image: Image = tex.get_image()
-	if image == null or image.is_empty(): 
+	if not is_instance_valid(image) or image.is_empty(): 
 		return null
 
 	var proxy_img: Image = image
@@ -569,7 +569,7 @@ static func generate_alpha_bitmap(tex: Texture2D, alpha_cutoff: float = DEFAULT_
 	return bitmap
 
 static func generate_alpha_collision_polygons(tex: Texture2D, alpha_cutoff: float = DEFAULT_ALPHA_CUTOFF, epsilon: float = DEFAULT_ALPHA_EPSILON) -> Array[PackedVector2Array]:
-	if tex == null: 
+	if not is_instance_valid(tex): 
 		return []
 
 	var texture_rid: RID = tex.get_rid()
@@ -580,7 +580,7 @@ static func generate_alpha_collision_polygons(tex: Texture2D, alpha_cutoff: floa
 		all_polygons_cache.erase(texture_rid)
 
 	var source_img: Image = tex.get_image()
-	if source_img == null or source_img.is_empty(): 
+	if not is_instance_valid(source_img) or source_img.is_empty(): 
 		return []
 
 	var orig_w: float = float(source_img.get_width())
@@ -612,10 +612,10 @@ static func generate_alpha_collision_polygons(tex: Texture2D, alpha_cutoff: floa
 	var center_offset: Vector2 = Vector2(-orig_w * 0.5, -orig_h * 0.5)
 	var centered_polygons: Array[PackedVector2Array] = []
 
-	for poly in raw_polygons:
+	for poly: PackedVector2Array in raw_polygons:
 		if poly.size() >= 3:
 			var centered_poly: PackedVector2Array = PackedVector2Array()
-			for pt in poly:
+			for pt: Vector2 in poly:
 				var upscaled_pt: Vector2 = Vector2(pt.x * scale_x, pt.y * scale_y)
 				centered_poly.append(upscaled_pt + center_offset)
 			centered_polygons.append(centered_poly)
@@ -624,7 +624,7 @@ static func generate_alpha_collision_polygons(tex: Texture2D, alpha_cutoff: floa
 	return centered_polygons
 
 static func generate_alpha_collision_polygon(tex: Texture2D, alpha_cutoff: float = DEFAULT_ALPHA_CUTOFF, epsilon: float = DEFAULT_ALPHA_EPSILON) -> PackedVector2Array:
-	if tex == null: 
+	if not is_instance_valid(tex): 
 		return PackedVector2Array()
 
 	var texture_rid: RID = tex.get_rid()

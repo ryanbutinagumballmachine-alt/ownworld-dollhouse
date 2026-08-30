@@ -28,7 +28,7 @@ func configure(destination_room_id: String, name_value: String = "") -> void:
 
 
 func can_receive_traveler(traveler: OwnEntity) -> bool:
-	if entity == null or not is_instance_valid(entity) or traveler == null or not is_instance_valid(traveler):
+	if not is_instance_valid(entity) or not is_instance_valid(traveler):
 		return false
 	if target_room_id.is_empty() or target_room_id == AppState.room_id or traveler.entity_type != Types.EntityType.CHARACTER:
 		return false
@@ -55,7 +55,7 @@ func set_door_open(open: bool) -> void:
 	if door_open == open:
 		return
 	door_open = open
-	if entity != null and is_instance_valid(entity):
+	if is_instance_valid(entity):
 		EventBus.entity_state_changed.emit(entity.entity_id)
 
 

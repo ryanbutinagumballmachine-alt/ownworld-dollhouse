@@ -1,7 +1,3 @@
-# ============================================================
-# File: res://UI/CharacterLoreCard.gd
-# ============================================================
-
 # ==============================================================================
 # OWNWORLD — CHARACTER LORE CARD & PROFILE STUDIO (LAYER 120 & SUB-MODAL PICKER)
 # File: res://UI/CharacterLoreCard.gd
@@ -100,7 +96,7 @@ func _init() -> void:
 
 func _build_content() -> void:
 	name = "CharacterLoreCard"
-	add_to_group("character_lore_card")
+	add_to_group(&"character_lore_card")
 	var is_mob: bool = is_mobile()
 	var row_h: float = 34.0 if is_mob else 28.0
 
@@ -206,7 +202,7 @@ func _build_content() -> void:
 
 func _on_theme_updated() -> void:
 	var c_accent: Color = ThemeService.get_color("accent_primary", "#ec4899")
-	if header_lbl: 
+	if is_instance_valid(header_lbl): 
 		header_lbl.add_theme_color_override("font_color", c_accent)
 	apply_button_icon(btn_save, "icon_save")
 	apply_close_icon(btn_close)
@@ -448,7 +444,7 @@ func _add_trait_row(trait_key: String, trait_value: String, row_h: float) -> voi
 
 
 func _on_avatar_btn_pressed() -> void:
-	if asset_picker != null:
+	if is_instance_valid(asset_picker):
 		asset_picker.open_picker("Choose Character Portrait Drawing", "", func(_art_name: String, _tex: Texture2D, file_path: String) -> void:
 			_on_avatar_file_selected(file_path)
 		)
@@ -460,7 +456,7 @@ func _on_avatar_file_selected(file_path: String) -> void:
 
 
 func _update_avatar_preview() -> void:
-	if not avatar_texture_rect:
+	if not is_instance_valid(avatar_texture_rect):
 		return
 	avatar_texture_rect.texture = _resolve_character_portrait(
 		active_entity.to_dict() if is_instance_valid(active_entity) else fallback_char_dict,
@@ -696,9 +692,12 @@ func _enforce_dropdown_popup_limits(opt_btn: OptionButton, max_height: int = 200
 	if not is_instance_valid(opt_btn): 
 		return
 	var pop: PopupMenu = opt_btn.get_popup()
-	if pop:
+	if is_instance_valid(pop):
 		pop.max_size = Vector2i(4000, max_height)
-		pop.about_to_popup.connect(func() -> void: pop.max_size = Vector2i(4000, max_height))
+		pop.about_to_popup.connect(func() -> void: 
+			if is_instance_valid(pop):
+				pop.max_size = Vector2i(4000, max_height)
+		)
 
 
 func _build_notes_tab() -> void:
@@ -792,7 +791,7 @@ func save_and_close() -> void:
 		if child is HBoxContainer:
 			var k_node: LineEdit = child.get_child(0) as LineEdit
 			var v_node: LineEdit = child.get_child(1) as LineEdit
-			if k_node and v_node and not k_node.text.strip_edges().is_empty():
+			if is_instance_valid(k_node) and is_instance_valid(v_node) and not k_node.text.strip_edges().is_empty():
 				updated_traits[k_node.text.strip_edges()] = v_node.text.strip_edges()
 
 	var updated_family: Array[Dictionary] = _scrape_bond_cards(family_vbox, "Sibling")
@@ -840,19 +839,22 @@ func save_and_close() -> void:
 
 func _scrape_bond_cards(vbox_container: VBoxContainer, fallback_rel: String) -> Array[Dictionary]:
 	var result: Array[Dictionary] = []
+	if not is_instance_valid(vbox_container):
+		return result
+
 	for card: Node in vbox_container.get_children():
 		if card is PanelContainer and card.get_child_count() > 0:
 			var inner_vbox: VBoxContainer = card.get_child(0) as VBoxContainer
-			if inner_vbox and inner_vbox.get_child_count() >= 2:
+			if is_instance_valid(inner_vbox) and inner_vbox.get_child_count() >= 2:
 				var top_row: HBoxContainer = inner_vbox.get_child(0) as HBoxContainer
 				var notes_edit_node: LineEdit = inner_vbox.get_child(1) as LineEdit
-				var opt_target: OptionButton = top_row.get_child(0) as OptionButton
-				var opt_rel: OptionButton = top_row.get_child(1) as OptionButton
+				var opt_target: OptionButton = top_row.get_child(0) as OptionButton if is_instance_valid(top_row) else null
+				var opt_rel: OptionButton = top_row.get_child(1) as OptionButton if is_instance_valid(top_row) else null
 
-				if opt_target and opt_target.selected > 0:
+				if is_instance_valid(opt_target) and opt_target.selected > 0:
 					var tgt_name: String = opt_target.get_item_text(opt_target.selected)
-					var rel_name: String = opt_rel.get_item_text(opt_rel.selected) if opt_rel else fallback_rel
-					var b_notes: String = notes_edit_node.text.strip_edges() if notes_edit_node else ""
+					var rel_name: String = opt_rel.get_item_text(opt_rel.selected) if is_instance_valid(opt_rel) else fallback_rel
+					var b_notes: String = notes_edit_node.text.strip_edges() if is_instance_valid(notes_edit_node) else ""
 					result.append({"target_name": tgt_name, "relation_type": rel_name, "notes": b_notes})
 	return result
 
@@ -987,15 +989,15 @@ func _on_open_journal_from_card() -> void:
 	var main_loop: MainLoop = Engine.get_main_loop()
 	if main_loop and main_loop is SceneTree:
 		var root: Window = (main_loop as SceneTree).root
-		if root:
+		if is_instance_valid(root):
 			var existing: CanvasLayer = root.find_child("UniverseJournalDialog", true, false) as CanvasLayer
-			if existing and is_instance_valid(existing) and existing.has_method("open_journal"):
+			if is_instance_valid(existing) and existing.has_method("open_journal"):
 				existing.call("open_journal")
 
 
 func _get_universe_character_names() -> Array[String]:
 	var result: Array[String] = []
-	var my_name: String = name_edit.text.strip_edges() if name_edit else ""
+	var my_name: String = name_edit.text.strip_edges() if is_instance_valid(name_edit) else ""
 	var all_chars: Array[Dictionary] = GameManager.get_all_universe_character_data()
 	for c_var: Variant in all_chars:
 		if c_var is Dictionary:

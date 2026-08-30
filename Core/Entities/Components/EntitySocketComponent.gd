@@ -61,7 +61,7 @@ func is_socket_occupied(socket_key: String) -> bool:
 
 
 func can_attach_to(target_parent: OwnEntity, socket_key: String) -> bool:
-	if target_parent == null or not is_instance_valid(target_parent) or target_parent == entity:
+	if not is_instance_valid(target_parent) or target_parent == entity:
 		return false
 	if _would_create_cycle(target_parent) or is_socket_occupied(socket_key):
 		return false
@@ -70,7 +70,7 @@ func can_attach_to(target_parent: OwnEntity, socket_key: String) -> bool:
 
 func _would_create_cycle(potential_parent: Node) -> bool:
 	var current: Node = potential_parent
-	while current != null:
+	while is_instance_valid(current):
 		if current == entity:
 			return true
 		current = current.get_parent()
@@ -78,6 +78,8 @@ func _would_create_cycle(potential_parent: Node) -> bool:
 
 
 func _is_attachment_valid(target_parent: OwnEntity, socket_key: String) -> bool:
+	if not is_instance_valid(entity):
+		return false
 	var key: String = socket_key.to_lower()
 	if key == "sit_point":
 		return false
@@ -101,7 +103,7 @@ func _is_attachment_valid(target_parent: OwnEntity, socket_key: String) -> bool:
 
 
 func get_incoming_anchor_world_position(socket_key: String) -> Vector2:
-	if entity == null:
+	if not is_instance_valid(entity):
 		return Vector2.ZERO
 
 	var key: String = socket_key.to_lower()
@@ -127,11 +129,11 @@ func get_incoming_anchor_world_position(socket_key: String) -> Vector2:
 
 
 func attach_to_socket(target_parent: OwnEntity, socket_key: String, is_instant: bool = false) -> bool:
-	if not can_attach_to(target_parent, socket_key) or entity == null:
+	if not is_instance_valid(entity) or not can_attach_to(target_parent, socket_key):
 		return false
 
 	var previous_parent: OwnEntity = parent_socket_entity
-	if previous_parent != null:
+	if is_instance_valid(previous_parent):
 		previous_parent.attached_children.erase(entity)
 
 	parent_socket_entity = target_parent
@@ -194,11 +196,11 @@ func attach_to_socket(target_parent: OwnEntity, socket_key: String, is_instant: 
 
 
 func detach_from_socket(new_canvas_parent: Node2D) -> void:
-	if new_canvas_parent == null or entity == null:
+	if not is_instance_valid(new_canvas_parent) or not is_instance_valid(entity):
 		return
 
 	var previous_parent: OwnEntity = parent_socket_entity
-	if previous_parent != null:
+	if is_instance_valid(previous_parent):
 		previous_parent.attached_children.erase(entity)
 
 	var world_position: Vector2 = entity.global_position
@@ -236,7 +238,7 @@ func serialize() -> Dictionary:
 	return {
 		"snap_points": serialized_snap_points,
 		"interaction_points": serialized_interactions,
-		"parent_socket_entity_id": parent_socket_entity.entity_id if parent_socket_entity != null else "",
+		"parent_socket_entity_id": parent_socket_entity.entity_id if is_instance_valid(parent_socket_entity) else "",
 		"attached_socket_key": attached_socket_key
 	}
 
@@ -269,5 +271,5 @@ func deserialize(data: Dictionary) -> void:
 
 
 func _kill_entity_tween() -> void:
-	if entity != null and entity.active_tween != null and entity.active_tween.is_valid():
+	if is_instance_valid(entity) and entity.active_tween != null and entity.active_tween.is_valid():
 		entity.active_tween.kill()

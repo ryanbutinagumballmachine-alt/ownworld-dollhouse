@@ -1,7 +1,3 @@
-# ============================================================
-# File: res://UI/Dialogs/ThemeStudioDialog.gd
-# ============================================================
-
 # ==============================================================================
 # OWNWORLD — THEME STUDIO DIALOG (HYPER OPTIMIZED & LAYER 120)
 # File: res://UI/Dialogs/ThemeStudioDialog.gd
@@ -228,7 +224,7 @@ func _build_content() -> void:
 func _on_theme_updated() -> void:
 	if visible: 
 		_sync_ui_from_theme_service()
-	if root_panel == null: 
+	if not is_instance_valid(root_panel): 
 		return
 	for node: Node in root_panel.find_children("*", "Button", true, false):
 		if node is Button and (node as Button).text == "✕":
@@ -294,22 +290,24 @@ func _add_preset_button(
 	btn.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 
 	btn.pressed.connect(func() -> void:
-		cp_panel_bg.color = Color(bg)
-		cp_panel_border.color = Color(border)
-		cp_container_sub_bg.color = Color(sub_bg)
-		cp_btn_bg.color = Color(btn_n)
-		cp_btn_hover.color = Color(btn_h)
-		cp_input_bg.color = Color(input_bg)
-		cp_text_primary.color = Color(text_p)
-		cp_text_muted.color = Color(text_m)
-		cp_accent_primary.color = Color(accent)
-		cp_accent_danger.color = Color(danger)
+		if is_instance_valid(cp_panel_bg): cp_panel_bg.color = Color(bg)
+		if is_instance_valid(cp_panel_border): cp_panel_border.color = Color(border)
+		if is_instance_valid(cp_container_sub_bg): cp_container_sub_bg.color = Color(sub_bg)
+		if is_instance_valid(cp_btn_bg): cp_btn_bg.color = Color(btn_n)
+		if is_instance_valid(cp_btn_hover): cp_btn_hover.color = Color(btn_h)
+		if is_instance_valid(cp_input_bg): cp_input_bg.color = Color(input_bg)
+		if is_instance_valid(cp_text_primary): cp_text_primary.color = Color(text_p)
+		if is_instance_valid(cp_text_muted): cp_text_muted.color = Color(text_m)
+		if is_instance_valid(cp_accent_primary): cp_accent_primary.color = Color(accent)
+		if is_instance_valid(cp_accent_danger): cp_accent_danger.color = Color(danger)
 		_apply_and_persist_theme(false)
 	)
 	parent.add_child(btn)
 
 
 func _render_user_themes_bar() -> void:
+	if not is_instance_valid(saved_themes_container): 
+		return
 	for child: Node in saved_themes_container.get_children():
 		child.queue_free()
 
@@ -351,7 +349,7 @@ func _render_user_themes_bar() -> void:
 
 
 func _on_save_custom_theme_pressed() -> void:
-	var t_name: String = custom_theme_name_input.text.strip_edges()
+	var t_name: String = custom_theme_name_input.text.strip_edges() if is_instance_valid(custom_theme_name_input) else ""
 	if t_name.is_empty(): 
 		return
 
@@ -374,7 +372,8 @@ func _on_save_custom_theme_pressed() -> void:
 		"font_path": active_custom_font_path
 	}
 	_save_custom_themes_library()
-	custom_theme_name_input.text = ""
+	if is_instance_valid(custom_theme_name_input):
+		custom_theme_name_input.text = ""
 	_render_user_themes_bar()
 	_apply_and_persist_theme(true)
 
@@ -383,16 +382,16 @@ func _load_named_custom_theme(t_name: String) -> void:
 	if user_saved_themes.has(t_name):
 		var t_data: Dictionary = (user_saved_themes[t_name] as Dictionary).duplicate(true)
 		var colors: Dictionary = t_data.get("colors", {})
-		cp_panel_bg.color = Color(colors.get("panel_background", "#fff5f7"))
-		cp_panel_border.color = Color(colors.get("panel_border", "#f9a8d4"))
-		cp_container_sub_bg.color = Color(colors.get("container_sub_bg", "#fff0f3"))
-		cp_btn_bg.color = Color(colors.get("button_normal", "#fce7ed"))
-		cp_btn_hover.color = Color(colors.get("button_hover", "#fbcfe0"))
-		cp_input_bg.color = Color(colors.get("input_background", "#ffffff"))
-		cp_text_primary.color = Color(colors.get("text_primary", "#6c2e3f"))
-		cp_text_muted.color = Color(colors.get("text_muted", "#a36374"))
-		cp_accent_primary.color = Color(colors.get("accent_primary", "#ec4899"))
-		cp_accent_danger.color = Color(colors.get("accent_danger", "#f43f5e"))
+		if is_instance_valid(cp_panel_bg): cp_panel_bg.color = Color(colors.get("panel_background", "#fff5f7"))
+		if is_instance_valid(cp_panel_border): cp_panel_border.color = Color(colors.get("panel_border", "#f9a8d4"))
+		if is_instance_valid(cp_container_sub_bg): cp_container_sub_bg.color = Color(colors.get("container_sub_bg", "#fff0f3"))
+		if is_instance_valid(cp_btn_bg): cp_btn_bg.color = Color(colors.get("button_normal", "#fce7ed"))
+		if is_instance_valid(cp_btn_hover): cp_btn_hover.color = Color(colors.get("button_hover", "#fbcfe0"))
+		if is_instance_valid(cp_input_bg): cp_input_bg.color = Color(colors.get("input_background", "#ffffff"))
+		if is_instance_valid(cp_text_primary): cp_text_primary.color = Color(colors.get("text_primary", "#6c2e3f"))
+		if is_instance_valid(cp_text_muted): cp_text_muted.color = Color(colors.get("text_muted", "#a36374"))
+		if is_instance_valid(cp_accent_primary): cp_accent_primary.color = Color(colors.get("accent_primary", "#ec4899"))
+		if is_instance_valid(cp_accent_danger): cp_accent_danger.color = Color(colors.get("accent_danger", "#f43f5e"))
 		_apply_and_persist_theme(true)
 
 
@@ -406,36 +405,40 @@ func _sync_ui_from_theme_service() -> void:
 	var cached: Dictionary = ThemeService.get_theme_data()
 	var colors: Dictionary = cached.get("colors", {})
 
-	cp_panel_bg.color = Color(colors.get("panel_background", "#fff5f7"))
-	cp_panel_border.color = Color(colors.get("panel_border", "#f9a8d4"))
-	cp_container_sub_bg.color = Color(colors.get("container_sub_bg", "#fff0f3"))
-	cp_btn_bg.color = Color(colors.get("button_normal", "#fce7ed"))
-	cp_btn_hover.color = Color(colors.get("button_hover", "#fbcfe0"))
-	cp_input_bg.color = Color(colors.get("input_background", "#ffffff"))
-	cp_text_primary.color = Color(colors.get("text_primary", "#6c2e3f"))
-	cp_text_muted.color = Color(colors.get("text_muted", "#a36374"))
-	cp_accent_primary.color = Color(colors.get("accent_primary", "#ec4899"))
-	cp_accent_danger.color = Color(colors.get("accent_danger", "#f43f5e"))
+	if is_instance_valid(cp_panel_bg): cp_panel_bg.color = Color(colors.get("panel_background", "#fff5f7"))
+	if is_instance_valid(cp_panel_border): cp_panel_border.color = Color(colors.get("panel_border", "#f9a8d4"))
+	if is_instance_valid(cp_container_sub_bg): cp_container_sub_bg.color = Color(colors.get("container_sub_bg", "#fff0f3"))
+	if is_instance_valid(cp_btn_bg): cp_btn_bg.color = Color(colors.get("button_normal", "#fce7ed"))
+	if is_instance_valid(cp_btn_hover): cp_btn_hover.color = Color(colors.get("button_hover", "#fbcfe0"))
+	if is_instance_valid(cp_input_bg): cp_input_bg.color = Color(colors.get("input_background", "#ffffff"))
+	if is_instance_valid(cp_text_primary): cp_text_primary.color = Color(colors.get("text_primary", "#6c2e3f"))
+	if is_instance_valid(cp_text_muted): cp_text_muted.color = Color(colors.get("text_muted", "#a36374"))
+	if is_instance_valid(cp_accent_primary): cp_accent_primary.color = Color(colors.get("accent_primary", "#ec4899"))
+	if is_instance_valid(cp_accent_danger): cp_accent_danger.color = Color(colors.get("accent_danger", "#f43f5e"))
 
 	active_custom_font_path = str(cached.get("font_path", ""))
-	lbl_current_font.text = active_custom_font_path.get_file() if (not active_custom_font_path.is_empty() and FileAccess.file_exists(active_custom_font_path)) else "Default Font"
+	if is_instance_valid(lbl_current_font):
+		lbl_current_font.text = active_custom_font_path.get_file() if (not active_custom_font_path.is_empty() and FileAccess.file_exists(active_custom_font_path)) else "Default Font"
 
 
 func _on_browse_font_pressed() -> void:
-	font_file_dialog.theme = ThemeService.create_theme()
-	font_file_dialog.current_dir = UGCManager.get_font_root_directory()
-	font_file_dialog.popup_centered_ratio(0.6)
+	if is_instance_valid(font_file_dialog):
+		font_file_dialog.theme = ThemeService.create_theme()
+		font_file_dialog.current_dir = UGCManager.get_font_root_directory()
+		font_file_dialog.popup_centered_ratio(0.6)
 
 
 func _on_font_file_selected(fpath: String) -> void:
 	active_custom_font_path = fpath.strip_edges()
-	lbl_current_font.text = fpath.get_file()
+	if is_instance_valid(lbl_current_font):
+		lbl_current_font.text = fpath.get_file()
 	_apply_and_persist_theme(true)
 
 
 func _on_reset_font_pressed() -> void:
 	active_custom_font_path = ""
-	lbl_current_font.text = "Default Font"
+	if is_instance_valid(lbl_current_font):
+		lbl_current_font.text = "Default Font"
 	_apply_and_persist_theme(true)
 
 

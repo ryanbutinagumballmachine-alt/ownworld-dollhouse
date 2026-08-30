@@ -35,16 +35,16 @@ func _ready() -> void:
 	world_camera = get_node_or_null("WorldCamera") as Camera2D
 	atmosphere = get_node_or_null("Atmosphere")
 
-	if room_lifecycle and room_lifecycle.has_method("configure"):
+	if is_instance_valid(room_lifecycle) and room_lifecycle.has_method("configure"):
 		room_lifecycle.configure(entity_root, world_camera, atmosphere, room_bounds)
-	if interaction_controller:
+	if is_instance_valid(interaction_controller):
 		interaction_controller.set("entity_root", entity_root)
 		interaction_controller.set("main_camera", world_camera)
-		if interaction_router:
+		if is_instance_valid(interaction_router):
 			interaction_controller.set("interaction_router", interaction_router)
 		if interaction_controller.has_method("set_room_bounds"):
 			interaction_controller.set_room_bounds(room_bounds)
-	if room_transition and room_transition.has_method("configure") and room_lifecycle:
+	if is_instance_valid(room_transition) and room_transition.has_method("configure") and is_instance_valid(room_lifecycle):
 		var overlay: ColorRect = room_transition.get_node_or_null("TransitionOverlay") as ColorRect
 		room_transition.configure(room_lifecycle, overlay)
 
@@ -52,7 +52,7 @@ func _ready() -> void:
 
 
 func _initialize_world() -> void:
-	if room_lifecycle and room_lifecycle.has_method("load_room"):
+	if is_instance_valid(room_lifecycle) and room_lifecycle.has_method("load_room"):
 		var target_room_id: String = AppState.room_id if not AppState.room_id.is_empty() else SaveSchema.DEFAULT_ROOM_ID
 		room_lifecycle.load_room(target_room_id)
 	world_ready.emit()
@@ -62,28 +62,28 @@ func set_room_bounds(new_bounds: Rect2) -> void:
 	if new_bounds.size.x <= 0.0 or new_bounds.size.y <= 0.0:
 		return
 	room_bounds = new_bounds
-	if room_lifecycle and room_lifecycle.has_method("set_room_bounds"): 
+	if is_instance_valid(room_lifecycle) and room_lifecycle.has_method("set_room_bounds"): 
 		room_lifecycle.set_room_bounds(new_bounds)
-	if world_camera and world_camera.has_method("update_room_bounds"): 
+	if is_instance_valid(world_camera) and world_camera.has_method("update_room_bounds"): 
 		world_camera.update_room_bounds(new_bounds)
-	if interaction_controller and interaction_controller.has_method("set_room_bounds"): 
+	if is_instance_valid(interaction_controller) and interaction_controller.has_method("set_room_bounds"): 
 		interaction_controller.set_room_bounds(new_bounds)
 
 
 func get_entities() -> Array:
-	if room_lifecycle and room_lifecycle.has_method("get_entities"):
+	if is_instance_valid(room_lifecycle) and room_lifecycle.has_method("get_entities"):
 		return room_lifecycle.get_entities()
 	return []
 
 
 func get_current_room_state() -> Dictionary:
-	if room_lifecycle and room_lifecycle.has_method("get_current_room_state"):
+	if is_instance_valid(room_lifecycle) and room_lifecycle.has_method("get_current_room_state"):
 		return room_lifecycle.get_current_room_state()
 	return SaveSchema.create_empty_room(AppState.room_id)
 
 
 func save_active_room() -> bool:
-	if room_lifecycle and room_lifecycle.has_method("save_active_room"):
+	if is_instance_valid(room_lifecycle) and room_lifecycle.has_method("save_active_room"):
 		return bool(room_lifecycle.save_active_room())
 	return SaveSystem.save_room_state(AppState.room_id, get_current_room_state())
 
@@ -120,5 +120,5 @@ func request_elevator_travel(_elevator: OwnEntity, target_room_id: String, floor
 
 func request_universe_room_reset() -> void:
 	RoomRepository.clear_universe(AppState.universe_id)
-	if room_lifecycle and room_lifecycle.has_method("load_room"):
+	if is_instance_valid(room_lifecycle) and room_lifecycle.has_method("load_room"):
 		room_lifecycle.load_room(AppState.room_id)

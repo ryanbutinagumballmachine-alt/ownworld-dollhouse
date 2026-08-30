@@ -2,6 +2,8 @@
 # OWNWORLD — UNIVERSE JOURNAL & CHRONICLES (HYPER OPTIMIZED)
 # File: res://UI/Dialogs/UniverseJournalDialog.gd
 # Base Class: HyperUIDialog
+#
+# Responsibility: In-game chronicle archive and faction roster manager.
 # ==============================================================================
 
 class_name UniverseJournalDialog
@@ -57,9 +59,11 @@ const FACTION_TYPES: Array[String] = [
 	"Academy / Scholarly", "Kingdom / Court", "Rebellion / Freefolk", "Independent Collective"
 ]
 
+
 func _init() -> void:
 	max_panel_width = 780.0
 	max_panel_height = 580.0
+
 
 func _build_content() -> void:
 	name = "UniverseJournalDialog"
@@ -149,6 +153,7 @@ func _build_content() -> void:
 	factions_tab_container.add_theme_constant_override("separation", 10)
 	content_holder.add_child(factions_tab_container)
 	_build_factions_tab_ui(row_h, is_mob)
+
 
 func _build_timeline_tab_ui(row_h: float, is_mob: bool) -> void:
 	var left_vbox: VBoxContainer = VBoxContainer.new()
@@ -286,6 +291,7 @@ func _build_timeline_tab_ui(row_h: float, is_mob: bool) -> void:
 	t_delete_btn.add_theme_font_size_override("font_size", 11 if is_mob else 10)
 	t_delete_btn.pressed.connect(_on_delete_timeline_entry)
 	t_footer.add_child(t_delete_btn)
+
 
 func _build_factions_tab_ui(row_h: float, is_mob: bool) -> void:
 	var left_vbox: VBoxContainer = VBoxContainer.new()
@@ -485,14 +491,15 @@ func _build_factions_tab_ui(row_h: float, is_mob: bool) -> void:
 	f_delete_btn.pressed.connect(_on_delete_faction_entry)
 	f_footer.add_child(f_delete_btn)
 
+
 func _on_theme_updated() -> void:
 	var c_accent: Color = ThemeService.get_color("accent_primary", "#ec4899")
 	var c_muted: Color = ThemeService.get_color("text_muted", "#a36374")
 	var c_text: Color = ThemeService.get_color("text_primary", "#6c2e3f")
 	var radius: int = ThemeService.get_corner_radius()
 
-	if header_lbl: header_lbl.add_theme_color_override("font_color", c_accent)
-	if universe_title_lbl: universe_title_lbl.add_theme_color_override("font_color", c_muted)
+	if is_instance_valid(header_lbl): header_lbl.add_theme_color_override("font_color", c_accent)
+	if is_instance_valid(universe_title_lbl): universe_title_lbl.add_theme_color_override("font_color", c_muted)
 
 	apply_button_icon(tab_btn_timeline, "icon_room")
 	apply_button_icon(tab_btn_factions, "icon_cast")
@@ -500,23 +507,28 @@ func _on_theme_updated() -> void:
 	_style_tab_button(tab_btn_timeline, current_tab == TabMode.TIMELINE, c_accent, c_text, radius)
 	_style_tab_button(tab_btn_factions, current_tab == TabMode.FACTIONS, c_accent, c_text, radius)
 
-	if visible: _select_tab(current_tab)
+	if visible: 
+		_select_tab(current_tab)
+
 
 func _load_journal_state() -> void:
 	journal_data = SaveSystem.load_universe_journal(AppState.universe_id)
 	cached_roster = GameManager.get_all_universe_character_data()
 
-	if universe_title_lbl:
+	if is_instance_valid(universe_title_lbl):
 		universe_title_lbl.text = "Universe: %s" % (AppState.universe_name if not AppState.universe_name.is_empty() else "Universe")
+
 
 func open_journal() -> void:
 	_load_journal_state()
 	_select_tab(current_tab)
 	open_dialog()
 
+
 func _on_close_requested() -> void:
 	_save_silently()
 	super._on_close_requested()
+
 
 func _select_tab(tab: TabMode) -> void:
 	current_tab = tab
@@ -527,15 +539,19 @@ func _select_tab(tab: TabMode) -> void:
 	_style_tab_button(tab_btn_timeline, current_tab == TabMode.TIMELINE, c_accent, c_text, rad)
 	_style_tab_button(tab_btn_factions, current_tab == TabMode.FACTIONS, c_accent, c_text, rad)
 
-	timeline_tab_container.visible = (current_tab == TabMode.TIMELINE)
-	factions_tab_container.visible = (current_tab == TabMode.FACTIONS)
+	if is_instance_valid(timeline_tab_container):
+		timeline_tab_container.visible = (current_tab == TabMode.TIMELINE)
+	if is_instance_valid(factions_tab_container):
+		factions_tab_container.visible = (current_tab == TabMode.FACTIONS)
 
 	match current_tab:
 		TabMode.TIMELINE: _render_timeline_list()
 		TabMode.FACTIONS: _render_factions_list()
 
+
 func _style_tab_button(btn: Button, is_active: bool, c_accent: Color, _c_text: Color, rad: int) -> void:
-	if not btn: return
+	if not is_instance_valid(btn): 
+		return
 	btn.remove_theme_stylebox_override("normal")
 	btn.remove_theme_stylebox_override("hover")
 	btn.remove_theme_stylebox_override("pressed")
@@ -564,7 +580,10 @@ func _style_tab_button(btn: Button, is_active: bool, c_accent: Color, _c_text: C
 		btn.add_theme_color_override("font_hover_color", Color.WHITE)
 		btn.add_theme_color_override("icon_normal_color", Color.WHITE)
 
+
 func _render_timeline_list() -> void:
+	if not is_instance_valid(timeline_list_vbox):
+		return
 	for c: Node in timeline_list_vbox.get_children():
 		c.queue_free()
 	var timeline_arr: Array = journal_data.get("timeline", [])
@@ -575,11 +594,13 @@ func _render_timeline_list() -> void:
 		hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		hint.add_theme_font_size_override("font_size", 11 if is_mobile() else 10)
 		timeline_list_vbox.add_child(hint)
-		timeline_editor_vbox.visible = false
+		if is_instance_valid(timeline_editor_vbox):
+			timeline_editor_vbox.visible = false
 		active_timeline_idx = -1
 		return
 
-	timeline_editor_vbox.visible = true
+	if is_instance_valid(timeline_editor_vbox):
+		timeline_editor_vbox.visible = true
 	if active_timeline_idx < 0 or active_timeline_idx >= timeline_arr.size():
 		active_timeline_idx = 0
 
@@ -595,22 +616,25 @@ func _render_timeline_list() -> void:
 		btn.custom_minimum_size = Vector2(0.0, 48.0 if is_mobile() else 40.0)
 		btn.focus_mode = Control.FOCUS_NONE
 		btn.add_theme_font_size_override("font_size", 11 if is_mobile() else 10)
-		if i == active_timeline_idx: btn.theme_type_variation = "Breadcrumb"
+		if i == active_timeline_idx: 
+			btn.theme_type_variation = "Breadcrumb"
 		var target_i: int = i
 		btn.pressed.connect(func() -> void: _load_timeline_entry_to_editor(target_i))
 		timeline_list_vbox.add_child(btn)
 
 	_load_timeline_entry_to_editor(active_timeline_idx)
 
+
 func _load_timeline_entry_to_editor(idx: int) -> void:
 	var timeline_arr: Array = journal_data.get("timeline", [])
-	if idx < 0 or idx >= timeline_arr.size(): return
+	if idx < 0 or idx >= timeline_arr.size(): 
+		return
 	active_timeline_idx = idx
 
 	var entry: Dictionary = timeline_arr[idx] as Dictionary
-	t_era_input.text = str(entry.get("era", ""))
-	t_title_input.text = str(entry.get("title", ""))
-	t_content_edit.text = str(entry.get("content", ""))
+	if is_instance_valid(t_era_input): t_era_input.text = str(entry.get("era", ""))
+	if is_instance_valid(t_title_input): t_title_input.text = str(entry.get("title", ""))
+	if is_instance_valid(t_content_edit): t_content_edit.text = str(entry.get("content", ""))
 
 	_populate_room_selector(t_room_opt, str(entry.get("room_id", "room_main")))
 	_populate_character_chips(t_chars_container, entry.get("character_ids", []), func(c_id: String, active: bool) -> void:
@@ -621,7 +645,10 @@ func _load_timeline_entry_to_editor(idx: int) -> void:
 		_save_silently()
 	)
 
+
 func _render_factions_list() -> void:
+	if not is_instance_valid(factions_list_vbox):
+		return
 	for c: Node in factions_list_vbox.get_children():
 		c.queue_free()
 	var factions_arr: Array = journal_data.get("factions", [])
@@ -632,11 +659,13 @@ func _render_factions_list() -> void:
 		hint.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		hint.add_theme_font_size_override("font_size", 11 if is_mobile() else 10)
 		factions_list_vbox.add_child(hint)
-		factions_editor_vbox.visible = false
+		if is_instance_valid(factions_editor_vbox):
+			factions_editor_vbox.visible = false
 		active_faction_idx = -1
 		return
 
-	factions_editor_vbox.visible = true
+	if is_instance_valid(factions_editor_vbox):
+		factions_editor_vbox.visible = true
 	if active_faction_idx < 0 or active_faction_idx >= factions_arr.size():
 		active_faction_idx = 0
 
@@ -652,34 +681,41 @@ func _render_factions_list() -> void:
 		btn.custom_minimum_size = Vector2(0.0, 48.0 if is_mobile() else 40.0)
 		btn.focus_mode = Control.FOCUS_NONE
 		btn.add_theme_font_size_override("font_size", 11 if is_mobile() else 10)
-		if i == active_faction_idx: btn.theme_type_variation = "Breadcrumb"
+		if i == active_faction_idx: 
+			btn.theme_type_variation = "Breadcrumb"
 		var target_i: int = i
 		btn.pressed.connect(func() -> void: _load_faction_entry_to_editor(target_i))
 		factions_list_vbox.add_child(btn)
 
 	_load_faction_entry_to_editor(active_faction_idx)
 
+
 func _load_faction_entry_to_editor(idx: int) -> void:
 	var factions_arr: Array = journal_data.get("factions", [])
-	if idx < 0 or idx >= factions_arr.size(): return
+	if idx < 0 or idx >= factions_arr.size(): 
+		return
 	active_faction_idx = idx
 
 	var f_dict: Dictionary = factions_arr[idx] as Dictionary
-	f_name_input.text = str(f_dict.get("name", ""))
-	f_motto_input.text = str(f_dict.get("motto", ""))
-	f_notes_edit.text = str(f_dict.get("notes", ""))
-	f_color_btn.color = Color(str(f_dict.get("badge_color", "#ec4899")))
+	if is_instance_valid(f_name_input): f_name_input.text = str(f_dict.get("name", ""))
+	if is_instance_valid(f_motto_input): f_motto_input.text = str(f_dict.get("motto", ""))
+	if is_instance_valid(f_notes_edit): f_notes_edit.text = str(f_dict.get("notes", ""))
+	if is_instance_valid(f_color_btn): f_color_btn.color = Color(str(f_dict.get("badge_color", "#ec4899")))
 
 	var curr_type: String = str(f_dict.get("type", "Guild"))
 	var type_idx: int = FACTION_TYPES.find(curr_type)
-	f_type_opt.select(maxi(type_idx, 0))
+	if is_instance_valid(f_type_opt):
+		f_type_opt.select(maxi(type_idx, 0))
 
 	_populate_faction_leader_selector(f_leader_opt, str(f_dict.get("leader_id", "")))
 	_populate_room_selector(f_hq_opt, str(f_dict.get("headquarters_room_id", "room_main")))
 	_populate_add_member_dropdown()
 	_render_faction_member_cards(f_dict)
 
+
 func _render_faction_member_cards(f_dict: Dictionary) -> void:
+	if not is_instance_valid(f_members_vbox):
+		return
 	for c: Node in f_members_vbox.get_children():
 		c.queue_free()
 	var members_raw: Array = f_dict.get("members", [])
@@ -708,7 +744,8 @@ func _render_faction_member_cards(f_dict: Dictionary) -> void:
 		var c_id: String = str(m_data.get("character_id", ""))
 		var c_rank: String = str(m_data.get("rank", "Member"))
 		var char_dict: Dictionary = _find_character_by_id(c_id)
-		if char_dict.is_empty(): continue
+		if char_dict.is_empty(): 
+			continue
 
 		var card: PanelContainer = PanelContainer.new()
 		card.theme_type_variation = "SubPanel"
@@ -766,7 +803,10 @@ func _render_faction_member_cards(f_dict: Dictionary) -> void:
 		)
 		row.add_child(remove_btn)
 
+
 func _populate_faction_leader_selector(opt_btn: OptionButton, selected_leader_id: String) -> void:
+	if not is_instance_valid(opt_btn):
+		return
 	opt_btn.clear()
 	opt_btn.add_item("None / Unassigned", 0)
 	opt_btn.set_item_metadata(0, "")
@@ -778,10 +818,14 @@ func _populate_faction_leader_selector(opt_btn: OptionButton, selected_leader_id
 		var item_idx: int = i + 1
 		opt_btn.add_item(c_name, item_idx)
 		opt_btn.set_item_metadata(item_idx, c_id)
-		if c_id == selected_leader_id: sel_idx = item_idx
+		if c_id == selected_leader_id: 
+			sel_idx = item_idx
 	opt_btn.select(sel_idx)
 
+
 func _populate_add_member_dropdown() -> void:
+	if not is_instance_valid(f_add_member_opt):
+		return
 	f_add_member_opt.clear()
 	f_add_member_opt.add_item("+ Enlist...", 0)
 	f_add_member_opt.set_item_metadata(0, "")
@@ -790,7 +834,8 @@ func _populate_add_member_dropdown() -> void:
 	var active_f: Dictionary = factions_arr[active_faction_idx] if (active_faction_idx >= 0 and active_faction_idx < factions_arr.size()) else {}
 	var enlisted_ids: Array = []
 	for m: Variant in active_f.get("members", []):
-		if m is Dictionary: enlisted_ids.append(str((m as Dictionary).get("character_id", "")))
+		if m is Dictionary: 
+			enlisted_ids.append(str((m as Dictionary).get("character_id", "")))
 
 	var item_counter: int = 1
 	for char_dict: Dictionary in cached_roster:
@@ -801,10 +846,13 @@ func _populate_add_member_dropdown() -> void:
 			f_add_member_opt.set_item_metadata(item_counter, c_id)
 			item_counter += 1
 
+
 func _on_add_member_selected(index: int) -> void:
-	if index <= 0: return
+	if index <= 0 or not is_instance_valid(f_add_member_opt): 
+		return
 	var c_id: String = str(f_add_member_opt.get_item_metadata(index))
-	if c_id.is_empty(): return
+	if c_id.is_empty(): 
+		return
 
 	var factions_arr: Array = journal_data.get("factions", [])
 	if active_faction_idx >= 0 and active_faction_idx < factions_arr.size():
@@ -814,17 +862,23 @@ func _on_add_member_selected(index: int) -> void:
 		_save_silently()
 		_load_faction_entry_to_editor(active_faction_idx)
 
+
 func _on_faction_type_selected(index: int) -> void:
 	if index >= 0 and index < FACTION_TYPES.size():
 		_commit_active_faction_field("type", FACTION_TYPES[index])
 
+
 func _on_faction_leader_selected(index: int) -> void:
-	var leader_id: String = str(f_leader_opt.get_item_metadata(index))
-	_commit_active_faction_field("leader_id", leader_id)
+	if is_instance_valid(f_leader_opt):
+		var leader_id: String = str(f_leader_opt.get_item_metadata(index))
+		_commit_active_faction_field("leader_id", leader_id)
+
 
 func _on_faction_hq_selected(index: int) -> void:
-	var hq_id: String = str(f_hq_opt.get_item_metadata(index))
-	_commit_active_faction_field("headquarters_room_id", hq_id)
+	if is_instance_valid(f_hq_opt):
+		var hq_id: String = str(f_hq_opt.get_item_metadata(index))
+		_commit_active_faction_field("headquarters_room_id", hq_id)
+
 
 func _resolve_character_portrait(char_dict: Dictionary) -> Texture2D:
 	var custom_f: Dictionary = char_dict.get("custom_fields", {})
@@ -838,7 +892,10 @@ func _resolve_character_portrait(char_dict: Dictionary) -> Texture2D:
 			return UGCManager.load_texture_from_file(path_str)
 	return null
 
+
 func _populate_character_chips(container: Control, active_id_list: Array, on_toggle_callback: Callable) -> void:
+	if not is_instance_valid(container):
+		return
 	for c: Node in container.get_children():
 		c.queue_free()
 	if cached_roster.is_empty():
@@ -854,7 +911,8 @@ func _populate_character_chips(container: Control, active_id_list: Array, on_tog
 	for char_dict: Dictionary in cached_roster:
 		var c_id: String = str(char_dict.get("id", ""))
 		var c_name: String = str(char_dict.get("display_name", "Character"))
-		if c_id.is_empty(): continue
+		if c_id.is_empty(): 
+			continue
 
 		var is_selected: bool = active_id_list.has(c_id)
 		var chip_btn: Button = Button.new()
@@ -864,7 +922,8 @@ func _populate_character_chips(container: Control, active_id_list: Array, on_tog
 		chip_btn.custom_minimum_size = Vector2(0.0, 28.0 if is_mob else 24.0)
 		chip_btn.focus_mode = Control.FOCUS_NONE
 		chip_btn.add_theme_font_size_override("font_size", 11 if is_mob else 10)
-		if is_selected: chip_btn.theme_type_variation = "Breadcrumb"
+		if is_selected: 
+			chip_btn.theme_type_variation = "Breadcrumb"
 		var target_cid: String = c_id
 		chip_btn.toggled.connect(func(pressed: bool) -> void:
 			chip_btn.theme_type_variation = "Breadcrumb" if pressed else ""
@@ -872,20 +931,24 @@ func _populate_character_chips(container: Control, active_id_list: Array, on_tog
 		)
 		container.add_child(chip_btn)
 
+
 func _populate_room_selector(opt_btn: OptionButton, selected_room_id: String) -> void:
+	if not is_instance_valid(opt_btn):
+		return
 	opt_btn.clear()
 	var save_dir: String = SaveSystem.get_universe_save_dir(AppState.universe_id)
 	var rooms: Array[String] = ["room_main"]
 
 	if not save_dir.is_empty() and DirAccess.dir_exists_absolute(save_dir):
 		var dir: DirAccess = DirAccess.open(save_dir)
-		if dir:
+		if is_instance_valid(dir):
 			dir.list_dir_begin()
 			var fname: String = dir.get_next()
 			while not fname.is_empty():
 				if not dir.current_is_dir() and fname.ends_with(".json"):
 					var r_id: String = fname.get_basename()
-					if not rooms.has(r_id): rooms.append(r_id)
+					if not rooms.has(r_id): 
+						rooms.append(r_id)
 				fname = dir.get_next()
 
 	var sel_idx: int = 0
@@ -893,15 +956,18 @@ func _populate_room_selector(opt_btn: OptionButton, selected_room_id: String) ->
 		var r_id: String = rooms[i]
 		opt_btn.add_item(r_id.capitalize(), i)
 		opt_btn.set_item_metadata(i, r_id)
-		if r_id == selected_room_id: sel_idx = i
+		if r_id == selected_room_id: 
+			sel_idx = i
 
 	opt_btn.select(sel_idx)
 
+
 func _on_timeline_room_selected(index: int) -> void:
 	var timeline_arr: Array = journal_data.get("timeline", [])
-	if active_timeline_idx >= 0 and active_timeline_idx < timeline_arr.size():
+	if active_timeline_idx >= 0 and active_timeline_idx < timeline_arr.size() and is_instance_valid(t_room_opt):
 		timeline_arr[active_timeline_idx]["room_id"] = str(t_room_opt.get_item_metadata(index))
 		_save_silently()
+
 
 func _on_add_timeline_entry() -> void:
 	var timeline_arr: Array = journal_data.get("timeline", [])
@@ -919,6 +985,7 @@ func _on_add_timeline_entry() -> void:
 	_save_silently()
 	_render_timeline_list()
 
+
 func _on_delete_timeline_entry() -> void:
 	var timeline_arr: Array = journal_data.get("timeline", [])
 	if active_timeline_idx >= 0 and active_timeline_idx < timeline_arr.size():
@@ -928,17 +995,20 @@ func _on_delete_timeline_entry() -> void:
 		_save_silently()
 		_render_timeline_list()
 
+
 func _commit_active_timeline_field(field_key: String, value: Variant) -> void:
 	var timeline_arr: Array = journal_data.get("timeline", [])
 	if active_timeline_idx >= 0 and active_timeline_idx < timeline_arr.size():
 		timeline_arr[active_timeline_idx][field_key] = value
 		_save_silently()
 		if field_key == "title" or field_key == "era":
-			var btn_node: Button = timeline_list_vbox.get_child(active_timeline_idx) as Button
-			if btn_node:
-				var e_title: String = str(timeline_arr[active_timeline_idx].get("title", "Untitled Event"))
-				var e_era: String = str(timeline_arr[active_timeline_idx].get("era", "Undated"))
-				btn_node.text = "%s\n%s" % [e_title if not e_title.is_empty() else "Untitled Event", e_era if not e_era.is_empty() else "Undated"]
+			if is_instance_valid(timeline_list_vbox) and active_timeline_idx < timeline_list_vbox.get_child_count():
+				var btn_node: Button = timeline_list_vbox.get_child(active_timeline_idx) as Button
+				if is_instance_valid(btn_node):
+					var e_title: String = str(timeline_arr[active_timeline_idx].get("title", "Untitled Event"))
+					var e_era: String = str(timeline_arr[active_timeline_idx].get("era", "Undated"))
+					btn_node.text = "%s\n%s" % [e_title if not e_title.is_empty() else "Untitled Event", e_era if not e_era.is_empty() else "Undated"]
+
 
 func _on_add_faction_entry() -> void:
 	var factions_arr: Array = journal_data.get("factions", [])
@@ -959,6 +1029,7 @@ func _on_add_faction_entry() -> void:
 	_save_silently()
 	_render_factions_list()
 
+
 func _on_delete_faction_entry() -> void:
 	var factions_arr: Array = journal_data.get("factions", [])
 	if active_faction_idx >= 0 and active_faction_idx < factions_arr.size():
@@ -968,43 +1039,57 @@ func _on_delete_faction_entry() -> void:
 		_save_silently()
 		_render_factions_list()
 
+
 func _commit_active_faction_field(field_key: String, value: Variant) -> void:
 	var factions_arr: Array = journal_data.get("factions", [])
 	if active_faction_idx >= 0 and active_faction_idx < factions_arr.size():
 		factions_arr[active_faction_idx][field_key] = value
 		_save_silently()
 		if field_key == "name" or field_key == "motto":
-			var btn_node: Button = factions_list_vbox.get_child(active_faction_idx) as Button
-			if btn_node:
-				var f_name: String = str(factions_arr[active_faction_idx].get("name", "Unnamed Faction"))
-				var f_motto: String = str(factions_arr[active_faction_idx].get("motto", "No motto"))
-				btn_node.text = "%s\n%s" % [f_name if not f_name.is_empty() else "Unnamed Faction", f_motto if not f_motto.is_empty() else "No motto"]
+			if is_instance_valid(factions_list_vbox) and active_faction_idx < factions_list_vbox.get_child_count():
+				var btn_node: Button = factions_list_vbox.get_child(active_faction_idx) as Button
+				if is_instance_valid(btn_node):
+					var f_name: String = str(factions_arr[active_faction_idx].get("name", "Unnamed Faction"))
+					var f_motto: String = str(factions_arr[active_faction_idx].get("motto", "No motto"))
+					btn_node.text = "%s\n%s" % [f_name if not f_name.is_empty() else "Unnamed Faction", f_motto if not f_motto.is_empty() else "No motto"]
+
 
 func _on_faction_color_changed(new_color: Color) -> void:
 	_commit_active_faction_field("badge_color", new_color.to_html(false))
 
+
 func _find_character_by_id(char_id: String) -> Dictionary:
 	for c: Dictionary in cached_roster:
-		if str(c.get("id", "")) == char_id: return c
+		if str(c.get("id", "")) == char_id: 
+			return c
 	return {}
 
+
 func _open_character_lore_card(char_dict: Dictionary) -> void:
-	if char_dict.is_empty(): return
-	var lore_cards: Array[Node] = get_tree().get_nodes_in_group("character_lore_card")
+	if char_dict.is_empty(): 
+		return
+	var lore_cards: Array[Node] = get_tree().get_nodes_in_group(&"character_lore_card")
 	var card_ui: Node = lore_cards[0] if not lore_cards.is_empty() else get_tree().root.find_child("CharacterLoreCard", true, false)
-	if card_ui and card_ui.has_method("open_card_for_character_dict"):
+	if is_instance_valid(card_ui) and card_ui.has_method("open_card_for_character_dict"):
 		card_ui.call("open_card_for_character_dict", char_dict)
+
 
 func _save_silently() -> void:
 	SaveSystem.save_universe_journal(AppState.universe_id, journal_data)
+
 
 func _on_save_button_pressed() -> void:
 	_save_silently()
 	EventBus.notification_requested.emit("Saved: World Journal", true)
 
+
 func _clamp_popup(opt_btn: OptionButton) -> void:
-	if not opt_btn: return
+	if not is_instance_valid(opt_btn): 
+		return
 	var p: PopupMenu = opt_btn.get_popup()
-	if p:
+	if is_instance_valid(p):
 		p.max_size = Vector2i(4000, 200)
-		p.about_to_popup.connect(func() -> void: p.max_size = Vector2i(4000, 200))
+		p.about_to_popup.connect(func() -> void: 
+			if is_instance_valid(p):
+				p.max_size = Vector2i(4000, 200)
+		)

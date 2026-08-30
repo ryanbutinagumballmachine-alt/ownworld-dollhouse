@@ -1,7 +1,3 @@
-# ============================================================
-# File: res://UI/Dialogs/ContainerStorageDialog.gd
-# ============================================================
-
 # ==============================================================================
 # OWNWORLD — CONTAINER STORAGE DIALOG (HYPER OPTIMIZED & LAYER 120)
 # File: res://UI/Dialogs/ContainerStorageDialog.gd
@@ -75,7 +71,7 @@ func _build_content() -> void:
 
 
 func _on_theme_updated() -> void:
-	if active_container_entity != null and is_instance_valid(active_container_entity):
+	if is_instance_valid(active_container_entity):
 		_render_stored_items()
 
 
@@ -95,7 +91,7 @@ func _on_close_requested() -> void:
 
 
 func _render_stored_items() -> void:
-	if items_grid == null: 
+	if not is_instance_valid(items_grid): 
 		return
 	for child: Node in items_grid.get_children():
 		child.queue_free()
@@ -110,7 +106,7 @@ func _render_stored_items() -> void:
 	var accent_color: Color = ThemeService.get_color("accent_primary", "#db2777")
 	var corner_radius: int = ThemeService.get_corner_radius()
 
-	if active_container_entity == null or active_container_entity.stored_item_data.is_empty():
+	if not is_instance_valid(active_container_entity) or active_container_entity.stored_item_data.is_empty():
 		var empty_label: Label = Label.new()
 		empty_label.text = "This container is empty. Drag and drop any item onto it in the room to pack it away!"
 		empty_label.theme_type_variation = "HintLabel"
@@ -164,7 +160,7 @@ func _render_stored_items() -> void:
 
 
 func _unpack_item(index: int, item_data: Dictionary) -> void:
-	if active_container_entity == null or not is_instance_valid(active_container_entity):
+	if not is_instance_valid(active_container_entity):
 		return
 	if index < 0 or index >= active_container_entity.stored_item_data.size():
 		return

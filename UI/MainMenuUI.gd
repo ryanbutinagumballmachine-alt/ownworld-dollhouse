@@ -159,7 +159,7 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _update_responsive_layout() -> void:
 	super._update_responsive_layout()
-	if menu_grid != null and root_panel != null:
+	if is_instance_valid(menu_grid) and is_instance_valid(root_panel):
 		menu_grid.columns = 2 if root_panel.size.x >= 420.0 else 1
 
 
@@ -173,7 +173,7 @@ func close_menu() -> void:
 
 
 func _update_story_info_display() -> void:
-	if universe_info_lbl == null: 
+	if not is_instance_valid(universe_info_lbl): 
 		return
 	universe_info_lbl.text = "Active Story: %s  |  Room: %s" % [
 		AppState.universe_name,
@@ -197,8 +197,9 @@ func _add_menu_btn(parent: GridContainer, btn_text: String, icon_key: String, bt
 
 
 func _on_theme_updated() -> void:
-	apply_button_icon(btn_quit, "icon_quit")
-	if menu_grid == null: 
+	if is_instance_valid(btn_quit):
+		apply_button_icon(btn_quit, "icon_quit")
+	if not is_instance_valid(menu_grid): 
 		return
 	var buttons: Array[Button] = []
 	for child: Node in menu_grid.get_children():
@@ -216,7 +217,7 @@ func _on_theme_updated() -> void:
 
 func _on_quit_pressed() -> void:
 	var tree: SceneTree = get_tree()
-	if tree == null: 
+	if not is_instance_valid(tree): 
 		return
 	tree.root.propagate_notification(NOTIFICATION_WM_CLOSE_REQUEST)
 	tree.quit()

@@ -1,7 +1,3 @@
-# ============================================================
-# File: res://UI/Dialogs/ElevatorFloorDialog.gd
-# ============================================================
-
 # ==============================================================================
 # OWNWORLD — ELEVATOR FLOOR ROUTING DIALOG (HYPER OPTIMIZED & LAYER 120)
 # File: res://UI/Dialogs/ElevatorFloorDialog.gd
@@ -77,9 +73,9 @@ func _build_content() -> void:
 
 
 func _on_theme_updated() -> void:
-	if active_elevator != null and is_instance_valid(active_elevator):
+	if is_instance_valid(active_elevator):
 		_render_keypad_buttons()
-	if root_panel == null: 
+	if not is_instance_valid(root_panel): 
 		return
 	for node: Node in root_panel.find_children("*", "Button", true, false):
 		if node is Button and (node as Button).text == "✕":
@@ -100,12 +96,12 @@ func _on_close_requested() -> void:
 
 
 func _render_keypad_buttons() -> void:
-	if keypad_grid == null: 
+	if not is_instance_valid(keypad_grid): 
 		return
 	for child: Node in keypad_grid.get_children():
 		child.queue_free()
 
-	if active_elevator == null or not is_instance_valid(active_elevator):
+	if not is_instance_valid(active_elevator):
 		return
 
 	var is_mob: bool = is_mobile()
@@ -187,7 +183,7 @@ func _render_keypad_buttons() -> void:
 
 func _on_floor_selected(target_room_id: String, floor_name: String) -> void:
 	var current_room_id: String = AppState.room_id
-	if target_room_id.is_empty() or target_room_id == current_room_id or active_elevator == null or not is_instance_valid(active_elevator):
+	if target_room_id.is_empty() or target_room_id == current_room_id or not is_instance_valid(active_elevator):
 		return
 	var elevator_ref: OwnEntity = active_elevator
 	_on_close_requested()

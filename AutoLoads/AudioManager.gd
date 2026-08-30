@@ -46,7 +46,7 @@ func _setup_channels() -> void:
 	add_child(music_player)
 
 	sfx_players.clear()
-	for index: int in range(POOL_SIZE):
+	for index in range(POOL_SIZE):
 		var player: AudioStreamPlayer = AudioStreamPlayer.new()
 		player.name = "SFXPlayer_%d" % index
 		player.bus = sfx_bus_name
@@ -67,9 +67,10 @@ func play_sfx(stream: AudioStream, pitch: float = 1.0) -> void:
 	if stream == null or sfx_players.is_empty():
 		return
 	var player: AudioStreamPlayer = _find_available_player()
-	player.stream = stream
-	player.pitch_scale = clampf(pitch, 0.5, 2.0)
-	player.play()
+	if is_instance_valid(player):
+		player.stream = stream
+		player.pitch_scale = clampf(pitch, 0.5, 2.0)
+		player.play()
 
 
 func play_pop_grab() -> void:
@@ -97,7 +98,7 @@ func play_sip() -> void:
 
 
 func play_music(stream: AudioStream, from_position: float = 0.0) -> void:
-	if music_player == null:
+	if not is_instance_valid(music_player):
 		return
 	if stream == null:
 		stop_music()
@@ -107,18 +108,18 @@ func play_music(stream: AudioStream, from_position: float = 0.0) -> void:
 
 
 func stop_music() -> void:
-	if music_player != null:
+	if is_instance_valid(music_player):
 		music_player.stop()
 
 
 func set_music_volume_db(volume_db: float) -> void:
-	if music_player != null:
+	if is_instance_valid(music_player):
 		music_player.volume_db = volume_db
 
 
 func _find_available_player() -> AudioStreamPlayer:
 	for player: AudioStreamPlayer in sfx_players:
-		if not player.playing:
+		if is_instance_valid(player) and not player.playing:
 			return player
 	var player: AudioStreamPlayer = sfx_players[_next_sfx_index]
 	_next_sfx_index = (_next_sfx_index + 1) % sfx_players.size()
@@ -127,14 +128,14 @@ func _find_available_player() -> AudioStreamPlayer:
 
 func _synth_pop(start_frequency: float, duration: float, pitch_up: bool) -> AudioStreamWAV:
 	var sample_count: int = int(float(SAMPLE_RATE) * duration)
-	var raw: PackedByteArray = PackedByteArray()
+	var raw := PackedByteArray()
 	raw.resize(sample_count * 2)
 
 	var time_step: float = 1.0 / float(SAMPLE_RATE)
 	var inv_duration: float = 1.0 / duration
 	var tau_freq: float = TAU * start_frequency
 
-	for index: int in range(sample_count):
+	for index in range(sample_count):
 		var time: float = float(index) * time_step
 		var envelope: float = exp(-time * 40.0)
 		var time_ratio: float = time * inv_duration
@@ -147,14 +148,14 @@ func _synth_pop(start_frequency: float, duration: float, pitch_up: bool) -> Audi
 
 func _synth_chime(frequency: float, duration: float) -> AudioStreamWAV:
 	var sample_count: int = int(float(SAMPLE_RATE) * duration)
-	var raw: PackedByteArray = PackedByteArray()
+	var raw := PackedByteArray()
 	raw.resize(sample_count * 2)
 
 	var time_step: float = 1.0 / float(SAMPLE_RATE)
 	var tau_freq: float = TAU * frequency
 	var tau_freq_1_5: float = tau_freq * 1.5
 
-	for index: int in range(sample_count):
+	for index in range(sample_count):
 		var time: float = float(index) * time_step
 		var envelope: float = exp(-time * 14.0)
 		var value: float = (sin(tau_freq * time) * 0.6 + sin(tau_freq_1_5 * time) * 0.4) * envelope * 0.3
@@ -165,12 +166,12 @@ func _synth_chime(frequency: float, duration: float) -> AudioStreamWAV:
 
 func _synth_noise_burst(duration: float) -> AudioStreamWAV:
 	var sample_count: int = int(float(SAMPLE_RATE) * duration)
-	var raw: PackedByteArray = PackedByteArray()
+	var raw := PackedByteArray()
 	raw.resize(sample_count * 2)
 
 	var time_step: float = 1.0 / float(SAMPLE_RATE)
 
-	for index: int in range(sample_count):
+	for index in range(sample_count):
 		var time: float = float(index) * time_step
 		var envelope: float = exp(-time * 45.0)
 		var value: float = randf_range(-0.3, 0.3) * envelope
@@ -181,14 +182,14 @@ func _synth_noise_burst(duration: float) -> AudioStreamWAV:
 
 func _synth_liquid_stream(duration: float) -> AudioStreamWAV:
 	var sample_count: int = int(float(SAMPLE_RATE) * duration)
-	var raw: PackedByteArray = PackedByteArray()
+	var raw := PackedByteArray()
 	raw.resize(sample_count * 2)
 
 	var time_step: float = 1.0 / float(SAMPLE_RATE)
 	var tau_300: float = TAU * 300.0
 	var tau_80: float = TAU * 80.0
 
-	for index: int in range(sample_count):
+	for index in range(sample_count):
 		var time: float = float(index) * time_step
 		var tau_freq: float = tau_300 + sin(time * 50.0) * tau_80
 		var value: float = (sin(tau_freq * time) * 0.2 + randf_range(-0.08, 0.08)) * 0.3
@@ -199,14 +200,14 @@ func _synth_liquid_stream(duration: float) -> AudioStreamWAV:
 
 func _synth_gulp(duration: float) -> AudioStreamWAV:
 	var sample_count: int = int(float(SAMPLE_RATE) * duration)
-	var raw: PackedByteArray = PackedByteArray()
+	var raw := PackedByteArray()
 	raw.resize(sample_count * 2)
 
 	var time_step: float = 1.0 / float(SAMPLE_RATE)
 	var inv_duration: float = 1.0 / duration
 	var tau_240: float = TAU * 240.0
 
-	for index: int in range(sample_count):
+	for index in range(sample_count):
 		var time: float = float(index) * time_step
 		var envelope: float = exp(-time * 22.0)
 		var tau_freq: float = tau_240 * (1.0 - time * inv_duration * 0.45)

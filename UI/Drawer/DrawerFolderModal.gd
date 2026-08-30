@@ -85,7 +85,7 @@ func _build_ui() -> void:
 	btn_cancel.focus_mode = Control.FOCUS_NONE
 	btn_cancel.add_theme_constant_override("icon_max_width", 14)
 	var c_icon: Texture2D = ThemeService.get_icon("icon_close")
-	if c_icon: 
+	if c_icon != null: 
 		btn_cancel.icon = c_icon
 	btn_cancel.pressed.connect(close_modal)
 	btn_row.add_child(btn_cancel)
@@ -97,16 +97,16 @@ func _build_ui() -> void:
 	btn_ok.focus_mode = Control.FOCUS_NONE
 	btn_ok.add_theme_constant_override("icon_max_width", 14)
 	var plus_icon: Texture2D = ThemeService.get_icon("icon_plus")
-	if not plus_icon: 
+	if plus_icon == null: 
 		plus_icon = ThemeService.get_icon("icon_folder")
-	if plus_icon: 
+	if plus_icon != null: 
 		btn_ok.icon = plus_icon
 	btn_ok.pressed.connect(_on_confirm)
 	btn_row.add_child(btn_ok)
 
 
 func _on_input_focus_entered() -> void:
-	if _is_mobile():
+	if _is_mobile() and is_instance_valid(center_box):
 		await get_tree().process_frame
 		await get_tree().process_frame
 		var kb_height: float = DisplayServer.virtual_keyboard_get_height()
@@ -116,24 +116,27 @@ func _on_input_focus_entered() -> void:
 
 
 func _on_input_focus_exited() -> void:
-	if _is_mobile():
+	if _is_mobile() and is_instance_valid(center_box):
 		var tween: Tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 		tween.tween_property(center_box, "position:y", 0.0, 0.25)
 
 
 func open_modal() -> void:
-	input_field.text = ""
+	if is_instance_valid(input_field):
+		input_field.text = ""
+		input_field.grab_focus()
 	visible = true
-	input_field.grab_focus()
 
 
 func close_modal() -> void:
-	input_field.text = ""
+	if is_instance_valid(input_field):
+		input_field.text = ""
 	visible = false
 
 
 func _on_confirm() -> void:
-	var n: String = input_field.text.strip_edges()
-	if not n.is_empty():
-		folder_create_confirmed.emit(n)
+	if is_instance_valid(input_field):
+		var n: String = input_field.text.strip_edges()
+		if not n.is_empty():
+			folder_create_confirmed.emit(n)
 	close_modal()

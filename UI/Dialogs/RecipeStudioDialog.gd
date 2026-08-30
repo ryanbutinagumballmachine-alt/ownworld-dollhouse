@@ -1,7 +1,3 @@
-# ============================================================
-# File: res://UI/Dialogs/RecipeStudioDialog.gd
-# ============================================================
-
 # ==============================================================================
 # OWNWORLD — RECIPE STUDIO (HYPER OPTIMIZED & LAYER 120)
 # File: res://UI/Dialogs/RecipeStudioDialog.gd
@@ -184,7 +180,7 @@ func _create_preview_slot(parent_vbox: VBoxContainer, dim: float) -> PanelContai
 
 
 func _apply_preview_style(panel: PanelContainer) -> void:
-	if panel == null: 
+	if not is_instance_valid(panel): 
 		return
 	var style: StyleBoxFlat = StyleBoxFlat.new()
 	style.bg_color = ThemeService.get_color("input_background", "#ffffff")
@@ -199,7 +195,7 @@ func _on_theme_updated() -> void:
 	_apply_preview_style(slot_panel_b)
 	_apply_preview_style(slot_panel_res)
 	apply_button_icon(btn_save, "icon_recipes")
-	if root_panel == null: 
+	if not is_instance_valid(root_panel): 
 		return
 	for node: Node in root_panel.find_children("*", "Button", true, false):
 		if node is Button and (node as Button).text == "✕":
@@ -214,6 +210,8 @@ func open_studio() -> void:
 
 func _populate_dropdowns() -> void:
 	for opt: OptionButton in [opt_ingredient_a, opt_ingredient_b, opt_result_item]:
+		if not is_instance_valid(opt):
+			continue
 		opt.clear()
 		for index: int in range(art_library.size()):
 			var item: Dictionary = art_library[index]
@@ -221,22 +219,23 @@ func _populate_dropdowns() -> void:
 
 	if art_library.is_empty(): 
 		return
-	opt_ingredient_a.selected = 0
-	opt_ingredient_b.selected = mini(1, art_library.size() - 1)
-	opt_result_item.selected = mini(2, art_library.size() - 1)
+	if is_instance_valid(opt_ingredient_a): opt_ingredient_a.selected = 0
+	if is_instance_valid(opt_ingredient_b): opt_ingredient_b.selected = mini(1, art_library.size() - 1)
+	if is_instance_valid(opt_result_item): opt_result_item.selected = mini(2, art_library.size() - 1)
 
-	_update_preview_from_opt(preview_a, opt_ingredient_a.selected)
-	_update_preview_from_opt(preview_b, opt_ingredient_b.selected)
-	_update_preview_from_opt(preview_res, opt_result_item.selected)
-	result_name_edit.text = str(art_library[opt_result_item.selected].get("name", ""))
+	if is_instance_valid(opt_ingredient_a): _update_preview_from_opt(preview_a, opt_ingredient_a.selected)
+	if is_instance_valid(opt_ingredient_b): _update_preview_from_opt(preview_b, opt_ingredient_b.selected)
+	if is_instance_valid(opt_result_item): _update_preview_from_opt(preview_res, opt_result_item.selected)
+	if is_instance_valid(result_name_edit) and is_instance_valid(opt_result_item):
+		result_name_edit.text = str(art_library[opt_result_item.selected].get("name", ""))
 
 
 func _update_preview_from_opt(preview: TextureRect, index: int) -> void:
-	if preview == null: 
+	if not is_instance_valid(preview): 
 		return
 	if index >= 0 and index < art_library.size():
 		var texture_variant: Variant = art_library[index].get("texture", null)
-		if texture_variant is Texture2D: 
+		if texture_variant is Texture2D and is_instance_valid(texture_variant): 
 			preview.texture = texture_variant as Texture2D
 		else:
 			var fpath: String = str(art_library[index].get("file_path", ""))
@@ -244,7 +243,7 @@ func _update_preview_from_opt(preview: TextureRect, index: int) -> void:
 
 
 func _on_save_recipe_pressed() -> void:
-	if art_library.is_empty(): 
+	if art_library.is_empty() or not is_instance_valid(opt_ingredient_a) or not is_instance_valid(opt_ingredient_b) or not is_instance_valid(opt_result_item): 
 		return
 	var index_a: int = opt_ingredient_a.selected
 	var index_b: int = opt_ingredient_b.selected
@@ -254,7 +253,7 @@ func _on_save_recipe_pressed() -> void:
 
 	var name_a: String = str(art_library[index_a].get("name", "Item A"))
 	var name_b: String = str(art_library[index_b].get("name", "Item B"))
-	var typed_result_name: String = result_name_edit.text.strip_edges()
+	var typed_result_name: String = result_name_edit.text.strip_edges() if is_instance_valid(result_name_edit) else ""
 	var name_result: String = typed_result_name if not typed_result_name.is_empty() else str(art_library[index_result].get("name", "Result"))
 	var result_texture_path: String = str(art_library[index_result].get("file_path", ""))
 

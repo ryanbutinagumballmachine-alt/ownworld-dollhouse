@@ -24,10 +24,12 @@ var blink_cycle_timer: float = 3.5
 var is_in_blink_phase: bool = false
 var expression_timer: float = 0.0
 
+
 func setup(parent_entity: OwnEntity) -> void:
 	entity = parent_entity
 	blink_cycle_timer = randf_range(2.5, 5.0)
 	set_process(false)
+
 
 func load_state(state_data: Dictionary, base_texture: Texture2D) -> void:
 	active_frames.clear()
@@ -46,19 +48,23 @@ func load_state(state_data: Dictionary, base_texture: Texture2D) -> void:
 	else:
 		active_fps = 6.0
 		active_playback_mode = Types.PlaybackMode.LOOP
-		if base_texture != null:
+		if is_instance_valid(base_texture):
 			active_frames.append(base_texture)
 
-	if not active_frames.is_empty():
+	if not active_frames.is_empty() and is_instance_valid(entity):
 		entity._apply_active_texture(active_frames[0], false)
 
 	_update_process_state()
+
 
 func set_expression_timer(duration: float) -> void:
 	expression_timer = duration
 	_update_process_state()
 
+
 func force_trigger_blink() -> void:
+	if not is_instance_valid(entity):
+		return
 	if active_playback_mode == Types.PlaybackMode.NATURAL_BLINK and active_frames.size() > 1:
 		is_in_blink_phase = true
 		state_frame_idx = 1
@@ -67,12 +73,18 @@ func force_trigger_blink() -> void:
 	else:
 		entity.set_actor_state("blink", 0.5)
 
+
 func _update_process_state() -> void:
 	var is_animated: bool = (not active_frames.is_empty() and active_frames.size() > 1)
 	var has_expression: bool = (expression_timer > 0.0)
 	set_process(is_animated or has_expression)
 
+
 func _process(delta: float) -> void:
+	if not is_instance_valid(entity):
+		set_process(false)
+		return
+
 	if expression_timer > 0.0:
 		expression_timer -= delta
 		if expression_timer <= 0.0:
@@ -80,6 +92,7 @@ func _process(delta: float) -> void:
 
 	if active_frames.size() > 1:
 		_process_animation(delta)
+
 
 func _process_animation(delta: float) -> void:
 	if active_playback_mode == Types.PlaybackMode.NATURAL_BLINK:

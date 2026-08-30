@@ -123,7 +123,7 @@ func _ready() -> void:
 	_setup_keyboard_dodging()
 
 	var tree: SceneTree = get_tree()
-	if tree and tree.root:
+	if is_instance_valid(tree) and is_instance_valid(tree.root):
 		tree.root.size_changed.connect(_update_responsive_columns)
 	_update_responsive_columns()
 
@@ -141,22 +141,22 @@ func _on_theme_changed(_theme_data: Dictionary) -> void:
 
 func is_point_inside_drawer(screen_point: Vector2) -> bool:
 	if not is_drawer_open:
-		if btn_open_floating_pill and btn_open_floating_pill.is_visible_in_tree():
+		if is_instance_valid(btn_open_floating_pill) and btn_open_floating_pill.is_visible_in_tree():
 			return btn_open_floating_pill.get_global_rect().has_point(screen_point)
 		return false
-	if root_panel and root_panel.is_visible_in_tree():
+	if is_instance_valid(root_panel) and root_panel.is_visible_in_tree():
 		return root_panel.get_global_rect().has_point(screen_point)
 	return false
 
 
 func _setup_keyboard_dodging() -> void:
-	if search_input:
+	if is_instance_valid(search_input):
 		search_input.focus_entered.connect(_on_input_focus_entered)
 		search_input.focus_exited.connect(_on_input_focus_exited)
 
 
 func _on_input_focus_entered() -> void:
-	if _is_mobile():
+	if _is_mobile() and is_instance_valid(drawer_root_container):
 		await get_tree().process_frame
 		await get_tree().process_frame
 		var kb_height: float = DisplayServer.virtual_keyboard_get_height()
@@ -166,7 +166,7 @@ func _on_input_focus_entered() -> void:
 
 
 func _on_input_focus_exited() -> void:
-	if _is_mobile():
+	if _is_mobile() and is_instance_valid(drawer_root_container):
 		var tween: Tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 		tween.tween_property(drawer_root_container, "position:y", 0.0, 0.25)
 
@@ -251,14 +251,16 @@ func _build_ui() -> void:
 	strip_hbox.add_child(VSeparator.new())
 
 	btn_import_art = _create_compact_tab_btn("Import", "icon_import", tab_btn_h, func() -> void:
-		art_import_dialog.theme = ThemeService.create_theme()
-		art_import_dialog.current_dir = UGCManager.get_default_import_directory()
-		art_import_dialog.popup_centered_ratio(0.7)
+		if is_instance_valid(art_import_dialog):
+			art_import_dialog.theme = ThemeService.create_theme()
+			art_import_dialog.current_dir = UGCManager.get_default_import_directory()
+			art_import_dialog.popup_centered_ratio(0.7)
 	)
 	strip_hbox.add_child(btn_import_art)
 
 	btn_new_folder = _create_compact_tab_btn("Folder", "icon_folder", tab_btn_h, func() -> void:
-		if folder_modal: folder_modal.open_modal()
+		if is_instance_valid(folder_modal): 
+			folder_modal.open_modal()
 	)
 	strip_hbox.add_child(btn_new_folder)
 
@@ -431,9 +433,9 @@ func _build_batch_action_bar() -> void:
 
 func _apply_theme() -> void:
 	var global_theme: Theme = ThemeService.create_theme()
-	if toggle_pill_container: 
+	if is_instance_valid(toggle_pill_container): 
 		toggle_pill_container.theme = global_theme
-	if drawer_root_container: 
+	if is_instance_valid(drawer_root_container): 
 		drawer_root_container.theme = global_theme
 
 	var c_bg: Color = ThemeService.get_color("panel_background", "#fff5f7")
@@ -453,15 +455,16 @@ func _apply_theme() -> void:
 	dock_style.content_margin_right = 12 if _is_mobile() else 10
 	dock_style.content_margin_top = 10 if _is_mobile() else 8
 	dock_style.content_margin_bottom = 8 if _is_mobile() else 6
-	root_panel.add_theme_stylebox_override("panel", dock_style)
+	if is_instance_valid(root_panel):
+		root_panel.add_theme_stylebox_override("panel", dock_style)
 
-	if btn_open_floating_pill != null:
+	if is_instance_valid(btn_open_floating_pill):
 		var up_ico: Texture2D = ThemeService.get_icon("icon_uparrow")
 		if up_ico != null:
 			btn_open_floating_pill.icon = up_ico
 			btn_open_floating_pill.text = ""
 
-	if btn_toggle_drawer != null:
+	if is_instance_valid(btn_toggle_drawer):
 		var down_ico: Texture2D = ThemeService.get_icon("icon_downarrow")
 		if down_ico != null:
 			btn_toggle_drawer.icon = down_ico
@@ -502,8 +505,10 @@ func _create_compact_tab_btn(title: String, icon_key: String, btn_h: float, call
 
 func _toggle_drawer_state() -> void:
 	is_drawer_open = not is_drawer_open
-	toggle_pill_container.visible = not is_drawer_open
-	drawer_root_container.visible = is_drawer_open
+	if is_instance_valid(toggle_pill_container):
+		toggle_pill_container.visible = not is_drawer_open
+	if is_instance_valid(drawer_root_container):
+		drawer_root_container.visible = is_drawer_open
 	if is_drawer_open:
 		_update_responsive_columns()
 		refresh_tray()
@@ -516,14 +521,15 @@ func _toggle_batch_mode() -> void:
 func _set_batch_mode(enabled: bool) -> void:
 	is_batch_mode = enabled
 	selected_batch_items.clear()
-	batch_bar_panel.visible = is_batch_mode
+	if is_instance_valid(batch_bar_panel):
+		batch_bar_panel.visible = is_batch_mode
 	_update_batch_count_label()
 	_update_tab_buttons_appearance()
 	refresh_tray()
 
 
 func _update_batch_count_label() -> void:
-	if batch_count_lbl:
+	if is_instance_valid(batch_count_lbl):
 		batch_count_lbl.text = str(selected_batch_items.size()) + " Selected"
 
 
@@ -533,11 +539,12 @@ func _set_tray_mode(mode: TrayMode) -> void:
 	active_category_filter = "All"
 	active_search_query = ""
 	selected_batch_items.clear()
-	if search_input: 
+	if is_instance_valid(search_input): 
 		search_input.text = ""
 
 	_update_tab_buttons_appearance()
-	btn_import_art.visible = (mode == TrayMode.ASSETS)
+	if is_instance_valid(btn_import_art):
+		btn_import_art.visible = (mode == TrayMode.ASSETS)
 	_render_breadcrumbs()
 	_build_category_filter_buttons()
 	if is_drawer_open:
@@ -612,10 +619,13 @@ func _update_responsive_columns() -> void:
 
 
 func _render_breadcrumbs() -> void:
+	if not is_instance_valid(breadcrumbs_hbox):
+		return
 	for child: Node in breadcrumbs_hbox.get_children():
 		child.queue_free()
 
-	btn_back_up.disabled = (current_folder_path == "" or current_folder_path == "Root")
+	if is_instance_valid(btn_back_up):
+		btn_back_up.disabled = (current_folder_path == "" or current_folder_path == "Root")
 	var btn_root: Button = _create_breadcrumb_pill("Root", "icon_room", current_folder_path == "" or current_folder_path == "Root")
 	btn_root.pressed.connect(func() -> void:
 		current_folder_path = ""
@@ -790,6 +800,8 @@ func _create_folder_grid_card(folder_name: String) -> void:
 
 
 func refresh_tray() -> void:
+	if not is_instance_valid(items_grid):
+		return
 	for child: Node in items_grid.get_children():
 		child.queue_free()
 
@@ -1236,8 +1248,8 @@ func _recall_character_to_tray(char_data: Dictionary) -> void:
 	var tree: SceneTree = get_tree()
 	var live_character_node: OwnEntity = null
 
-	if tree != null:
-		for node: Node in tree.get_nodes_in_group("characters"):
+	if is_instance_valid(tree):
+		for node: Node in tree.get_nodes_in_group(&"characters"):
 			if node is OwnEntity:
 				var ent: OwnEntity = node as OwnEntity
 				var is_id_match: bool = not c_id.is_empty() and ent.entity_id == c_id
@@ -1347,7 +1359,8 @@ func _on_batch_organize_pressed() -> void:
 	for k: String in selected_batch_items.keys():
 		item_arr.append(selected_batch_items[k] as Dictionary)
 
-	organize_modal.open_batch_organizer(item_arr, mode_key, user_available_tags, folder_list)
+	if is_instance_valid(organize_modal):
+		organize_modal.open_batch_organizer(item_arr, mode_key, user_available_tags, folder_list)
 
 
 func _on_batch_delete_pressed() -> void:
@@ -1528,6 +1541,8 @@ func _attach_card_visuals(vbox: VBoxContainer, tex: Texture2D, label_text: Strin
 
 
 func _build_category_filter_buttons() -> void:
+	if not is_instance_valid(filter_scroll_container):
+		return
 	for child: Node in filter_scroll_container.get_children():
 		child.queue_free()
 	_add_filter_pill("All", active_category_filter == "All")
@@ -1635,7 +1650,7 @@ func _request_delete_folder(folder_name: String) -> void:
 
 
 func _open_organizer_for_item(item_data: Dictionary, mode_type: String, item_index: int = -1) -> void:
-	if not organize_modal: 
+	if not is_instance_valid(organize_modal): 
 		return
 	var item_name: String = str(item_data.get("display_name", item_data.get("name", "Item")))
 	var folder_list: Array[String] = []
@@ -1710,8 +1725,8 @@ func _spawn_and_relocate_character_from_cast(char_data: Dictionary) -> void:
 
 	var tree: SceneTree = get_tree()
 	var existing_live_char: OwnEntity = null
-	if tree:
-		for node: Node in tree.get_nodes_in_group("characters"):
+	if is_instance_valid(tree):
+		for node: Node in tree.get_nodes_in_group(&"characters"):
 			if node is OwnEntity:
 				var ent: OwnEntity = node as OwnEntity
 				if ent.entity_id == c_id or (not c_name.is_empty() and ent.display_name.strip_edges().to_lower() == c_name.strip_edges().to_lower()):
@@ -1820,8 +1835,8 @@ func _delete_character_from_cast(char_data: Dictionary) -> void:
 	_save_cast_data(cast_list)
 
 	var tree: SceneTree = get_tree()
-	if tree:
-		for node: Node in tree.get_nodes_in_group("characters"):
+	if is_instance_valid(tree):
+		for node: Node in tree.get_nodes_in_group(&"characters"):
 			if node is OwnEntity:
 				var ent: OwnEntity = node as OwnEntity
 				if ent.entity_id == char_id or (not char_name.is_empty() and ent.display_name.strip_edges().to_lower() == char_name.strip_edges().to_lower()):
@@ -1860,6 +1875,7 @@ func _save_cast_data(cast_list: Array[Dictionary]) -> void:
 
 func save_cast_tray_for_current_universe() -> void: 
 	_save_all_metadata()
+
 
 func load_cast_tray_for_current_universe() -> void:
 	_load_all_metadata()

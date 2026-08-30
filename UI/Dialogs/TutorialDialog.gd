@@ -470,9 +470,9 @@ func _build_content() -> void:
 
 
 func _on_theme_updated() -> void:
-	if header_title_lbl: 
+	if is_instance_valid(header_title_lbl): 
 		header_title_lbl.add_theme_color_override("font_color", ThemeService.get_color("accent_primary", "#ec4899"))
-	if btn_close: 
+	if is_instance_valid(btn_close): 
 		apply_close_icon(btn_close)
 	if visible:
 		_render_topics_sidebar()
@@ -482,7 +482,7 @@ func _on_theme_updated() -> void:
 func open_handbook(starting_topic_index: int = 0) -> void:
 	active_topic_index = clampi(starting_topic_index, 0, tutorial_chapters.size() - 1)
 	active_filter_query = ""
-	if search_input: 
+	if is_instance_valid(search_input): 
 		search_input.text = ""
 	_render_topics_sidebar()
 	_render_active_topic_content()
@@ -490,7 +490,7 @@ func open_handbook(starting_topic_index: int = 0) -> void:
 
 
 func _render_topics_sidebar() -> void:
-	if not topics_list_vbox: 
+	if not is_instance_valid(topics_list_vbox): 
 		return
 	for child: Node in topics_list_vbox.get_children(): 
 		child.queue_free()
@@ -550,7 +550,7 @@ func _render_topics_sidebar() -> void:
 
 
 func _render_active_topic_content() -> void:
-	if not content_vbox: 
+	if not is_instance_valid(content_vbox): 
 		return
 	for child: Node in content_vbox.get_children(): 
 		child.queue_free()
@@ -639,7 +639,8 @@ func _render_active_topic_content() -> void:
 			active_topic_index -= 1
 			_render_topics_sidebar()
 			_render_active_topic_content()
-			content_scroll.scroll_vertical = 0
+			if is_instance_valid(content_scroll):
+				content_scroll.scroll_vertical = 0
 		)
 		nav_row.add_child(btn_prev)
 
@@ -657,7 +658,8 @@ func _render_active_topic_content() -> void:
 			active_topic_index += 1
 			_render_topics_sidebar()
 			_render_active_topic_content()
-			content_scroll.scroll_vertical = 0
+			if is_instance_valid(content_scroll):
+				content_scroll.scroll_vertical = 0
 		)
 		nav_row.add_child(btn_next)
 

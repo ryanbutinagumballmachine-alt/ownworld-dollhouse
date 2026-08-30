@@ -115,7 +115,7 @@ func _parse(bytes: PackedByteArray, first_frame_only: bool) -> Dictionary:
 				prev_canvas_backup = canvas.duplicate()
 
 			var frame_img: Image = _parse_image_frame(canvas)
-			if frame_img != null:
+			if is_instance_valid(frame_img):
 				var tex: ImageTexture = ImageTexture.create_from_image(frame_img)
 				frames.append(tex)
 				delays.append(_gce_delay_sec)
@@ -125,7 +125,7 @@ func _parse(bytes: PackedByteArray, first_frame_only: bool) -> Dictionary:
 
 				if _gce_disposal_method == 2:
 					canvas.fill(Color(0, 0, 0, 0))
-				elif _gce_disposal_method == 3 and prev_canvas_backup != null:
+				elif _gce_disposal_method == 3 and is_instance_valid(prev_canvas_backup):
 					canvas = prev_canvas_backup.duplicate()
 
 			_reset_gce()

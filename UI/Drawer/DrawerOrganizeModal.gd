@@ -128,9 +128,9 @@ func _build_ui() -> void:
 	btn_add_tag.add_theme_constant_override("icon_max_width", 14)
 
 	var tag_icon: Texture2D = ThemeService.get_icon("icon_tag")
-	if not tag_icon: 
+	if tag_icon == null: 
 		tag_icon = ThemeService.get_icon("icon_plus")
-	if tag_icon: 
+	if tag_icon != null: 
 		btn_add_tag.icon = tag_icon
 	btn_add_tag.pressed.connect(_on_add_tag_clicked)
 	custom_row.add_child(btn_add_tag)
@@ -142,14 +142,14 @@ func _build_ui() -> void:
 	btn_save.add_theme_constant_override("icon_max_width", 16)
 
 	var s_icon: Texture2D = ThemeService.get_icon("icon_save")
-	if s_icon: 
+	if s_icon != null: 
 		btn_save.icon = s_icon
 	btn_save.pressed.connect(_on_save_clicked)
 	vbox.add_child(btn_save)
 
 
 func _on_input_focus_entered() -> void:
-	if _is_mobile():
+	if _is_mobile() and is_instance_valid(center_box):
 		await get_tree().process_frame
 		await get_tree().process_frame
 		var kb_height: float = DisplayServer.virtual_keyboard_get_height()
@@ -159,7 +159,7 @@ func _on_input_focus_entered() -> void:
 
 
 func _on_input_focus_exited() -> void:
-	if _is_mobile():
+	if _is_mobile() and is_instance_valid(center_box):
 		var tween: Tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 		tween.tween_property(center_box, "position:y", 0.0, 0.25)
 
@@ -168,9 +168,12 @@ func _enforce_dropdown_popup_limits(opt_btn: OptionButton, max_height: int = 200
 	if not is_instance_valid(opt_btn): 
 		return
 	var pop: PopupMenu = opt_btn.get_popup()
-	if pop:
+	if is_instance_valid(pop):
 		pop.max_size = Vector2i(4000, max_height)
-		pop.about_to_popup.connect(func() -> void: pop.max_size = Vector2i(4000, max_height))
+		pop.about_to_popup.connect(func() -> void: 
+			if is_instance_valid(pop):
+				pop.max_size = Vector2i(4000, max_height)
+		)
 
 
 func open_organizer(item_data: Dictionary, mode_type: String, item_index: int, available_tags: Array[String], current_tags: Array, folder_list: Array[String]) -> void:
@@ -186,20 +189,21 @@ func open_organizer(item_data: Dictionary, mode_type: String, item_index: int, a
 	if curr_folder == "": 
 		curr_folder = "Root"
 
-	item_label.text = "Organize: " + item_name
-	btn_save.text = " Save Organization"
+	if is_instance_valid(item_label): item_label.text = "Organize: " + item_name
+	if is_instance_valid(btn_save): btn_save.text = " Save Organization"
 
-	folder_option.clear()
-	folder_option.add_item("Root", 0)
+	if is_instance_valid(folder_option):
+		folder_option.clear()
+		folder_option.add_item("Root", 0)
 
-	var sel_idx: int = 0
-	for i: int in range(folder_list.size()):
-		var f: String = folder_list[i]
-		if f != "Root":
-			folder_option.add_item(f, i + 1)
-			if f == curr_folder: 
-				sel_idx = i + 1
-	folder_option.selected = sel_idx
+		var sel_idx: int = 0
+		for i: int in range(folder_list.size()):
+			var f: String = folder_list[i]
+			if f != "Root":
+				folder_option.add_item(f, i + 1)
+				if f == curr_folder: 
+					sel_idx = i + 1
+		folder_option.selected = sel_idx
 
 	_populate_tag_checkboxes(current_tags)
 	visible = true
@@ -213,24 +217,27 @@ func open_batch_organizer(items: Array[Dictionary], mode_type: String, available
 	single_item_index = -1
 	current_available_tags = available_tags
 
-	item_label.text = "Batch Organize (" + str(items.size()) + " Items)"
-	btn_save.text = " Apply to " + str(items.size()) + " Selected Items"
+	if is_instance_valid(item_label): item_label.text = "Batch Organize (" + str(items.size()) + " Items)"
+	if is_instance_valid(btn_save): btn_save.text = " Apply to " + str(items.size()) + " Selected Items"
 
-	folder_option.clear()
-	folder_option.add_item("(Keep Existing Folders)", 0)
-	folder_option.add_item("Root", 1)
+	if is_instance_valid(folder_option):
+		folder_option.clear()
+		folder_option.add_item("(Keep Existing Folders)", 0)
+		folder_option.add_item("Root", 1)
 
-	for i: int in range(folder_list.size()):
-		var f: String = folder_list[i]
-		if f != "Root":
-			folder_option.add_item(f, i + 2)
-	folder_option.selected = 0
+		for i: int in range(folder_list.size()):
+			var f: String = folder_list[i]
+			if f != "Root":
+				folder_option.add_item(f, i + 2)
+		folder_option.selected = 0
 
 	_populate_tag_checkboxes([])
 	visible = true
 
 
 func _populate_tag_checkboxes(preselected_tags: Array) -> void:
+	if not is_instance_valid(tag_checkboxes_container):
+		return
 	for child: Node in tag_checkboxes_container.get_children():
 		child.queue_free()
 
@@ -250,7 +257,7 @@ func _populate_tag_checkboxes(preselected_tags: Array) -> void:
 		chk.custom_minimum_size = Vector2(0.0, 32.0 if is_mob else 26.0)
 		chk.add_theme_constant_override("icon_max_width", 16 if is_mob else 14)
 		chk.add_theme_font_size_override("font_size", 11 if is_mob else 10)
-		if t_icon: 
+		if t_icon != null: 
 			chk.icon = t_icon
 		tag_row.add_child(chk)
 
@@ -259,7 +266,7 @@ func _populate_tag_checkboxes(preselected_tags: Array) -> void:
 		btn_del_tag.theme_type_variation = "DangerButton"
 		btn_del_tag.focus_mode = Control.FOCUS_NONE
 		btn_del_tag.add_theme_constant_override("icon_max_width", 10)
-		if del_icon: 
+		if del_icon != null: 
 			btn_del_tag.icon = del_icon
 		else: 
 			btn_del_tag.text = "✕"
@@ -271,25 +278,27 @@ func _populate_tag_checkboxes(preselected_tags: Array) -> void:
 
 
 func _on_add_tag_clicked() -> void:
-	var t: String = tag_new_input.text.strip_edges().to_lower()
-	if not t.is_empty():
-		if not t.begins_with("#"): 
-			t = "#" + t
-		custom_tag_added.emit(t)
-	tag_new_input.text = ""
+	if is_instance_valid(tag_new_input):
+		var t: String = tag_new_input.text.strip_edges().to_lower()
+		if not t.is_empty():
+			if not t.begins_with("#"): 
+				t = "#" + t
+			custom_tag_added.emit(t)
+		tag_new_input.text = ""
 
 
 func _on_save_clicked() -> void:
 	var chosen_tags: Array[String] = []
-	for child: Node in tag_checkboxes_container.get_children():
-		if child is HBoxContainer:
-			for sub_c: Node in child.get_children():
-				if sub_c is CheckBox and (sub_c as CheckBox).button_pressed:
-					chosen_tags.append((sub_c as CheckBox).text.strip_edges())
+	if is_instance_valid(tag_checkboxes_container):
+		for child: Node in tag_checkboxes_container.get_children():
+			if child is HBoxContainer:
+				for sub_c: Node in child.get_children():
+					if sub_c is CheckBox and (sub_c as CheckBox).button_pressed:
+						chosen_tags.append((sub_c as CheckBox).text.strip_edges())
 
 	if is_batch_mode:
 		var target_folder: String = "__KEEP__"
-		if folder_option.selected > 0:
+		if is_instance_valid(folder_option) and folder_option.selected > 0:
 			target_folder = folder_option.get_item_text(folder_option.selected)
 		batch_organization_saved.emit(batch_items_data, active_mode_type, target_folder, chosen_tags)
 	else:
@@ -297,7 +306,7 @@ func _on_save_clicked() -> void:
 			close_modal()
 			return
 		var target_folder: String = "Root"
-		if folder_option.selected > 0:
+		if is_instance_valid(folder_option) and folder_option.selected > 0:
 			target_folder = folder_option.get_item_text(folder_option.selected)
 
 		organization_saved.emit(single_item_data, active_mode_type, single_item_index, target_folder, chosen_tags)

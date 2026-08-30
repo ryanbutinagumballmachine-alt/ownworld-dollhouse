@@ -98,7 +98,7 @@ func get_building_floors(building_id: String, universe_id: String = "") -> Array
 		return floors
 
 	var dir: DirAccess = DirAccess.open(save_dir)
-	if dir == null:
+	if not is_instance_valid(dir):
 		return floors
 
 	dir.list_dir_begin()
@@ -158,13 +158,13 @@ func get_building_entry_room_id(building_id: String, universe_id: String = "") -
 ## Saves the active room hierarchy state.
 func save_current_room_state() -> void:
 	var tree: SceneTree = get_tree()
-	if tree == null:
+	if not is_instance_valid(tree):
 		return
 	var target_room_id: String = get_current_room_id()
 	var main_node: Node = tree.root.find_child("Main", true, false)
-	if main_node == null:
+	if not is_instance_valid(main_node):
 		main_node = tree.current_scene
-	if main_node == null or main_node.get("is_room_loaded") == false:
+	if not is_instance_valid(main_node) or main_node.get("is_room_loaded") == false:
 		return
 
 	var room_payload: Dictionary = {}
@@ -199,7 +199,7 @@ func update_character_data_in_cast(char_data: Dictionary) -> void:
 
 	if FileAccess.file_exists(cast_path):
 		var file: FileAccess = FileAccess.open(cast_path, FileAccess.READ)
-		if file != null:
+		if is_instance_valid(file):
 			var parsed: Variant = JSON.parse_string(file.get_as_text())
 			file.close()
 			var cast_items: Array = []
@@ -238,8 +238,8 @@ func sync_live_character_entities(char_data: Dictionary) -> void:
 	var name_key: String = character_name.to_lower()
 
 	var tree: SceneTree = get_tree()
-	if tree != null:
-		for node: Node in tree.get_nodes_in_group("characters"):
+	if is_instance_valid(tree):
+		for node: Node in tree.get_nodes_in_group(&"characters"):
 			if not is_instance_valid(node):
 				continue
 			var node_id: String = str(node.get("entity_id"))

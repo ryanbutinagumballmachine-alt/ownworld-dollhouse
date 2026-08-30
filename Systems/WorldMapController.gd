@@ -1,7 +1,3 @@
-# ============================================================
-# File: res://Systems/WorldMapController.gd
-# ============================================================
-
 # ==============================================================================
 # OWNWORLD — WORLD MAP CONTROLLER (LANDSCAPE SAFE & TOUCH OPTIMIZED)
 # File: res://Systems/WorldMapController.gd
@@ -64,7 +60,7 @@ func _ready() -> void:
 	name = "WorldMapController"
 	layer = 110
 	visible = false
-	add_to_group("modal_ui")
+	add_to_group(&"modal_ui")
 	_build_map_ui()
 	_build_pin_editor_dialog()
 	_setup_keyboard_dodging()
@@ -82,16 +78,17 @@ func _is_mobile() -> bool:
 
 
 func _setup_keyboard_dodging() -> void:
-	if not _is_mobile(): return
+	if not _is_mobile(): 
+		return
 	var inputs: Array[LineEdit] = [edit_name_input, edit_building_id_input]
 	for input in inputs:
-		if input != null:
+		if is_instance_valid(input):
 			input.focus_entered.connect(_on_input_focus_entered)
 			input.focus_exited.connect(_on_input_focus_exited)
 
 
 func _on_input_focus_entered() -> void:
-	if _is_mobile() and center_modal_box != null:
+	if _is_mobile() and is_instance_valid(center_modal_box):
 		await get_tree().process_frame
 		await get_tree().process_frame
 		var kb_height: float = DisplayServer.virtual_keyboard_get_height()
@@ -101,7 +98,7 @@ func _on_input_focus_entered() -> void:
 
 
 func _on_input_focus_exited() -> void:
-	if _is_mobile() and center_modal_box != null:
+	if _is_mobile() and is_instance_valid(center_modal_box):
 		var tween: Tween = create_tween().set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 		tween.tween_property(center_modal_box, "position:y", 0.0, 0.25)
 
@@ -561,6 +558,8 @@ func _build_pin_editor_dialog() -> void:
 
 
 func open_pin_editor(pin: MapPin) -> void:
+	if not is_instance_valid(pin):
+		return
 	active_editing_pin = pin
 	edit_name_input.text = pin.building_name
 	edit_building_id_input.text = pin.building_id
@@ -579,7 +578,7 @@ func open_pin_editor(pin: MapPin) -> void:
 
 
 func _on_choose_pin_art_pressed() -> void:
-	if asset_picker == null: 
+	if not is_instance_valid(asset_picker): 
 		return
 	asset_picker.open_picker("Choose Building Pin Drawing", "", func(art_name: String, texture: Texture2D, file_path: String) -> void:
 		selected_pin_art_path = file_path
@@ -619,7 +618,7 @@ func _load_floors_for_editing_building(bldg_id: String, bldg_name: String) -> vo
 
 
 func _render_floors_list() -> void:
-	if floors_vbox == null: 
+	if not is_instance_valid(floors_vbox): 
 		return
 	for child: Node in floors_vbox.get_children():
 		child.queue_free()
@@ -706,7 +705,7 @@ func _remove_floor_from_building(index: int) -> void:
 
 
 func _on_save_pin_editor_pressed() -> void:
-	if active_editing_pin and is_instance_valid(active_editing_pin):
+	if is_instance_valid(active_editing_pin):
 		var b_name: String = edit_name_input.text.strip_edges()
 		if b_name.is_empty(): 
 			b_name = "Building"
@@ -767,20 +766,20 @@ func _on_modal_backdrop_gui_input(event: InputEvent) -> void:
 
 func open_map() -> void:
 	visible = true
-	if modal_backdrop: 
+	if is_instance_valid(modal_backdrop): 
 		modal_backdrop.visible = false
 	load_map_for_current_universe()
 
 
 func close_map() -> void:
 	save_map_for_current_universe()
-	if modal_backdrop: 
+	if is_instance_valid(modal_backdrop): 
 		modal_backdrop.visible = false
 	visible = false
 
 
 func _on_change_bg_pressed() -> void:
-	if asset_picker == null: 
+	if not is_instance_valid(asset_picker): 
 		return
 	asset_picker.open_picker("Choose Map Background Artwork", "", func(_name: String, texture: Texture2D, file_path: String) -> void:
 		_on_bg_asset_selected(file_path, texture)
@@ -789,7 +788,7 @@ func _on_change_bg_pressed() -> void:
 
 func _on_bg_asset_selected(fpath: String, texture: Texture2D) -> void:
 	current_bg_image_path = fpath.strip_edges()
-	map_background_rect.texture = texture if texture != null else UGCManager.load_texture_from_file(current_bg_image_path)
+	map_background_rect.texture = texture if is_instance_valid(texture) else UGCManager.load_texture_from_file(current_bg_image_path)
 	empty_hint_label.visible = false
 	save_map_for_current_universe()
 	EventBus.notification_requested.emit("Map background updated!", true)
@@ -802,7 +801,7 @@ func _update_pins_edit_mode() -> void:
 
 
 func load_map_for_current_universe() -> void:
-	if title_lbl: 
+	if is_instance_valid(title_lbl): 
 		title_lbl.text = AppState.universe_name.to_upper()
 	for child: Node in pins_container.get_children(): 
 		child.queue_free()
@@ -867,7 +866,7 @@ func save_map_for_current_universe() -> void:
 
 func create_pin(b_name: String, b_id: String, pos: Vector2, img_path: String = "", tex: Texture2D = null) -> MapPin:
 	var pin: MapPin = MapPin.new()
-	var final_tex: Texture2D = tex if tex != null else UGCManager.create_blank_starter_graphic(Vector2(64.0, 64.0), Color("#0284c7"))
+	var final_tex: Texture2D = tex if is_instance_valid(tex) else UGCManager.create_blank_starter_graphic(Vector2(64.0, 64.0), Color("#0284c7"))
 	pin.setup(b_name, b_id, pos, img_path, final_tex, self)
 	pin.pin_selected.connect(_on_pin_selected)
 	pin.pin_deleted.connect(_on_pin_deleted)
@@ -887,7 +886,8 @@ func _on_add_building_pressed() -> void:
 
 func _on_pin_deleted(pin: MapPin) -> void:
 	map_pins.erase(pin)
-	pin.queue_free()
+	if is_instance_valid(pin):
+		pin.queue_free()
 	save_map_for_current_universe()
 
 
@@ -897,7 +897,7 @@ func _on_reset_rooms_pressed() -> void:
 
 
 func _on_pin_selected(pin: MapPin) -> void:
-	if is_edit_mode:
+	if is_edit_mode or not is_instance_valid(pin):
 		return
 
 	var floors: Array[Dictionary] = SaveSystem.get_building_floors(pin.building_id)
@@ -989,7 +989,7 @@ class MapPin extends Control:
 	func set_pin_image(p_path: String, p_tex: Texture2D) -> void:
 		image_path = p_path.strip_edges()
 		pin_texture = p_tex
-		if texture_rect: 
+		if is_instance_valid(texture_rect): 
 			texture_rect.texture = p_tex
 
 
@@ -1066,32 +1066,32 @@ class MapPin extends Control:
 
 
 	func update_visuals() -> void:
-		if label_node: 
+		if is_instance_valid(label_node): 
 			label_node.text = building_name
-		if texture_rect and pin_texture: 
+		if is_instance_valid(texture_rect) and is_instance_valid(pin_texture): 
 			texture_rect.texture = pin_texture
 
 
 	func set_edit_mode(enabled: bool) -> void:
-		if delete_btn: 
+		if is_instance_valid(delete_btn): 
 			delete_btn.visible = enabled
-		if config_btn: 
+		if is_instance_valid(config_btn): 
 			config_btn.visible = enabled
 
 
 	func refresh_theme_icons() -> void:
-		if delete_btn != null:
+		if is_instance_valid(delete_btn):
 			var del_i: Texture2D = ThemeService.get_icon("icon_close")
 			if del_i: 
 				delete_btn.icon = del_i
-		if config_btn != null:
+		if is_instance_valid(config_btn):
 			var cfg_i: Texture2D = ThemeService.get_icon("icon_settings")
 			if cfg_i: 
 				config_btn.icon = cfg_i
 
 
 	func _on_pin_gui_input(event: InputEvent) -> void:
-		if not map_controller: 
+		if not is_instance_valid(map_controller): 
 			return
 		if event is InputEventMouseButton:
 			var mb: InputEventMouseButton = event as InputEventMouseButton

@@ -34,9 +34,11 @@ var check_elevator: CheckBox = null
 
 var btn_save: Button = null
 
+
 func _init() -> void:
 	max_panel_width = 620.0
 	max_panel_height = 580.0
+
 
 func _build_content() -> void:
 	name = "EntityConfigDialog"
@@ -98,7 +100,8 @@ func _build_content() -> void:
 	btn_save.pressed.connect(_on_save_pressed)
 	main_vbox.add_child(btn_save)
 
-func _build_scale_section(parent: VBoxContainer, _row_h: float, is_mob: bool) -> void:
+
+func _build_scale_section(parent: VBoxContainer, _row_h: float, _is_mob: bool) -> void:
 	var scale_card: PanelContainer = PanelContainer.new()
 	scale_card.theme_type_variation = "SubPanel"
 	parent.add_child(scale_card)
@@ -114,13 +117,13 @@ func _build_scale_section(parent: VBoxContainer, _row_h: float, is_mob: bool) ->
 	lbl_scale.text = "Visual Size / Scale:"
 	lbl_scale.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	lbl_scale.theme_type_variation = "HintLabel"
-	lbl_scale.add_theme_font_size_override("font_size", 11 if is_mob else 10)
+	lbl_scale.add_theme_font_size_override("font_size", 11 if is_mobile() else 10)
 	scale_header.add_child(lbl_scale)
 
 	scale_val_lbl = Label.new()
 	scale_val_lbl.text = "100%"
 	scale_val_lbl.theme_type_variation = "HeaderLabel"
-	scale_val_lbl.add_theme_font_size_override("font_size", 12 if is_mob else 11)
+	scale_val_lbl.add_theme_font_size_override("font_size", 12 if is_mobile() else 11)
 	scale_header.add_child(scale_val_lbl)
 
 	scale_slider = HSlider.new()
@@ -132,7 +135,8 @@ func _build_scale_section(parent: VBoxContainer, _row_h: float, is_mob: bool) ->
 	scale_slider.value_changed.connect(_on_scale_slider_changed)
 	scale_inner.add_child(scale_slider)
 
-func _build_type_section(parent: VBoxContainer, row_h: float, is_mob: bool) -> void:
+
+func _build_type_section(parent: VBoxContainer, row_h: float, _is_mob: bool) -> void:
 	var type_card: PanelContainer = PanelContainer.new()
 	type_card.theme_type_variation = "SubPanel"
 	parent.add_child(type_card)
@@ -144,12 +148,13 @@ func _build_type_section(parent: VBoxContainer, row_h: float, is_mob: bool) -> v
 	lbl_type = Label.new()
 	lbl_type.text = "Item Classification:"
 	lbl_type.theme_type_variation = "HintLabel"
-	lbl_type.add_theme_font_size_override("font_size", 11 if is_mob else 10)
+	lbl_type.add_theme_font_size_override("font_size", 11 if is_mobile() else 10)
 	type_inner.add_child(lbl_type)
 
 	type_option = OptionButton.new()
 	type_option.custom_minimum_size = Vector2(0.0, row_h)
 	type_inner.add_child(type_option)
+
 
 func _build_physics_section(parent: VBoxContainer, row_h: float, is_mob: bool) -> void:
 	var physics_card: PanelContainer = PanelContainer.new()
@@ -174,6 +179,7 @@ func _build_physics_section(parent: VBoxContainer, row_h: float, is_mob: bool) -
 
 	check_float = _create_icon_check("icon_float", "Can Float (Floats mid-air when dropped)", row_h, is_mob)
 	physics_inner.add_child(check_float)
+
 
 func _build_capabilities_section(parent: VBoxContainer, row_h: float, is_mob: bool) -> void:
 	var capabilities_card: PanelContainer = PanelContainer.new()
@@ -220,18 +226,24 @@ func _build_capabilities_section(parent: VBoxContainer, row_h: float, is_mob: bo
 	check_elevator = _create_icon_check("icon_elevator", "Elevator", row_h, is_mob)
 	roles_grid.add_child(check_elevator)
 
+
 func _populate_type_dropdown() -> void:
-	if type_option == null: return
+	if not is_instance_valid(type_option): 
+		return
 	type_option.clear()
 	_add_icon_option(type_option, "icon_props", "Prop / Portable Item", int(Types.EntityType.PROP))
 	_add_icon_option(type_option, "icon_cast", "Character", int(Types.EntityType.CHARACTER))
 	_add_icon_option(type_option, "icon_furniture", "Furniture (Seat / Surface / Bed)", int(Types.EntityType.FURNITURE))
 	_add_icon_option(type_option, "icon_backpack", "Bag / Storage Container", int(Types.EntityType.CONTAINER))
 
+
 func _add_icon_option(option_button: OptionButton, icon_key: String, text_label: String, item_id: int) -> void:
 	var icon_texture: Texture2D = ThemeService.get_popup_icon(icon_key)
-	if icon_texture != null: option_button.add_icon_item(icon_texture, " " + text_label, item_id)
-	else: option_button.add_item(text_label, item_id)
+	if icon_texture != null: 
+		option_button.add_icon_item(icon_texture, " " + text_label, item_id)
+	else: 
+		option_button.add_item(text_label, item_id)
+
 
 func _create_icon_check(icon_key: String, title: String, row_h: float, is_mob: bool) -> CheckBox:
 	var checkbox: CheckBox = CheckBox.new()
@@ -242,8 +254,10 @@ func _create_icon_check(icon_key: String, title: String, row_h: float, is_mob: b
 	apply_checkbox_icon(checkbox, icon_key)
 	return checkbox
 
+
 func open_for_entity(entity: OwnEntity) -> void:
-	if not is_instance_valid(entity): return
+	if not is_instance_valid(entity): 
+		return
 	active_entity = entity
 	_populate_type_dropdown()
 
@@ -268,13 +282,16 @@ func open_for_entity(entity: OwnEntity) -> void:
 	check_elevator.button_pressed = entity.is_elevator
 	open_dialog()
 
+
 func _on_scale_slider_changed(value: float) -> void:
-	if scale_val_lbl != null: scale_val_lbl.text = "%d%%" % int(value * 100.0)
-	if active_entity != null and is_instance_valid(active_entity):
+	if is_instance_valid(scale_val_lbl): 
+		scale_val_lbl.text = "%d%%" % int(value * 100.0)
+	if is_instance_valid(active_entity):
 		active_entity.set_entity_scale(value)
 
+
 func _on_save_pressed() -> void:
-	if active_entity != null and is_instance_valid(active_entity):
+	if is_instance_valid(active_entity):
 		var selected_type: Types.EntityType = type_option.get_selected_id() as Types.EntityType
 		active_entity.set_entity_type(selected_type)
 		active_entity.set_entity_scale(scale_slider.value)
@@ -290,26 +307,31 @@ func _on_save_pressed() -> void:
 		elif check_drink.button_pressed:
 			active_entity.configure_as_consumable()
 			active_entity.is_drink = true
-			if active_entity.fill_level <= 0: active_entity.fill_level = 2
+			if active_entity.fill_level <= 0: 
+				active_entity.fill_level = 2
 		else:
 			active_entity.unconfigure_consumable()
 
 		active_entity.is_liquid_container = check_cup.button_pressed
 
 		if check_faucet.button_pressed:
-			if not active_entity.is_liquid_source: active_entity.configure_as_liquid_source()
+			if not active_entity.is_liquid_source: 
+				active_entity.configure_as_liquid_source()
 		else:
 			active_entity.unconfigure_liquid_source()
 
 		if check_lamp.button_pressed:
-			if not active_entity.is_light_source: active_entity.configure_as_light_source()
+			if not active_entity.is_light_source: 
+				active_entity.configure_as_light_source()
 		else:
 			active_entity.unconfigure_light_source()
 
 		if check_stairs.button_pressed:
-			if not active_entity.is_stairs: active_entity.configure_as_stairs(active_entity.display_name)
+			if not active_entity.is_stairs: 
+				active_entity.configure_as_stairs(active_entity.display_name)
 		elif check_elevator.button_pressed:
-			if not active_entity.is_elevator: active_entity.configure_as_elevator(active_entity.elevator_floors, active_entity.display_name)
+			if not active_entity.is_elevator: 
+				active_entity.configure_as_elevator(active_entity.elevator_floors, active_entity.display_name)
 		elif check_portal.button_pressed:
 			if not active_entity.is_portal or active_entity.is_elevator or active_entity.is_stairs:
 				active_entity.configure_as_portal(active_entity.target_room_id, active_entity.display_name)
@@ -324,25 +346,28 @@ func _on_save_pressed() -> void:
 
 	_on_close_requested()
 
+
 func _on_close_requested() -> void:
 	active_entity = null
 	super._on_close_requested()
 
+
 func _on_theme_updated() -> void:
 	apply_button_icon(btn_save, "icon_save")
-	if check_rug != null: apply_checkbox_icon(check_rug, "icon_rug")
-	if check_wall != null: apply_checkbox_icon(check_wall, "icon_wall")
-	if check_float != null: apply_checkbox_icon(check_float, "icon_float")
-	if check_food != null: apply_checkbox_icon(check_food, "icon_apple")
-	if check_drink != null: apply_checkbox_icon(check_drink, "icon_drink")
-	if check_cup != null: apply_checkbox_icon(check_cup, "icon_cup")
-	if check_faucet != null: apply_checkbox_icon(check_faucet, "icon_faucet")
-	if check_lamp != null: apply_checkbox_icon(check_lamp, "icon_lighting")
-	if check_portal != null: apply_checkbox_icon(check_portal, "icon_door")
-	if check_stairs != null: apply_checkbox_icon(check_stairs, "icon_stairs")
-	if check_elevator != null: apply_checkbox_icon(check_elevator, "icon_elevator")
+	if is_instance_valid(check_rug): apply_checkbox_icon(check_rug, "icon_rug")
+	if is_instance_valid(check_wall): apply_checkbox_icon(check_wall, "icon_wall")
+	if is_instance_valid(check_float): apply_checkbox_icon(check_float, "icon_float")
+	if is_instance_valid(check_food): apply_checkbox_icon(check_food, "icon_apple")
+	if is_instance_valid(check_drink): apply_checkbox_icon(check_drink, "icon_drink")
+	if is_instance_valid(check_cup): apply_checkbox_icon(check_cup, "icon_cup")
+	if is_instance_valid(check_faucet): apply_checkbox_icon(check_faucet, "icon_faucet")
+	if is_instance_valid(check_lamp): apply_checkbox_icon(check_lamp, "icon_lighting")
+	if is_instance_valid(check_portal): apply_checkbox_icon(check_portal, "icon_door")
+	if is_instance_valid(check_stairs): apply_checkbox_icon(check_stairs, "icon_stairs")
+	if is_instance_valid(check_elevator): apply_checkbox_icon(check_elevator, "icon_elevator")
 
-	if root_panel == null: return
+	if not is_instance_valid(root_panel): 
+		return
 	for node: Node in root_panel.find_children("*", "Button", true, false):
 		if node is Button and (node as Button).text == "✕":
 			apply_close_icon(node as Button)

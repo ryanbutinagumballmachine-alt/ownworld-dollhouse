@@ -39,7 +39,7 @@ func _ready() -> void:
 	if not EventBus.room_change_requested.is_connected(_on_room_change_requested):
 		EventBus.room_change_requested.connect(_on_room_change_requested)
 
-	if room_lifecycle != null and not room_lifecycle.room_loaded.is_connected(_on_room_loaded):
+	if is_instance_valid(room_lifecycle) and not room_lifecycle.room_loaded.is_connected(_on_room_loaded):
 		room_lifecycle.room_loaded.connect(_on_room_loaded)
 
 
@@ -47,12 +47,12 @@ func configure(p_room_lifecycle: RoomLifecycleController, p_overlay: ColorRect) 
 	room_lifecycle = p_room_lifecycle
 	overlay = p_overlay
 	_prepare_overlay()
-	if room_lifecycle != null and not room_lifecycle.room_loaded.is_connected(_on_room_loaded):
+	if is_instance_valid(room_lifecycle) and not room_lifecycle.room_loaded.is_connected(_on_room_loaded):
 		room_lifecycle.room_loaded.connect(_on_room_loaded)
 
 
 func _prepare_overlay() -> void:
-	if overlay != null:
+	if is_instance_valid(overlay):
 		overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		overlay.color = Color(0.0, 0.0, 0.0, 0.0)
 		overlay.visible = true
@@ -64,7 +64,7 @@ func request_transition(target_room_id: String, traveler_data: Dictionary = {}) 
 		return
 	if normalized_room_id == AppState.room_id and traveler_data.is_empty():
 		return
-	if room_lifecycle == null:
+	if not is_instance_valid(room_lifecycle):
 		push_error("RoomTransitionController: RoomLifecycleController is not configured.")
 		return
 
@@ -101,7 +101,7 @@ func _execute_transition(transition_id: int) -> void:
 
 
 func _save_departure() -> void:
-	if departing_room_id.is_empty():
+	if departing_room_id.is_empty() or not is_instance_valid(room_lifecycle):
 		return
 	if not room_lifecycle.save_active_room():
 		EventBus.notification_requested.emit("Could not save departing room.", false)
@@ -148,7 +148,7 @@ func _clear_pending_state() -> void:
 
 
 func _fade_to(target_alpha: float, duration: float) -> void:
-	if overlay == null:
+	if not is_instance_valid(overlay):
 		return
 
 	var normalized_alpha: float = clampf(target_alpha, 0.0, 1.0)
@@ -161,6 +161,7 @@ func _fade_to(target_alpha: float, duration: float) -> void:
 
 func is_transitioning() -> bool: 
 	return state != State.IDLE
+
 
 func get_state() -> State: 
 	return state

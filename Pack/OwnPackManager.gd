@@ -104,7 +104,7 @@ static func _write_file_to_packer(packer: ZIPPacker, source_path: String, intern
 	if not FileAccess.file_exists(source_path):
 		return
 	var file: FileAccess = FileAccess.open(source_path, FileAccess.READ)
-	if file == null:
+	if not is_instance_valid(file):
 		return
 	packer.start_file(internal_path)
 	packer.write_file(file.get_buffer(file.get_length()))
@@ -159,7 +159,7 @@ static func import_pack_file(source_file_path: String) -> bool:
 
 		var buffer: PackedByteArray = reader.read_file(internal_path)
 		var output_file: FileAccess = FileAccess.open(destination, FileAccess.WRITE)
-		if output_file != null:
+		if is_instance_valid(output_file):
 			output_file.store_buffer(buffer)
 			output_file.flush()
 			output_file.close()
