@@ -240,7 +240,18 @@ func _trigger_haptic(duration_ms: int = 30) -> void:
 
 func _record_history() -> void:
 	var history: Node = get_node_or_null("/root/HistoryManager")
-	if is_instance_valid(history) and history.has_method("record_snapshot"):
-		var main_node: Node = get_tree().root.find_child("Main", true, false)
-		if is_instance_valid(main_node) and main_node.has_method("_serialize_state"):
+	if not is_instance_valid(history) or not history.has_method("record_snapshot"):
+		return
+	var tree: SceneTree = get_tree()
+	if not is_instance_valid(tree) or not is_instance_valid(tree.root):
+		return
+
+	var main_node: Node = tree.root.find_child("Main", true, false)
+	if not is_instance_valid(main_node):
+		main_node = tree.current_scene
+
+	if is_instance_valid(main_node):
+		if main_node.has_method("get_current_room_state"):
+			history.call("record_snapshot", main_node.call("get_current_room_state"))
+		elif main_node.has_method("_serialize_state"):
 			history.call("record_snapshot", main_node.call("_serialize_state"))

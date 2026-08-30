@@ -127,6 +127,7 @@ func _try_container(source: OwnEntity, entities: Array[OwnEntity]) -> bool:
 
 		if capability.store_item(source):
 			EventBus.entity_removed.emit(source.entity_id)
+			entities.erase(source)
 			source.queue_free()
 			EventBus.notification_requested.emit("Packed into: " + candidate.display_name, true)
 			interaction_handled.emit(candidate, &"container_store")

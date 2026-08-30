@@ -127,7 +127,7 @@ static func _process_food_eating_zone(delta: float, food: OwnEntity, all_entitie
 
 			var is_finished: bool = food.take_bite()
 			if is_finished and not food.is_infinite:
-				all_entities.erase(food)
+				_erase_entity_hierarchy(food, all_entities)
 				food.queue_free()
 	else:
 		hover_eat_timer = 0.0
@@ -210,6 +210,15 @@ static func _process_cup_under_faucet(delta: float, cup: OwnEntity, all_entities
 			cup.fill_with_liquid()
 
 
+static func _erase_entity_hierarchy(ent: OwnEntity, entities_list: Array[OwnEntity]) -> void:
+	if not is_instance_valid(ent):
+		return
+	entities_list.erase(ent)
+	for child: OwnEntity in ent.attached_children:
+		if is_instance_valid(child):
+			_erase_entity_hierarchy(child, entities_list)
+
+
 static func check_and_execute_crafting(dropped: OwnEntity, all_entities: Array[OwnEntity], canvas: Node2D) -> bool:
 	if not is_instance_valid(dropped) or not is_instance_valid(canvas):
 		return false
@@ -223,8 +232,8 @@ static func check_and_execute_crafting(dropped: OwnEntity, all_entities: Array[O
 					var spawn_pos: Vector2 = target.global_position
 					RecipeCrafting.spawn_merge_poof(canvas, spawn_pos)
 
-					all_entities.erase(dropped)
-					all_entities.erase(target)
+					_erase_entity_hierarchy(dropped, all_entities)
+					_erase_entity_hierarchy(target, all_entities)
 					dropped.queue_free()
 					target.queue_free()
 

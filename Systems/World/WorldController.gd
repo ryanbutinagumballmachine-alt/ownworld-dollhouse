@@ -18,6 +18,8 @@ var atmosphere: Node = null
 var current_room_floor_y: float = 600.0
 var current_room_title: String = "Main Room"
 var current_room_floor_level: String = "1F"
+var current_building_id: String = "building_main"
+var current_building_name: String = "Main Building"
 var current_wallpaper_path: String = ""
 var current_wallpaper_fill_mode: String = "cover"
 
@@ -79,7 +81,7 @@ func get_entities() -> Array:
 func get_current_room_state() -> Dictionary:
 	if is_instance_valid(room_lifecycle) and room_lifecycle.has_method("get_current_room_state"):
 		return room_lifecycle.get_current_room_state()
-	return SaveSchema.create_empty_room(AppState.room_id)
+	return SaveSchema.create_empty_room(AppState.room_id, current_building_id, current_building_name, current_room_floor_level)
 
 
 func save_active_room() -> bool:
@@ -88,11 +90,13 @@ func save_active_room() -> bool:
 	return SaveSystem.save_room_state(AppState.room_id, get_current_room_state())
 
 
-func configure_room_presentation(wallpaper_path: String, _wallpaper_texture: Texture2D, floor_y: float, room_title: String, fill_mode: String, floor_level: String = "1F") -> void:
+func configure_room_presentation(wallpaper_path: String, _wallpaper_texture: Texture2D, floor_y: float, room_title: String, fill_mode: String, floor_level: String = "1F", bldg_name: String = "Main Building", bldg_id: String = "building_main") -> void:
 	current_wallpaper_path = wallpaper_path.strip_edges()
 	current_room_floor_y = floor_y
 	current_room_title = room_title.strip_edges() if not room_title.strip_edges().is_empty() else AppState.room_id
 	current_room_floor_level = floor_level.strip_edges() if not floor_level.strip_edges().is_empty() else "1F"
+	current_building_name = bldg_name.strip_edges() if not bldg_name.strip_edges().is_empty() else "Main Building"
+	current_building_id = bldg_id.strip_edges() if not bldg_id.strip_edges().is_empty() else "building_main"
 	current_wallpaper_fill_mode = fill_mode.strip_edges() if not fill_mode.strip_edges().is_empty() else "cover"
 	room_presentation_changed.emit()
 
@@ -114,7 +118,9 @@ func request_elevator_travel(_elevator: OwnEntity, target_room_id: String, floor
 		"bundle": [],
 		"arrival_elevator": true,
 		"floor_name": floor_name,
-		"source": "elevator"
+		"source": "elevator",
+		"building_id": current_building_id,
+		"building_name": current_building_name
 	})
 
 

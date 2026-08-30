@@ -26,7 +26,7 @@ func _ready() -> void:
 
 func _enforce_engine_viewport_scaling() -> void:
 	var window: Window = get_window()
-	if window == null:
+	if not is_instance_valid(window):
 		return
 	window.content_scale_mode = Window.CONTENT_SCALE_MODE_CANVAS_ITEMS
 	window.content_scale_aspect = Window.CONTENT_SCALE_ASPECT_EXPAND
@@ -54,8 +54,8 @@ func get_all_universe_character_data() -> Array[Dictionary]:
 	var seen_names: Dictionary = {}
 
 	var tree: SceneTree = get_tree()
-	if tree != null:
-		for node: Node in tree.get_nodes_in_group("characters"):
+	if is_instance_valid(tree):
+		for node: Node in tree.get_nodes_in_group(&"characters"):
 			if not is_instance_valid(node) or not node.has_method("to_dict"):
 				continue
 			var data: Dictionary = node.call("to_dict") as Dictionary
@@ -70,7 +70,7 @@ func get_all_universe_character_data() -> Array[Dictionary]:
 	var cast_path: String = SaveSystem.get_universe_cast_path(AppState.universe_id)
 	if FileAccess.file_exists(cast_path):
 		var cast_file: FileAccess = FileAccess.open(cast_path, FileAccess.READ)
-		if cast_file != null:
+		if is_instance_valid(cast_file):
 			var parsed: Variant = JSON.parse_string(cast_file.get_as_text())
 			cast_file.close()
 			var cast_items: Array = []
@@ -117,7 +117,7 @@ func factory_reset_entire_game() -> void:
 
 func _wipe_dir_recursive(path: String) -> void:
 	var dir: DirAccess = DirAccess.open(path)
-	if dir == null:
+	if not is_instance_valid(dir):
 		return
 	dir.list_dir_begin()
 	var item: String = dir.get_next()

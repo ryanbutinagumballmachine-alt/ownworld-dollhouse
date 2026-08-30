@@ -266,6 +266,11 @@ func _build_map_ui() -> void:
 	_build_atmosphere_control_bar(main_vbox, margin_left, margin_right)
 
 
+func _btn_add_theme_font_size_override(button: Button, font_size: int) -> void:
+	if is_instance_valid(button):
+		button.add_theme_font_size_override("font_size", font_size)
+
+
 func _build_atmosphere_control_bar(parent_vbox: VBoxContainer, margin_left: int, margin_right: int) -> void:
 	var is_mob: bool = _is_mobile()
 	var atmo_h: float = 34.0 if is_mob else 28.0
@@ -938,11 +943,19 @@ func _on_pin_selected(pin: MapPin) -> void:
 	else:
 		close_map()
 		var target_entry_room: String = SaveSystem.get_building_entry_room_id(pin.building_id)
+		var resolved_floor_lvl: String = "1F"
+		var resolved_floor_title: String = pin.building_name + " (1F)"
+		
+		if not floors.is_empty():
+			var fl_item: Dictionary = floors[0]
+			resolved_floor_lvl = str(fl_item.get("floor_level", "1F")).strip_edges()
+			resolved_floor_title = str(fl_item.get("label", pin.building_name + " (" + resolved_floor_lvl + ")")).strip_edges()
+
 		var traveler_data: Dictionary = {
 			"building_id": pin.building_id,
 			"building_name": pin.building_name,
-			"floor_level": "1F",
-			"room_title": pin.building_name + " (1F)",
+			"floor_level": resolved_floor_lvl,
+			"room_title": resolved_floor_title,
 			"source": "world_map"
 		}
 		EventBus.room_change_requested.emit(target_entry_room, traveler_data)

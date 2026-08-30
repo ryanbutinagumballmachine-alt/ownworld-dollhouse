@@ -20,6 +20,8 @@ var room_bounds: Rect2 = Rect2(0, 0, SECTION_WIDTH, ROOM_HEIGHT)
 var current_room_floor_y: float = 600.0
 var current_room_title: String = "Main Room"
 var current_room_floor_level: String = "1F"
+var current_building_id: String = "building_main"
+var current_building_name: String = "Main Building"
 var room_sections: Array[Dictionary] = [{"wallpaper_path": "", "fill_mode": "cover"}]
 var _entities: Array[OwnEntity] = []
 var _active_room_id: String = ""
@@ -58,6 +60,11 @@ func load_room(room_id: String, traveler_data: Dictionary = {}) -> void:
 	current_room_floor_y = float(state.get("floor_y", 600.0))
 	current_room_title = str(state.get("room_title", clean_room_id))
 	current_room_floor_level = str(state.get("floor_level", "1F"))
+	current_building_id = str(state.get("building_id", traveler_data.get("building_id", "building_main"))).strip_edges()
+	current_building_name = str(state.get("building_name", traveler_data.get("building_name", "Main Building"))).strip_edges()
+
+	if current_building_id.is_empty(): current_building_id = "building_main"
+	if current_building_name.is_empty(): current_building_name = "Main Building"
 
 	var raw_sections: Variant = state.get("sections", null)
 	room_sections.clear()
@@ -113,9 +120,15 @@ func get_current_room_state() -> Dictionary:
 
 	return SaveSchema.create_room(
 		_active_room_id if not _active_room_id.is_empty() else AppState.room_id,
-		current_room_title, current_room_floor_y, room_sections,
-		cam_pos, cam_zoom, serialized_entities,
-		current_room_floor_level
+		current_room_title,
+		current_room_floor_y,
+		room_sections,
+		cam_pos,
+		cam_zoom,
+		serialized_entities,
+		current_room_floor_level,
+		current_building_id,
+		current_building_name
 	)
 
 

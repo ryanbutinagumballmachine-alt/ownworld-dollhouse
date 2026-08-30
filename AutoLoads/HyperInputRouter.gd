@@ -156,6 +156,7 @@ func _unhandled_input(event: InputEvent) -> void:
 			if not _is_any_modal_open():
 				var clicked: OwnEntity = interaction_controller.get_topmost_entity(world_pos, 0.0) if is_instance_valid(interaction_controller) else null
 				if clicked and is_instance_valid(magic_wheel):
+					_cancel_drag()
 					_trigger_haptic(40)
 					magic_wheel.open_wheel_for_entity(clicked, screen_pos)
 		elif mb.button_index in [MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_DOWN, MOUSE_BUTTON_MIDDLE]:
