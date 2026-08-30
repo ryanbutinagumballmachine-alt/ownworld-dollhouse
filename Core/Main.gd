@@ -1,7 +1,3 @@
-# ============================================================
-# File: res://Core/Main.gd
-# ============================================================
-
 # ==============================================================================
 # OWNWORLD — MAIN APPLICATION ORCHESTRATOR (HYPER OPTIMIZED)
 # File: res://Core/Main.gd
@@ -47,6 +43,7 @@ var universe_journal_ui: CanvasLayer = null
 var magic_wheel_ui: MagicWheel = null
 var lore_card_ui: CanvasLayer = null
 var tutorial_dialog: TutorialDialog = null
+var update_dialog: UpdateDialog = null
 
 var pose_anim_studio_ui: PoseAnimationStudioDialog = null
 var snap_studio_ui: SnapPointStudioDialog = null
@@ -175,7 +172,10 @@ func _handle_mobile_back_button() -> void:
 		drawer_tray_ui._toggle_drawer_state()
 		return
 	if tutorial_dialog != null and tutorial_dialog.visible:
-		tutorial_dialog.close_handbook()
+		tutorial_dialog.close_dialog()
+		return
+	if update_dialog != null and update_dialog.visible:
+		update_dialog.close_dialog()
 		return
 	for ui: Node in get_tree().get_nodes_in_group("modal_ui"):
 		if is_instance_valid(ui) and ui != main_menu_ui:
@@ -260,6 +260,7 @@ func _mount_subsystems() -> void:
 	main_menu_ui.open_recipe_studio_requested.connect(func() -> void: if recipe_studio_dialog: recipe_studio_dialog.open_studio())
 	main_menu_ui.open_theme_studio_requested.connect(func() -> void: if theme_studio_dialog: theme_studio_dialog.open_studio())
 	main_menu_ui.open_settings_requested.connect(func() -> void: if settings_dialog: settings_dialog.open_settings())
+	main_menu_ui.open_update_dialog_requested.connect(func() -> void: if update_dialog: update_dialog.open_and_check())
 	add_child(main_menu_ui)
 
 	world_map_screen = WorldMapController.new()
@@ -322,6 +323,9 @@ func _mount_subsystems() -> void:
 
 	settings_dialog = SettingsDialog.new()
 	add_child(settings_dialog)
+
+	update_dialog = UpdateDialog.new()
+	add_child(update_dialog)
 
 	diagnostic_overlay = DiagnosticOverlay.new()
 	add_child(diagnostic_overlay)

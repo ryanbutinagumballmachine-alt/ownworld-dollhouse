@@ -1,12 +1,18 @@
 # ==============================================================================
-# OWNWORLD — MAIN MENU UI (HYPER OPTIMIZED)
+# OWNWORLD — MAIN MENU UI (HYPER OPTIMIZED & LAYER 120)
 # File: res://UI/MainMenuUI.gd
 # Base Class: HyperUIDialog
+#
+# Responsibility: Master title and hub navigation interface. Provides responsive
+# access to sandbox play, world maps, lore journals, studios, settings, and updates.
 # ==============================================================================
 
 class_name MainMenuUI
 extends HyperUIDialog
 
+# ------------------------------------------------------------------------------
+# UI REFERENCES
+# ------------------------------------------------------------------------------
 var title_lbl: Label = null
 var sub_lbl: Label = null
 var story_info_box: PanelContainer = null
@@ -14,8 +20,9 @@ var universe_info_lbl: Label = null
 var menu_grid: GridContainer = null
 var btn_quit: Button = null
 
-var _last_progress_pct: int = -1
-
+# ------------------------------------------------------------------------------
+# SIGNALS
+# ------------------------------------------------------------------------------
 signal enter_sandbox_requested()
 signal open_universe_hub_requested()
 signal open_world_map_requested()
@@ -24,11 +31,17 @@ signal open_room_studio_requested()
 signal open_recipe_studio_requested()
 signal open_theme_studio_requested()
 signal open_settings_requested()
+signal open_update_dialog_requested()
 signal open_tutorial_requested()
 
+
+# ------------------------------------------------------------------------------
+# INITIALIZATION & SETUP
+# ------------------------------------------------------------------------------
 func _init() -> void:
 	max_panel_width = 620.0
 	max_panel_height = 560.0
+
 
 func _build_content() -> void:
 	name = "MainMenuUI"
@@ -109,40 +122,8 @@ func _build_content() -> void:
 		open_theme_studio_requested.emit()
 	)
 	_add_menu_btn(menu_grid, "Check for Updates", "icon_refresh", btn_h, func() -> void:
-		EventBus.notification_requested.emit("Checking for updates...", true)
-		_last_progress_pct = -1
-
-		UpdateManager.check_for_updates(self, func(status: int, tag: String, download_url: String, message: String) -> void:
-			match status:
-				UpdateManager.CheckResult.UPDATE_AVAILABLE:
-					EventBus.notification_requested.emit("Downloading update %s..." % tag, true)
-					UpdateManager.download_and_install_update(
-						self,
-						download_url,
-						func(progress: float, downloaded: int, total: int) -> void:
-							if total > 0:
-								var pct: int = int(progress * 100.0)
-								if pct % 20 == 0 and pct != _last_progress_pct:
-									_last_progress_pct = pct
-									EventBus.notification_requested.emit("Downloading: %d%%" % pct, true)
-							else:
-								var mb: float = float(downloaded) / 1048576.0
-								EventBus.notification_requested.emit("Downloaded: %.1f MB" % mb, true),
-						func() -> void:
-							EventBus.notification_requested.emit("Download complete! Launching installer...", true),
-						func(err: String) -> void:
-							EventBus.notification_requested.emit("Update error: " + err, false)
-					)
-
-				UpdateManager.CheckResult.UP_TO_DATE:
-					EventBus.notification_requested.emit(message, true)
-
-				UpdateManager.CheckResult.NO_APK_FOUND:
-					EventBus.notification_requested.emit(message, false)
-
-				UpdateManager.CheckResult.ERROR:
-					EventBus.notification_requested.emit(message, false)
-		)
+		close_menu()
+		open_update_dialog_requested.emit()
 	)
 	_add_menu_btn(menu_grid, "Creator Handbook", "icon_lore", btn_h, func() -> void:
 		close_menu()
@@ -166,6 +147,7 @@ func _build_content() -> void:
 	btn_quit.pressed.connect(_on_quit_pressed)
 	main_vbox.add_child(btn_quit)
 
+
 func _unhandled_input(event: InputEvent) -> void:
 	if not visible:
 		return
@@ -174,17 +156,21 @@ func _unhandled_input(event: InputEvent) -> void:
 			close_menu()
 			get_viewport().set_input_as_handled()
 
+
 func _update_responsive_layout() -> void:
 	super._update_responsive_layout()
 	if menu_grid != null and root_panel != null:
 		menu_grid.columns = 2 if root_panel.size.x >= 420.0 else 1
 
+
 func open_menu() -> void:
 	_update_story_info_display()
 	open_dialog()
 
+
 func close_menu() -> void:
 	close_dialog()
+
 
 func _update_story_info_display() -> void:
 	if universe_info_lbl == null: 
@@ -193,6 +179,7 @@ func _update_story_info_display() -> void:
 		AppState.universe_name,
 		AppState.room_id
 	]
+
 
 func _add_menu_btn(parent: GridContainer, btn_text: String, icon_key: String, btn_h: float, on_pressed: Callable) -> void:
 	var is_mob: bool = is_mobile()
@@ -207,6 +194,7 @@ func _add_menu_btn(parent: GridContainer, btn_text: String, icon_key: String, bt
 	apply_button_icon(btn, icon_key)
 	btn.pressed.connect(on_pressed)
 	parent.add_child(btn)
+
 
 func _on_theme_updated() -> void:
 	apply_button_icon(btn_quit, "icon_quit")
@@ -224,6 +212,7 @@ func _on_theme_updated() -> void:
 	var count: int = mini(buttons.size(), icon_keys.size())
 	for index: int in range(count):
 		apply_button_icon(buttons[index], icon_keys[index])
+
 
 func _on_quit_pressed() -> void:
 	var tree: SceneTree = get_tree()

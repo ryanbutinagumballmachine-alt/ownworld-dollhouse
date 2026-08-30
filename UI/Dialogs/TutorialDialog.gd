@@ -1,11 +1,11 @@
-# ============================================================
-# File: res://UI/Dialogs/TutorialDialog.gd
-# ============================================================
-
 # ==============================================================================
 # OWNWORLD — IN-GAME CREATOR HANDBOOK (HYPER OPTIMIZED & LAYER 120)
 # File: res://UI/Dialogs/TutorialDialog.gd
 # Base Class: HyperUIDialog
+#
+# Responsibility: Master interactive creator guide. Provides searchable chapters
+# covering controls, drawer storage, UGC art, animation pipelines, sockets,
+# physics, logic scripting, and in-app updates.
 # ==============================================================================
 
 class_name TutorialDialog
@@ -48,7 +48,7 @@ var tutorial_chapters: Array[Dictionary] = [
 			},
 			{
 				"title": "The Top Navigation Bar",
-				"body": "• Menu: Opens the Main Menu to access settings, tutorials, and universe options.\n• Guide: Opens this Creator Handbook anytime.\n• Floors: Quick dropdown to switch between floors in your active building.\n• Zoom: Toggles Focus Mode for close-up camera inspection.\n• Map: Opens the World Map to travel between buildings.\n• Room: Opens the Room Studio to customize wallpapers and floor heights.\n• Undo: Step backward through your recent actions (you can also press Ctrl+Z on PC)."
+				"body": "• Menu: Opens the Main Menu to access settings, tutorials, updates, and universe options.\n• Guide: Opens this Creator Handbook anytime.\n• Floors: Quick dropdown to switch between floors in your active building.\n• Zoom: Toggles Focus Mode for close-up camera inspection.\n• Map: Opens the World Map to travel between buildings.\n• Room: Opens the Room Studio to customize wallpapers and floor heights.\n• Undo: Step backward through your recent actions (you can also press Ctrl+Z on PC)."
 			}
 		]
 	},
@@ -350,7 +350,7 @@ var tutorial_chapters: Array[Dictionary] = [
 	},
 	{
 		"id": "universes_packs_settings",
-		"title": "14. Universes, Sharing Packs & Settings",
+		"title": "14. Universes, Sharing, In-App Updates & Settings",
 		"icon": "icon_settings",
 		"badge": "Settings",
 		"sections": [
@@ -365,6 +365,10 @@ var tutorial_chapters: Array[Dictionary] = [
 			{
 				"title": "Importing Story Packs",
 				"body": "Download an .ownpack file created by a friend and tap 'Import (.ownpack)' in the Universe Hub to load and explore their world in one tap!"
+			},
+			{
+				"title": "In-App Updates & Changelogs",
+				"body": "Stay up to date with new features effortlessly!\n• Check for Updates: Open the Main Menu and tap 'Check for Updates' to query the latest GitHub release.\n• Review Release Notes: The dialog displays full changelogs and new feature lists.\n• High-Speed Download: Downloads updates with high throughput and live MB/s and ETA metrics.\n• Native Installation: On Android, the APK installer automatically launches when downloading finishes. On Windows, the installer or updated package opens directly."
 			},
 			{
 				"title": "Dynamic Motion & Juice Controls",
@@ -411,7 +415,7 @@ func _build_content() -> void:
 	header_hbox.add_child(header_title_lbl)
 
 	search_input = LineEdit.new()
-	search_input.placeholder_text = "Search topics (drawings, outfits, food, rules)..."
+	search_input.placeholder_text = "Search topics (drawings, outfits, food, rules, updates)..."
 	search_input.custom_minimum_size = Vector2(260.0 if is_mob else 200.0, 32.0 if is_mob else 26.0)
 	search_input.text_changed.connect(_on_search_query_changed)
 	register_keyboard_dodge(search_input)
