@@ -6,6 +6,9 @@
 # OWNWORLD — LOGIC RULE EDITOR (LAYER 120 & SUB-MODAL PICKER)
 # File: res://UI/Dialogs/LogicRuleEditorDialog.gd
 # Base Class: HyperUIDialog
+#
+# Responsibility: Visual trigger condition builder and action dispatcher.
+# Integrates cause-and-effect rules with Layer 125 sub-modal item spawn pickers.
 # ==============================================================================
 
 class_name LogicRuleEditorDialog
@@ -114,7 +117,7 @@ func _build_content() -> void:
 	rules_list_vbox.add_theme_constant_override("separation", 4)
 	rules_scroll.add_child(rules_list_vbox)
 
-	# Configure nested picker to float at Layer 125 above this dialog (Layer 120)
+	# Configure nested picker with sub-modal priority (Layer 125) above this dialog (Layer 120)
 	asset_picker = AssetPickerDialog.new()
 	asset_picker.set_sub_modal_priority(true)
 	add_child(asset_picker)

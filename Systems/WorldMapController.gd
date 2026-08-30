@@ -1,3 +1,7 @@
+# ============================================================
+# File: res://Systems/WorldMapController.gd
+# ============================================================
+
 # ==============================================================================
 # OWNWORLD — WORLD MAP CONTROLLER (LANDSCAPE SAFE & TOUCH OPTIMIZED)
 # File: res://Systems/WorldMapController.gd
@@ -66,6 +70,7 @@ func _ready() -> void:
 	_setup_keyboard_dodging()
 
 	asset_picker = AssetPickerDialog.new()
+	asset_picker.set_sub_modal_priority(true)
 	add_child(asset_picker)
 
 	if not ThemeService.theme_changed.is_connected(_on_theme_changed):

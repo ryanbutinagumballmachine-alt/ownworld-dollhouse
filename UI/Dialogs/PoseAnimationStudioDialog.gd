@@ -1,7 +1,15 @@
+# ============================================================
+# File: res://UI/Dialogs/PoseAnimationStudioDialog.gd
+# ============================================================
+
 # ==============================================================================
 # OWNWORLD — UNIFIED POSE & ANIMATION STUDIO (LAYER 120 & SUB-MODAL PICKER)
 # File: res://UI/Dialogs/PoseAnimationStudioDialog.gd
 # Base Class: HyperUIDialog
+#
+# Responsibility: Multi-tab pose, state, and animation manager. Supports
+# interactive testing mannequins, timeline GIF imports, and sprite sheet slicing
+# with Layer 125 sub-modal priority asset selection.
 # ==============================================================================
 
 class_name PoseAnimationStudioDialog
@@ -160,7 +168,7 @@ func _build_content() -> void:
 	_build_timeline_tab(row_h, is_mob)
 	_build_slicer_tab(row_h, is_mob)
 
-	# Configure nested picker to float at Layer 125 above this dialog (Layer 120)
+	# Configure nested picker with sub-modal priority (Layer 125) above this dialog (Layer 120)
 	asset_picker = AssetPickerDialog.new()
 	asset_picker.set_sub_modal_priority(true)
 	add_child(asset_picker)

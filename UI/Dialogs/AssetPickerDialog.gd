@@ -40,6 +40,7 @@ signal picker_closed()
 func _init() -> void:
 	max_panel_width = 640.0
 	max_panel_height = 560.0
+	is_sub_modal = true
 	set_sub_modal_priority(true)
 
 
@@ -162,6 +163,7 @@ func _update_responsive_layout() -> void:
 
 
 func open_picker(prompt_title: String = "Select Artwork", default_folder: String = "", on_selected_callback: Callable = Callable()) -> void:
+	set_sub_modal_priority(true)
 	header_title_lbl.text = prompt_title
 	current_virtual_folder = default_folder.strip_edges()
 	current_select_callback = on_selected_callback

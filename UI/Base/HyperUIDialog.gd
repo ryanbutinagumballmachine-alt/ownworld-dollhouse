@@ -21,6 +21,9 @@ const SUB_MODAL_LAYER: int = 125
 var max_panel_width: float = 600.0
 var max_panel_height: float = 500.0
 
+## Tracks if this dialog is a child sub-modal (Layer 125) or top-level dialog (Layer 120)
+var is_sub_modal: bool = false
+
 var root_backdrop: Control = null
 var center_container: CenterContainer = null
 var root_panel: PanelContainer = null
@@ -30,11 +33,11 @@ signal dialog_closed()
 
 
 func _init() -> void:
-	layer = MODAL_BASE_LAYER
+	layer = SUB_MODAL_LAYER if is_sub_modal else MODAL_BASE_LAYER
 
 
 func _ready() -> void:
-	layer = MODAL_BASE_LAYER
+	layer = SUB_MODAL_LAYER if is_sub_modal else MODAL_BASE_LAYER
 	visible = false
 	add_to_group("modal_ui")
 	_build_base_ui()
@@ -65,6 +68,7 @@ func is_mobile() -> bool:
 
 
 func open_dialog() -> void:
+	layer = SUB_MODAL_LAYER if is_sub_modal else MODAL_BASE_LAYER
 	_update_responsive_layout()
 	visible = true
 	dialog_opened.emit()
@@ -77,7 +81,8 @@ func close_dialog() -> void:
 	EventBus.modal_closed.emit(name)
 
 
-func set_sub_modal_priority(is_sub_modal: bool = true) -> void:
+func set_sub_modal_priority(p_is_sub_modal: bool = true) -> void:
+	is_sub_modal = p_is_sub_modal
 	layer = SUB_MODAL_LAYER if is_sub_modal else MODAL_BASE_LAYER
 
 

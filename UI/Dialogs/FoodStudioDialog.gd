@@ -6,6 +6,9 @@
 # OWNWORLD — FOOD & DRINK STUDIO (LAYER 120 & SUB-MODAL PICKER)
 # File: res://UI/Dialogs/FoodStudioDialog.gd
 # Base Class: HyperUIDialog
+#
+# Responsibility: Configures consumable food bite progressions, drink modes,
+# infinite snack toggles, and sub-modal stage art selection.
 # ==============================================================================
 
 class_name FoodStudioDialog
@@ -126,7 +129,7 @@ func _build_content() -> void:
 	btn_save.pressed.connect(_on_save_pressed)
 	main_vbox.add_child(btn_save)
 
-	# Configure nested picker to float at Layer 125 above this dialog (Layer 120)
+	# Configure nested picker with sub-modal priority (Layer 125) above this dialog (Layer 120)
 	asset_picker = AssetPickerDialog.new()
 	asset_picker.set_sub_modal_priority(true)
 	add_child(asset_picker)
