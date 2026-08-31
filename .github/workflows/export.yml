@@ -43,19 +43,6 @@ jobs:
           mv templates/* ~/.local/share/godot/export_templates/${{ env.GODOT_VERSION }}.${{ env.GODOT_STATUS }}/
           rm -rf templates Godot_v*
 
-      - name: 🔢 Synchronize Version Numbers
-        run: |
-          # 1. Update project.godot version so runtime UpdateManager recognizes the new version
-          if grep -q "config/version=" project.godot; then
-            sed -i 's/config\/version="[^"]*"/config\/version="1.0.${{ github.run_number }}"/g' project.godot
-          else
-            sed -i '/\[application\]/a config/version="1.0.${{ github.run_number }}"' project.godot
-          fi
-
-          # 2. Update Windows metadata in export_presets.cfg
-          sed -i 's/application\/file_version="[^"]*"/application\/file_version="1.0.${{ github.run_number }}"/g' export_presets.cfg
-          sed -i 's/application\/product_version="[^"]*"/application\/product_version="1.0.${{ github.run_number }}"/g' export_presets.cfg
-
       - name: 🔨 Build Windows Export
         run: |
           mkdir -p build/windows
@@ -130,7 +117,6 @@ jobs:
           CONFIG_DIR="$HOME/.config/godot"
           mkdir -p "$CONFIG_DIR"
           
-          # Configure both debug and release keystore paths so export-release succeeds
           SETTINGS_BODY=$(cat <<EOF
           [gd_resource type="EditorSettings" format=3]
 
@@ -140,9 +126,6 @@ jobs:
           export/android/debug_keystore = "$GITHUB_WORKSPACE/release.keystore"
           export/android/debug_keystore_user = "$KEY_ALIAS"
           export/android/debug_keystore_pass = "$STORE_PASS"
-          export/android/release_keystore = "$GITHUB_WORKSPACE/release.keystore"
-          export/android/release_keystore_user = "$KEY_ALIAS"
-          export/android/release_keystore_pass = "$STORE_PASS"
           export/android/force_system_user = false
           export/android/shutdown_adb_on_exit = true
           EOF
@@ -153,18 +136,11 @@ jobs:
           echo "$SETTINGS_BODY" > "$CONFIG_DIR/editor_settings-${MAJOR_MINOR}.tres"
           echo "$SETTINGS_BODY" > "$CONFIG_DIR/editor_settings-${{ env.GODOT_VERSION }}.tres"
 
-          # 1. Update project.godot version so runtime UpdateManager recognizes the new version
-          if grep -q "config/version=" project.godot; then
-            sed -i 's/config\/version="[^"]*"/config\/version="1.0.${{ github.run_number }}"/g' project.godot
-          else
-            sed -i '/\[application\]/a config/version="1.0.${{ github.run_number }}"' project.godot
-          fi
-
-          # 2. Update Android Version Code & Version Name in export_presets.cfg
+          # Automatically update version code & version name with GitHub Run Number
           sed -i "s/version\/code=.*/version\/code=${{ github.run_number }}/g" export_presets.cfg
           sed -i "s/version\/name=.*/version\/name=\"1.0.${{ github.run_number }}\"/g" export_presets.cfg
 
-          # Ensure ETC2/ASTC texture compression is enabled
+          # Ensure ETC2/ASTC compression is enabled in project.godot
           if ! grep -q "textures/vram_compression/import_etc2_astc" project.godot; then
             if ! grep -q "\[rendering\]" project.godot; then
               echo -e "\n[rendering]\ntextures/vram_compression/import_etc2_astc=true" >> project.godot
@@ -173,18 +149,18 @@ jobs:
             fi
           fi
 
-          # Re-import assets headlessly
+          # Re-import assets
           godot --headless --editor --quit-after 5 || true
 
-      - name: 🔨 Build Android Release APK
+      - name: 🔨 Build Android APK
         env:
           GODOT_ANDROID_SDK_PATH: ${{ env.ANDROID_HOME }}
-          GODOT_ANDROID_KEYSTORE_RELEASE_PATH: ${{ github.workspace }}/release.keystore
-          GODOT_ANDROID_KEYSTORE_RELEASE_USER: ${{ secrets.ANDROID_KEY_ALIAS }}
-          GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          GODOT_ANDROID_KEYSTORE_DEBUG_PATH: ${{ github.workspace }}/release.keystore
+          GODOT_ANDROID_KEYSTORE_DEBUG_USER: ${{ secrets.ANDROID_KEY_ALIAS }}
+          GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         run: |
           mkdir -p build/android
-          godot --headless --export-release "Android" build/android/${{ env.EXPORT_NAME }}.apk
+          godot --headless --export-debug "Android" build/android/${{ env.EXPORT_NAME }}.apk
 
       - name: 🚀 Upload Android Artifact
         uses: actions/upload-artifact@v4
