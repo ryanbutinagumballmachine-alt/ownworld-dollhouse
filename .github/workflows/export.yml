@@ -32,27 +32,26 @@ jobs:
 
       - name: ⚙️ Setup Godot & Export Templates
         run: |
-          # 1. Prepare export template destination directory
           TEMPLATE_DIR="$HOME/.local/share/godot/export_templates/${{ env.GODOT_VERSION }}.${{ env.GODOT_STATUS }}"
           mkdir -p "$TEMPLATE_DIR"
           
-          # 2. Download Godot Headless Engine & Templates (fail-fast with retries)
+          # Download Godot Linux binary and official export templates with retry
           curl -fL --retry 3 "https://github.com/godotengine/godot/releases/download/${{ env.GODOT_VERSION }}-${{ env.GODOT_STATUS }}/Godot_v${{ env.GODOT_VERSION }}-${{ env.GODOT_STATUS }}_linux.x86_64.zip" -o godot.zip
           curl -fL --retry 3 "https://github.com/godotengine/godot/releases/download/${{ env.GODOT_VERSION }}-${{ env.GODOT_STATUS }}/Godot_v${{ env.GODOT_VERSION }}-${{ env.GODOT_STATUS }}_export_templates.tpz" -o templates.tpz
           
-          # 3. Extract and install Godot binary
+          # Extract and install binary to PATH
           unzip -q godot.zip
           sudo mv Godot_v${{ env.GODOT_VERSION }}-${{ env.GODOT_STATUS }}_linux.x86_64 /usr/local/bin/godot
           sudo chmod +x /usr/local/bin/godot
           
-          # 4. Extract and relocate export templates
+          # Extract templates to local share path
           unzip -q templates.tpz
           mv templates/* "$TEMPLATE_DIR/"
           rm -rf templates godot.zip templates.tpz
 
       - name: 🔢 Synchronize Version Numbers & Sanitize Line Endings
         run: |
-          # Remove carriage returns from Windows CRLF formatting to prevent regex breakage
+          # Sanitize CRLF carriage returns from Windows checkouts
           sed -i 's/\r$//' project.godot export_presets.cfg || true
 
           # 1. Update project.godot application version
@@ -123,7 +122,7 @@ jobs:
           STORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
         run: |
-          # Verify all required Android signing credentials exist before proceeding
+          # Validate all required Android credentials exist before proceeding
           if [ -z "$KEYSTORE_BASE64" ]; then
             echo "::error ::Missing ANDROID_KEYSTORE_BASE64 secret!"
             exit 1
@@ -166,18 +165,9 @@ jobs:
           CONFIG_DIR="$HOME/.config/godot"
           mkdir -p "$CONFIG_DIR"
           
-          # Configure Godot EditorSettings with Android SDK and Debug fallback path
-          cat <<EOF > "$CONFIG_DIR/editor_settings-4.tres"
-[gd_resource type="EditorSettings" format=3]
-
-[resource]
-export/android/android_sdk_path = "$ANDROID_HOME"
-export/android/java_sdk_path = "$JAVA_HOME"
-export/android/debug_keystore = "$GITHUB_WORKSPACE/release.keystore"
-export/android/debug_keystore_user = "$KEY_ALIAS"
-export/android/debug_keystore_pass = "$STORE_PASS"
-export/android/shutdown_adb_on_exit = true
-EOF
+          # Generate editor_settings-4.tres with safe printf formatting to preserve strict YAML indentation
+          printf '[gd_resource type="EditorSettings" format=3]\n\n[resource]\nexport/android/android_sdk_path = "%s"\nexport/android/java_sdk_path = "%s"\nexport/android/debug_keystore = "%s/release.keystore"\nexport/android/debug_keystore_user = "%s"\nexport/android/debug_keystore_pass = "%s"\nexport/android/shutdown_adb_on_exit = true\n' \
+            "$ANDROID_HOME" "$JAVA_HOME" "$GITHUB_WORKSPACE" "$KEY_ALIAS" "$STORE_PASS" > "$CONFIG_DIR/editor_settings-4.tres"
 
           # 1. Synchronize project version
           if grep -q "config/version=" project.godot; then
