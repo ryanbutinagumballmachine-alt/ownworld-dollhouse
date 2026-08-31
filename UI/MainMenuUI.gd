@@ -1,3 +1,7 @@
+# ============================================================
+# File: res://UI/MainMenuUI.gd
+# ============================================================
+
 # ==============================================================================
 # OWNWORLD — MAIN MENU UI (HYPER OPTIMIZED & LAYER 120)
 # File: res://UI/MainMenuUI.gd
@@ -18,6 +22,7 @@ var sub_lbl: Label = null
 var story_info_box: PanelContainer = null
 var universe_info_lbl: Label = null
 var menu_grid: GridContainer = null
+var btn_updates: Button = null
 var btn_quit: Button = null
 
 # ------------------------------------------------------------------------------
@@ -121,10 +126,12 @@ func _build_content() -> void:
 		close_menu()
 		open_theme_studio_requested.emit()
 	)
-	_add_menu_btn(menu_grid, "Check for Updates", "icon_refresh", btn_h, func() -> void:
+	
+	btn_updates = _add_menu_btn(menu_grid, "Check for Updates", "icon_refresh", btn_h, func() -> void:
 		close_menu()
 		open_update_dialog_requested.emit()
 	)
+	
 	_add_menu_btn(menu_grid, "Creator Handbook", "icon_lore", btn_h, func() -> void:
 		close_menu()
 		open_tutorial_requested.emit()
@@ -172,6 +179,18 @@ func close_menu() -> void:
 	close_dialog()
 
 
+## Dynamically sets an update badge on the Check for Updates menu button.
+func set_update_badge(has_update: bool, version_tag: String = "") -> void:
+	if not is_instance_valid(btn_updates):
+		return
+	if has_update:
+		btn_updates.text = " ✨ Update Ready (%s)" % (version_tag if not version_tag.is_empty() else "New")
+		btn_updates.add_theme_color_override("font_color", ThemeService.get_color("accent_primary", "#ec4899"))
+	else:
+		btn_updates.text = " Check for Updates"
+		btn_updates.remove_theme_color_override("font_color")
+
+
 func _update_story_info_display() -> void:
 	if not is_instance_valid(universe_info_lbl): 
 		return
@@ -181,7 +200,7 @@ func _update_story_info_display() -> void:
 	]
 
 
-func _add_menu_btn(parent: GridContainer, btn_text: String, icon_key: String, btn_h: float, on_pressed: Callable) -> void:
+func _add_menu_btn(parent: GridContainer, btn_text: String, icon_key: String, btn_h: float, on_pressed: Callable) -> Button:
 	var is_mob: bool = is_mobile()
 	var btn: Button = Button.new()
 	btn.text = " " + btn_text
@@ -194,6 +213,7 @@ func _add_menu_btn(parent: GridContainer, btn_text: String, icon_key: String, bt
 	apply_button_icon(btn, icon_key)
 	btn.pressed.connect(on_pressed)
 	parent.add_child(btn)
+	return btn
 
 
 func _on_theme_updated() -> void:

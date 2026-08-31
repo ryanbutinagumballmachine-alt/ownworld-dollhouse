@@ -1,3 +1,7 @@
+# ============================================================
+# File: res://UI/TopNavBar.gd
+# ============================================================
+
 # ==============================================================================
 # OWNWORLD — TOP NAVIGATION BAR (LANDSCAPE SAFE & OS-ADAPTIVE)
 # File: res://UI/TopNavBar.gd
@@ -105,6 +109,17 @@ func _build_nav_ui() -> void:
 
 	btn_undo = _create_nav_btn("Undo", "icon_undo", btn_height, func() -> void: undo_requested.emit(), "Undo (Ctrl+Z)")
 	hbox.add_child(btn_undo)
+
+
+## Sets a subtle notification indicator on the Menu button.
+func set_update_indicator(has_update: bool) -> void:
+	if not is_instance_valid(btn_menu):
+		return
+	btn_menu.text = " Menu •" if has_update else " Menu"
+	if has_update:
+		btn_menu.add_theme_color_override("font_color", ThemeService.get_color("accent_primary", "#ec4899"))
+	else:
+		btn_menu.remove_theme_color_override("font_color")
 
 
 ## Returns the exact bottom Y screen coordinate of the navigation capsule for dynamic toast positioning.

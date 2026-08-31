@@ -1,3 +1,7 @@
+# ============================================================
+# File: res://UI/Dialogs/SettingsDialog.gd
+# ============================================================
+
 # ==============================================================================
 # OWNWORLD — SETTINGS DIALOG (HYPER OPTIMIZED & LAYER 120)
 # File: res://UI/Dialogs/SettingsDialog.gd
@@ -26,6 +30,10 @@ var grid_check: CheckBox = null
 var toasts_check: CheckBox = null
 var dev_mode_check: CheckBox = null
 var dev_simulate_mobile_check: CheckBox = null
+
+var check_auto_updates: CheckBox = null
+var check_warn_cellular: CheckBox = null
+var opt_update_channel: OptionButton = null
 
 var check_juice_master: CheckBox = null
 var juice_sub_container: VBoxContainer = null
@@ -105,6 +113,7 @@ func _build_content() -> void:
 	col_right.add_theme_constant_override("separation", 8)
 	categories_grid.add_child(col_right)
 
+	_build_updates_section(col_right, is_mob, row_h)
 	_build_juice_section(col_right, is_mob, row_h)
 	_build_danger_section(col_right, is_mob)
 
@@ -270,6 +279,53 @@ func _build_display_section(parent: VBoxContainer, is_mob: bool, row_h: float) -
 		dev_simulate_mobile_check.button_pressed = SettingsManager.is_simulating_mobile_layout()
 		dev_simulate_mobile_check.toggled.connect(func(v: bool) -> void: SettingsManager.set_simulating_mobile_layout(v))
 		display_inner.add_child(dev_simulate_mobile_check)
+
+
+func _build_updates_section(parent: VBoxContainer, is_mob: bool, row_h: float) -> void:
+	var update_card: PanelContainer = PanelContainer.new()
+	update_card.theme_type_variation = "SubPanel"
+	parent.add_child(update_card)
+
+	var update_vbox: VBoxContainer = VBoxContainer.new()
+	update_vbox.add_theme_constant_override("separation", 4)
+	update_card.add_child(update_vbox)
+
+	var update_title: Label = Label.new()
+	update_title.text = "Application Updates & Network:"
+	update_title.theme_type_variation = "HeaderLabel"
+	update_title.add_theme_font_size_override("font_size", 12 if is_mob else 11)
+	update_vbox.add_child(update_title)
+
+	check_auto_updates = _create_icon_check("icon_refresh", "Check for Updates on Startup", row_h)
+	check_auto_updates.button_pressed = SettingsManager.is_auto_check_updates_enabled()
+	check_auto_updates.toggled.connect(func(v: bool) -> void: SettingsManager.set_auto_check_updates_enabled(v))
+	update_vbox.add_child(check_auto_updates)
+
+	check_warn_cellular = _create_icon_check("icon_import", "Warn before downloading on Cellular Data", row_h)
+	check_warn_cellular.button_pressed = SettingsManager.is_warn_cellular_downloads_enabled()
+	check_warn_cellular.toggled.connect(func(v: bool) -> void: SettingsManager.set_warn_cellular_downloads_enabled(v))
+	update_vbox.add_child(check_warn_cellular)
+
+	var channel_hbox: HBoxContainer = HBoxContainer.new()
+	channel_hbox.add_theme_constant_override("separation", 6)
+	update_vbox.add_child(channel_hbox)
+
+	var channel_lbl: Label = Label.new()
+	channel_lbl.text = "Release Channel:"
+	channel_lbl.theme_type_variation = "HintLabel"
+	channel_lbl.add_theme_font_size_override("font_size", 11 if is_mob else 10)
+	channel_hbox.add_child(channel_lbl)
+
+	opt_update_channel = OptionButton.new()
+	opt_update_channel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	opt_update_channel.custom_minimum_size = Vector2(0.0, row_h)
+	opt_update_channel.add_item("Stable Releases (Recommended)", 0)
+	opt_update_channel.add_item("Beta / Preview Releases", 1)
+	opt_update_channel.selected = 1 if SettingsManager.is_update_channel_beta_enabled() else 0
+	opt_update_channel.item_selected.connect(func(idx: int) -> void:
+		SettingsManager.set_update_channel_beta_enabled(idx == 1)
+	)
+	channel_hbox.add_child(opt_update_channel)
 
 
 func _build_juice_section(parent: VBoxContainer, _is_mob: bool, row_h: float) -> void:
@@ -474,6 +530,8 @@ func _on_theme_updated() -> void:
 	if is_instance_valid(toasts_check): apply_checkbox_icon(toasts_check, "icon_toast")
 	if is_instance_valid(dev_mode_check): apply_checkbox_icon(dev_mode_check, "icon_dev")
 	if is_instance_valid(dev_simulate_mobile_check): apply_checkbox_icon(dev_simulate_mobile_check, "icon_states")
+	if is_instance_valid(check_auto_updates): apply_checkbox_icon(check_auto_updates, "icon_refresh")
+	if is_instance_valid(check_warn_cellular): apply_checkbox_icon(check_warn_cellular, "icon_import")
 	if is_instance_valid(check_juice_master): apply_checkbox_icon(check_juice_master, "icon_states")
 	if is_instance_valid(check_juice_idle): apply_checkbox_icon(check_juice_idle, "icon_sun")
 	if is_instance_valid(check_juice_tilts): apply_checkbox_icon(check_juice_tilts, "icon_drink")
@@ -493,6 +551,9 @@ func open_settings() -> void:
 	if is_instance_valid(grid_check): grid_check.button_pressed = SettingsManager.is_grid_snap_enabled()
 	if is_instance_valid(toasts_check): toasts_check.button_pressed = SettingsManager.are_toasts_enabled()
 	if is_instance_valid(dev_mode_check): dev_mode_check.button_pressed = SettingsManager.is_developer_mode_enabled()
+	if is_instance_valid(check_auto_updates): check_auto_updates.button_pressed = SettingsManager.is_auto_check_updates_enabled()
+	if is_instance_valid(check_warn_cellular): check_warn_cellular.button_pressed = SettingsManager.is_warn_cellular_downloads_enabled()
+	if is_instance_valid(opt_update_channel): opt_update_channel.selected = 1 if SettingsManager.is_update_channel_beta_enabled() else 0
 
 	if is_instance_valid(dev_simulate_mobile_check):
 		dev_simulate_mobile_check.button_pressed = SettingsManager.is_simulating_mobile_layout()

@@ -1,11 +1,15 @@
+# ============================================================
+# File: res://Core/Main.gd
+# ============================================================
+
 # ==============================================================================
 # OWNWORLD — MAIN APPLICATION ORCHESTRATOR (HYPER OPTIMIZED)
 # File: res://Core/Main.gd
 # Base Class: Node2D
 #
 # Responsibility: Master runtime scene orchestrator. Coordinates multi-slice
-# room rendering, smooth room transitions, safe area layout insets, and OS back gestures.
-# Input handling is fully delegated to HyperInputRouter.
+# room rendering, smooth room transitions, safe area layout insets, startup update
+# detection, and OS back gestures. Input handling is delegated to HyperInputRouter.
 # ==============================================================================
 
 extends Node2D
@@ -96,6 +100,33 @@ func _ready() -> void:
 
 	if is_instance_valid(main_menu_ui):
 		main_menu_ui.open_menu()
+
+	# Non-blocking background startup update check
+	_perform_silent_startup_update_check()
+
+
+func _perform_silent_startup_update_check() -> void:
+	if not SettingsManager.is_auto_check_updates_enabled():
+		return
+	if not is_instance_valid(update_dialog) or not is_instance_valid(update_dialog.update_manager):
+		return
+
+	var mgr: UpdateManager = update_dialog.update_manager
+	var on_startup_checked: Callable
+	on_startup_checked = func(result: UpdateManager.CheckResult, release_data: Dictionary) -> void:
+		if mgr.check_completed.is_connected(on_startup_checked):
+			mgr.check_completed.disconnect(on_startup_checked)
+
+		if result == UpdateManager.CheckResult.UPDATE_AVAILABLE:
+			var tag_name: String = str(release_data.get("tag_name", "")).strip_edges()
+			if is_instance_valid(main_menu_ui):
+				main_menu_ui.set_update_badge(true, tag_name)
+			if is_instance_valid(top_nav_bar):
+				top_nav_bar.set_update_indicator(true)
+
+	mgr.check_completed.connect(on_startup_checked)
+	var include_betas: bool = SettingsManager.is_update_channel_beta_enabled()
+	mgr.check_for_updates(include_betas)
 
 
 func _ensure_ugc_directories() -> void:

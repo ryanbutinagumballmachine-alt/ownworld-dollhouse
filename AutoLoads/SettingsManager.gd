@@ -1,3 +1,7 @@
+# ============================================================
+# File: res://AutoLoads/SettingsManager.gd
+# ============================================================
+
 # ==============================================================================
 # OWNWORLD — SETTINGS SERVICE (CROSS-PLATFORM & MOTION FX EXTENDED)
 # File: res://AutoLoads/SettingsManager.gd
@@ -6,7 +10,7 @@
 #
 # Responsibility: User configuration persistence, AudioServer decibel mapping,
 # OS-differentiated DPI scaling (Android Landscape vs. Windows Desktop PC),
-# touch padding, and master/granular procedural juice toggles.
+# touch padding, update preferences, and master/granular procedural juice toggles.
 # ==============================================================================
 
 extends Node
@@ -25,6 +29,11 @@ const DEFAULT_SHOW_TOASTS: bool = true
 const DEFAULT_HAPTICS_ENABLED: bool = true
 const DEFAULT_DEVELOPER_MODE: bool = false
 const DEFAULT_SIMULATE_MOBILE_LAYOUT: bool = false
+
+# Update & Network Defaults
+const DEFAULT_AUTO_CHECK_UPDATES: bool = true
+const DEFAULT_UPDATE_CHANNEL_BETA: bool = false
+const DEFAULT_WARN_CELLULAR_DOWNLOADS: bool = true
 
 # Touch & Scale Bounds
 const MIN_TOUCH_PADDING: float = 0.0
@@ -90,6 +99,9 @@ func load_settings() -> void:
 		"haptics_enabled": DEFAULT_HAPTICS_ENABLED,
 		"developer_mode": DEFAULT_DEVELOPER_MODE,
 		"dev_simulate_mobile_layout": DEFAULT_SIMULATE_MOBILE_LAYOUT,
+		"auto_check_updates": DEFAULT_AUTO_CHECK_UPDATES,
+		"update_channel_beta": DEFAULT_UPDATE_CHANNEL_BETA,
+		"warn_cellular_downloads": DEFAULT_WARN_CELLULAR_DOWNLOADS,
 		"touch_padding": get_default_touch_padding(),
 		"long_press_duration": get_default_long_press_duration(),
 		"juice_enabled": DEFAULT_JUICE_ENABLED,
@@ -137,6 +149,12 @@ func _normalize_settings() -> void:
 	settings_data["haptics_enabled"] = bool(settings_data.get("haptics_enabled", DEFAULT_HAPTICS_ENABLED))
 	settings_data["developer_mode"] = bool(settings_data.get("developer_mode", DEFAULT_DEVELOPER_MODE))
 	settings_data["dev_simulate_mobile_layout"] = bool(settings_data.get("dev_simulate_mobile_layout", DEFAULT_SIMULATE_MOBILE_LAYOUT))
+	
+	# Update Preferences Normalization
+	settings_data["auto_check_updates"] = bool(settings_data.get("auto_check_updates", DEFAULT_AUTO_CHECK_UPDATES))
+	settings_data["update_channel_beta"] = bool(settings_data.get("update_channel_beta", DEFAULT_UPDATE_CHANNEL_BETA))
+	settings_data["warn_cellular_downloads"] = bool(settings_data.get("warn_cellular_downloads", DEFAULT_WARN_CELLULAR_DOWNLOADS))
+
 	settings_data["touch_padding"] = clampf(float(settings_data.get("touch_padding", get_default_touch_padding())), MIN_TOUCH_PADDING, MAX_TOUCH_PADDING)
 	settings_data["long_press_duration"] = clampf(float(settings_data.get("long_press_duration", get_default_long_press_duration())), MIN_LONG_PRESS_DURATION, MAX_LONG_PRESS_DURATION)
 
@@ -147,6 +165,30 @@ func _normalize_settings() -> void:
 	settings_data["juice_physical_tilts"] = bool(settings_data.get("juice_physical_tilts", DEFAULT_JUICE_PHYSICAL_TILTS))
 	settings_data["juice_squash_stretch"] = bool(settings_data.get("juice_squash_stretch", DEFAULT_JUICE_SQUASH_STRETCH))
 	settings_data["juice_spawn_springs"] = bool(settings_data.get("juice_spawn_springs", DEFAULT_JUICE_SPAWN_SPRINGS))
+
+
+# --- UPDATE & NETWORK GETTERS & SETTERS ---
+
+func is_auto_check_updates_enabled() -> bool:
+	return bool(settings_data.get("auto_check_updates", DEFAULT_AUTO_CHECK_UPDATES))
+
+func set_auto_check_updates_enabled(enabled: bool) -> void:
+	settings_data["auto_check_updates"] = enabled
+	save_settings()
+
+func is_update_channel_beta_enabled() -> bool:
+	return bool(settings_data.get("update_channel_beta", DEFAULT_UPDATE_CHANNEL_BETA))
+
+func set_update_channel_beta_enabled(enabled: bool) -> void:
+	settings_data["update_channel_beta"] = enabled
+	save_settings()
+
+func is_warn_cellular_downloads_enabled() -> bool:
+	return bool(settings_data.get("warn_cellular_downloads", DEFAULT_WARN_CELLULAR_DOWNLOADS))
+
+func set_warn_cellular_downloads_enabled(enabled: bool) -> void:
+	settings_data["warn_cellular_downloads"] = enabled
+	save_settings()
 
 
 # --- JUICE & MOTION FX GETTERS & SETTERS ---

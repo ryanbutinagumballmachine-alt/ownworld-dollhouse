@@ -1,3 +1,7 @@
+# ============================================================
+# File: res://UI/Dialogs/UpdateDialog.gd
+# ============================================================
+
 # ==============================================================================
 # OWNWORLD — IN-APP UPDATE & CHANGELOG DIALOG (LAYER 120)
 # File: res://UI/Dialogs/UpdateDialog.gd
@@ -5,7 +9,7 @@
 #
 # Responsibility: Modal interface for checking GitHub releases, viewing release
 # notes / changelogs, live high-throughput download progress tracking (MB/s & ETA),
-# and triggering native OS installation.
+# background download status persistence, and triggering native OS installation.
 # ==============================================================================
 
 class_name UpdateDialog
@@ -33,9 +37,19 @@ var progress_speed_lbl: Label = null
 
 var action_hbox: HBoxContainer = null
 var btn_check_again: Button = null
+var btn_cancel_download: Button = null
 var btn_download_update: Button = null
 var btn_install_now: Button = null
 var btn_view_github: Button = null
+
+# Sub-modal Confirmations (Cellular & Windows Exit)
+var confirm_backdrop: Control = null
+var confirm_panel: PanelContainer = null
+var confirm_title_lbl: Label = null
+var confirm_desc_lbl: Label = null
+var btn_confirm_action: Button = null
+var btn_confirm_cancel: Button = null
+var _pending_confirm_callback: Callable = Callable()
 
 # ------------------------------------------------------------------------------
 # INTERNAL STATE
@@ -49,8 +63,8 @@ var is_downloading: bool = false
 # INITIALIZATION & SETUP
 # ------------------------------------------------------------------------------
 func _init() -> void:
-	max_panel_width = 640.0
-	max_panel_height = 540.0
+	max_panel_width = 660.0
+	max_panel_height = 560.0
 
 
 func _build_content() -> void:
@@ -137,7 +151,7 @@ func _build_content() -> void:
 	notes_panel.theme_type_variation = "SubPanel"
 	notes_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	notes_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	notes_panel.custom_minimum_size = Vector2(0.0, 140.0 if is_mob else 120.0)
+	notes_panel.custom_minimum_size = Vector2(0.0, 130.0 if is_mob else 110.0)
 	main_vbox.add_child(notes_panel)
 
 	release_notes_scroll = ScrollContainer.new()
@@ -201,7 +215,7 @@ func _build_content() -> void:
 
 	btn_check_again = Button.new()
 	btn_check_again.text = " Check Again"
-	btn_check_again.custom_minimum_size = Vector2(110.0 if is_mob else 95.0, row_h)
+	btn_check_again.custom_minimum_size = Vector2(105.0 if is_mob else 90.0, row_h)
 	btn_check_again.focus_mode = Control.FOCUS_NONE
 	btn_check_again.add_theme_constant_override("icon_max_width", 14)
 	btn_check_again.add_theme_font_size_override("font_size", 11 if is_mob else 10)
@@ -210,8 +224,8 @@ func _build_content() -> void:
 	action_hbox.add_child(btn_check_again)
 
 	btn_view_github = Button.new()
-	btn_view_github.text = " View on Web"
-	btn_view_github.custom_minimum_size = Vector2(110.0 if is_mob else 95.0, row_h)
+	btn_view_github.text = " Web"
+	btn_view_github.custom_minimum_size = Vector2(75.0 if is_mob else 65.0, row_h)
 	btn_view_github.focus_mode = Control.FOCUS_NONE
 	btn_view_github.add_theme_constant_override("icon_max_width", 14)
 	btn_view_github.add_theme_font_size_override("font_size", 11 if is_mob else 10)
@@ -222,6 +236,18 @@ func _build_content() -> void:
 	var spacer: Control = Control.new()
 	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	action_hbox.add_child(spacer)
+
+	btn_cancel_download = Button.new()
+	btn_cancel_download.text = " Cancel"
+	btn_cancel_download.theme_type_variation = "DangerButton"
+	btn_cancel_download.custom_minimum_size = Vector2(85.0 if is_mob else 75.0, row_h)
+	btn_cancel_download.focus_mode = Control.FOCUS_NONE
+	btn_cancel_download.add_theme_constant_override("icon_max_width", 12)
+	btn_cancel_download.add_theme_font_size_override("font_size", 11 if is_mob else 10)
+	apply_close_icon(btn_cancel_download)
+	btn_cancel_download.pressed.connect(_on_cancel_download_pressed)
+	btn_cancel_download.visible = false
+	action_hbox.add_child(btn_cancel_download)
 
 	btn_download_update = Button.new()
 	btn_download_update.text = " Download & Update"
@@ -245,6 +271,69 @@ func _build_content() -> void:
 	btn_install_now.visible = false
 	action_hbox.add_child(btn_install_now)
 
+	_build_confirmation_modal(row_h, is_mob)
+
+
+func _build_confirmation_modal(btn_h: float, is_mob: bool) -> void:
+	confirm_backdrop = Control.new()
+	confirm_backdrop.set_anchors_preset(Control.PRESET_FULL_RECT)
+	confirm_backdrop.mouse_filter = Control.MOUSE_FILTER_STOP
+	confirm_backdrop.visible = false
+	add_child(confirm_backdrop)
+
+	var dim: ColorRect = ColorRect.new()
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	dim.color = Color(0.0, 0.0, 0.0, 0.75)
+	dim.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	confirm_backdrop.add_child(dim)
+
+	var center: CenterContainer = CenterContainer.new()
+	center.set_anchors_preset(Control.PRESET_FULL_RECT)
+	center.mouse_filter = Control.MOUSE_FILTER_PASS
+	confirm_backdrop.add_child(center)
+
+	confirm_panel = PanelContainer.new()
+	confirm_panel.custom_minimum_size = Vector2(380.0 if is_mob else 340.0, 180.0)
+	center.add_child(confirm_panel)
+
+	var vbox: VBoxContainer = VBoxContainer.new()
+	vbox.add_theme_constant_override("separation", 8)
+	confirm_panel.add_child(vbox)
+
+	confirm_title_lbl = Label.new()
+	confirm_title_lbl.text = "CONFIRMATION"
+	confirm_title_lbl.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	confirm_title_lbl.theme_type_variation = "HeaderLabel"
+	confirm_title_lbl.add_theme_font_size_override("font_size", 13 if is_mob else 12)
+	vbox.add_child(confirm_title_lbl)
+
+	confirm_desc_lbl = Label.new()
+	confirm_desc_lbl.text = "Description text..."
+	confirm_desc_lbl.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	confirm_desc_lbl.theme_type_variation = "HintLabel"
+	confirm_desc_lbl.add_theme_font_size_override("font_size", 11 if is_mob else 10)
+	vbox.add_child(confirm_desc_lbl)
+
+	var btn_row: HBoxContainer = HBoxContainer.new()
+	btn_row.add_theme_constant_override("separation", 8)
+	vbox.add_child(btn_row)
+
+	btn_confirm_cancel = Button.new()
+	btn_confirm_cancel.text = " Cancel"
+	btn_confirm_cancel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	btn_confirm_cancel.custom_minimum_size = Vector2(0.0, btn_h)
+	apply_close_icon(btn_confirm_cancel)
+	btn_confirm_cancel.pressed.connect(func() -> void: confirm_backdrop.visible = false)
+	btn_row.add_child(btn_confirm_cancel)
+
+	btn_confirm_action = Button.new()
+	btn_confirm_action.text = " Confirm"
+	btn_confirm_action.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	btn_confirm_action.custom_minimum_size = Vector2(0.0, btn_h)
+	apply_button_icon(btn_confirm_action, "icon_play")
+	btn_confirm_action.pressed.connect(_on_confirm_action_pressed)
+	btn_row.add_child(btn_confirm_action)
+
 
 # ------------------------------------------------------------------------------
 # SIGNAL CONNECTIONS & THEME INTEGRATION
@@ -256,6 +345,7 @@ func _connect_update_manager_signals() -> void:
 	update_manager.check_completed.connect(_on_update_check_completed)
 	update_manager.download_started.connect(_on_update_download_started)
 	update_manager.download_progress.connect(_on_update_download_progress)
+	update_manager.download_paused.connect(_on_update_download_paused)
 	update_manager.download_completed.connect(_on_update_download_completed)
 	update_manager.installation_triggered.connect(_on_installation_triggered)
 	update_manager.error_occurred.connect(_on_update_error_occurred)
@@ -269,17 +359,64 @@ func _on_theme_updated() -> void:
 	apply_button_icon(btn_view_github, "icon_tag")
 	apply_button_icon(btn_download_update, "icon_import")
 	apply_button_icon(btn_install_now, "icon_play")
+	apply_close_icon(btn_cancel_download)
 	apply_close_icon(btn_close)
 
 
 # ------------------------------------------------------------------------------
 # PUBLIC API
 # ------------------------------------------------------------------------------
-## Opens the update dialog and immediately checks GitHub for the latest release.
+## Opens the update dialog with persistent download and pause state retention.
 func open_and_check() -> void:
 	open_dialog()
 	if is_instance_valid(current_version_lbl):
 		current_version_lbl.text = "Installed: v%s" % UpdateManager.get_current_app_version()
+
+	if not is_instance_valid(update_manager):
+		return
+
+	# 1. Staged package ready to install
+	if update_manager.is_package_ready():
+		_display_package_ready_state(update_manager.get_ready_package_path())
+		return
+
+	# 2. Live background download actively running
+	if update_manager.is_downloading():
+		is_downloading = true
+		var snap: Dictionary = update_manager.get_download_progress_snapshot()
+		if is_instance_valid(progress_card): progress_card.visible = true
+		if is_instance_valid(progress_bar): progress_bar.value = float(snap.get("percent", 0.0))
+		if is_instance_valid(btn_cancel_download): btn_cancel_download.visible = true
+		if is_instance_valid(btn_download_update):
+			btn_download_update.visible = true
+			btn_download_update.disabled = true
+			btn_download_update.text = " Downloading..."
+		if is_instance_valid(btn_install_now): btn_install_now.visible = false
+		return
+
+	# 3. Interrupted / paused download on disk with resume capability
+	if update_manager.is_paused() or update_manager.has_partial_download():
+		var snap: Dictionary = update_manager.get_download_progress_snapshot()
+		var downloaded_mb: float = float(snap.get("downloaded_bytes", 0)) / 1048576.0
+		var total_mb: float = float(snap.get("total_bytes", 0)) / 1048576.0
+		var pct: float = float(snap.get("percent", 0.0))
+
+		if is_instance_valid(progress_card): progress_card.visible = true
+		if is_instance_valid(progress_bar): progress_bar.value = pct
+		if is_instance_valid(progress_metrics_lbl):
+			progress_metrics_lbl.text = "Paused: %.1f MB / %.1f MB (%d%%)" % [downloaded_mb, total_mb, int(pct * 100.0)] if total_mb > 0.0 else "Paused: %.1f MB" % downloaded_mb
+		if is_instance_valid(progress_speed_lbl): progress_speed_lbl.text = "Connection paused"
+		if is_instance_valid(status_desc_lbl):
+			status_desc_lbl.text = "Download paused. Tap Resume to continue from %d%%." % int(pct * 100.0)
+			status_desc_lbl.add_theme_color_override("font_color", ThemeService.get_color("accent_primary", "#ec4899"))
+		if is_instance_valid(btn_cancel_download): btn_cancel_download.visible = true
+		if is_instance_valid(btn_download_update):
+			btn_download_update.visible = true
+			btn_download_update.disabled = false
+			btn_download_update.text = " Resume Download"
+		if is_instance_valid(btn_install_now): btn_install_now.visible = false
+		return
+
 	check_updates()
 
 
@@ -289,6 +426,9 @@ func check_updates() -> void:
 	if is_instance_valid(btn_download_update):
 		btn_download_update.visible = true
 		btn_download_update.disabled = true
+		btn_download_update.text = " Download & Update"
+	if is_instance_valid(btn_cancel_download): 
+		btn_cancel_download.visible = false
 	if is_instance_valid(btn_install_now): 
 		btn_install_now.visible = false
 	if is_instance_valid(progress_card): 
@@ -296,11 +436,28 @@ func check_updates() -> void:
 	if is_instance_valid(remote_version_lbl): 
 		remote_version_lbl.text = "Latest: Checking..."
 	if is_instance_valid(status_desc_lbl): 
-		status_desc_lbl.text = "Connecting to GitHub release feed..."
+		status_desc_lbl.text = "Connecting to release server..."
+		status_desc_lbl.remove_theme_color_override("font_color")
 	if is_instance_valid(release_notes_text): 
 		release_notes_text.text = "Fetching changelog..."
 	if is_instance_valid(update_manager):
-		update_manager.check_for_updates()
+		var include_betas: bool = bool(SettingsManager.get_setting("update_channel_beta", false))
+		update_manager.check_for_updates(include_betas)
+
+
+func _display_package_ready_state(file_path: String) -> void:
+	if is_instance_valid(btn_download_update): btn_download_update.visible = false
+	if is_instance_valid(btn_cancel_download): btn_cancel_download.visible = false
+	if is_instance_valid(btn_install_now):
+		btn_install_now.visible = true
+		btn_install_now.disabled = false
+	if is_instance_valid(progress_card): progress_card.visible = true
+	if is_instance_valid(progress_bar): progress_bar.value = 1.0
+	if is_instance_valid(progress_metrics_lbl): progress_metrics_lbl.text = "Download Ready!"
+	if is_instance_valid(progress_speed_lbl): progress_speed_lbl.text = "Package cached on device"
+	if is_instance_valid(status_desc_lbl):
+		status_desc_lbl.text = "✨ Update package ready to install: %s" % file_path.get_file()
+		status_desc_lbl.add_theme_color_override("font_color", ThemeService.get_color("accent_primary", "#ec4899"))
 
 
 # ------------------------------------------------------------------------------
@@ -335,7 +492,7 @@ func _on_update_check_completed(result: UpdateManager.CheckResult, release_data:
 				status_desc_lbl.add_theme_color_override("font_color", ThemeService.get_color("accent_primary", "#ec4899"))
 			if is_instance_valid(btn_download_update):
 				btn_download_update.disabled = false
-				btn_download_update.text = " Download & Update"
+				btn_download_update.text = " Resume Download" if (is_instance_valid(update_manager) and update_manager.has_partial_download()) else " Download & Update"
 
 		UpdateManager.CheckResult.UP_TO_DATE:
 			if is_instance_valid(status_desc_lbl):
@@ -370,19 +527,61 @@ func _on_update_check_completed(result: UpdateManager.CheckResult, release_data:
 func _on_download_button_pressed() -> void:
 	if is_downloading or not is_instance_valid(update_manager):
 		return
+
+	# Mobile Cellular Prompt
+	if is_mobile() and bool(SettingsManager.get_setting("warn_cellular_downloads", true)):
+		var size_mb: float = float(cached_release_info.get("asset_size", 0)) / 1048576.0
+		var msg: String = "Download update (%.1f MB)?\nMake sure you are connected to Wi-Fi if on a metered data plan." % size_mb if size_mb > 0 else "Download application update now?"
+		_show_confirmation_dialog("DOWNLOAD UPDATE?", msg, " Download", func() -> void:
+			_execute_download_start()
+		)
+		return
+
+	_execute_download_start()
+
+
+func _execute_download_start() -> void:
 	is_downloading = true
-	if is_instance_valid(btn_download_update): btn_download_update.disabled = true
-	if is_instance_valid(btn_check_again): btn_check_again.disabled = true
-	if is_instance_valid(progress_card): progress_card.visible = true
-	if is_instance_valid(progress_bar): progress_bar.value = 0.0
-	if is_instance_valid(status_desc_lbl): status_desc_lbl.text = "Downloading package..."
+	if is_instance_valid(btn_download_update): 
+		btn_download_update.disabled = true
+		btn_download_update.text = " Downloading..."
+	if is_instance_valid(btn_cancel_download): 
+		btn_cancel_download.visible = true
+	if is_instance_valid(btn_check_again): 
+		btn_check_again.disabled = true
+	if is_instance_valid(progress_card): 
+		progress_card.visible = true
+	if is_instance_valid(status_desc_lbl): 
+		status_desc_lbl.text = "Downloading package..."
+		status_desc_lbl.remove_theme_color_override("font_color")
 	update_manager.start_download()
 
 
-func _on_update_download_started(total_bytes: int, _target_path: String) -> void:
+func _on_cancel_download_pressed() -> void:
+	if not is_instance_valid(update_manager):
+		return
+	is_downloading = false
+	update_manager.cancel_download()
+
+	if is_instance_valid(progress_card): progress_card.visible = false
+	if is_instance_valid(btn_cancel_download): btn_cancel_download.visible = false
+	if is_instance_valid(btn_check_again): btn_check_again.disabled = false
+	if is_instance_valid(btn_download_update):
+		btn_download_update.disabled = false
+		btn_download_update.text = " Download & Update"
+	if is_instance_valid(status_desc_lbl):
+		status_desc_lbl.text = "Download cancelled."
+
+
+func _on_update_download_started(total_bytes: int, _target_path: String, is_resumed: bool) -> void:
 	var total_mb: float = float(total_bytes) / 1048576.0
+	if is_instance_valid(btn_cancel_download): 
+		btn_cancel_download.visible = true
 	if is_instance_valid(progress_metrics_lbl):
-		progress_metrics_lbl.text = "Starting download (%.1f MB)..." % total_mb if total_bytes > 0 else "Starting download stream..."
+		if is_resumed:
+			progress_metrics_lbl.text = "Resuming download (%.1f MB)..." % total_mb if total_bytes > 0 else "Resuming download..."
+		else:
+			progress_metrics_lbl.text = "Starting download (%.1f MB)..." % total_mb if total_bytes > 0 else "Starting download..."
 
 
 func _on_update_download_progress(percent: float, downloaded_bytes: int, total_bytes: int, speed_bytes_per_sec: float, eta_seconds: float) -> void:
@@ -404,27 +603,72 @@ func _on_update_download_progress(percent: float, downloaded_bytes: int, total_b
 		progress_speed_lbl.text = "%.2f MB/s • ETA: %s" % [speed_mb, eta_str]
 
 
+func _on_update_download_paused(downloaded_bytes: int, total_bytes: int, reason: String) -> void:
+	is_downloading = false
+	var downloaded_mb: float = float(downloaded_bytes) / 1048576.0
+	var total_mb: float = float(total_bytes) / 1048576.0
+	var pct: float = clampf(float(downloaded_bytes) / float(total_bytes), 0.0, 1.0) if total_bytes > 0 else 0.0
+
+	if is_instance_valid(btn_check_again): btn_check_again.disabled = false
+	if is_instance_valid(btn_cancel_download): btn_cancel_download.visible = true
+	if is_instance_valid(btn_download_update):
+		btn_download_update.visible = true
+		btn_download_update.disabled = false
+		btn_download_update.text = " Resume Download"
+
+	if is_instance_valid(progress_metrics_lbl):
+		progress_metrics_lbl.text = "Paused: %.1f MB / %.1f MB (%d%%)" % [downloaded_mb, total_mb, int(pct * 100.0)] if total_bytes > 0 else "Paused: %.1f MB" % downloaded_mb
+	if is_instance_valid(progress_speed_lbl):
+		progress_speed_lbl.text = "Connection lost"
+
+	if is_instance_valid(status_desc_lbl):
+		status_desc_lbl.text = "Download paused: %s. Tap Resume to continue." % reason
+		status_desc_lbl.add_theme_color_override("font_color", ThemeService.get_color("accent_danger", "#f43f5e"))
+
+	EventBus.notification_requested.emit("Update paused: connection lost. Tap Resume to continue.", false)
+
+
 func _on_update_download_completed(target_file_path: String) -> void:
 	is_downloading = false
 	if is_instance_valid(btn_check_again): btn_check_again.disabled = false
+	if is_instance_valid(btn_cancel_download): btn_cancel_download.visible = false
 	if is_instance_valid(progress_bar): progress_bar.value = 1.0
 	if is_instance_valid(progress_metrics_lbl): progress_metrics_lbl.text = "Download Complete!"
 	if is_instance_valid(progress_speed_lbl): progress_speed_lbl.text = "Ready to install"
-	if is_instance_valid(status_desc_lbl): status_desc_lbl.text = "Package ready: %s" % target_file_path.get_file()
+	if is_instance_valid(status_desc_lbl): 
+		status_desc_lbl.text = "Package ready: %s" % target_file_path.get_file()
+		status_desc_lbl.add_theme_color_override("font_color", ThemeService.get_color("accent_primary", "#ec4899"))
 
 	if is_instance_valid(btn_download_update): btn_download_update.visible = false
 	if is_instance_valid(btn_install_now):
 		btn_install_now.visible = true
 		btn_install_now.disabled = false
 
-	# Automatically trigger installation prompt on mobile
+	# Background notification to alert the player if they closed the modal
+	EventBus.notification_requested.emit("Update download complete! Ready to install.", true)
+
+	# Automatically trigger installation prompt on Android
 	if OS.has_feature("android") and is_instance_valid(update_manager):
 		update_manager.install_update(target_file_path)
 
 
 func _on_install_button_pressed() -> void:
-	if is_instance_valid(update_manager):
-		update_manager.install_update()
+	if not is_instance_valid(update_manager):
+		return
+
+	# On Windows: Prompt to quit game cleanly so installer process can overwrite executable
+	if OS.has_feature("windows"):
+		_show_confirmation_dialog(
+			"INSTALL & CLOSE GAME?",
+			"The game will save and close so the Windows installer can update the application files.",
+			" Install & Exit",
+			func() -> void:
+				update_manager.install_update()
+				get_tree().quit()
+		)
+		return
+
+	update_manager.install_update()
 
 
 func _on_installation_triggered(success: bool) -> void:
@@ -438,11 +682,14 @@ func _on_installation_triggered(success: bool) -> void:
 func _on_update_error_occurred(message: String) -> void:
 	is_downloading = false
 	if is_instance_valid(btn_check_again): btn_check_again.disabled = false
-	if is_instance_valid(btn_download_update): btn_download_update.disabled = false
+	if is_instance_valid(btn_cancel_download): btn_cancel_download.visible = (is_instance_valid(update_manager) and update_manager.has_partial_download())
+	if is_instance_valid(btn_download_update):
+		btn_download_update.disabled = false
+		btn_download_update.text = " Resume Download" if (is_instance_valid(update_manager) and update_manager.has_partial_download()) else " Download & Update"
+
 	if is_instance_valid(status_desc_lbl):
-		status_desc_lbl.text = "Error: %s" % message
+		status_desc_lbl.text = "Error: " + message
 		status_desc_lbl.add_theme_color_override("font_color", ThemeService.get_color("accent_danger", "#f43f5e"))
-	EventBus.notification_requested.emit(message, false)
 
 
 func _on_view_github_pressed() -> void:
@@ -450,3 +697,26 @@ func _on_view_github_pressed() -> void:
 	if release_url.is_empty():
 		release_url = "https://github.com/%s/releases" % UpdateManager.GITHUB_REPO
 	OS.shell_open(release_url)
+
+
+# ------------------------------------------------------------------------------
+# CONFIRMATION MODAL HELPER
+# ------------------------------------------------------------------------------
+func _show_confirmation_dialog(title: String, desc: String, confirm_btn_text: String, on_confirm: Callable) -> void:
+	if not is_instance_valid(confirm_backdrop):
+		if on_confirm.is_valid(): on_confirm.call()
+		return
+
+	confirm_title_lbl.text = title
+	confirm_desc_lbl.text = desc
+	btn_confirm_action.text = confirm_btn_text
+	_pending_confirm_callback = on_confirm
+	confirm_backdrop.visible = true
+
+
+func _on_confirm_action_pressed() -> void:
+	confirm_backdrop.visible = false
+	if _pending_confirm_callback.is_valid():
+		var cb: Callable = _pending_confirm_callback
+		_pending_confirm_callback = Callable()
+		cb.call()
