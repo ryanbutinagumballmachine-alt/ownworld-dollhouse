@@ -11,7 +11,7 @@ config_version=5
 [application]
 
 config/name="OwnWorld: Dollhouse"
-config/version="1.0.43"
+config/version="1.0.44"
 run/main_scene="res://Core/Main.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://icon.svg"
