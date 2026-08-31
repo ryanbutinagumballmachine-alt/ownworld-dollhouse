@@ -32,16 +32,44 @@ jobs:
 
       - name: ⚙️ Setup Godot & Export Templates
         run: |
-          mkdir -p ~/.local/share/godot/export_templates/${{ env.GODOT_VERSION }}.${{ env.GODOT_STATUS }}
-          wget -q https://github.com/godotengine/godot/releases/download/${{ env.GODOT_VERSION }}-${{ env.GODOT_STATUS }}/Godot_v${{ env.GODOT_VERSION }}-${{ env.GODOT_STATUS }}_linux.x86_64.zip
-          wget -q https://github.com/godotengine/godot/releases/download/${{ env.GODOT_VERSION }}-${{ env.GODOT_STATUS }}/Godot_v${{ env.GODOT_VERSION }}-${{ env.GODOT_STATUS }}_export_templates.tpz
+          # 1. Prepare export template destination directory
+          TEMPLATE_DIR="$HOME/.local/share/godot/export_templates/${{ env.GODOT_VERSION }}.${{ env.GODOT_STATUS }}"
+          mkdir -p "$TEMPLATE_DIR"
           
-          unzip -q Godot_v${{ env.GODOT_VERSION }}-${{ env.GODOT_STATUS }}_linux.x86_64.zip
+          # 2. Download Godot Headless Engine & Templates (fail-fast with retries)
+          curl -fL --retry 3 "https://github.com/godotengine/godot/releases/download/${{ env.GODOT_VERSION }}-${{ env.GODOT_STATUS }}/Godot_v${{ env.GODOT_VERSION }}-${{ env.GODOT_STATUS }}_linux.x86_64.zip" -o godot.zip
+          curl -fL --retry 3 "https://github.com/godotengine/godot/releases/download/${{ env.GODOT_VERSION }}-${{ env.GODOT_STATUS }}/Godot_v${{ env.GODOT_VERSION }}-${{ env.GODOT_STATUS }}_export_templates.tpz" -o templates.tpz
+          
+          # 3. Extract and install Godot binary
+          unzip -q godot.zip
           sudo mv Godot_v${{ env.GODOT_VERSION }}-${{ env.GODOT_STATUS }}_linux.x86_64 /usr/local/bin/godot
+          sudo chmod +x /usr/local/bin/godot
           
-          unzip -q Godot_v${{ env.GODOT_VERSION }}-${{ env.GODOT_STATUS }}_export_templates.tpz
-          mv templates/* ~/.local/share/godot/export_templates/${{ env.GODOT_VERSION }}.${{ env.GODOT_STATUS }}/
-          rm -rf templates Godot_v*
+          # 4. Extract and relocate export templates
+          unzip -q templates.tpz
+          mv templates/* "$TEMPLATE_DIR/"
+          rm -rf templates godot.zip templates.tpz
+
+      - name: 🔢 Synchronize Version Numbers & Sanitize Line Endings
+        run: |
+          # Remove carriage returns from Windows CRLF formatting to prevent regex breakage
+          sed -i 's/\r$//' project.godot export_presets.cfg || true
+
+          # 1. Update project.godot application version
+          if grep -q "config/version=" project.godot; then
+            sed -i 's/config\/version="[^"]*"/config\/version="1.0.${{ github.run_number }}"/g' project.godot
+          else
+            sed -i '/\[application\]/a config/version="1.0.${{ github.run_number }}"' project.godot
+          fi
+
+          # 2. Update Windows metadata in export_presets.cfg
+          sed -i 's/application\/file_version="[^"]*"/application\/file_version="1.0.${{ github.run_number }}"/g' export_presets.cfg || true
+          sed -i 's/application\/product_version="[^"]*"/application\/product_version="1.0.${{ github.run_number }}"/g' export_presets.cfg || true
+
+      - name: 🔄 Pre-Import Assets (Headless Warm-up)
+        run: |
+          # Initialize .godot resource cache prior to packaging
+          godot --headless --editor --quit || true
 
       - name: 🔨 Build Windows Export
         run: |
@@ -79,88 +107,112 @@ jobs:
           distribution: "temurin"
           java-version: "17"
 
-      - name: 📱 Setup Android SDK
+      - name: 📱 Setup Android SDK & Build Tools
         uses: android-actions/setup-android@v4
         with:
           packages: "platform-tools build-tools;34.0.0 platforms;android-34 cmdline-tools;latest"
 
-      - name: 🔑 Decode Persistent Keystore
+      - name: 🌐 Export Android Build Tools to PATH
+        run: |
+          echo "$ANDROID_HOME/build-tools/34.0.0" >> $GITHUB_PATH
+          echo "$ANDROID_HOME/platform-tools" >> $GITHUB_PATH
+
+      - name: 🔑 Validate Secrets & Decode Keystore
         env:
           KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
-        run: |
-          if [ -n "$KEYSTORE_BASE64" ]; then
-            echo "$KEYSTORE_BASE64" | base64 -d > release.keystore
-          else
-            echo "::error ::No ANDROID_KEYSTORE_BASE64 secret found! Please add it in GitHub Settings."
-            exit 1
-          fi
-
-      - name: ⚙️ Setup Godot & Export Templates
-        run: |
-          mkdir -p ~/.local/share/godot/export_templates/${{ env.GODOT_VERSION }}.${{ env.GODOT_STATUS }}
-          wget -q https://github.com/godotengine/godot/releases/download/${{ env.GODOT_VERSION }}-${{ env.GODOT_STATUS }}/Godot_v${{ env.GODOT_VERSION }}-${{ env.GODOT_STATUS }}_linux.x86_64.zip
-          wget -q https://github.com/godotengine/godot/releases/download/${{ env.GODOT_VERSION }}-${{ env.GODOT_STATUS }}/Godot_v${{ env.GODOT_VERSION }}-${{ env.GODOT_STATUS }}_export_templates.tpz
-          
-          unzip -q Godot_v${{ env.GODOT_VERSION }}-${{ env.GODOT_STATUS }}_linux.x86_64.zip
-          sudo mv Godot_v${{ env.GODOT_VERSION }}-${{ env.GODOT_STATUS }}_linux.x86_64 /usr/local/bin/godot
-          
-          unzip -q Godot_v${{ env.GODOT_VERSION }}-${{ env.GODOT_STATUS }}_export_templates.tpz
-          mv templates/* ~/.local/share/godot/export_templates/${{ env.GODOT_VERSION }}.${{ env.GODOT_STATUS }}/
-          rm -rf templates Godot_v*
-
-      - name: ⚙️ Configure Android Settings & Auto-Increment Version
-        env:
-          KEY_PASS: ${{ secrets.ANDROID_KEY_PASSWORD }}
           STORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
         run: |
+          # Verify all required Android signing credentials exist before proceeding
+          if [ -z "$KEYSTORE_BASE64" ]; then
+            echo "::error ::Missing ANDROID_KEYSTORE_BASE64 secret!"
+            exit 1
+          fi
+          if [ -z "$STORE_PASS" ]; then
+            echo "::error ::Missing ANDROID_KEYSTORE_PASSWORD secret!"
+            exit 1
+          fi
+          if [ -z "$KEY_ALIAS" ]; then
+            echo "::error ::Missing ANDROID_KEY_ALIAS secret!"
+            exit 1
+          fi
+
+          echo "$KEYSTORE_BASE64" | base64 -d > release.keystore
+
+      - name: ⚙️ Setup Godot & Export Templates
+        run: |
+          TEMPLATE_DIR="$HOME/.local/share/godot/export_templates/${{ env.GODOT_VERSION }}.${{ env.GODOT_STATUS }}"
+          mkdir -p "$TEMPLATE_DIR"
+          
+          curl -fL --retry 3 "https://github.com/godotengine/godot/releases/download/${{ env.GODOT_VERSION }}-${{ env.GODOT_STATUS }}/Godot_v${{ env.GODOT_VERSION }}-${{ env.GODOT_STATUS }}_linux.x86_64.zip" -o godot.zip
+          curl -fL --retry 3 "https://github.com/godotengine/godot/releases/download/${{ env.GODOT_VERSION }}-${{ env.GODOT_STATUS }}/Godot_v${{ env.GODOT_VERSION }}-${{ env.GODOT_STATUS }}_export_templates.tpz" -o templates.tpz
+          
+          unzip -q godot.zip
+          sudo mv Godot_v${{ env.GODOT_VERSION }}-${{ env.GODOT_STATUS }}_linux.x86_64 /usr/local/bin/godot
+          sudo chmod +x /usr/local/bin/godot
+          
+          unzip -q templates.tpz
+          mv templates/* "$TEMPLATE_DIR/"
+          rm -rf templates godot.zip templates.tpz
+
+      - name: ⚙️ Configure Android Settings & Auto-Increment Version
+        env:
+          STORE_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          # Sanitize line endings
+          sed -i 's/\r$//' project.godot export_presets.cfg || true
+
           CONFIG_DIR="$HOME/.config/godot"
           mkdir -p "$CONFIG_DIR"
           
-          SETTINGS_BODY=$(cat <<EOF
-          [gd_resource type="EditorSettings" format=3]
+          # Configure Godot EditorSettings with Android SDK and Debug fallback path
+          cat <<EOF > "$CONFIG_DIR/editor_settings-4.tres"
+[gd_resource type="EditorSettings" format=3]
 
-          [resource]
-          export/android/android_sdk_path = "$ANDROID_HOME"
-          export/android/java_sdk_path = "$JAVA_HOME"
-          export/android/debug_keystore = "$GITHUB_WORKSPACE/release.keystore"
-          export/android/debug_keystore_user = "$KEY_ALIAS"
-          export/android/debug_keystore_pass = "$STORE_PASS"
-          export/android/force_system_user = false
-          export/android/shutdown_adb_on_exit = true
-          EOF
-          )
-          
-          MAJOR_MINOR=$(echo "${{ env.GODOT_VERSION }}" | cut -d. -f1,2)
-          echo "$SETTINGS_BODY" > "$CONFIG_DIR/editor_settings-4.tres"
-          echo "$SETTINGS_BODY" > "$CONFIG_DIR/editor_settings-${MAJOR_MINOR}.tres"
-          echo "$SETTINGS_BODY" > "$CONFIG_DIR/editor_settings-${{ env.GODOT_VERSION }}.tres"
+[resource]
+export/android/android_sdk_path = "$ANDROID_HOME"
+export/android/java_sdk_path = "$JAVA_HOME"
+export/android/debug_keystore = "$GITHUB_WORKSPACE/release.keystore"
+export/android/debug_keystore_user = "$KEY_ALIAS"
+export/android/debug_keystore_pass = "$STORE_PASS"
+export/android/shutdown_adb_on_exit = true
+EOF
 
-          # Automatically update version code & version name with GitHub Run Number
+          # 1. Synchronize project version
+          if grep -q "config/version=" project.godot; then
+            sed -i 's/config\/version="[^"]*"/config\/version="1.0.${{ github.run_number }}"/g' project.godot
+          else
+            sed -i '/\[application\]/a config/version="1.0.${{ github.run_number }}"' project.godot
+          fi
+
+          # 2. Update Android Version Code & Version Name in export_presets.cfg
           sed -i "s/version\/code=.*/version\/code=${{ github.run_number }}/g" export_presets.cfg
           sed -i "s/version\/name=.*/version\/name=\"1.0.${{ github.run_number }}\"/g" export_presets.cfg
 
-          # Ensure ETC2/ASTC compression is enabled in project.godot
+          # 3. Ensure ETC2/ASTC compression is enabled for mobile platforms
           if ! grep -q "textures/vram_compression/import_etc2_astc" project.godot; then
             if ! grep -q "\[rendering\]" project.godot; then
-              echo -e "\n[rendering]\ntextures/vram_compression/import_etc2_astc=true" >> project.godot
+              printf "\n[rendering]\ntextures/vram_compression/import_etc2_astc=true\n" >> project.godot
             else
               sed -i '/\[rendering\]/a textures/vram_compression/import_etc2_astc=true' project.godot
             fi
           fi
 
-          # Re-import assets
-          godot --headless --editor --quit-after 5 || true
+      - name: 🔄 Pre-Import Assets & Mobile Texture Recompression
+        run: |
+          # Re-import assets headlessly for ETC2/ASTC mobile target
+          godot --headless --editor --quit || true
 
-      - name: 🔨 Build Android APK
+      - name: 🔨 Build Android Release APK
         env:
           GODOT_ANDROID_SDK_PATH: ${{ env.ANDROID_HOME }}
-          GODOT_ANDROID_KEYSTORE_DEBUG_PATH: ${{ github.workspace }}/release.keystore
-          GODOT_ANDROID_KEYSTORE_DEBUG_USER: ${{ secrets.ANDROID_KEY_ALIAS }}
-          GODOT_ANDROID_KEYSTORE_DEBUG_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          GODOT_ANDROID_KEYSTORE_RELEASE_PATH: ${{ github.workspace }}/release.keystore
+          GODOT_ANDROID_KEYSTORE_RELEASE_USER: ${{ secrets.ANDROID_KEY_ALIAS }}
+          GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
         run: |
           mkdir -p build/android
-          godot --headless --export-debug "Android" build/android/${{ env.EXPORT_NAME }}.apk
+          godot --headless --export-release "Android" build/android/${{ env.EXPORT_NAME }}.apk
 
       - name: 🚀 Upload Android Artifact
         uses: actions/upload-artifact@v4
@@ -195,3 +247,4 @@ jobs:
             release/*.zip
             release/*.apk
           generate_release_notes: true
+          make_latest: "true"
